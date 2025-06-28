@@ -15,7 +15,7 @@ export async function predictExpenditure(inputData: Record<string, any>) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      // Authorization: `Bearer ${token}`, r
+      Authorization: `Bearer ${token}`, 
     },
     body: JSON.stringify(inputData),
   });
