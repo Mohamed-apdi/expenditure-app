@@ -124,10 +124,30 @@ export default function DashboardScreen() {
   const monthlyProgress = (monthlySpending / monthlyBudget) * 100;
 
   const quickActions: QuickAction[] = [
-    { title: "Add Expense", icon: Plus, color: "#10b981", screen: "../(expense)/AddExpense" },
-    { title: "View Budget", icon: PieChart, color: "#3b82f6", screen: "budget" },
-    { title: "Analytics", icon: TrendingUp, color: "#8b5cf6", screen: "../(analytics)/AdvancedAnalytics" },
-    { title: "Generate Report", icon: FileText, color: "#f59e0b", screen: "reports" },
+    {
+      title: "Add Expense",
+      icon: Plus,
+      color: "#10b981",
+      screen: "../(expense)/AddExpense",
+    },
+    {
+      title: "View Budget",
+      icon: PieChart,
+      color: "#3b82f6",
+      screen: "budget",
+    },
+    {
+      title: "Analytics",
+      icon: TrendingUp,
+      color: "#8b5cf6",
+      screen: "../(analytics)/AdvancedAnalytics",
+    },
+    {
+      title: "Generate Report",
+      icon: FileText,
+      color: "#f59e0b",
+      screen: "reports",
+    },
   ];
 
   const getProgressColor = (progress: number) => {
@@ -143,7 +163,9 @@ export default function DashboardScreen() {
         <View className="flex-row justify-between items-center px-6 py-5">
           <View>
             <Text className="text-white text-2xl font-bold">Good Morning!</Text>
-            <Text className="text-slate-400 mt-1">Here's your spending overview</Text>
+            <Text className="text-slate-400 mt-1">
+              Here's your spending overview
+            </Text>
           </View>
           <TouchableOpacity className="relative">
             <Bell size={24} color="#f8fafc" />
@@ -157,11 +179,15 @@ export default function DashboardScreen() {
         <View className="bg-slate-800 mx-6 mb-5 p-5 rounded-xl border border-slate-700">
           <View className="flex-row items-center mb-4">
             <Calendar size={20} color="#10b981" />
-            <Text className="text-white font-semibold ml-2">Today's Spending</Text>
+            <Text className="text-white font-semibold ml-2">
+              Today's Spending
+            </Text>
           </View>
 
           <View className="items-center mb-5">
-            <Text className="text-emerald-500 text-4xl font-bold">${todaySpending}</Text>
+            <Text className="text-emerald-500 text-4xl font-bold">
+              ${todaySpending}
+            </Text>
             <Text className="text-slate-400">of ${dailyBudget} budget</Text>
           </View>
 
@@ -185,22 +211,35 @@ export default function DashboardScreen() {
 
         {/* Monthly Overview */}
         <View className="px-6 mb-5">
-          <Text className="text-white text-lg font-bold mb-4">Monthly Overview</Text>
+          <Text className="text-white text-lg font-bold mb-4">
+            Monthly Overview
+          </Text>
 
           <View className="flex-row gap-3 mb-4">
             <View className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 items-center">
               <DollarSign size={20} color="#10b981" />
               <Text className="text-slate-400 text-xs mt-2 mb-1">Spent</Text>
-              <Text className="text-white text-lg font-bold">${monthlySpending}</Text>
-              <Text className="text-slate-500 text-xs">of ${monthlyBudget}</Text>
+              <Text className="text-white text-lg font-bold">
+                ${monthlySpending}
+              </Text>
+              <Text className="text-slate-500 text-xs">
+                of ${monthlyBudget}
+              </Text>
             </View>
 
             <View className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 items-center">
               <TrendingDown size={20} color="#3b82f6" />
-              <Text className="text-slate-400 text-xs mt-2 mb-1">Remaining</Text>
-              <Text className="text-white text-lg font-bold">${monthlyBudget - monthlySpending}</Text>
+              <Text className="text-slate-400 text-xs mt-2 mb-1">
+                Remaining
+              </Text>
+              <Text className="text-white text-lg font-bold">
+                ${monthlyBudget - monthlySpending}
+              </Text>
               <Text className="text-slate-500 text-xs">
-                {Math.round(((monthlyBudget - monthlySpending) / monthlyBudget) * 100)}% left
+                {Math.round(
+                  ((monthlyBudget - monthlySpending) / monthlyBudget) * 100
+                )}
+                % left
               </Text>
             </View>
 
@@ -238,7 +277,9 @@ export default function DashboardScreen() {
                     className="flex-row items-center bg-slate-800 p-4 rounded-xl border border-slate-700"
                   >
                     <IconComponent size={20} color={alert.color} />
-                    <Text className="text-white flex-1 ml-3">{alert.message}</Text>
+                    <Text className="text-white flex-1 ml-3">
+                      {alert.message}
+                    </Text>
                     <ChevronRight size={16} color="#64748b" />
                   </View>
                 );
@@ -249,7 +290,9 @@ export default function DashboardScreen() {
 
         {/* Quick Actions */}
         <View className="px-6 mb-5">
-          <Text className="text-white text-lg font-bold mb-4">Quick Actions</Text>
+          <Text className="text-white text-lg font-bold mb-4">
+            Quick Actions
+          </Text>
           <View className="flex-row flex-wrap gap-3">
             {quickActions.map((action, index) => {
               const IconComponent = action.icon;
@@ -265,7 +308,9 @@ export default function DashboardScreen() {
                   >
                     <IconComponent size={24} color={action.color} />
                   </View>
-                  <Text className="text-white font-medium text-center">{action.title}</Text>
+                  <Text className="text-white font-medium text-center">
+                    {action.title}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -275,8 +320,12 @@ export default function DashboardScreen() {
         {/* Recent Transactions */}
         <View className="px-6 mb-5">
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-white text-lg font-bold">Recent Transactions</Text>
-            <TouchableOpacity onPress={() => router.push("/expense-history" as any)}>
+            <Text className="text-white text-lg font-bold">
+              Recent Transactions
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push("/expense-history" as any)}
+            >
               <Text className="text-emerald-500 font-medium">See All</Text>
             </TouchableOpacity>
           </View>
@@ -296,12 +345,16 @@ export default function DashboardScreen() {
                     <IconComponent size={20} color={transaction.color} />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-white font-medium">{transaction.description}</Text>
+                    <Text className="text-white font-medium">
+                      {transaction.description}
+                    </Text>
                     <Text className="text-slate-400 text-xs">
                       {transaction.category} • {transaction.time}
                     </Text>
                   </View>
-                  <Text className="text-rose-500 font-bold">-${transaction.amount}</Text>
+                  <Text className="text-rose-500 font-bold">
+                    -${transaction.amount}
+                  </Text>
                 </View>
               );
             })}
@@ -315,8 +368,12 @@ export default function DashboardScreen() {
         >
           <Lightning size={24} color="#10b981" />
           <View className="ml-3 flex-1">
-            <Text className="text-white font-semibold">Next Month Prediction</Text>
-            <Text className="text-slate-400 text-sm">Get AI-powered spending forecast</Text>
+            <Text className="text-white font-semibold">
+              Next Month Prediction
+            </Text>
+            <Text className="text-slate-400 text-sm">
+              Get AI-powered spending forecast
+            </Text>
           </View>
           <ChevronRight size={20} color="#64748b" />
         </TouchableOpacity>

@@ -1,43 +1,48 @@
-import { useState } from 'react';
-import { router } from 'expo-router';
-import { Eye, EyeOff, LogIn, Mail, Lock, Smartphone } from 'lucide-react-native';
-import { View, TextInput, TouchableOpacity } from 'react-native';
-import { Text } from '~/components/ui/text';
-import { Button } from '~/components/ui/button';
-import { setItemAsync } from 'expo-secure-store';
-import { supabase } from '~/lib/supabase';
+import { useState } from "react";
+import { router } from "expo-router";
+import {
+  Eye,
+  EyeOff,
+  LogIn,
+  Mail,
+  Lock,
+  Smartphone,
+} from "lucide-react-native";
+import { View, TextInput, TouchableOpacity } from "react-native";
+import { Text } from "~/components/ui/text";
+import { Button } from "~/components/ui/button";
+import { setItemAsync } from "expo-secure-store";
+import { supabase } from "~/lib/supabase";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-  setLoading(true);
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+    setLoading(true);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  setLoading(false);
+    setLoading(false);
 
-  if (error) {
-    console.log("Login error:", error);
-    alert(error.message);
-    return;
-  }
-  
-  // Save token securely
-  await setItemAsync("token", data.session?.access_token);
+    if (error) {
+      console.log("Login error:", error);
+      alert(error.message);
+      return;
+    }
 
-  console.log("Login access token:", data.session?.access_token);
+    // Save token securely
+    await setItemAsync("token", data.session?.access_token);
 
+    console.log("Login access token:", data.session?.access_token);
 
-  router.push("../(main)/Dashboard" as any);
-};
-
+    router.push("../(main)/Dashboard" as any);
+  };
 
   return (
     <View className="flex-1 bg-slate-900 px-6 justify-center">
@@ -83,7 +88,11 @@ export default function LoginScreen() {
             secureTextEntry={!showPassword}
           />
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-            {showPassword ? <EyeOff size={20} color="#64748b" /> : <Eye size={20} color="#64748b" />}
+            {showPassword ? (
+              <EyeOff size={20} color="#64748b" />
+            ) : (
+              <Eye size={20} color="#64748b" />
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -96,7 +105,7 @@ export default function LoginScreen() {
         >
           <View
             className={`w-5 h-5 rounded-md border-2 border-slate-600 ${
-              rememberMe ? 'bg-emerald-500 border-emerald-500' : ''
+              rememberMe ? "bg-emerald-500 border-emerald-500" : ""
             } items-center justify-center`}
           >
             {rememberMe && <Text className="text-white text-xs">✓</Text>}
@@ -107,9 +116,13 @@ export default function LoginScreen() {
       </View>
 
       {/* Login */}
-      <Button onPress={handleLogin} disabled={loading}>
-        <Text className="text-black font-bold text-center mr-2">
-          {loading ? 'Signing In...' : 'Sign In'}
+      <Button
+        className="flex-row items-center justify-center bg-emerald-500 rounded-xl p-4 mt-2"
+        onPress={handleLogin}
+        disabled={loading}
+      >
+        <Text className="text-white font-bold ml-2 mr-2">
+          {loading ? "Signing In..." : "Sign In"}
         </Text>
         <LogIn size={20} color="#ffffff" />
       </Button>
@@ -139,8 +152,11 @@ export default function LoginScreen() {
       {/* Footer */}
       <View className="mt-6 items-center">
         <Text className="text-slate-400">
-          Don’t have an account?{' '}
-          <Text className="text-emerald-400 font-bold" onPress={() => router.push('/signup')}>
+          Don’t have an account?{" "}
+          <Text
+            className="text-emerald-400 font-bold"
+            onPress={() => router.push("/signup")}
+          >
             Sign Up
           </Text>
         </Text>
