@@ -8,7 +8,6 @@ import {
   ScrollView,
   Pressable,
   TouchableOpacity,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -19,14 +18,7 @@ import {
   ArrowRight,
   UserPlus,
   Check,
-  Plus,
-  Minus,
-  Smartphone,
   Github,
-  MapPin,
-  Home,
-  Shield,
-  ArrowLeft,
 } from "lucide-react-native";
 import { Text } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
@@ -34,8 +26,6 @@ import { supabase } from "~/lib/supabase";
 import { setItemAsync } from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
-import { makeRedirectUri } from "expo-auth-session";
-import { ResponseType } from "expo-auth-session";
 import * as AuthSession from "expo-auth-session";
 
 // Configure Google Auth
@@ -90,7 +80,7 @@ const PasswordInput = memo(
 );
 
 // Memoized Step Components
-const Step1 = memo(
+const SignUp = memo(
   ({
     formData,
     updateFormData,
@@ -225,153 +215,22 @@ const Step1 = memo(
   )
 );
 
-const Step2 = memo(
-  ({
-    formData,
-    updateFormData,
-  }: {
-    formData: any;
-    updateFormData: (key: string, value: any) => void;
-  }) => {
-    const regions = [
-      { id: 1, name: "Rural", value: 1 },
-      { id: 2, name: "Urban", value: 2 },
-    ];
-
-    return (
-      <View className="mb-10">
-        <View className="items-center mb-6">
-          <Text className="text-white text-2xl font-bold mb-2">
-            Household Profile
-          </Text>
-          <Text className="text-slate-400 text-center">
-            Tell us about your household to improve predictions
-          </Text>
-        </View>
-
-        {/* Household Size */}
-        <View className="mb-6">
-          <Text className="text-slate-200 mb-1">Household Size</Text>
-          <Text className="text-slate-400 mb-3">
-            Number of people living in your household
-          </Text>
-          <View className="flex-row items-center justify-center gap-5">
-            <Pressable
-              className="w-12 h-12 bg-slate-700 rounded-full items-center justify-center"
-              onPress={() =>
-                updateFormData("hhsize", Math.max(1, formData.hhsize - 1))
-              }
-            >
-              <Minus size={20} color="#f8fafc" />
-            </Pressable>
-            <View className="items-center min-w-20">
-              <Text className="text-white text-3xl font-bold">
-                {formData.hhsize}
-              </Text>
-              <Text className="text-slate-400 text-xs">people</Text>
-            </View>
-            <Pressable
-              className="w-12 h-12 bg-slate-700 rounded-full items-center justify-center"
-              onPress={() =>
-                updateFormData("hhsize", Math.min(20, formData.hhsize + 1))
-              }
-            >
-              <Plus size={20} color="#f8fafc" />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Region Selection */}
-        <View className="mb-6">
-          <Text className="text-slate-200 mb-1">Region Type</Text>
-          <Text className="text-slate-400 mb-3">
-            Select your area type for better predictions
-          </Text>
-          <View className="gap-3">
-            {regions.map((region) => (
-              <Pressable
-                key={region.id}
-                className={`p-5 border rounded-xl items-center ${
-                  formData.region_n === region.value
-                    ? "bg-emerald-500 border-emerald-500"
-                    : "bg-slate-800 border-slate-700"
-                }`}
-                onPress={() => updateFormData("region_n", region.value)}
-              >
-                {region.value === 1 ? (
-                  <Home
-                    size={24}
-                    color={
-                      formData.region_n === region.value ? "#ffffff" : "#94a3b8"
-                    }
-                  />
-                ) : (
-                  <MapPin
-                    size={24}
-                    color={
-                      formData.region_n === region.value ? "#ffffff" : "#94a3b8"
-                    }
-                  />
-                )}
-                <Text
-                  className={`mt-2 text-lg font-bold ${
-                    formData.region_n === region.value
-                      ? "text-white"
-                      : "text-slate-400"
-                  }`}
-                >
-                  {region.name}
-                </Text>
-                <Text
-                  className={`text-xs ${
-                    formData.region_n === region.value
-                      ? "text-slate-100"
-                      : "text-slate-500"
-                  }`}
-                >
-                  {region.value === 1 ? "Countryside, farms" : "Cities, towns"}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        {/* Privacy Notice */}
-        <View className="bg-slate-800 border border-emerald-500 rounded-lg p-4 flex-row">
-          <Shield size={20} color="#10b981" />
-          <Text className="text-slate-200 ml-3 flex-1 text-sm">
-            Your data is encrypted and stored securely. We never share personal
-            information.
-          </Text>
-        </View>
-      </View>
-    );
-  }
-);
-
 export default function SignupScreen() {
-  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     fullname: "",
     email: "",
     password: "",
     confirmPassword: "",
-    hhsize: 4,
-    region_n: 2,
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [socialLoading, setSocialLoading] = useState<
-    "google" | "github" | null
-  >(null);
+  const [socialLoading, setSocialLoading] = useState<"google" | "github" | null>(null);
 
-  // Optimized update function
   const updateFormData = useCallback((key: string, value: any) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  // Optimized toggle functions
   const toggleShowPassword = useCallback(() => {
     setShowPassword((prev) => !prev);
   }, []);
@@ -380,46 +239,10 @@ export default function SignupScreen() {
     setShowConfirmPassword((prev) => !prev);
   }, []);
 
-  const handleNextStep = useCallback(() => {
-    if (step === 1) {
-      // Validate step 1 fields
-      if (
-        !formData.fullname ||
-        !formData.email ||
-        !formData.password ||
-        !formData.confirmPassword
-      ) {
-        alert("Please fill in all required fields");
-        return;
-      }
-
-      if (formData.password !== formData.confirmPassword) {
-        alert("Passwords don't match");
-        return;
-      }
-
-      if (
-        formData.password.length < 8 ||
-        !/[A-Z]/.test(formData.password) ||
-        !/[0-9]/.test(formData.password)
-      ) {
-        alert(
-          "Password must be at least 8 characters, contain an uppercase letter, and a number"
-        );
-        return;
-      }
-
-      setStep(2);
-    } else {
-      handleSignup();
-    }
-  }, [step, formData]);
-
   const handleSignup = async () => {
     setLoading(true);
-    const { email, password, fullname, hhsize, region_n } = formData;
+    const { email, password, fullname } = formData;
 
-    // Create user account
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -432,13 +255,11 @@ export default function SignupScreen() {
     }
 
     if (data?.user) {
-      // Store user metadata in Supabase
       const { error: profileError } = await supabase.from("profiles").upsert({
         id: data.user.id,
         full_name: fullname,
-        hhsize: hhsize,
-        region_n: region_n,
-        updated_at: new Date().toISOString(),
+        user_type: "user",
+        created_at: new Date().toISOString(),
       });
 
       if (profileError) {
@@ -451,31 +272,49 @@ export default function SignupScreen() {
     router.push("/login");
   };
 
-  // Google Sign-In
+  const handleCreate = useCallback(() => {
+    if (
+      !formData.fullname ||
+      !formData.email ||
+      !formData.password ||
+      !formData.confirmPassword
+    ) {
+      alert("Please fill in all required fields");
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      alert("Passwords don't match");
+      return;
+    }
+
+    if (
+      formData.password.length < 8 ||
+      !/[A-Z]/.test(formData.password) ||
+      !/[0-9]/.test(formData.password)
+    ) {
+      alert("Password must be at least 8 characters, contain an uppercase letter, and a number");
+      return;
+    }
+
+    handleSignup();
+  }, [formData]);
+
   const handleSocialSignup = async (provider: "google" | "github") => {
     setSocialLoading(provider);
 
     try {
-      const redirectUrl = AuthSession.makeRedirectUri({
-        useProxy: true, // required for Expo Go
-      } as any);
-
-      console.log("Redirect URI:", redirectUrl);
+      const redirectUrl = AuthSession.makeRedirectUri({ useProxy: true } as any);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
-        options: {
-          redirectTo: redirectUrl,
-        },
+        options: { redirectTo: redirectUrl },
       });
 
       if (error) throw error;
 
       if (data.url) {
-        const result = await WebBrowser.openAuthSessionAsync(
-          data.url,
-          redirectUrl
-        );
+        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
 
         if (result.type === "success") {
           const url = new URL(result.url);
@@ -515,17 +354,12 @@ export default function SignupScreen() {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ flexGrow: 1 }}
         >
-          {/* Progress Bar */}
+          {/* Progress Info */}
           <View className="mb-6">
             <View className="h-1 bg-slate-700 rounded-full mb-2">
-              <View
-                className="h-full bg-emerald-500 rounded-full"
-                style={{ width: `${(step / 2) * 100}%` }}
-              />
+              <View className="h-full bg-emerald-500 rounded-full" style={{ width: `100%` }} />
             </View>
-            <Text className="text-slate-400 text-center text-xs">
-              Step {step} of 2
-            </Text>
+            <Text className="text-slate-400 text-center text-xs">Account Creation</Text>
           </View>
 
           {/* Header Icon */}
@@ -535,55 +369,36 @@ export default function SignupScreen() {
             </View>
           </View>
 
-          {/* Step Content */}
-          {step === 1 ? (
-            <Step1
-              formData={formData}
-              updateFormData={updateFormData}
-              showPassword={showPassword}
-              toggleShowPassword={toggleShowPassword}
-              showConfirmPassword={showConfirmPassword}
-              toggleShowConfirmPassword={toggleShowConfirmPassword}
-              handleSocialSignup={handleSocialSignup}
-            />
-          ) : (
-            <Step2 formData={formData} updateFormData={updateFormData} />
-          )}
+          {/* Step 1 */}
+          <SignUp
+            formData={formData}
+            updateFormData={updateFormData}
+            showPassword={showPassword}
+            toggleShowPassword={toggleShowPassword}
+            showConfirmPassword={showConfirmPassword}
+            toggleShowConfirmPassword={toggleShowConfirmPassword}
+            handleSocialSignup={handleSocialSignup}
+          />
 
           {/* Action Buttons */}
           <View className="flex-row gap-3 mb-6 mt-4">
-            {step === 2 && (
-              <Pressable
-                className="flex-1 flex-row items-center justify-center py-4 bg-slate-800 border border-slate-700 rounded-xl"
-                onPress={() => setStep(1)}
-              >
-                <ArrowLeft size={20} color="#94a3b8" />
-                <Text className="text-slate-400 ml-2 font-medium">Back</Text>
-              </Pressable>
-            )}
             <Button
-              className={`flex-[2] ${step === 1 ? "" : "flex-[2]"} flex-row items-center justify-center bg-emerald-500 rounded-xl p-4 `}
-              onPress={handleNextStep}
+              className="flex-1 flex-row items-center justify-center bg-emerald-500 rounded-xl p-4"
+              onPress={handleCreate}
               disabled={loading}
             >
               <Text className="text-white font-bold mr-2">
-                {loading
-                  ? "Creating Account..."
-                  : step === 1
-                    ? "Continue"
-                    : "Create Account"}
+                {loading ? "Creating Account..." : "Create Account"}
               </Text>
               <ArrowRight size={20} color="#ffffff" />
             </Button>
           </View>
+
           {/* Footer */}
           <View className="mt-6 items-center mb-10">
             <Text className="text-slate-400">
               Already have an account?{" "}
-              <Text
-                className="text-emerald-400 font-bold"
-                onPress={() => router.push("/login")}
-              >
+              <Text className="text-emerald-400 font-bold" onPress={() => router.push("/login")}>
                 Sign In
               </Text>
             </Text>
