@@ -4,14 +4,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { 
   Zap, Home, Users, MapPin, TrendingUp, 
-  ShoppingCart, Package, ArrowRight, Check,
-  Circle, ChevronRight, ChevronLeft, Droplet, 
+  ShoppingCart, Package,  Check,
+  ChevronRight, ChevronLeft, Droplet, 
   Battery, Heart, Shield, Gift, Beef, PiggyBank,
-  Activity, AlertTriangle, Crosshair, BarChart2
+  Activity, AlertTriangle, Crosshair, BarChart2,
+  ChevronDown,
 } from "lucide-react-native";
 import { predictExpenditure } from "~/lib/api";
 import React from "react";
-
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import RNPickerSelect from 'react-native-picker-select';
 type FormData = {
   // Basic Info
   hhsize: number;
@@ -57,10 +59,12 @@ type FormData = {
   cr15_10: number;
 };
 
+
 interface FieldOption {
   label: string;
   value: number;
 }
+
 
 interface FormField {
   key: keyof FormData;
@@ -80,11 +84,23 @@ interface FieldGroup {
 }
 
 const waterTypeOptions = [
-  { label: "Piped Water", value: 1 },
-  { label: "Well", value: 2 },
-  { label: "Rainwater", value: 3 },
-  { label: "Bottled Water", value: 4 },
-  { label: "Other", value: 5 }
+  { label: "Piped water into dwelling", value: 1 },
+  { label: "Tubewell/borehole", value: 2 },
+  { label: "Tanker-truck", value: 3 },
+  { label: "Protected dug well", value: 4 },
+  { label: "Piped water to yard/plot", value: 5 },
+  { label: "Rainwater collection", value: 6 },
+  { label: "Natural surface water (river, dam, lake)", value: 7 },
+  { label: "Public tap/standpipe", value: 8 },
+  { label: "Unprotected dug well", value: 9 },
+  { label: "Cart with small tank/drum", value: 10 },
+  { label: "Protected spring", value: 11 },
+  { label: "Surface water (pond, stream, canal)", value: 12 },
+  { label: "Water catchment", value: 13 },
+  { label: "From neighbours", value: 14 },
+  { label: "Unprotected spring", value: 15 },
+  { label: "Bottled water", value: 16 },
+  { label: "Other (specify)", value: 17 }
 ];
 
 const shockTypeOptions = [
@@ -109,10 +125,31 @@ const fieldGroups: FieldGroup[] = [
     icon: <Home size={20} color="#10b981" />,
     fields: [
       { key: "hhsize", label: "Household Size", type: "number", min: 1, max: 20, icon: <Users size={16} /> },
-      { key: "region_n", label: "Region Type", type: "select", options: [
-        { label: "Rural", value: 1 },
-        { label: "Urban", value: 2 }
-      ], icon: <MapPin size={16} /> },
+      {
+      key: "region_n", 
+      label: "Region", 
+      type: "select", 
+      options: [
+        { label: "Waqooyi Galbeed", value: 1 },
+        { label: "Banadir", value: 2 },
+        { label: "Togdheer", value: 3 },
+        { label: "Mudug", value: 4 },
+        { label: "Galgaduud", value: 5 },
+        { label: "Middle Shabelle", value: 6 },
+        { label: "Gedo", value: 7 },
+        { label: "Lower Shabelle", value: 8 },
+        { label: "Hiraan", value: 9 },
+        { label: "Bay", value: 10 },
+        { label: "Nugaal", value: 11 },
+        { label: "Bari", value: 12 },
+        { label: "Lower Juba", value: 13 },
+        { label: "Bakool", value: 14 },
+        { label: "Sool", value: 15 },
+        { label: "Sanaag", value: 16 },
+        { label: "Awdal", value: 17 }
+      ],
+      icon: <MapPin size={16} />
+    },
       { key: "hh_water_type", label: "Water Source", type: "select", options: waterTypeOptions, icon: <Droplet size={16} /> },
       { key: "hh_electricity", label: "Has Electricity", type: "toggle", icon: <Battery size={16} /> },
     ]
@@ -232,6 +269,15 @@ export default function PredictScreen() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<number | null>(null);
 
+  // inside your PredictScreen component
+  const insets = useSafeAreaInsets();
+  const contentInsets = {
+    top: insets.top,
+    bottom: insets.bottom,
+    left: 12,
+    right: 12,
+  };
+
   const handleChange = <K extends keyof FormData>(key: K, value: FormData[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
   };
@@ -326,6 +372,7 @@ export default function PredictScreen() {
           </View>
         );
       
+      // Update the renderField function for select type:
       case "select":
         return (
           <View className="bg-slate-800 p-4 rounded-lg">
@@ -335,24 +382,48 @@ export default function PredictScreen() {
                   {React.cloneElement(field.icon as React.ReactElement<any>, { color: "#64748b" })}
                 </View>
               )}
-              <Text className="text-white">{field.label}</Text>
+              <Text className="text-white text-sm font-medium">{field.label}</Text>
             </View>
-            <View className="flex-row flex-wrap gap-2">
-              {field.options?.map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  className={`py-2 px-3 rounded-md ${
-                    form[field.key] === option.value ? "bg-emerald-500" : "bg-slate-700"
-                  }`}
-                  onPress={() => handleChange(field.key, option.value)}
-                >
-                  <Text className={`text-center ${
-                    form[field.key] === option.value ? "text-white font-bold" : "text-slate-400"
-                  }`}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+
+            <View className="bg-slate-700 rounded-lg overflow-hidden">
+              <RNPickerSelect
+                placeholder={{
+                  label: `Select ${field.label}`,
+                  value: null,
+                  color: '#a3a3a3',
+                }}
+                value={form[field.key]}
+                onValueChange={(value) => {
+                  if (value !== null) {
+                    handleChange(field.key, value);
+                  }
+                }}
+                items={(field.options || []).map((option) => ({
+                  label: option.label,
+                  value: option.value,
+                  color: '#000',
+                  
+                }))}
+                style={{
+                  inputIOS: {
+                    color: 'white',
+                    paddingVertical: 12,
+                    paddingHorizontal: 10,
+                    fontSize: 16,
+                  },
+                  inputAndroid: {
+                    color: 'white',
+                    paddingVertical: 12,
+                    paddingHorizontal: 10,
+                    fontSize: 16,
+                  },
+                  placeholder: {
+                    color: '#a3a3a3',
+                  },
+                }}
+                useNativeAndroidPickerStyle={false}
+                Icon={() => <ChevronDown size={16} color="#64748b" />}
+              />
             </View>
           </View>
         );

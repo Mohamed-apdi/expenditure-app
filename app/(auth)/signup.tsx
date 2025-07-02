@@ -16,17 +16,17 @@ import {
   Lock,
   Eye,
   EyeOff,
-  ArrowLeft,
   ArrowRight,
   UserPlus,
-  Home,
-  MapPin,
-  Shield,
   Check,
   Plus,
   Minus,
   Smartphone,
   Github,
+  MapPin,
+  Home,
+  Shield,
+  ArrowLeft,
 } from "lucide-react-native";
 import { Text } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
@@ -49,18 +49,25 @@ const PasswordInput = memo(
     onChangeText,
     showPassword,
     toggleShowPassword,
+    onSubmitEditing,
+    returnKeyType = "done",
+    inputRef,
   }: {
     label: string;
     value: string;
     onChangeText: (text: string) => void;
     showPassword: boolean;
     toggleShowPassword: () => void;
+    onSubmitEditing?: () => void;
+    returnKeyType?: "done" | "next" | "go" | "search" | "send";
+    inputRef?: React.RefObject<TextInput>;
   }) => (
     <View className="mb-4">
       <Text className="text-slate-200 mb-1">{label}</Text>
       <View className="flex-row items-center bg-slate-800 border border-slate-700 rounded-xl px-4">
         <Lock size={20} color="#64748b" />
         <TextInput
+          ref={inputRef}
           className="flex-1 py-3 px-2 text-white"
           placeholder={`Enter ${label.toLowerCase()}`}
           placeholderTextColor="#64748b"
