@@ -47,10 +47,11 @@ export default function LoginScreen() {
 
     // Save token securely
     await setItemAsync("token", data.session?.access_token);
+    await setItemAsync("userId: ", data.user?.id)
 
     console.log("Login access token:", data.session?.access_token);
 
-    router.push("../(main)/Dashboard" as any);
+    router.push("../Dashboard" as any);
   };
 
   const handleSocialLogin = async (provider: "google" | "github") => {
@@ -58,7 +59,8 @@ export default function LoginScreen() {
 
     try {
       const redirectUrl = AuthSession.makeRedirectUri({
-        path: "auth/callback",
+        scheme: "myapp",
+        path: "Dashboard" // this is okay IF your expo-router route is /Dashboard
       });
 
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -94,7 +96,7 @@ export default function LoginScreen() {
 
             if (sessionData.session?.access_token) {
               await setItemAsync("token", sessionData.session.access_token);
-              router.push("../(main)/Dashboard" as any);
+              router.push("/Dashboard" as any);
             }
           }
         }
