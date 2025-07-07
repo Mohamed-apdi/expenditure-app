@@ -16,6 +16,7 @@ import { supabase } from "~/lib/supabase";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
+import Toast from "react-native-toast-message";
 
 // Required for Expo OAuth
 WebBrowser.maybeCompleteAuthSession();
@@ -40,14 +41,31 @@ export default function LoginScreen() {
     setLoading(false);
 
     if (error) {
-      console.log("Login error:", error);
-      alert(error.message);
+      Toast.show({
+        type: "error", // or 'error', 'info', custom
+        position: "top", // 'top' | 'bottom'
+        text1: "Error",
+        text2: "Missing credentials or invalid email/password",
+        visibilityTime: 6000, // 6 seconds
+        autoHide: true,
+        topOffset: 50,
+      });
+
       return;
     }
+    Toast.show({
+      type: "success", // or 'error', 'info', custom
+      position: "top", // 'top' | 'bottom'
+      text1: "Success",
+      text2: "Login successfully",
+      visibilityTime: 6000, // 6 seconds
+      autoHide: true,
+      topOffset: 50,
+    });
 
     // Save token securely
     await setItemAsync("token", data.session?.access_token);
-
+    await setItemAsync("userId", data.user?.id);
     console.log("Login access token:", data.session?.access_token);
 
     router.push("../(main)/Dashboard" as any);
