@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -20,7 +20,6 @@ import {
   UserCheck,
   User,
   Phone,
-  AtSign,
   Mail,
   Key,
   Smartphone,
@@ -32,21 +31,12 @@ import {
   X,
   ChevronRight,
   Lock,
+  Eye,
+  EyeOff,
 } from "lucide-react-native";
 import { deleteItemAsync } from "expo-secure-store";
 import { supabase } from "~/lib/supabase";
-
-type UserProfile = {
-  fullName: string;
-  username: string;
-  email: string;
-  phone: string;
-  lastSignIn: string;
-  profileImage: string;
-  joinDate: string;
-  totalPredictions: number;
-  avgAccuracy: number;
-};
+import { UserProfile } from "~/types/userTypes";
 
 type PasswordData = {
   currentPassword: string;
@@ -56,27 +46,66 @@ type PasswordData = {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const [userProfile] = useState<UserProfile>({
-    fullName: "John Smith",
-    username: "johnsmith",
-    email: "john.smith@email.com",
-    phone: "+1 (555) 123-4567",
-    lastSignIn: "2024-01-15T10:30:00Z",
-    profileImage:
-      "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-    joinDate: "2023-08-15",
-    totalPredictions: 24,
-    avgAccuracy: 87,
+  const [userProfile, setUserProfile] = useState<UserProfile>({
+    fullName: "",
+    email: "",
+    phone: "",
   });
-
+  const [loading, setLoading] = useState(true);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [passwordData, setPasswordData] = useState<PasswordData>({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
+  const [showPassword, setShowPassword] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        setLoading(true);
 
-  const formatLastSignIn = (dateString: string) => {
+        // Get the current user session
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user) {
+          // Fetch profile data from profiles table
+          const { data: profileData, error } = await supabase
+            .from("profiles")
+            .select("full_name, phone, image_url, created_at")
+            .eq("id", user.id)
+            .single();
+
+          if (error) throw error;
+
+          setUserProfile({
+            fullName: profileData?.full_name || "",
+            email: user.email || "",
+            phone: profileData?.phone || "",
+            image_url: profileData?.image_url || "",
+            totalPredictions: 0,
+            avgAccuracy: 0,
+            joinDate: profileData?.created_at || new Date().toISOString(),
+            lastSignIn: user.last_sign_in_at || new Date().toISOString(),
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
+
+  const formatLastSignIn = (dateString?: string) => {
+    if (!dateString) return "Recently";
     const date = new Date(dateString);
     const now = new Date();
     const diffInHours = Math.floor(
@@ -92,17 +121,102 @@ export default function ProfileScreen() {
       year: "numeric",
     });
   };
+  const handleChangePassword = async () => {
+    // Validate empty fields
+    if (
+      !passwordData.currentPassword ||
+      !passwordData.newPassword ||
+      !passwordData.confirmPassword
+    ) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
 
-  const handleChangePassword = () => {
-    Alert.alert("Success", "Password changed successfully");
-    setShowChangePassword(false);
-    setPasswordData({
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    });
+    // Validate new password requirements
+    const passwordErrors = [];
+
+    if (passwordData.newPassword.length < 8) {
+      passwordErrors.push("At least 8 characters");
+    }
+
+    if (!/[A-Z]/.test(passwordData.newPassword)) {
+      passwordErrors.push("One uppercase letter");
+    }
+
+    if (!/[0-9]/.test(passwordData.newPassword)) {
+      passwordErrors.push("One number");
+    }
+
+    // Check if password contains only numbers
+    if (/^\d+$/.test(passwordData.newPassword)) {
+      passwordErrors.push("Cannot contain only numbers");
+    }
+
+    // Check if password contains at least one letter
+    if (!/[a-zA-Z]/.test(passwordData.newPassword)) {
+      passwordErrors.push("At least one letter");
+    }
+
+    if (passwordErrors.length > 0) {
+      Alert.alert(
+        "Password Requirements Not Met",
+        `Your password must contain:\n\n• ${passwordErrors.join("\n• ")}`
+      );
+      return;
+    }
+
+    // Check if new password matches confirmation
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      Alert.alert("Error", "New passwords don't match");
+      return;
+    }
+
+    // Check if new password is same as current
+    if (passwordData.newPassword === passwordData.currentPassword) {
+      Alert.alert(
+        "Error",
+        "New password must be different from current password"
+      );
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // First verify the current password by signing in again
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: userProfile.email,
+        password: passwordData.currentPassword,
+      });
+
+      if (signInError) {
+        throw new Error("Current password is incorrect");
+      }
+
+      // If current password is correct, update to new password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: passwordData.newPassword,
+      });
+
+      if (updateError) throw updateError;
+
+      Alert.alert("Success", "Password updated successfully");
+      setShowChangePassword(false);
+      setPasswordData({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      });
+    } catch (error: any) {
+      console.error("Password change error:", error);
+      Alert.alert(
+        "Error",
+        error.message || "Failed to update password. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
-
   const handleDeleteAccount = () => {
     Alert.alert(
       "Delete Account",
@@ -173,20 +287,38 @@ export default function ProfileScreen() {
         <View className="items-center px-6 pb-8">
           <View className="relative mb-4">
             <Image
-              source={{ uri: userProfile.profileImage }}
+              source={{
+                uri:
+                  userProfile.image_url ||
+                  "https://ui-avatars.com/api/?name=" +
+                    encodeURIComponent(userProfile.fullName || "User"),
+              }}
               className="w-32 h-32 rounded-full border-4 border-emerald-500"
             />
-            <TouchableOpacity className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-emerald-500 justify-center items-center border-[3px] border-slate-900">
+            <TouchableOpacity
+              className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-emerald-500 justify-center items-center border-[3px] border-slate-900"
+              onPress={() =>
+                router.push({
+                  pathname: "../(profile)/UpdateProfileScreen" as any,
+                  params: {
+                    userProfile: JSON.stringify(userProfile),
+                    focusField: "image_url",
+                  },
+                })
+              }
+            >
               <Camera size={16} color="#ffffff" />
             </TouchableOpacity>
           </View>
 
           <View className="items-center">
             <Text className="text-white text-2xl font-bold mb-1">
-              {userProfile.fullName}
+              {loading
+                ? "Loading..."
+                : userProfile.fullName || "No name provided"}
             </Text>
             <Text className="text-emerald-500 text-base mb-2">
-              @{userProfile.username}
+              {loading ? "Loading..." : userProfile.email}
             </Text>
             <View className="flex-row items-center">
               <Clock size={14} color="#64748b" />
@@ -239,7 +371,9 @@ export default function ProfileScreen() {
               <View className="ml-4 flex-1">
                 <Text className="text-slate-400 text-xs mb-1">Full Name</Text>
                 <Text className="text-white text-base font-medium">
-                  {userProfile.fullName}
+                  {loading
+                    ? "Loading..."
+                    : userProfile.fullName || "No name provided"}
                 </Text>
               </View>
               <TouchableOpacity
@@ -269,7 +403,9 @@ export default function ProfileScreen() {
                   Phone Number
                 </Text>
                 <Text className="text-white text-base font-medium">
-                  {userProfile.phone}
+                  {loading
+                    ? "Loading..."
+                    : userProfile.phone || "No phone provided"}
                 </Text>
               </View>
               <TouchableOpacity
@@ -291,34 +427,6 @@ export default function ProfileScreen() {
             {/* Divider */}
             <View className="h-px bg-slate-700 ml-14" />
 
-            {/* Username */}
-            <View className="flex-row items-center p-4">
-              <AtSign size={20} color="#64748b" />
-              <View className="ml-4 flex-1">
-                <Text className="text-slate-400 text-xs mb-1">Username</Text>
-                <Text className="text-white text-base font-medium">
-                  @{userProfile.username}
-                </Text>
-              </View>
-              <TouchableOpacity
-                className="p-2"
-                onPress={() =>
-                  router.push({
-                    pathname: "../(profile)/UpdateProfileScreen" as any,
-                    params: {
-                      userProfile: JSON.stringify(userProfile),
-                      focusField: "username",
-                    },
-                  })
-                }
-              >
-                <Edit3 size={16} color="#94a3b8" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Divider */}
-            <View className="h-px bg-slate-700 ml-14" />
-
             {/* Email */}
             <View className="flex-row items-center p-4">
               <Mail size={20} color="#64748b" />
@@ -327,23 +435,11 @@ export default function ProfileScreen() {
                   Email Address
                 </Text>
                 <Text className="text-white text-base font-medium">
-                  {userProfile.email}
+                  {loading
+                    ? "Loading..."
+                    : userProfile.email || "No phone provided"}
                 </Text>
               </View>
-              <TouchableOpacity
-                className="p-2"
-                onPress={() =>
-                  router.push({
-                    pathname: "../(profile)/UpdateProfileScreen" as any,
-                    params: {
-                      userProfile: JSON.stringify(userProfile),
-                      focusField: "email",
-                    },
-                  })
-                }
-              >
-                <Edit3 size={16} color="#94a3b8" />
-              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -370,72 +466,6 @@ export default function ProfileScreen() {
             </View>
             <ChevronRight size={20} color="#64748b" />
           </TouchableOpacity>
-
-          {/* 2FA */}
-          <TouchableOpacity className="flex-row items-center bg-slate-800 rounded-xl p-4 mb-3 border border-slate-700">
-            <View className="w-10 h-10 rounded-full bg-slate-700 justify-center items-center mr-4">
-              <Smartphone size={20} color="#3b82f6" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-white text-base font-semibold mb-1">
-                Two-Factor Authentication
-              </Text>
-              <Text className="text-slate-400 text-sm">
-                Add an extra layer of security
-              </Text>
-            </View>
-            <View className="w-11 h-6 rounded-full bg-slate-700 justify-start p-0.5">
-              <View className="w-5 h-5 rounded-full bg-white" />
-            </View>
-          </TouchableOpacity>
-
-          {/* Privacy Settings */}
-          <TouchableOpacity className="flex-row items-center bg-slate-800 rounded-xl p-4 border border-slate-700">
-            <View className="w-10 h-10 rounded-full bg-slate-700 justify-center items-center mr-4">
-              <Shield size={20} color="#8b5cf6" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-white text-base font-semibold mb-1">
-                Privacy Settings
-              </Text>
-              <Text className="text-slate-400 text-sm">
-                Manage your data and privacy
-              </Text>
-            </View>
-            <ChevronRight size={20} color="#64748b" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Danger Zone */}
-        <View className="px-6 mb-8">
-          <Text className="text-red-500 text-lg font-bold mb-4">
-            Danger Zone
-          </Text>
-
-          <View className="bg-slate-800 rounded-xl p-5 border border-red-500">
-            <View className="mb-4">
-              <View className="flex-row items-center mb-2">
-                <AlertTriangle size={20} color="#ef4444" />
-                <Text className="text-red-500 text-base font-bold ml-2">
-                  Delete Account
-                </Text>
-              </View>
-              <Text className="text-slate-400 text-sm leading-5">
-                Permanently delete your account and all associated data. This
-                action cannot be undone.
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              className="flex-row items-center justify-center bg-red-500 py-3 px-4 rounded-md"
-              onPress={handleDeleteAccount}
-            >
-              <Trash2 size={16} color="#ffffff" />
-              <Text className="text-white text-sm font-bold ml-2">
-                Delete Account
-              </Text>
-            </TouchableOpacity>
-          </View>
         </View>
 
         {/* Sign Out */}
@@ -444,8 +474,9 @@ export default function ProfileScreen() {
           onPress={handleLogout}
         >
           <LogOut size={20} color="#ef4444" />
-          <Text className="text-red-500 text-base font-semibold ml-2">
-            Sign Out
+
+          <Text className="text-red-500 text-base font-light ml-2">
+            Sign out
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -491,8 +522,22 @@ export default function ProfileScreen() {
                         currentPassword: value,
                       }))
                     }
-                    secureTextEntry
+                    secureTextEntry={!showPassword.current}
                   />
+                  <TouchableOpacity
+                    onPress={() =>
+                      setShowPassword((prev) => ({
+                        ...prev,
+                        current: !prev.current,
+                      }))
+                    }
+                  >
+                    {showPassword.current ? (
+                      <EyeOff size={20} color="#64748b" />
+                    ) : (
+                      <Eye size={20} color="#64748b" />
+                    )}
+                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -514,8 +559,19 @@ export default function ProfileScreen() {
                         newPassword: value,
                       }))
                     }
-                    secureTextEntry
+                    secureTextEntry={!showPassword.new}
                   />
+                  <TouchableOpacity
+                    onPress={() =>
+                      setShowPassword((prev) => ({ ...prev, new: !prev.new }))
+                    }
+                  >
+                    {showPassword.new ? (
+                      <EyeOff size={20} color="#64748b" />
+                    ) : (
+                      <Eye size={20} color="#64748b" />
+                    )}
+                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -537,8 +593,22 @@ export default function ProfileScreen() {
                         confirmPassword: value,
                       }))
                     }
-                    secureTextEntry
+                    secureTextEntry={!showPassword.confirm}
                   />
+                  <TouchableOpacity
+                    onPress={() =>
+                      setShowPassword((prev) => ({
+                        ...prev,
+                        confirm: !prev.confirm,
+                      }))
+                    }
+                  >
+                    {showPassword.confirm ? (
+                      <EyeOff size={20} color="#64748b" />
+                    ) : (
+                      <Eye size={20} color="#64748b" />
+                    )}
+                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -595,9 +665,10 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 className="bg-emerald-500 py-4 rounded-xl items-center"
                 onPress={handleChangePassword}
+                disabled={loading}
               >
                 <Text className="text-white text-base font-bold">
-                  Update Password
+                  {loading ? "Updating..." : "Update Password"}
                 </Text>
               </TouchableOpacity>
             </View>
