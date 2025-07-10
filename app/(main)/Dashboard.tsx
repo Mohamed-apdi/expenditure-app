@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -22,6 +22,9 @@ import {
   Film,
   Zap as Lightning,
 } from "lucide-react-native";
+
+import { supabase } from "~/lib/supabase";
+import { UserProfile } from "~/types/userTypes";
 
 type Transaction = {
   id: number;
@@ -54,6 +57,49 @@ export default function DashboardScreen() {
   const [dailyBudget] = useState(120);
   const [monthlySpending] = useState(1850);
   const [monthlyBudget] = useState(2500);
+  const [userProfile, setUserProfile] = useState<UserProfile>("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        setLoading(true);
+
+        // Get the current user session
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user) {
+          // Fetch profile data from profiles table
+          const { data: profileData, error } = await supabase
+            .from("profiles")
+            .select("full_name, phone, image_url, created_at")
+            .eq("id", user.id)
+            .single();
+
+          if (error) throw error;
+
+          setUserProfile({
+            fullName: profileData?.full_name || "",
+            email: user.email || "",
+            phone: profileData?.phone || "",
+            image_url: profileData?.image_url || "",
+            totalPredictions: 0,
+            avgAccuracy: 0,
+            joinDate: profileData?.created_at || new Date().toISOString(),
+            lastSignIn: user.last_sign_in_at || new Date().toISOString(),
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching profile:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
 
   const [recentTransactions] = useState<Transaction[]>([
     {
@@ -162,7 +208,9 @@ export default function DashboardScreen() {
         {/* Header */}
         <View className="flex-row justify-between items-center px-6 py-5">
           <View>
-            <Text className="text-white text-2xl font-bold">Good Morning!</Text>
+            <Text className="text-white text-2xl font-bold">
+              Good Morning! {userProfile.fullName}
+            </Text>
             <Text className="text-slate-400 mt-1">
               Here's your spending overview
             </Text>

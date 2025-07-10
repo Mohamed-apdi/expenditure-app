@@ -1,4 +1,6 @@
 import { useState, useCallback, memo } from "react";
+import axios from "axios";
+import { API_URL } from "~/lib/api";
 import { router } from "expo-router";
 import {
   View,
@@ -225,7 +227,9 @@ export default function SignupScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [socialLoading, setSocialLoading] = useState<"google" | "github" | null>(null);
+  const [socialLoading, setSocialLoading] = useState<
+    "google" | "github" | null
+  >(null);
 
   const updateFormData = useCallback((key: string, value: any) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -243,35 +247,39 @@ export default function SignupScreen() {
     setLoading(true);
     const { email, password, fullname } = formData;
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (error) {
-      setLoading(false);
-      alert(error.message);
-      return;
-    }
-
-    if (data?.user) {
-      const { error: profileError } = await supabase.from("profiles").upsert({
-        id: data.user.id,
+    try {
+      const response = await axios.post(`${API_URL}/auth/signup`, {
+        email,
+        password,
         full_name: fullname,
-        user_type: "user",
-        created_at: new Date().toISOString(),
       });
 
-      if (profileError) {
-        console.error("Error saving profile data:", profileError);
+      const data = response.data;
+
+      if (data.message === "User already exists") {
+        alert("Account already exists. Please login instead.");
+        router.push("/login");
+      } else if (data.access_token) {
+        await setItemAsync("token", data.access_token);
+        router.push("../(main)/Dashboard");
+      } else {
+        router.push("/login");
       }
+    } catch (error: any) {
+      let message =
+        error.response?.data?.detail || error.message || "Signup failed";
+
+      // Handle specific Supabase errors
+      if (error.response?.data?.code === "23505") {
+        message = "Account already exists. Please login instead.";
+        router.push("/login");
+      }
+
+      alert(message);
+    } finally {
+      setLoading(false);
     }
-
-    await setItemAsync("token", data.session?.access_token || "");
-    setLoading(false);
-    router.push("/login");
   };
-
   const handleCreate = useCallback(() => {
     if (
       !formData.fullname ||
@@ -293,7 +301,9 @@ export default function SignupScreen() {
       !/[A-Z]/.test(formData.password) ||
       !/[0-9]/.test(formData.password)
     ) {
-      alert("Password must be at least 8 characters, contain an uppercase letter, and a number");
+      alert(
+        "Password must be at least 8 characters, contain an uppercase letter, and a number"
+      );
       return;
     }
 
@@ -304,7 +314,9 @@ export default function SignupScreen() {
     setSocialLoading(provider);
 
     try {
-      const redirectUrl = AuthSession.makeRedirectUri({ useProxy: true } as any);
+      const redirectUrl = AuthSession.makeRedirectUri({
+        useProxy: true,
+      } as any);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
@@ -314,7 +326,10 @@ export default function SignupScreen() {
       if (error) throw error;
 
       if (data.url) {
-        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+        const result = await WebBrowser.openAuthSessionAsync(
+          data.url,
+          redirectUrl
+        );
 
         if (result.type === "success") {
           const url = new URL(result.url);
@@ -357,9 +372,14 @@ export default function SignupScreen() {
           {/* Progress Info */}
           <View className="mb-6">
             <View className="h-1 bg-slate-700 rounded-full mb-2">
-              <View className="h-full bg-emerald-500 rounded-full" style={{ width: `100%` }} />
+              <View
+                className="h-full bg-emerald-500 rounded-full"
+                style={{ width: `100%` }}
+              />
             </View>
-            <Text className="text-slate-400 text-center text-xs">Account Creation</Text>
+            <Text className="text-slate-400 text-center text-xs">
+              Account Creation
+            </Text>
           </View>
 
           {/* Header Icon */}
@@ -398,7 +418,10 @@ export default function SignupScreen() {
           <View className="mt-6 items-center mb-10">
             <Text className="text-slate-400">
               Already have an account?{" "}
-              <Text className="text-emerald-400 font-bold" onPress={() => router.push("/login")}>
+              <Text
+                className="text-emerald-400 font-bold"
+                onPress={() => router.push("/login")}
+              >
                 Sign In
               </Text>
             </Text>
