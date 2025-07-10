@@ -1,39 +1,39 @@
 import { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView } from "react-native";
+import { ScrollView, Text, TouchableOpacity, View, ActivityIndicator, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import {
-  Bell,
-  Calendar,
-  DollarSign,
-  TrendingDown,
-  Target,
-  AlertTriangle,
-  CheckCircle,
-  ChevronRight,
-  Plus,
-  PieChart,
-  TrendingUp,
-  FileText,
+import { supabase } from "~/lib/supabase";
+import DashboardHeader from "~/components/(Dashboard)/DashboardHeader";
+import SpendingWidget from "~/components/(Dashboard)/SpendingWidget";
+import MonthlyOverview from "~/components/(Dashboard)/MonthlyOverview";
+import AlertCard from "~/components/(Dashboard)/AlertCard";
+import QuickActionCard from "~/components/(Dashboard)/QuickActionCard";
+import TransactionItem from "~/components/(Dashboard)/TransactionItem";
+import PredictionTeaser from "~/components/(Dashboard)/PredictionTeaser";
+import { 
+  AlertTriangle, 
+  CheckCircle, 
+  FileText, 
+  PieChart, 
+  Plus, 
+  TrendingUp, 
   ShoppingCart,
   Truck,
-  Coffee,
   Zap,
   Film,
-  Zap as Lightning,
-} from "lucide-react-native";
-
-import { supabase } from "~/lib/supabase";
-import { UserProfile } from "~/types/userTypes";
+  Heart,
+  ShoppingBag,
+  Book,
+  MoreHorizontal } from "lucide-react-native";
+import { formatDistanceToNow } from 'date-fns';
 
 type Transaction = {
-  id: number;
-  category: string;
+  id: string;
   amount: number;
+  category: string;
   description: string;
-  time: string;
-  icon: React.ComponentType<{ size: number; color: string }>;
-  color: string;
+  created_at: string;
+  payment_method: string;
 };
 
 type Alert = {
@@ -53,114 +53,157 @@ type QuickAction = {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const [todaySpending] = useState(45);
+  const [userProfile, setUserProfile] = useState({ fullName: "" });
+  const [todaySpending, setTodaySpending] = useState(0);
   const [dailyBudget] = useState(120);
-  const [monthlySpending] = useState(1850);
+  const [monthlySpending, setMonthlySpending] = useState(0);
   const [monthlyBudget] = useState(2500);
-  const [userProfile, setUserProfile] = useState<UserProfile>("");
   const [loading, setLoading] = useState(true);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Fetch user profile
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("full_name, phone, image_url, created_at")
+        .eq("id", user.id)
+        .single();
+
+      setUserProfile({
+        fullName: profileData?.full_name || "",
+        email: user.email || "",
+        phone: profileData?.phone || "",
+        image_url: profileData?.image_url || "",
+      });
+
+      // Get today's date range
+      const today = new Date();
+      const startOfToday = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+      const endOfToday = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+
+      // Fetch today's spending
+      const { data: todaySpendingData } = await supabase
+        .from("expenses")
+        .select("amount")
+        .eq("user_id", user.id)
+        .gte("date", startOfToday)
+        .lte("date", endOfToday);
+
+      const todayTotal = todaySpendingData?.reduce((sum, item) => sum + item.amount, 0) || 0;
+      setTodaySpending(todayTotal);
+
+      // Fetch monthly spending (current month)
+      const currentMonth = new Date().getMonth() + 1;
+      const currentYear = new Date().getFullYear();
+      
+      const { data: monthlySpendingData } = await supabase
+        .from("expenses")
+        .select("amount")
+        .eq("user_id", user.id)
+        .eq("date_month", currentMonth)
+        .eq("date_year", currentYear);
+
+      const monthlyTotal = monthlySpendingData?.reduce((sum, item) => sum + item.amount, 0) || 0;
+      setMonthlySpending(monthlyTotal);
+
+      // Fetch recent transactions
+      const { data: transactionsData } = await supabase
+        .from("expenses")
+        .select("id, amount, category, description, created_at, payment_method")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      setTransactions(transactionsData || []);
+
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        setLoading(true);
+    fetchData();
 
-        // Get the current user session
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+    // Set up realtime subscription for expenses
+    const subscription = supabase
+      .channel('dashboard_updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'expenses'
+        },
+        () => fetchData() // Refresh all data when expenses change
+      )
+      .subscribe();
 
-        if (user) {
-          // Fetch profile data from profiles table
-          const { data: profileData, error } = await supabase
-            .from("profiles")
-            .select("full_name, phone, image_url, created_at")
-            .eq("id", user.id)
-            .single();
-
-          if (error) throw error;
-
-          setUserProfile({
-            fullName: profileData?.full_name || "",
-            email: user.email || "",
-            phone: profileData?.phone || "",
-            image_url: profileData?.image_url || "",
-            totalPredictions: 0,
-            avgAccuracy: 0,
-            joinDate: profileData?.created_at || new Date().toISOString(),
-            lastSignIn: user.last_sign_in_at || new Date().toISOString(),
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-      } finally {
-        setLoading(false);
-      }
+    return () => {
+      supabase.removeChannel(subscription);
     };
-
-    fetchUserProfile();
   }, []);
 
-  const [recentTransactions] = useState<Transaction[]>([
-    {
-      id: 1,
-      category: "Food",
-      amount: 25,
-      description: "Grocery Store",
-      time: "2 hours ago",
-      icon: ShoppingCart,
-      color: "#10b981",
-    },
-    {
-      id: 2,
-      category: "Transport",
-      amount: 12,
-      description: "Bus Fare",
-      time: "4 hours ago",
-      icon: Truck,
-      color: "#3b82f6",
-    },
-    {
-      id: 3,
-      category: "Food",
-      amount: 8,
-      description: "Coffee Shop",
-      time: "Yesterday",
-      icon: Coffee,
-      color: "#10b981",
-    },
-    {
-      id: 4,
-      category: "Utilities",
-      amount: 85,
-      description: "Electricity Bill",
-      time: "2 days ago",
-      icon: Zap,
-      color: "#f59e0b",
-    },
-    {
-      id: 5,
-      category: "Entertainment",
-      amount: 15,
-      description: "Movie Ticket",
-      time: "3 days ago",
-      icon: Film,
-      color: "#8b5cf6",
-    },
-  ]);
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
+
+  const getCategoryIcon = (category: string) => {
+    const icons: Record<string, React.ElementType> = {
+      'Food': ShoppingCart,
+      'Transport': Truck,
+      'Utilities': Zap,
+      'Entertainment': Film,
+      'Healthcare': Heart,
+      'Shopping': ShoppingBag,
+      'Education': Book,
+      'Other': MoreHorizontal,
+    };
+    return icons[category] || MoreHorizontal;
+  };
+
+  const getCategoryColor = (category: string) => {
+    const colors: Record<string, string> = {
+      'Food': '#10b981',
+      'Transport': '#3b82f6',
+      'Utilities': '#f59e0b',
+      'Entertainment': '#8b5cf6',
+      'Healthcare': '#ef4444',
+      'Shopping': '#06b6d4',
+      'Education': '#84cc16',
+      'Other': '#64748b'
+    };
+    return colors[category] || '#64748b';
+  };
 
   const [alerts] = useState<Alert[]>([
     {
       id: 1,
       type: "warning",
-      message: "Food spending 20% above average",
+      message: todaySpending > dailyBudget * 0.8 
+        ? `You've spent ${Math.round((todaySpending/dailyBudget)*100)}% of your daily budget` 
+        : "Food spending 20% above average",
       icon: AlertTriangle,
-      color: "#f59e0b",
+      color: todaySpending > dailyBudget * 0.8 ? "#f59e0b" : "#ef4444",
     },
     {
       id: 2,
       type: "success",
-      message: "On track for monthly savings goal",
+      message: monthlySpending < monthlyBudget * 0.7
+        ? "On track for monthly savings goal"
+        : `You've used ${Math.round((monthlySpending/monthlyBudget)*100)}% of monthly budget`,
       icon: CheckCircle,
       color: "#10b981",
     },
@@ -180,7 +223,7 @@ export default function DashboardScreen() {
       title: "View Budget",
       icon: PieChart,
       color: "#3b82f6",
-      screen: "budget",
+      screen: "../(expense)/ExpenseHistory",
     },
     {
       title: "Analytics",
@@ -192,7 +235,7 @@ export default function DashboardScreen() {
       title: "Generate Report",
       icon: FileText,
       color: "#f59e0b",
-      screen: "reports",
+      screen: "../(expense)/ReceiptScanner",
     },
   ];
 
@@ -202,229 +245,113 @@ export default function DashboardScreen() {
     return "#10b981";
   };
 
+  if (loading && !refreshing) {
+    return (
+      <SafeAreaView className="flex-1 bg-slate-900 items-center justify-center">
+        <ActivityIndicator size="large" color="#10b981" />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
-      <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-        {/* Header */}
-        <View className="flex-row justify-between items-center px-6 py-5">
-          <View>
-            <Text className="text-white text-2xl font-bold">
-              Good Morning! {userProfile.fullName}
-            </Text>
-            <Text className="text-slate-400 mt-1">
-              Here's your spending overview
-            </Text>
-          </View>
-          <TouchableOpacity className="relative">
-            <Bell size={24} color="#f8fafc" />
-            <View className="absolute -top-1 -right-1 bg-rose-500 rounded-full w-5 h-5 justify-center items-center">
-              <Text className="text-white text-xs font-bold">2</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Today's Spending Widget */}
-        <View className="bg-slate-800 mx-6 mb-5 p-5 rounded-xl border border-slate-700">
-          <View className="flex-row items-center mb-4">
-            <Calendar size={20} color="#10b981" />
-            <Text className="text-white font-semibold ml-2">
-              Today's Spending
-            </Text>
-          </View>
-
-          <View className="items-center mb-5">
-            <Text className="text-emerald-500 text-4xl font-bold">
-              ${todaySpending}
-            </Text>
-            <Text className="text-slate-400">of ${dailyBudget} budget</Text>
-          </View>
-
-          <View>
-            <View className="h-2 bg-slate-700 rounded-full mb-1">
-              <View
-                className="h-full rounded-full"
-                style={{
-                  width: `${Math.min(todayProgress, 100)}%`,
-                  backgroundColor: getProgressColor(todayProgress),
-                }}
-              />
-            </View>
-            <Text className="text-slate-400 text-xs text-center">
-              {todayProgress > 100
-                ? `${(todayProgress - 100).toFixed(0)}% over budget`
-                : `${(100 - todayProgress).toFixed(0)}% remaining`}
-            </Text>
-          </View>
-        </View>
-
-        {/* Monthly Overview */}
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        className="flex-1"
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#10b981"
+          />
+        }
+      >
+        <DashboardHeader 
+          userName={userProfile.fullName} 
+          notificationCount={2} 
+        />
+        
+        <SpendingWidget 
+          spent={todaySpending} 
+          budget={dailyBudget} 
+          progressColor={getProgressColor(todayProgress)}
+        />
+        
+        <MonthlyOverview 
+          spent={monthlySpending} 
+          budget={monthlyBudget} 
+          progressColor={getProgressColor(monthlyProgress)}
+        />
+        
+        {/* Alerts Section */}
         <View className="px-6 mb-5">
-          <Text className="text-white text-lg font-bold mb-4">
-            Monthly Overview
-          </Text>
-
-          <View className="flex-row gap-3 mb-4">
-            <View className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 items-center">
-              <DollarSign size={20} color="#10b981" />
-              <Text className="text-slate-400 text-xs mt-2 mb-1">Spent</Text>
-              <Text className="text-white text-lg font-bold">
-                ${monthlySpending}
-              </Text>
-              <Text className="text-slate-500 text-xs">
-                of ${monthlyBudget}
-              </Text>
-            </View>
-
-            <View className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 items-center">
-              <TrendingDown size={20} color="#3b82f6" />
-              <Text className="text-slate-400 text-xs mt-2 mb-1">
-                Remaining
-              </Text>
-              <Text className="text-white text-lg font-bold">
-                ${monthlyBudget - monthlySpending}
-              </Text>
-              <Text className="text-slate-500 text-xs">
-                {Math.round(
-                  ((monthlyBudget - monthlySpending) / monthlyBudget) * 100
-                )}
-                % left
-              </Text>
-            </View>
-
-            <View className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 items-center">
-              <Target size={20} color="#8b5cf6" />
-              <Text className="text-slate-400 text-xs mt-2 mb-1">Avg/Day</Text>
-              <Text className="text-white text-lg font-bold">
-                ${Math.round(monthlySpending / new Date().getDate())}
-              </Text>
-              <Text className="text-slate-500 text-xs">this month</Text>
-            </View>
-          </View>
-
-          <View className="h-2 bg-slate-700 rounded-full">
-            <View
-              className="h-full rounded-full"
-              style={{
-                width: `${Math.min(monthlyProgress, 100)}%`,
-                backgroundColor: getProgressColor(monthlyProgress),
-              }}
-            />
+          <Text className="text-white text-lg font-bold mb-4">Alerts</Text>
+          <View className="gap-2">
+            {alerts.map((alert) => (
+              <AlertCard
+                key={alert.id}
+                icon={alert.icon}
+                message={alert.message}
+                color={alert.color}
+              />
+            ))}
           </View>
         </View>
-
-        {/* Alerts */}
-        {alerts.length > 0 && (
-          <View className="px-6 mb-5">
-            <Text className="text-white text-lg font-bold mb-4">Alerts</Text>
-            <View className="gap-2">
-              {alerts.map((alert) => {
-                const IconComponent = alert.icon;
-                return (
-                  <View
-                    key={alert.id}
-                    className="flex-row items-center bg-slate-800 p-4 rounded-xl border border-slate-700"
-                  >
-                    <IconComponent size={20} color={alert.color} />
-                    <Text className="text-white flex-1 ml-3">
-                      {alert.message}
-                    </Text>
-                    <ChevronRight size={16} color="#64748b" />
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        )}
 
         {/* Quick Actions */}
         <View className="px-6 mb-5">
-          <Text className="text-white text-lg font-bold mb-4">
-            Quick Actions
-          </Text>
+          <Text className="text-white text-lg font-bold mb-4">Quick Actions</Text>
           <View className="flex-row flex-wrap gap-3">
-            {quickActions.map((action, index) => {
-              const IconComponent = action.icon;
-              return (
-                <TouchableOpacity
-                  key={index}
-                  className="bg-slate-800 p-4 rounded-xl border border-slate-700 items-center flex-1 min-w-[45%]"
-                  onPress={() => router.push(`/${action.screen}` as any)}
-                >
-                  <View
-                    className="w-12 h-12 rounded-full justify-center items-center mb-2"
-                    style={{ backgroundColor: `${action.color}20` }}
-                  >
-                    <IconComponent size={24} color={action.color} />
-                  </View>
-                  <Text className="text-white font-medium text-center">
-                    {action.title}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+            {quickActions.map((action, index) => (
+              <QuickActionCard
+                key={index}
+                icon={action.icon}
+                title={action.title}
+                color={action.color}
+                onPress={() => router.push(`/${action.screen}`)}
+              />
+            ))}
           </View>
         </View>
 
         {/* Recent Transactions */}
         <View className="px-6 mb-5">
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-white text-lg font-bold">
-              Recent Transactions
-            </Text>
-            <TouchableOpacity
-              onPress={() => router.push("/expense-history" as any)}
-            >
+            <Text className="text-white text-lg font-bold">Recent Transactions</Text>
+            <TouchableOpacity onPress={() => router.push("/(main)/ExpenseListScreen")}>
               <Text className="text-emerald-500 font-medium">See All</Text>
             </TouchableOpacity>
           </View>
 
           <View className="gap-3">
-            {recentTransactions.slice(0, 5).map((transaction) => {
-              const IconComponent = transaction.icon;
-              return (
-                <View
-                  key={transaction.id}
-                  className="flex-row items-center bg-slate-800 p-4 rounded-xl border border-slate-700"
-                >
-                  <View
-                    className="w-10 h-10 rounded-full justify-center items-center mr-3"
-                    style={{ backgroundColor: `${transaction.color}20` }}
-                  >
-                    <IconComponent size={20} color={transaction.color} />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-white font-medium">
-                      {transaction.description}
-                    </Text>
-                    <Text className="text-slate-400 text-xs">
-                      {transaction.category} • {transaction.time}
-                    </Text>
-                  </View>
-                  <Text className="text-rose-500 font-bold">
-                    -${transaction.amount}
-                  </Text>
-                </View>
-              );
-            })}
+            {transactions.length > 0 ? (
+              transactions.map((transaction) => {
+                const IconComponent = getCategoryIcon(transaction.category);
+                const color = getCategoryColor(transaction.category);
+                
+                return (
+                  <TransactionItem
+                    key={transaction.id}
+                    icon={IconComponent}
+                    description={transaction.description}
+                    category={transaction.category}
+                    time={formatDistanceToNow(new Date(transaction.created_at), { addSuffix: true })}
+                    amount={transaction.amount}
+                    color={color}
+                  />
+                );
+              })
+            ) : (
+              <View className="bg-slate-800 p-4 rounded-xl border border-slate-700">
+                <Text className="text-slate-400 text-center">
+                  No transactions yet
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
-        {/* Prediction Teaser */}
-        <TouchableOpacity
-          className="flex-row items-center bg-slate-800 mx-6 mb-8 p-5 rounded-xl border border-emerald-500"
-          onPress={() => router.push("/predict" as any)}
-        >
-          <Lightning size={24} color="#10b981" />
-          <View className="ml-3 flex-1">
-            <Text className="text-white font-semibold">
-              Next Month Prediction
-            </Text>
-            <Text className="text-slate-400 text-sm">
-              Get AI-powered spending forecast
-            </Text>
-          </View>
-          <ChevronRight size={20} color="#64748b" />
-        </TouchableOpacity>
+        <PredictionTeaser onPress={() => router.push("/predict")} />
       </ScrollView>
     </SafeAreaView>
   );

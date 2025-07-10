@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -8,9 +8,12 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { supabase } from "~/lib/supabase";
 import {
   X,
   ShoppingCart,
@@ -21,16 +24,15 @@ import {
   ShoppingBag,
   Book,
   MoreHorizontal,
-  Calendar,
+  Calendar as CalendarIcon,
   ChevronDown,
   Tag,
-  ChevronRight,
   CreditCard,
-  DollarSign,
   Wallet,
+  DollarSign,
+  Check,
+  ChevronRight,
 } from "lucide-react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { supabase } from "~/lib/supabase";
 
 type Category = {
   id: string;
@@ -42,8 +44,13 @@ type Category = {
 type Frequency = "weekly" | "monthly" | "yearly";
 type PaymentMethod = "cash" | "credit_card" | "debit_card" | "digital_wallet";
 
-export default function AddExpenseScreen() {
+export default function EditExpenseScreen() {
   const router = useRouter();
+  const { id } = useLocalSearchParams();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  // Form state
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
@@ -52,7 +59,8 @@ export default function AddExpenseScreen() {
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] = useState<Frequency>("monthly");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
+  const [isEssential, setIsEssential] = useState(false);
 
   const categories: Category[] = [
     { id: "food", name: "Food", icon: ShoppingCart, color: "#10b981" },
@@ -74,25 +82,56 @@ export default function AddExpenseScreen() {
 
   const quickAmounts = [10, 25, 50, 100];
 
-  const handleSaveExpense = async () => {
+  useEffect(() => {
+    const fetchExpense = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from("expenses")
+          .select("*")
+          .eq("id", id)
+          .single();
+
+        if (error) throw error;
+
+        // Pre-fill form with existing data
+        setAmount(data.amount.toString());
+        setDescription(data.description);
+        setDate(new Date(data.date));
+        setIsRecurring(data.is_recurring);
+        setRecurringFrequency(data.recurrence_interval || "monthly");
+        setPaymentMethod(data.payment_method);
+        setTags(data.tags || []);
+        setIsEssential(data.is_essential);
+
+        // Set category
+        const category = categories.find(c => c.name === data.category);
+        if (category) setSelectedCategory(category);
+
+      } catch (error) {
+        console.error("Error fetching expense:", error);
+        Alert.alert("Error", "Failed to load expense data");
+        router.back();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) fetchExpense();
+  }, [id]);
+
+  const handleSave = async () => {
     if (!amount || !selectedCategory || !description.trim()) {
       Alert.alert("Missing Information", "Please fill in all required fields");
       return;
     }
 
-    setIsSubmitting(true);
+    setSaving(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error("User not authenticated");
-      }
-
       const { error } = await supabase
         .from("expenses")
-        .insert({
-          user_id: user.id,
+        .update({
           amount: parseFloat(amount),
           category: selectedCategory.name,
           description: description.trim(),
@@ -100,29 +139,22 @@ export default function AddExpenseScreen() {
           payment_method: paymentMethod,
           is_recurring: isRecurring,
           recurrence_interval: isRecurring ? recurringFrequency : null,
-          is_essential: true, // You can add a toggle for this
-          tags: [], // Add tag functionality if needed
-        });
+          is_essential: isEssential,
+          tags: tags.length > 0 ? tags : null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id);
 
       if (error) throw error;
 
-      Alert.alert("Success", "Expense added successfully!", [
-        {
-          text: "Add Another",
-          onPress: () => {
-            setAmount("");
-            setDescription("");
-            setSelectedCategory(null);
-            setPaymentMethod(null);
-          },
-        },
-        { text: "View Expenses", onPress: () => router.push("/expenses") },
+      Alert.alert("Success", "Expense updated successfully!", [
+        { text: "OK", onPress: () => router.back() },
       ]);
     } catch (error) {
-      Alert.alert("Error", "Failed to save expense. Please try again.");
-      console.error("Error saving expense:", error);
+      console.error("Error updating expense:", error);
+      Alert.alert("Error", "Failed to update expense");
     } finally {
-      setIsSubmitting(false);
+      setSaving(false);
     }
   };
 
@@ -142,6 +174,18 @@ export default function AddExpenseScreen() {
     }
   };
 
+  const toggleEssential = () => {
+    setIsEssential(!isEssential);
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-slate-900 items-center justify-center">
+        <ActivityIndicator size="large" color="#10b981" />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
       <KeyboardAvoidingView
@@ -153,24 +197,24 @@ export default function AddExpenseScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <X size={24} color="#94a3b8" />
           </TouchableOpacity>
-          <Text className="text-white text-lg font-bold">Add Expense</Text>
+          <Text className="text-white text-lg font-bold">Edit Expense</Text>
           <TouchableOpacity
             className={`py-2 px-4 rounded-lg ${
-              !amount || !selectedCategory || !description.trim() || isSubmitting
+              !amount || !selectedCategory || !description.trim() || saving
                 ? "bg-slate-700"
                 : "bg-emerald-500"
             }`}
-            onPress={handleSaveExpense}
-            disabled={!amount || !selectedCategory || !description.trim() || isSubmitting}
+            onPress={handleSave}
+            disabled={!amount || !selectedCategory || !description.trim() || saving}
           >
             <Text
               className={`font-bold ${
-                !amount || !selectedCategory || !description.trim() || isSubmitting
+                !amount || !selectedCategory || !description.trim() || saving
                   ? "text-slate-500"
                   : "text-white"
               }`}
             >
-              {isSubmitting ? "Saving..." : "Save"}
+              {saving ? "Saving..." : "Save"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -317,7 +361,7 @@ export default function AddExpenseScreen() {
               className="flex-row items-center bg-slate-800 p-4 rounded-xl border border-slate-700"
               onPress={() => setShowDatePicker(true)}
             >
-              <Calendar size={20} color="#10b981" />
+              <CalendarIcon size={20} color="#10b981" />
               <Text className="text-white ml-3 flex-1">{formatDate(date)}</Text>
               <ChevronDown size={16} color="#64748b" />
             </TouchableOpacity>
@@ -378,6 +422,37 @@ export default function AddExpenseScreen() {
                 </View>
               </View>
             )}
+          </View>
+
+          {/* Essential/Discretionary Toggle */}
+          <View className="px-6 mb-8">
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-white text-lg font-bold">Essential Expense</Text>
+              <TouchableOpacity
+                className={`w-12 h-7 rounded-full justify-center ${
+                  isEssential ? "bg-emerald-500" : "bg-slate-700"
+                }`}
+                onPress={toggleEssential}
+              >
+                <View
+                  className={`w-6 h-6 rounded-full bg-white ${
+                    isEssential ? "self-end" : "self-start"
+                  }`}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Tags */}
+          <View className="px-6 mb-8">
+            <Text className="text-white text-lg font-bold mb-4">Tags</Text>
+            <TouchableOpacity className="flex-row items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
+              <Tag size={20} color="#f59e0b" />
+              <Text className="text-white ml-3 flex-1 font-medium">
+                {tags.length > 0 ? tags.join(", ") : "Add tags..."}
+              </Text>
+              <ChevronRight size={16} color="#64748b" />
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
