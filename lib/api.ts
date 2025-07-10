@@ -1,7 +1,6 @@
 import { getItemAsync } from "expo-secure-store";
 
-export const API_URL = "http://192.168.100.83:8000"; // Use your Windows Wi-Fi IP
-//export const API_URL = "http://10.35.128.149:8000"; // Use your Windows phone IP
+export const API_URL = "http://192.168.56.1:8000"; // Use your Windows Wi-Fi IP
 
 export async function predictExpenditure(inputData: Record<string, any>) {
   console.log("Sending payload to backend:", inputData);

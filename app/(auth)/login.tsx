@@ -66,6 +66,7 @@ export default function LoginScreen() {
     // Save token securely
     await setItemAsync("token", data.session?.access_token);
     await setItemAsync("userId", data.user?.id);
+    await setItemAsync("supabase_session", JSON.stringify(data.session));
     console.log("Login access token:", data.session?.access_token);
 
     router.push("../Dashboard" as any);
