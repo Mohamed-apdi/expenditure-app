@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { View, Text, TouchableOpacity, Alert, Dimensions, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, Alert, Dimensions, ScrollView, Image, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import * as ImagePicker from 'expo-image-picker';
+import { supabase } from '~/lib/supabase';
 import {
   ArrowLeft,
   X,
@@ -12,15 +14,19 @@ import {
   ShoppingCart,
   Info,
   Edit3,
-  Image,
+  Image as ImageIcon,
   DollarSign,
   Calendar as CalendarIcon,
   MapPin,
   List,
   Tag,
+  Upload,
+  ArrowUpRight,
+  CreditCard,
+  Wallet,
 } from "lucide-react-native";
-
-
+import { scanReceiptWithOCR } from "~/lib/ocr";
+import Toast from "react-native-toast-message";
 const { width, height } = Dimensions.get("window");
 
 type ScannedData = {
@@ -30,54 +36,197 @@ type ScannedData = {
   items: { name: string; price: number }[];
   category: string;
   tax: number;
+  receiptUrl?: string;
 };
-
+type Frequency = "weekly" | "monthly" | "yearly";
 export default function ReceiptScannerScreen() {
   const router = useRouter();
   const [isScanning, setIsScanning] = useState(false);
   const [scannedData, setScannedData] = useState<ScannedData | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("cash");
+  const [isEssential, setIsEssential] = useState(true);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringFrequency, setRecurringFrequency] = useState<Frequency>("monthly");
 
-  const handleScanReceipt = () => {
+  const paymentMethods = [
+  { id: "cash", name: "Cash", icon: DollarSign, color: "#84cc16" },
+  { id: "credit_card", name: "Credit Card", icon: CreditCard, color: "#3b82f6" },
+  { id: "debit_card", name: "Debit Card", icon: CreditCard, color: "#8b5cf6" },
+  { id: "digital_wallet", name: "Digital Wallet", icon: Wallet, color: "#f59e0b" },
+];
+
+  const handleTakePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Need camera access to take receipt photos');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+      aspect: [4, 3],
+    });
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+      handleScanReceipt(result.assets[0].uri);
+    }
+  };
+
+  const handleChooseFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission required', 'Need gallery access to upload receipts');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setImageUri(result.assets[0].uri);
+      handleScanReceipt(result.assets[0].uri);
+    }
+  };
+
+  
+
+  const handleScanReceipt = async (uri: string) => {
     setIsScanning(true);
-
-    // Simulate scanning process
-    setTimeout(() => {
+    
+    try {
+      // First upload the receipt image to Supabase for storage
+      const receiptUrl = await uploadReceipt(uri);
+      
+      // Then process with OCR.space
+      const scannedData = await scanReceiptWithOCR(uri);
+      
+      // Combine with the receipt URL
+      setScannedData({
+        ...scannedData,
+        receiptUrl,
+      });
+    } catch (error) {
+      console.error('Scanning error:', error);
+      Alert.alert('Error', 'Failed to process receipt. Please try again or enter manually.');
+    } finally {
       setIsScanning(false);
-      const mockScannedData: ScannedData = {
-        merchant: "Walmart Supercenter",
-        amount: 45.67,
-        date: "2024-01-15",
-        items: [
-          { name: "Milk", price: 3.99 },
-          { name: "Bread", price: 2.5 },
-          { name: "Eggs", price: 4.25 },
-          { name: "Bananas", price: 2.15 },
-          { name: "Chicken Breast", price: 12.99 },
-          { name: "Rice", price: 5.49 },
-          { name: "Tomatoes", price: 3.89 },
-          { name: "Cheese", price: 6.75 },
-          { name: "Yogurt", price: 3.66 },
-        ],
-        category: "Food",
-        tax: 3.67,
-      };
-      setScannedData(mockScannedData);
-    }, 3000);
+    }
+  };
+
+  const uploadReceipt = async (uri: string) => {
+    setUploading(true);
+    try {
+      // Generate unique filename
+      const ext = uri.split('.').pop();
+      const fileName = `${Date.now()}.${ext}`;
+
+      // Upload to Supabase Storage
+      const formData = new FormData();
+      formData.append('file', {
+        uri,
+        name: fileName,
+        type: `image/${ext}`,
+      } as any);
+
+      const { data, error } = await supabase.storage
+        .from('receipts')
+        .upload(fileName, formData);
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('receipts')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Upload error:', error);
+      throw error;
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleRetakePhoto = () => {
     setScannedData(null);
-    handleScanReceipt();
-  };
-
-  const handleConfirmExpense = () => {
-    Alert.alert("Success", "Expense added from receipt!", [
-      { text: "OK", onPress: () => router.back() },
-    ]);
+    setImageUri(null);
   };
 
   const handleManualEntry = () => {
-    router.push("/add-expense" as any);
+    router.push("/(expense)/AddExpense");
+  };
+
+  // Update your handleSaveScannedExpense function
+const handleSaveScannedExpense = async () => {
+  if (!scannedData) return;
+
+  try {
+    setIsSubmitting(true);
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
+    const expenseData = {
+      user_id: user.id,
+      amount: scannedData.amount,
+      category: scannedData.category,
+      description: `${scannedData.merchant} Purchase`,
+      date: scannedData.date,
+      payment_method: selectedPaymentMethod,
+      is_recurring: isRecurring,
+      recurrence_interval: isRecurring ? recurringFrequency : null,
+      is_essential: isEssential,
+      tags: [],
+      receipt_url: scannedData.receiptUrl || null,
+    };
+
+    const { error } = await supabase
+      .from("expenses")
+      .insert(expenseData);
+
+    if (error) throw error;
+
+    // ✅ Show toast success
+    Toast.show({
+      type: "success",
+      text1: "Expense Added",
+      text2: "Your expense has been saved successfully.",
+    });
+
+    // ✅ Redirect after 2 seconds
+    setTimeout(() => {
+      router.replace("/(main)/ExpenseListScreen");
+    }, 2000);
+    
+  } catch (error) {
+    console.error("Error saving expense:", error);
+    Alert.alert("Error", "Failed to save expense. Please try again.");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
+  const viewReceipt = async () => {
+    if (!scannedData?.receiptUrl) return;
+    
+    try {
+      await Linking.openURL(scannedData.receiptUrl);
+    } catch (error) {
+      console.error('Error viewing receipt:', error);
+      Alert.alert('Error', 'Could not open receipt');
+    }
   };
 
   if (isScanning) {
@@ -92,22 +241,33 @@ export default function ReceiptScannerScreen() {
           <View className="w-6" /> {/* Spacer for alignment */}
         </View>
 
-        {/* Camera Preview */}
+        {/* Image Preview */}
         <View className="flex-1 bg-slate-800 justify-center items-center">
-          <View className="w-full h-[40%] border-2 border-emerald-500 rounded-xl absolute" />
-          <Camera size={48} color="#64748b" />
-          <Text className="text-slate-500 mt-3">Camera View</Text>
+          {imageUri ? (
+            <Image 
+              source={{ uri: imageUri }} 
+              className="w-full h-[60%]"
+              resizeMode="contain"
+              style={{ aspectRatio: 1 }} // Maintain original aspect ratio
+            />
+          ) : (
+            <>
+              <View className="w-full h-[40%] border-2 border-emerald-500 rounded-xl absolute" />
+              <Camera size={48} color="#64748b" />
+              <Text className="text-slate-500 mt-3">Camera View</Text>
+            </>
+          )}
           <Text className="text-white mt-8 text-center px-10">
-            Position the receipt within the frame
+            {uploading ? "Uploading receipt..." : "Processing receipt..."}
           </Text>
         </View>
 
         {/* Processing Indicator */}
         <View className="px-6 py-8 items-center">
-          <View className="flex-row items-center">
-            <View className="w-2 h-2 rounded-full bg-emerald-500 mr-3" />
-            <Text className="text-white">Processing receipt...</Text>
-          </View>
+          <ActivityIndicator size="large" color="#10b981" />
+          <Text className="text-white mt-3">
+            {uploading ? "Uploading..." : "Extracting data..."}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -139,7 +299,7 @@ export default function ReceiptScannerScreen() {
                 </Text>
               </View>
               <Text className="text-emerald-500 text-2xl font-bold">
-                ${scannedData.amount}
+                ${scannedData.amount.toFixed(2)}
               </Text>
             </View>
 
@@ -154,6 +314,28 @@ export default function ReceiptScannerScreen() {
             </View>
           </View>
 
+          {/* Receipt Image Preview */}
+          {scannedData.receiptUrl && (
+            <TouchableOpacity 
+              className="bg-slate-800 p-4 rounded-xl border border-slate-700 mb-5"
+              onPress={viewReceipt}
+            >
+              <View className="flex-row items-center justify-between mb-3">
+                <Text className="text-white font-bold">Receipt Image</Text>
+                <View className="flex-row items-center">
+                  <Text className="text-blue-500 mr-2">View</Text>
+                  <ArrowUpRight size={16} color="#3b82f6" />
+                </View>
+              </View>
+              <Image 
+                source={{ uri: scannedData.receiptUrl }} 
+                className="w-full"
+                style={{ height: undefined, aspectRatio: 1 }} // Flexible height
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+          )}
+
           {/* Items List */}
           <View className="bg-slate-800 p-5 rounded-xl border border-slate-700 mb-5">
             <Text className="text-white font-bold mb-4">
@@ -163,7 +345,7 @@ export default function ReceiptScannerScreen() {
               {scannedData.items.map((item, index) => (
                 <View key={index} className="flex-row justify-between">
                   <Text className="text-white">{item.name}</Text>
-                  <Text className="text-slate-400">${item.price}</Text>
+                  <Text className="text-slate-400">${item.price.toFixed(2)}</Text>
                 </View>
               ))}
 
@@ -171,16 +353,129 @@ export default function ReceiptScannerScreen() {
 
               <View className="flex-row justify-between">
                 <Text className="text-white">Tax</Text>
-                <Text className="text-slate-400">${scannedData.tax}</Text>
+                <Text className="text-slate-400">${scannedData.tax.toFixed(2)}</Text>
               </View>
 
               <View className="flex-row justify-between mt-3">
                 <Text className="text-white font-bold">Total</Text>
                 <Text className="text-emerald-500 font-bold">
-                  ${scannedData.amount}
+                  ${scannedData.amount.toFixed(2)}
                 </Text>
               </View>
             </View>
+          </View>
+
+          {/* Payment Method Selection */}
+          <View className="bg-slate-800 p-5 rounded-xl border border-slate-700 mb-5">
+            <Text className="text-white text-lg font-bold mb-4">Payment Method</Text>
+            <View className="flex-row flex-wrap gap-3">
+              {paymentMethods.map((method) => (
+                <TouchableOpacity
+                  key={method.id}
+                  className={`flex-1 min-w-[45%] flex-row items-center bg-slate-800 p-3 rounded-lg border ${
+                    selectedPaymentMethod === method.id
+                      ? "border-emerald-500 bg-emerald-500/10"
+                      : "border-slate-700"
+                  }`}
+                  onPress={() => setSelectedPaymentMethod(method.id as PaymentMethod)}
+                >
+                  <View
+                    style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 999,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginRight: 8,
+                    backgroundColor: selectedPaymentMethod === method.id
+                      ? "#10b981"
+                      : `${method.color}33`, // 33 is ~20% opacity in hex
+                  }}
+                  >
+                    <method.icon
+                      size={16}
+                      color={selectedPaymentMethod === method.id ? "#ffffff" : method.color}
+                    />
+                  </View>
+                  <Text
+                    className={`${
+                      selectedPaymentMethod === method.id
+                        ? "text-emerald-500 font-semibold"
+                        : "text-slate-400"
+                    }`}
+                  >
+                    {method.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Essential Expense Toggle */}
+          <View className="bg-slate-800 p-5 rounded-xl border border-slate-700 mb-5">
+            <View className="flex-row justify-between items-center">
+              <Text className="text-white text-lg font-bold">Essential Expense</Text>
+              <TouchableOpacity
+                className={`w-12 h-7 rounded-full justify-center ${
+                  isEssential ? "bg-emerald-500" : "bg-slate-700"
+                }`}
+                onPress={() => setIsEssential(!isEssential)}
+              >
+                <View
+                  className={`w-6 h-6 rounded-full bg-white ${
+                    isEssential ? "self-end" : "self-start"
+                  }`}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Recurring Option */}
+          <View className="bg-slate-800 p-5 rounded-xl border border-slate-700 mb-5">
+            <View className="flex-row justify-between items-center mb-4">
+              <Text className="text-white text-lg font-bold">Recurring Expense</Text>
+              <TouchableOpacity
+                className={`w-12 h-7 rounded-full justify-center ${
+                  isRecurring ? "bg-emerald-500" : "bg-slate-700"
+                }`}
+                onPress={() => setIsRecurring(!isRecurring)}
+              >
+                <View
+                  className={`w-6 h-6 rounded-full bg-white ${
+                    isRecurring ? "self-end" : "self-start"
+                  }`}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {isRecurring && (
+              <View>
+                <Text className="text-slate-400 mb-3">Frequency</Text>
+                <View className="flex-row gap-3">
+                  {["weekly", "monthly", "yearly"].map((freq) => (
+                    <TouchableOpacity
+                      key={freq}
+                      className={`flex-1 py-3 rounded-lg border ${
+                        recurringFrequency === freq
+                          ? "bg-emerald-500 border-emerald-500"
+                          : "bg-slate-800 border-slate-700"
+                      }`}
+                      onPress={() => setRecurringFrequency(freq as Frequency)}
+                    >
+                      <Text
+                        className={`text-center font-medium ${
+                          recurringFrequency === freq
+                            ? "text-white font-semibold"
+                            : "text-slate-400"
+                        }`}
+                      >
+                        {freq.charAt(0).toUpperCase() + freq.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
           </View>
 
           {/* Accuracy Notice */}
@@ -195,14 +490,19 @@ export default function ReceiptScannerScreen() {
           <View className="flex-row gap-3 mb-8">
             <TouchableOpacity
               className="flex-1 flex-row items-center justify-center bg-slate-800 p-4 rounded-xl border border-blue-500"
-              onPress={() => router.push({ pathname: "/add-expense" as any, params: { scannedData: JSON.stringify(scannedData) } })}
+              onPress={() => router.push({ 
+                pathname: "/(expense)/AddExpense", 
+                params: { 
+                  scannedData: JSON.stringify(scannedData) 
+                } 
+              })}
             >
               <Edit3 size={20} color="#3b82f6" />
               <Text className="text-blue-500 font-semibold ml-2">Edit Details</Text>
             </TouchableOpacity>
             <TouchableOpacity
               className="flex-1 flex-row items-center justify-center bg-emerald-500 p-4 rounded-xl"
-              onPress={handleConfirmExpense}
+              onPress={handleSaveScannedExpense}
             >
               <Check size={20} color="#ffffff" />
               <Text className="text-white font-semibold ml-2">Add Expense</Text>
@@ -252,10 +552,17 @@ export default function ReceiptScannerScreen() {
         {/* Scan Button */}
         <TouchableOpacity
           className="flex-row items-center justify-center bg-emerald-500 py-4 rounded-xl mb-8"
-          onPress={handleScanReceipt}
+          onPress={handleTakePhoto}
+          disabled={uploading}
         >
-          <Camera size={24} color="#ffffff" />
-          <Text className="text-white font-bold ml-2">Take Photo</Text>
+          {uploading ? (
+            <ActivityIndicator color="#ffffff" />
+          ) : (
+            <>
+              <Camera size={24} color="#ffffff" />
+              <Text className="text-white font-bold ml-2">Take Photo</Text>
+            </>
+          )}
         </TouchableOpacity>
 
         {/* Alternative Options */}
@@ -268,9 +575,19 @@ export default function ReceiptScannerScreen() {
             <Edit3 size={20} color="#94a3b8" />
             <Text className="text-slate-400 ml-2">Enter Manually</Text>
           </TouchableOpacity>
-          <TouchableOpacity className="flex-row items-center justify-center bg-slate-800 py-3 px-6 rounded-lg border border-slate-700 w-full">
-            <Image size={20} color="#94a3b8" />
-            <Text className="text-slate-400 ml-2">Choose from Gallery</Text>
+          <TouchableOpacity 
+            className="flex-row items-center justify-center bg-slate-800 py-3 px-6 rounded-lg border border-slate-700 w-full"
+            onPress={handleChooseFromGallery}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <ActivityIndicator color="#94a3b8" />
+            ) : (
+              <>
+                <ImageIcon size={20} color="#94a3b8" />
+                <Text className="text-slate-400 ml-2">Choose from Gallery</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
 

@@ -318,20 +318,6 @@ export default function ExpenseDetailScreen() {
             </Text>
           </View>
         </View>
-
-        {/* Receipt Section */}
-        {expense.receipt_url && (
-          <TouchableOpacity 
-            className="mx-6 mb-8 p-4 bg-slate-800 rounded-xl border border-slate-700 flex-row justify-between items-center"
-            onPress={handleViewReceipt}
-          >
-            <View className="flex-row items-center">
-              <Receipt size={20} color="#3b82f6" className="mr-3" />
-              <Text className="text-white font-medium">View Receipt</Text>
-            </View>
-            <ArrowUpRight size={18} color="#3b82f6" />
-          </TouchableOpacity>
-        )}
       </ScrollView>
     </SafeAreaView>
   );

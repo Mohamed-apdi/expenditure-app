@@ -27,6 +27,7 @@ import {
 } from 'lucide-react-native';
 import { supabase } from '~/lib/supabase';
 import { format } from 'date-fns';
+import AddExpenseOptionsModal from '../(expense)/AddExpenseOptionsModal';
 
 type Expense = {
   id: string;
@@ -54,6 +55,7 @@ export default function ExpenseListScreen() {
     sortOrder: 'desc'
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [showAddOptions, setShowAddOptions] = useState(false);
 
   const getCategoryIcon = (category: string) => {
     const icons: Record<string, React.ElementType> = {
@@ -166,7 +168,7 @@ export default function ExpenseListScreen() {
           <TouchableOpacity onPress={() => setShowFilters(!showFilters)}>
             <Filter size={24} color={showFilters ? "#10b981" : "#f8fafc"} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/(expense)/AddExpense')}>
+          <TouchableOpacity onPress={() => setShowAddOptions(true)}>
             <Plus size={24} color="#f8fafc" />
           </TouchableOpacity>
         </View>
@@ -278,6 +280,10 @@ export default function ExpenseListScreen() {
           </Text>
         </View>
       )}
+      <AddExpenseOptionsModal
+        visible={showAddOptions}
+        onClose={() => setShowAddOptions(false)}
+      />
     </SafeAreaView>
   );
 }
