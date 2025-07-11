@@ -255,7 +255,6 @@ export default function SignupScreen() {
     }
 
     try {
-      // 1. Create auth user
       const { data, error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -265,10 +264,22 @@ export default function SignupScreen() {
           },
         },
       });
-      if (error) throw error;
 
-      router.push("/(auth)/login");
+      if (error) {
+        throw error;
+      }
+
+      if (data.user) {
+        Toast.show({
+          type: "success",
+          text1: "Account created!",
+          text2: "Please check your email to verify your account",
+        });
+
+        router.push("/(auth)/login");
+      }
     } catch (error) {
+      console.error("Signup error:", error);
       Toast.show({
         type: "error",
         text1: "Signup failed",
@@ -280,89 +291,99 @@ export default function SignupScreen() {
   };
 
   const handleCreate = useCallback(async () => {
-    if (
-      !formData.fullname ||
-      !formData.email ||
-      !formData.password ||
-      !formData.confirmPassword
-    ) {
+    try {
+      if (
+        !formData.fullname ||
+        !formData.email ||
+        !formData.password ||
+        !formData.confirmPassword
+      ) {
+        Toast.show({
+          type: "error",
+          text1: "Please fill in all required fields",
+        });
+        return;
+      }
+
+      if (/^\d+$/.test(formData.fullname)) {
+        Toast.show({
+          type: "error",
+          text1: "Full name cannot contain only numbers",
+        });
+        return;
+      }
+
+      const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
+      if (!isValidEmail) {
+        Toast.show({
+          type: "error",
+          text1: "Invalid email format",
+        });
+        return;
+      }
+
+      if (formData.password !== formData.confirmPassword) {
+        Toast.show({
+          type: "error",
+          text1: "Passwords do not match",
+        });
+        return;
+      }
+
+      if (
+        formData.password.length < 8 ||
+        !/[A-Z]/.test(formData.password) ||
+        !/[0-9]/.test(formData.password)
+      ) {
+        Toast.show({
+          type: "error",
+          text1:
+            "Password must be at least 8 characters, contain an uppercase letter, and a number",
+        });
+        return;
+      }
+
+      // Check for existing name in profiles table
+      const { data: existingName } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("full_name", formData.fullname)
+        .maybeSingle();
+
+      if (existingName) {
+        Toast.show({
+          type: "error",
+          text1: "Full name already taken",
+        });
+        return;
+      }
+
+      // Check for existing email in auth.users
+      const { data: existingEmail } = await supabase
+        .from("auth.users")
+        .select("email")
+        .eq("email", formData.email)
+        .maybeSingle();
+
+      if (existingEmail) {
+        Toast.show({
+          type: "error",
+          text1: "Email already registered",
+        });
+        return;
+      }
+
+      // If all checks pass, proceed with signup
+      await handleSignup();
+    } catch (error) {
+      console.error("Signup error:", error);
       Toast.show({
         type: "error",
-        text1: "Please fill in all required fields",
+        text1: "Signup failed",
+        text2: error.message || "An unknown error occurred",
       });
-      return;
     }
-
-    if (/^\d+$/.test(formData.fullname)) {
-      Toast.show({
-        type: "error",
-        text1: "Full name cannot contain only numbers",
-      });
-      return;
-    }
-
-    // Check in auth.users table
-    const { data: existingAuthUser } = await supabase
-      .from("auth.users")
-      .select("id")
-      .eq("raw_user_meta_data->>full_name", formData.fullname)
-      .maybeSingle();
-
-    if (existingProfileName || existingAuthUser) {
-      Toast.show({
-        type: "error",
-        text1: "Full name already taken",
-      });
-      return;
-    }
-
-    const { data: existingName, error: nameError } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("full_name", formData.fullname)
-      .maybeSingle();
-
-    if (existingName) {
-      Toast.show({
-        type: "error",
-        text1: "Full name already taken",
-      });
-      return;
-    }
-
-    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
-    if (!isValidEmail) {
-      Toast.show({
-        type: "error",
-        text1: "Invalid email format",
-      });
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      Toast.show({
-        type: "error",
-        text1: "Passwords do not match",
-      });
-      return;
-    }
-
-    if (
-      formData.password.length < 8 ||
-      !/[A-Z]/.test(formData.password) ||
-      !/[0-9]/.test(formData.password)
-    ) {
-      Toast.show({
-        type: "error",
-        text1:
-          "Password must be at least 8 characters, contain an uppercase letter, and a number",
-      });
-      return;
-    }
-
-    handleSignup();
   }, [formData]);
-
   const handleSocialSignup = async (provider: "google" | "github") => {
     setSocialLoading(provider);
 
