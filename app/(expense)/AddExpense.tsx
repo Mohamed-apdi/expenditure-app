@@ -116,7 +116,7 @@ export default function AddExpenseScreen() {
             setPaymentMethod(null);
           },
         },
-        { text: "View Expenses", onPress: () => router.push("/expenses") },
+        { text: "View Expenses", onPress: () => router.push("/(main)/ExpenseListScreen") },
       ]);
     } catch (error) {
       Alert.alert("Error", "Failed to save expense. Please try again.");
