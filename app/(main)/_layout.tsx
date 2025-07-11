@@ -47,8 +47,7 @@ export default function MainLayout() {
       <Tabs.Screen
         name="ExpenseListScreen"
         options={{
-          title: "Expenses",
-          tabBarIcon: ({ color, size }) => <Wallet color={color} size={size} />,
+          href: null,
         }}
       />
       <Tabs.Screen

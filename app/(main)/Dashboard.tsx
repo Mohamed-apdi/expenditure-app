@@ -250,10 +250,22 @@ export default function DashboardScreen() {
       screen: "../(analytics)/AdvancedAnalytics",
     },
     {
-      title: "Generate Report",
-      icon: FileText,
+      title: "Scan Report",
+      icon: FileText, // Consider replacing with a scanner icon if available
       color: "#f59e0b",
       screen: "../(expense)/ReceiptScanner",
+    },
+    {
+      title: "Generate Report",
+      icon: PieChart,
+      color: "#f43f5e",
+      screen: "../(expense)/ExpenseReport",
+    },
+    {
+      title: "Compare Expenses",
+      icon: TrendingUp,
+      color: "#f43f5e",
+      screen: "../(expense)/ExpenseComparison",
     },
   ];
 
