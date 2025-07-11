@@ -29,6 +29,7 @@ import { setItemAsync } from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import * as AuthSession from "expo-auth-session";
+import Toast from "react-native-toast-message";
 
 // Configure Google Auth
 WebBrowser.maybeCompleteAuthSession();
@@ -245,54 +246,104 @@ export default function SignupScreen() {
 
   const handleSignup = async () => {
     setLoading(true);
-    const { email, password, fullname } = formData;
+
+    // Validate inputs
+    if (formData.password !== formData.confirmPassword) {
+      Toast.show({ type: "error", text1: "Passwords do not match" });
+      setLoading(false);
+      return;
+    }
 
     try {
-      const response = await axios.post(`${API_URL}/auth/signup`, {
-        email,
-        password,
-        full_name: fullname,
+      // 1. Create auth user
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.fullname,
+          },
+        },
       });
+      if (error) throw error;
 
-      const data = response.data;
-
-      if (data.message === "User already exists") {
-        alert("Account already exists. Please login instead.");
-        router.push("/login");
-      } else if (data.access_token) {
-        await setItemAsync("token", data.access_token);
-        router.push("../(main)/Dashboard");
-      } else {
-        router.push("/login");
-      }
-    } catch (error: any) {
-      let message =
-        error.response?.data?.detail || error.message || "Signup failed";
-
-      // Handle specific Supabase errors
-      if (error.response?.data?.code === "23505") {
-        message = "Account already exists. Please login instead.";
-        router.push("/login");
-      }
-
-      alert(message);
+      router.push("/(auth)/login");
+    } catch (error) {
+      Toast.show({
+        type: "error",
+        text1: "Signup failed",
+        text2: error.message,
+      });
     } finally {
       setLoading(false);
     }
   };
-  const handleCreate = useCallback(() => {
+
+  const handleCreate = useCallback(async () => {
     if (
       !formData.fullname ||
       !formData.email ||
       !formData.password ||
       !formData.confirmPassword
     ) {
-      alert("Please fill in all required fields");
+      Toast.show({
+        type: "error",
+        text1: "Please fill in all required fields",
+      });
+      return;
+    }
+
+    if (/^\d+$/.test(formData.fullname)) {
+      Toast.show({
+        type: "error",
+        text1: "Full name cannot contain only numbers",
+      });
+      return;
+    }
+
+    // Check in auth.users table
+    const { data: existingAuthUser } = await supabase
+      .from("auth.users")
+      .select("id")
+      .eq("raw_user_meta_data->>full_name", formData.fullname)
+      .maybeSingle();
+
+    if (existingProfileName || existingAuthUser) {
+      Toast.show({
+        type: "error",
+        text1: "Full name already taken",
+      });
+      return;
+    }
+
+    const { data: existingName, error: nameError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("full_name", formData.fullname)
+      .maybeSingle();
+
+    if (existingName) {
+      Toast.show({
+        type: "error",
+        text1: "Full name already taken",
+      });
+      return;
+    }
+
+    const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email);
+    if (!isValidEmail) {
+      Toast.show({
+        type: "error",
+        text1: "Invalid email format",
+      });
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords don't match");
+      Toast.show({
+        type: "error",
+        text1: "Passwords do not match",
+      });
       return;
     }
 
@@ -301,9 +352,11 @@ export default function SignupScreen() {
       !/[A-Z]/.test(formData.password) ||
       !/[0-9]/.test(formData.password)
     ) {
-      alert(
-        "Password must be at least 8 characters, contain an uppercase letter, and a number"
-      );
+      Toast.show({
+        type: "error",
+        text1:
+          "Password must be at least 8 characters, contain an uppercase letter, and a number",
+      });
       return;
     }
 
@@ -314,9 +367,7 @@ export default function SignupScreen() {
     setSocialLoading(provider);
 
     try {
-      const redirectUrl = AuthSession.makeRedirectUri({
-        useProxy: true,
-      } as any);
+      const redirectUrl = AuthSession.makeRedirectUri({ useProxy: true });
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
@@ -408,7 +459,7 @@ export default function SignupScreen() {
               disabled={loading}
             >
               <Text className="text-white font-bold mr-2">
-                {loading ? "Creating Account..." : "Create Account"}
+                {loading ? "Creating Account..." : "Sign Up"}
               </Text>
               <ArrowRight size={20} color="#ffffff" />
             </Button>
