@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View, ActivityIndicator, RefreshControl } from "react-native";
+import {
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+  ActivityIndicator,
+  RefreshControl,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { supabase } from "~/lib/supabase";
@@ -10,13 +17,13 @@ import AlertCard from "~/components/(Dashboard)/AlertCard";
 import QuickActionCard from "~/components/(Dashboard)/QuickActionCard";
 import TransactionItem from "~/components/(Dashboard)/TransactionItem";
 import PredictionTeaser from "~/components/(Dashboard)/PredictionTeaser";
-import { 
-  AlertTriangle, 
-  CheckCircle, 
-  FileText, 
-  PieChart, 
-  Plus, 
-  TrendingUp, 
+import {
+  AlertTriangle,
+  CheckCircle,
+  FileText,
+  PieChart,
+  Plus,
+  TrendingUp,
   ShoppingCart,
   Truck,
   Zap,
@@ -24,8 +31,9 @@ import {
   Heart,
   ShoppingBag,
   Book,
-  MoreHorizontal } from "lucide-react-native";
-import { formatDistanceToNow } from 'date-fns';
+  MoreHorizontal,
+} from "lucide-react-native";
+import { formatDistanceToNow } from "date-fns";
 
 type Transaction = {
   id: string;
@@ -53,7 +61,11 @@ type QuickAction = {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const [userProfile, setUserProfile] = useState({ fullName: "" });
+  const [userProfile, setUserProfile] = useState({
+    fullName: "",
+    email: "",
+    image_url: "",
+  });
   const [todaySpending, setTodaySpending] = useState(0);
   const [dailyBudget] = useState(120);
   const [monthlySpending, setMonthlySpending] = useState(0);
@@ -65,10 +77,12 @@ export default function DashboardScreen() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
       if (!user) {
-        throw new Error('User not authenticated');
+        throw new Error("User not authenticated");
       }
 
       // Fetch user profile
@@ -81,14 +95,15 @@ export default function DashboardScreen() {
       setUserProfile({
         fullName: profileData?.full_name || "",
         email: user.email || "",
-        phone: profileData?.phone || "",
         image_url: profileData?.image_url || "",
       });
 
       // Get today's date range
       const today = new Date();
       const startOfToday = new Date(today.setHours(0, 0, 0, 0)).toISOString();
-      const endOfToday = new Date(today.setHours(23, 59, 59, 999)).toISOString();
+      const endOfToday = new Date(
+        today.setHours(23, 59, 59, 999)
+      ).toISOString();
 
       // Fetch today's spending
       const { data: todaySpendingData } = await supabase
@@ -98,13 +113,14 @@ export default function DashboardScreen() {
         .gte("date", startOfToday)
         .lte("date", endOfToday);
 
-      const todayTotal = todaySpendingData?.reduce((sum, item) => sum + item.amount, 0) || 0;
+      const todayTotal =
+        todaySpendingData?.reduce((sum, item) => sum + item.amount, 0) || 0;
       setTodaySpending(todayTotal);
 
       // Fetch monthly spending (current month)
       const currentMonth = new Date().getMonth() + 1;
       const currentYear = new Date().getFullYear();
-      
+
       const { data: monthlySpendingData } = await supabase
         .from("expenses")
         .select("amount")
@@ -112,7 +128,8 @@ export default function DashboardScreen() {
         .eq("date_month", currentMonth)
         .eq("date_year", currentYear);
 
-      const monthlyTotal = monthlySpendingData?.reduce((sum, item) => sum + item.amount, 0) || 0;
+      const monthlyTotal =
+        monthlySpendingData?.reduce((sum, item) => sum + item.amount, 0) || 0;
       setMonthlySpending(monthlyTotal);
 
       // Fetch recent transactions
@@ -124,7 +141,6 @@ export default function DashboardScreen() {
         .limit(5);
 
       setTransactions(transactionsData || []);
-
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -138,15 +154,15 @@ export default function DashboardScreen() {
 
     // Set up realtime subscription for expenses
     const subscription = supabase
-      .channel('dashboard_updates')
+      .channel("dashboard_updates")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'expenses'
+          event: "*",
+          schema: "public",
+          table: "expenses",
         },
-        () => fetchData() // Refresh all data when expenses change
+        () => fetchData()
       )
       .subscribe();
 
@@ -162,52 +178,54 @@ export default function DashboardScreen() {
 
   const getCategoryIcon = (category: string) => {
     const icons: Record<string, React.ElementType> = {
-      'Food': ShoppingCart,
-      'Transport': Truck,
-      'Utilities': Zap,
-      'Entertainment': Film,
-      'Healthcare': Heart,
-      'Shopping': ShoppingBag,
-      'Education': Book,
-      'Other': MoreHorizontal,
+      Food: ShoppingCart,
+      Transport: Truck,
+      Utilities: Zap,
+      Entertainment: Film,
+      Healthcare: Heart,
+      Shopping: ShoppingBag,
+      Education: Book,
+      Other: MoreHorizontal,
     };
     return icons[category] || MoreHorizontal;
   };
 
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
-      'Food': '#10b981',
-      'Transport': '#3b82f6',
-      'Utilities': '#f59e0b',
-      'Entertainment': '#8b5cf6',
-      'Healthcare': '#ef4444',
-      'Shopping': '#06b6d4',
-      'Education': '#84cc16',
-      'Other': '#64748b'
+      Food: "#10b981",
+      Transport: "#3b82f6",
+      Utilities: "#f59e0b",
+      Entertainment: "#8b5cf6",
+      Healthcare: "#ef4444",
+      Shopping: "#06b6d4",
+      Education: "#84cc16",
+      Other: "#64748b",
     };
-    return colors[category] || '#64748b';
+    return colors[category] || "#64748b";
   };
 
-  const [alerts] = useState<Alert[]>([
+  const alerts = [
     {
       id: 1,
       type: "warning",
-      message: todaySpending > dailyBudget * 0.8 
-        ? `You've spent ${Math.round((todaySpending/dailyBudget)*100)}% of your daily budget` 
-        : "Food spending 20% above average",
+      message:
+        todaySpending > dailyBudget * 0.8
+          ? `You've spent ${Math.round((todaySpending / dailyBudget) * 100)}% of your daily budget`
+          : "Food spending 20% above average",
       icon: AlertTriangle,
       color: todaySpending > dailyBudget * 0.8 ? "#f59e0b" : "#ef4444",
     },
     {
       id: 2,
       type: "success",
-      message: monthlySpending < monthlyBudget * 0.7
-        ? "On track for monthly savings goal"
-        : `You've used ${Math.round((monthlySpending/monthlyBudget)*100)}% of monthly budget`,
+      message:
+        monthlySpending < monthlyBudget * 0.7
+          ? "On track for monthly savings goal"
+          : `You've used ${Math.round((monthlySpending / monthlyBudget) * 100)}% of monthly budget`,
       icon: CheckCircle,
       color: "#10b981",
     },
-  ]);
+  ];
 
   const todayProgress = (todaySpending / dailyBudget) * 100;
   const monthlyProgress = (monthlySpending / monthlyBudget) * 100;
@@ -255,34 +273,40 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
-      <ScrollView 
-        showsVerticalScrollIndicator={false} 
+      <ScrollView
+        showsVerticalScrollIndicator={false}
         className="flex-1"
         refreshControl={
-          <RefreshControl 
+          <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor="#10b981"
           />
         }
       >
-        <DashboardHeader 
-          userName={userProfile.fullName} 
-          notificationCount={2} 
+        <DashboardHeader
+          userName={userProfile.fullName}
+          userEmail={userProfile.email}
+          userImageUrl={userProfile.image_url}
+          onLogoutPress={() => {
+            supabase.auth.signOut();
+            router.replace("/login");
+          }}
+          onSettingsPress={() => router.push("/(main)/ProfileScreen")}
         />
-        
-        <SpendingWidget 
-          spent={todaySpending} 
-          budget={dailyBudget} 
+
+        <SpendingWidget
+          spent={todaySpending}
+          budget={dailyBudget}
           progressColor={getProgressColor(todayProgress)}
         />
-        
-        <MonthlyOverview 
-          spent={monthlySpending} 
-          budget={monthlyBudget} 
+
+        <MonthlyOverview
+          spent={monthlySpending}
+          budget={monthlyBudget}
           progressColor={getProgressColor(monthlyProgress)}
         />
-        
+
         {/* Alerts Section */}
         <View className="px-6 mb-5">
           <Text className="text-white text-lg font-bold mb-4">Alerts</Text>
@@ -300,7 +324,9 @@ export default function DashboardScreen() {
 
         {/* Quick Actions */}
         <View className="px-6 mb-5">
-          <Text className="text-white text-lg font-bold mb-4">Quick Actions</Text>
+          <Text className="text-white text-lg font-bold mb-4">
+            Quick Actions
+          </Text>
           <View className="flex-row flex-wrap gap-3">
             {quickActions.map((action, index) => (
               <QuickActionCard
@@ -317,8 +343,12 @@ export default function DashboardScreen() {
         {/* Recent Transactions */}
         <View className="px-6 mb-5">
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-white text-lg font-bold">Recent Transactions</Text>
-            <TouchableOpacity onPress={() => router.push("/(main)/ExpenseListScreen")}>
+            <Text className="text-white text-lg font-bold">
+              Recent Transactions
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.push("/(main)/ExpenseListScreen")}
+            >
               <Text className="text-emerald-500 font-medium">See All</Text>
             </TouchableOpacity>
           </View>
@@ -328,14 +358,17 @@ export default function DashboardScreen() {
               transactions.map((transaction) => {
                 const IconComponent = getCategoryIcon(transaction.category);
                 const color = getCategoryColor(transaction.category);
-                
+
                 return (
                   <TransactionItem
                     key={transaction.id}
                     icon={IconComponent}
                     description={transaction.description}
                     category={transaction.category}
-                    time={formatDistanceToNow(new Date(transaction.created_at), { addSuffix: true })}
+                    time={formatDistanceToNow(
+                      new Date(transaction.created_at),
+                      { addSuffix: true }
+                    )}
                     amount={transaction.amount}
                     color={color}
                   />
