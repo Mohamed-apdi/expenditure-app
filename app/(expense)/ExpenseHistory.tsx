@@ -84,13 +84,12 @@ export default function ExpenseHistoryScreen() {
   const fetchExpenses = async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
-      let query = supabase
-        .from("expenses")
-        .select("*")
-        .eq("user_id", user.id);
+      let query = supabase.from("expenses").select("*").eq("user_id", user.id);
 
       if (selectedFilter !== "all") {
         query = query.eq("category", selectedFilter);
@@ -121,7 +120,11 @@ export default function ExpenseHistoryScreen() {
             break;
           }
           case "last_month": {
-            const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            const first = new Date(
+              today.getFullYear(),
+              today.getMonth() - 1,
+              1
+            );
             const last = new Date(today.getFullYear(), today.getMonth(), 0);
             start = first.toISOString().split("T")[0];
             end = last.toISOString().split("T")[0];
@@ -227,14 +230,18 @@ export default function ExpenseHistoryScreen() {
                   >
                     {cat === "all" ? "All Categories" : cat}
                   </Text>
-                  {selectedFilter === cat && <Check size={16} color="#ffffff" />}
+                  {selectedFilter === cat && (
+                    <Check size={16} color="#ffffff" />
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
           <View className="my-6">
-            <Text className="text-white text-lg font-bold mb-4">Date Range</Text>
+            <Text className="text-white text-lg font-bold mb-4">
+              Date Range
+            </Text>
             <View className="gap-2">
               {dateRanges.map((range) => (
                 <TouchableOpacity
@@ -255,7 +262,9 @@ export default function ExpenseHistoryScreen() {
                   >
                     {range.label}
                   </Text>
-                  {selectedDateRange === range.key && <Check size={16} color="#ffffff" />}
+                  {selectedDateRange === range.key && (
+                    <Check size={16} color="#ffffff" />
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
@@ -279,7 +288,7 @@ export default function ExpenseHistoryScreen() {
         <Text className="text-white text-2xl font-bold">Expense History</Text>
         <TouchableOpacity
           className="bg-emerald-500 w-10 h-10 rounded-full justify-center items-center"
-          onPress={() => router.push("/add-expense")}
+          onPress={() => router.push("/AddExpense")}
         >
           <Plus size={20} color="#ffffff" />
         </TouchableOpacity>
@@ -309,8 +318,12 @@ export default function ExpenseHistoryScreen() {
       <View className="px-6 mb-5">
         <View className="bg-slate-800 p-5 rounded-xl border border-slate-700 items-center">
           <Text className="text-slate-400 mb-2">Total Expenses</Text>
-          <Text className="text-rose-500 text-3xl font-bold mb-1">${totalAmount}</Text>
-          <Text className="text-slate-500 text-sm">{filteredExpenses.length} transactions</Text>
+          <Text className="text-rose-500 text-3xl font-bold mb-1">
+            ${totalAmount}
+          </Text>
+          <Text className="text-slate-500 text-sm">
+            {filteredExpenses.length} transactions
+          </Text>
         </View>
       </View>
 
@@ -339,16 +352,24 @@ export default function ExpenseHistoryScreen() {
 
                       <View className="flex-1">
                         <View className="flex-row justify-between items-center mb-1">
-                          <Text className="text-white font-medium">{expense.description}</Text>
-                          <Text className="text-rose-500 font-bold">-${expense.amount}</Text>
+                          <Text className="text-white font-medium">
+                            {expense.description}
+                          </Text>
+                          <Text className="text-rose-500 font-bold">
+                            -${expense.amount}
+                          </Text>
                         </View>
 
                         <View className="flex-row items-center">
-                          <Text className="text-slate-400 text-xs">{expense.category}</Text>
+                          <Text className="text-slate-400 text-xs">
+                            {expense.category}
+                          </Text>
                           {expense.location && (
                             <>
                               <Text className="text-slate-600 mx-2">•</Text>
-                              <Text className="text-slate-400 text-xs">{expense.location}</Text>
+                              <Text className="text-slate-400 text-xs">
+                                {expense.location}
+                              </Text>
                             </>
                           )}
                           {expense.is_recurring && (
@@ -356,7 +377,9 @@ export default function ExpenseHistoryScreen() {
                               <Text className="text-slate-600 mx-2">•</Text>
                               <View className="flex-row items-center bg-emerald-500/20 px-1.5 py-0.5 rounded">
                                 <Repeat size={10} color="#10b981" />
-                                <Text className="text-emerald-500 text-xs ml-1 font-medium">Recurring</Text>
+                                <Text className="text-emerald-500 text-xs ml-1 font-medium">
+                                  Recurring
+                                </Text>
                               </View>
                             </>
                           )}
