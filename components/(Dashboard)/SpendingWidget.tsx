@@ -8,7 +8,7 @@ interface SpendingWidgetProps {
 
 export default function SpendingWidget({ spent, budget }: SpendingWidgetProps) {
   const progress = (spent / budget) * 100;
-  
+
   const getProgressColor = () => {
     if (progress > 100) return "#ef4444";
     if (progress > 80) return "#f59e0b";
@@ -23,7 +23,9 @@ export default function SpendingWidget({ spent, budget }: SpendingWidgetProps) {
       </View>
 
       <View className="items-center mb-5">
-        <Text className="text-emerald-500 text-4xl font-bold">${spent}</Text>
+        <Text className="text-emerald-500 text-4xl font-bold">
+          ${spent.toFixed(2)}
+        </Text>
         <Text className="text-slate-400">of ${budget} budget</Text>
       </View>
 
