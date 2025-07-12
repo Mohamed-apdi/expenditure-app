@@ -26,6 +26,7 @@ import {
   Utensils,
   Repeat,
   MoreVertical,
+  ChevronRight,
 } from "lucide-react-native";
 import { supabase } from "~/lib/supabase";
 
@@ -283,7 +284,6 @@ export default function ExpenseHistoryScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
-      {/* Header */}
       <View className="flex-row justify-between items-center px-6 py-5">
         <Text className="text-white text-2xl font-bold">Expense History</Text>
         <TouchableOpacity
@@ -294,7 +294,6 @@ export default function ExpenseHistoryScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Search + Filter */}
       <View className="flex-row px-6 mb-5 gap-3">
         <View className="flex-row items-center flex-1 bg-slate-800 rounded-xl border border-slate-700 px-4">
           <Search size={20} color="#64748b" />
@@ -314,12 +313,11 @@ export default function ExpenseHistoryScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Total Summary */}
       <View className="px-6 mb-5">
         <View className="bg-slate-800 p-5 rounded-xl border border-slate-700 items-center">
           <Text className="text-slate-400 mb-2">Total Expenses</Text>
           <Text className="text-rose-500 text-3xl font-bold mb-1">
-            ${totalAmount}
+            ${totalAmount.toFixed(2)}
           </Text>
           <Text className="text-slate-500 text-sm">
             {filteredExpenses.length} transactions
@@ -327,7 +325,6 @@ export default function ExpenseHistoryScreen() {
         </View>
       </View>
 
-      {/* Expenses List */}
       {loading ? (
         <ActivityIndicator color="#10b981" style={{ marginTop: 30 }} />
       ) : (
@@ -341,7 +338,10 @@ export default function ExpenseHistoryScreen() {
                   return (
                     <TouchableOpacity
                       key={expense.id}
-                      className="flex-row items-center bg-slate-800 p-4 rounded-xl border border-slate-700"
+                      onPress={() =>
+                        router.push(`/expense-detail/${expense.id}`)
+                      }
+                      className="flex-row bg-slate-800 p-4 rounded-xl border border-slate-700 items-start"
                     >
                       <View
                         className="w-10 h-10 rounded-full justify-center items-center mr-3"
@@ -351,16 +351,31 @@ export default function ExpenseHistoryScreen() {
                       </View>
 
                       <View className="flex-1">
-                        <View className="flex-row justify-between items-center mb-1">
-                          <Text className="text-white font-medium">
-                            {expense.description}
-                          </Text>
-                          <Text className="text-rose-500 font-bold">
-                            -${expense.amount}
-                          </Text>
+                        <View className="flex-row justify-between items-start mb-1">
+                          <View className="flex-1 pr-2">
+                            <Text
+                              className="text-white font-medium"
+                              numberOfLines={1}
+                            >
+                              {expense.description}
+                            </Text>
+                          </View>
+                          <View className="flex-row items-center gap-2">
+                            <Text className="text-rose-500 font-bold text-right">
+                              -${expense.amount}
+                            </Text>
+                            <TouchableOpacity
+                              className="p-1"
+                              onPress={() =>
+                                router.push(`/expense-detail/${expense.id}`)
+                              }
+                            >
+                              <ChevronRight size={20} color="#64748b" />
+                            </TouchableOpacity>
+                          </View>
                         </View>
 
-                        <View className="flex-row items-center">
+                        <View className="flex-row items-center flex-wrap">
                           <Text className="text-slate-400 text-xs">
                             {expense.category}
                           </Text>
@@ -385,10 +400,6 @@ export default function ExpenseHistoryScreen() {
                           )}
                         </View>
                       </View>
-
-                      <TouchableOpacity className="p-2 ml-2">
-                        <MoreVertical size={16} color="#64748b" />
-                      </TouchableOpacity>
                     </TouchableOpacity>
                   );
                 })}
