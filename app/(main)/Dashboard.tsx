@@ -34,6 +34,7 @@ import {
   MoreHorizontal,
 } from "lucide-react-native";
 import { formatDistanceToNow } from "date-fns";
+import { ThemeToggle } from "~/components/ThemeToggle";
 
 type Transaction = {
   id: string;
@@ -306,6 +307,7 @@ export default function DashboardScreen() {
           }}
           onSettingsPress={() => router.push("/(main)/ProfileScreen")}
         />
+        
 
         <SpendingWidget
           spent={todaySpending}

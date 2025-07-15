@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { View, Text, TouchableOpacity, Image, Animated } from "react-native";
 import { ChevronDown, User, Settings, LogOut } from "lucide-react-native";
+import { ThemeToggle } from "../ThemeToggle";
 
 interface DashboardHeaderProps {
   userName: string;
@@ -117,7 +118,7 @@ export default function DashboardHeader({
             Here's your spending overview
           </Text>
         </View>
-
+        <ThemeToggle />
         {/* Actions Section */}
         <View className="flex-row items-center gap-4">
           {/* Profile Dropdown */}
