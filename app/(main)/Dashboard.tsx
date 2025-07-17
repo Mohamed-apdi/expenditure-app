@@ -34,8 +34,7 @@ import {
   MoreHorizontal,
 } from "lucide-react-native";
 import { formatDistanceToNow } from "date-fns";
-import { ThemeToggle } from "~/components/ThemeToggle";
-
+import { useTheme } from "~/lib/theme";
 type Transaction = {
   id: string;
   amount: number;
@@ -74,6 +73,7 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const theme = useTheme();
 
   const fetchData = async () => {
     try {
@@ -285,7 +285,10 @@ export default function DashboardScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
+    <SafeAreaView
+      className="flex-1 "
+      style={{ backgroundColor: theme.background }}
+    >
       <ScrollView
         showsVerticalScrollIndicator={false}
         className="flex-1"
@@ -307,7 +310,6 @@ export default function DashboardScreen() {
           }}
           onSettingsPress={() => router.push("/(main)/ProfileScreen")}
         />
-        
 
         <SpendingWidget
           spent={todaySpending}
@@ -323,7 +325,12 @@ export default function DashboardScreen() {
 
         {/* Alerts Section */}
         <View className="px-6 mb-5">
-          <Text className="text-white text-lg font-bold mb-4">Alerts</Text>
+          <Text
+            className="text-white text-lg font-bold mb-4"
+            style={{ color: theme.text }}
+          >
+            Alerts
+          </Text>
           <View className="gap-2">
             {alerts.map((alert) => (
               <AlertCard
@@ -338,7 +345,10 @@ export default function DashboardScreen() {
 
         {/* Quick Actions */}
         <View className="px-6 mb-5">
-          <Text className="text-white text-lg font-bold mb-4">
+          <Text
+            className=" text-lg font-bold mb-4"
+            style={{ color: theme.text }}
+          >
             Quick Actions
           </Text>
           <View className="flex-row flex-wrap gap-3">
@@ -357,7 +367,7 @@ export default function DashboardScreen() {
         {/* Recent Transactions */}
         <View className="px-6 mb-5">
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-white text-lg font-bold">
+            <Text className=" text-lg font-bold" style={{ color: theme.text }}>
               Recent Transactions
             </Text>
             <TouchableOpacity
@@ -389,8 +399,11 @@ export default function DashboardScreen() {
                 );
               })
             ) : (
-              <View className="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                <Text className="text-slate-400 text-center">
+              <View
+                className="bg-slate-800 p-4 rounded-xl border "
+                style={{ borderColor: theme.border }}
+              >
+                <Text className=" text-center" style={{ color: theme.text }}>
                   No transactions yet
                 </Text>
               </View>
@@ -398,7 +411,7 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        <PredictionTeaser onPress={() => router.push("/predict")} />
+        {/*<PredictionTeaser onPress={() => router.push("/predict")} />*/}
       </ScrollView>
     </SafeAreaView>
   );

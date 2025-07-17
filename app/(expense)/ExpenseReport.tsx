@@ -44,6 +44,7 @@ import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import * as Print from "expo-print";
 import * as MediaLibrary from "expo-media-library";
+import { useTheme } from "~/lib/theme";
 
 type Expense = {
   id: string;
@@ -78,7 +79,7 @@ export default function ExpenseReportScreen() {
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [selectedDateRange, setSelectedDateRange] = useState("today");
   const [selectedCategory, setSelectedCategory] = useState("all");
-
+  const theme = useTheme();
   const dateRanges: DateRange[] = [
     {
       key: "today",
@@ -377,52 +378,98 @@ export default function ExpenseReportScreen() {
   const groupedExpenses = groupExpensesByDate(expenses);
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
+    <SafeAreaView
+      className="flex-1"
+      style={{ backgroundColor: theme.background }}
+    >
       {/* Header */}
-      <View className="flex-row justify-start gap-6 items-center px-6 py-4 border-b border-slate-700">
+      <View
+        className="flex-row justify-start gap-6 items-center px-6 py-4 border-b border-slate-700"
+        style={{ borderColor: theme.border }}
+      >
         <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft size={24} color="#f8fafc" />
+          <ArrowLeft size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text className="text-white text-xl font-bold ">Expense Report</Text>
+        <Text
+          className="text-white text-xl font-bold"
+          style={{ color: theme.text }}
+        >
+          Expense Report
+        </Text>
       </View>
 
       {/* Total Amount Display */}
-      <View className="px-6 py-8 items-center bg-slate-800/50">
-        <Text className="text-slate-400 text-lg mb-2">Total Spent</Text>
+      <View
+        className="px-6 py-8 items-center bg-slate-800/50"
+        style={{ backgroundColor: `${theme.cardBackground}` }}
+      >
+        <Text
+          className="text-slate-400 text-lg mb-2"
+          style={{ color: theme.textSecondary }}
+        >
+          Total Spent
+        </Text>
         <Text className="text-rose-500 text-4xl font-bold mb-1">
           ${totalAmount.toFixed(2)}
         </Text>
         <View className="flex-row items-center">
           <TrendingDown size={16} color="#ef4444" />
-          <Text className="text-slate-400 ml-1">
+          <Text
+            className="text-slate-400 ml-1"
+            style={{ color: theme.textSecondary }}
+          >
             {expenses.length} transactions
           </Text>
         </View>
       </View>
 
       {/* Filter Section */}
-      <View className="px-6 py-4 border-b border-slate-700">
-        <Text className="text-white text-lg font-bold mb-4">Filters</Text>
+      <View
+        className="px-6 py-4 border-b border-slate-700"
+        style={{ borderColor: theme.border }}
+      >
+        <Text
+          className="text-white text-lg font-bold mb-4"
+          style={{ color: theme.text }}
+        >
+          Filters
+        </Text>
         <View className="flex-row gap-3">
           {/* Date Range Filter */}
           <TouchableOpacity
             className="flex-1 flex-row items-center bg-slate-800 p-3 rounded-lg border border-slate-700"
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderColor: theme.border,
+            }}
             onPress={() => setShowDateFilter(true)}
           >
             <Calendar size={18} color="#10b981" />
-            <Text className="text-white ml-2 flex-1" numberOfLines={1}>
+            <Text
+              className="text-white ml-2 flex-1"
+              numberOfLines={1}
+              style={{ color: theme.text }}
+            >
               {getSelectedDateLabel()}
             </Text>
-            <ChevronDown size={16} color="#64748b" />
+            <ChevronDown size={16} color={theme.textSecondary} />
           </TouchableOpacity>
 
           {/* Category Filter */}
           <TouchableOpacity
             className="flex-1 flex-row items-center bg-slate-800 p-3 rounded-lg border border-slate-700"
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderColor: theme.border,
+            }}
             onPress={() => setShowCategoryFilter(true)}
           >
             <Filter size={18} color="#3b82f6" />
-            <Text className="text-white ml-2 flex-1" numberOfLines={1}>
+            <Text
+              className=" ml-2 flex-1"
+              numberOfLines={1}
+              style={{ color: theme.text }}
+            >
               {getSelectedCategoryLabel()}
             </Text>
             <ChevronDown size={16} color="#64748b" />
@@ -431,7 +478,10 @@ export default function ExpenseReportScreen() {
       </View>
 
       {/* Export Buttons */}
-      <View className="px-6 py-4 border-b border-slate-700">
+      <View
+        className="px-6 py-4 border-b border-slate-700"
+        style={{ borderColor: theme.border }}
+      >
         <View className="flex-row gap-3">
           <TouchableOpacity
             className="flex-1 flex-row items-center justify-center bg-rose-500 p-3 rounded-lg"
@@ -472,16 +522,27 @@ export default function ExpenseReportScreen() {
       {/* Expense List */}
       {loading ? (
         <View className="flex-1 justify-center items-center">
-          <ActivityIndicator size="large" color="#10b981" />
-          <Text className="text-slate-400 mt-3">Loading expenses...</Text>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text
+            className="text-slate-400 mt-3"
+            style={{ color: theme.textSecondary }}
+          >
+            Loading expenses...
+          </Text>
         </View>
       ) : expenses.length === 0 ? (
         <View className="flex-1 justify-center items-center px-6">
-          <FileText size={48} color="#64748b" />
-          <Text className="text-white text-xl font-bold mt-4 mb-2">
+          <FileText size={48} color={theme.primary} />
+          <Text
+            className="text-white text-xl font-bold mt-4 mb-2"
+            style={{ color: theme.text }}
+          >
             No Expenses Found
           </Text>
-          <Text className="text-slate-400 text-center">
+          <Text
+            className="text-slate-400 text-center"
+            style={{ color: theme.textSecondary }}
+          >
             No expenses found for the selected filters. Try adjusting your date
             range or category.
           </Text>
@@ -491,8 +552,16 @@ export default function ExpenseReportScreen() {
           {Object.entries(groupedExpenses).map(([dateKey, dayExpenses]) => (
             <View key={dateKey} className="mb-6">
               <View className="px-6 py-2">
-                <Text className="text-white font-bold text-lg">{dateKey}</Text>
-                <Text className="text-slate-400 text-sm">
+                <Text
+                  className=" font-bold text-lg"
+                  style={{ color: theme.text }}
+                >
+                  {dateKey}
+                </Text>
+                <Text
+                  className="text-slate-400 text-sm"
+                  style={{ color: theme.textSecondary }}
+                >
                   {dayExpenses.length} transaction
                   {dayExpenses.length !== 1 ? "s" : ""} • $
                   {dayExpenses
@@ -509,7 +578,11 @@ export default function ExpenseReportScreen() {
                   return (
                     <View
                       key={expense.id}
-                      className="flex-row items-center bg-slate-800 p-4 rounded-xl border border-slate-700"
+                      className="flex-row items-center  p-4 rounded-xl border "
+                      style={{
+                        backgroundColor: theme.cardBackground,
+                        borderColor: theme.border,
+                      }}
                     >
                       <View
                         className="w-10 h-10 rounded-full justify-center items-center mr-3"
@@ -519,15 +592,24 @@ export default function ExpenseReportScreen() {
                       </View>
 
                       <View className="flex-1">
-                        <Text className="text-white font-semibold mb-1">
+                        <Text
+                          className=" font-semibold mb-1"
+                          style={{ color: theme.text }}
+                        >
                           {expense.description}
                         </Text>
                         <View className="flex-row items-center">
-                          <Text className="text-slate-400 text-sm">
+                          <Text
+                            className=" text-sm"
+                            style={{ color: theme.textSecondary }}
+                          >
                             {expense.category}
                           </Text>
                           <Text className="text-slate-600 mx-2">•</Text>
-                          <Text className="text-slate-400 text-sm capitalize">
+                          <Text
+                            className=" text-sm capitalize"
+                            style={{ color: theme.textSecondary }}
+                          >
                             {expense.payment_method.replace("_", " ")}
                           </Text>
                         </View>
@@ -537,7 +619,10 @@ export default function ExpenseReportScreen() {
                         <Text className="text-rose-500 font-bold text-lg">
                           -${expense.amount.toFixed(2)}
                         </Text>
-                        <Text className="text-slate-500 text-xs">
+                        <Text
+                          className=" text-xs"
+                          style={{ color: theme.textSecondary }}
+                        >
                           {format(new Date(expense.date), "MMM d")}
                         </Text>
                       </View>
@@ -555,41 +640,58 @@ export default function ExpenseReportScreen() {
 
       {/* Date Range Filter Modal */}
       {showDateFilter && (
-        <View className="absolute inset-0 bg-black/60 justify-end">
-          <View className="bg-slate-900 rounded-t-3xl border-t border-slate-700 p-6">
+        <View
+          className="absolute inset-0 justify-end"
+          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+        >
+          <View
+            className="rounded-t-3xl border-t p-6"
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderTopColor: theme.border,
+            }}
+          >
+            {/* Modal Header */}
             <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-white text-lg font-bold">
+              <Text className="text-lg font-bold" style={{ color: theme.text }}>
                 Select Date Range
               </Text>
               <TouchableOpacity onPress={() => setShowDateFilter(false)}>
-                <X size={24} color="#94a3b8" />
+                <X size={24} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
+            {/* Date Range Options */}
             <View className="gap-2">
-              {dateRanges.map((range) => (
-                <TouchableOpacity
-                  key={range.key}
-                  className={`flex-row justify-between items-center p-4 rounded-xl border ${
-                    selectedDateRange === range.key
-                      ? "bg-emerald-500 border-emerald-500"
-                      : "bg-slate-800 border-slate-700"
-                  }`}
-                  onPress={() => {
-                    setSelectedDateRange(range.key);
-                    setShowDateFilter(false);
-                  }}
-                >
-                  <Text
-                    className={`${selectedDateRange === range.key ? "text-white font-light" : "text-slate-200"}`}
+              {dateRanges.map((range) => {
+                const isSelected = selectedDateRange === range.key;
+                return (
+                  <TouchableOpacity
+                    key={range.key}
+                    className="flex-row justify-between items-center p-4 rounded-xl border"
+                    style={{
+                      backgroundColor: isSelected
+                        ? theme.primary
+                        : theme.cardBackground,
+                      borderColor: isSelected ? theme.primary : theme.border,
+                    }}
+                    onPress={() => {
+                      setSelectedDateRange(range.key);
+                      setShowDateFilter(false);
+                    }}
                   >
-                    {range.label}
-                  </Text>
-                  {selectedDateRange === range.key && (
-                    <Check size={16} color="#ffffff" />
-                  )}
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={{
+                        color: isSelected ? "#fff" : theme.text,
+                        fontWeight: isSelected ? "400" : "normal",
+                      }}
+                    >
+                      {range.label}
+                    </Text>
+                    {isSelected && <Check size={16} color="#fff" />}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
         </View>
@@ -597,29 +699,44 @@ export default function ExpenseReportScreen() {
 
       {/* Category Filter Modal */}
       {showCategoryFilter && (
-        <View className="absolute inset-0 bg-black/60 justify-end">
-          <View className="bg-slate-900 rounded-t-3xl border-t border-slate-700 p-6">
+        <View
+          className="absolute inset-0 justify-end"
+          style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+        >
+          <View
+            className="rounded-t-3xl border-t p-6"
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderTopColor: theme.border,
+            }}
+          >
+            {/* Header */}
             <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-white text-lg font-bold">
+              <Text className="text-lg font-bold" style={{ color: theme.text }}>
                 Select Category
               </Text>
               <TouchableOpacity onPress={() => setShowCategoryFilter(false)}>
-                <X size={24} color="#94a3b8" />
+                <X size={24} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
+            {/* Category List */}
             <ScrollView className="max-h-80">
               <View className="gap-2">
                 {categories.map((category) => {
                   const IconComponent = category.icon;
+                  const isSelected = selectedCategory === category.key;
+
                   return (
                     <TouchableOpacity
                       key={category.key}
-                      className={`flex-row items-center justify-between p-4 rounded-xl border ${
-                        selectedCategory === category.key
-                          ? "bg-emerald-500 border-emerald-500"
-                          : "bg-slate-800 border-slate-700"
-                      }`}
+                      className="flex-row items-center justify-between p-4 rounded-xl border"
+                      style={{
+                        backgroundColor: isSelected
+                          ? theme.primary
+                          : theme.cardBackground,
+                        borderColor: isSelected ? theme.primary : theme.border,
+                      }}
                       onPress={() => {
                         setSelectedCategory(category.key);
                         setShowCategoryFilter(false);
@@ -629,34 +746,26 @@ export default function ExpenseReportScreen() {
                         <View
                           className="w-8 h-8 rounded-full justify-center items-center mr-3"
                           style={{
-                            backgroundColor:
-                              selectedCategory === category.key
-                                ? "#ffffff20"
-                                : `${category.color}20`,
+                            backgroundColor: isSelected
+                              ? "#ffffff20"
+                              : `${category.color}20`,
                           }}
                         >
                           <IconComponent
                             size={16}
-                            color={
-                              selectedCategory === category.key
-                                ? "#ffffff"
-                                : category.color
-                            }
+                            color={isSelected ? "#ffffff" : category.color}
                           />
                         </View>
                         <Text
-                          className={`${
-                            selectedCategory === category.key
-                              ? "text-white font-semibold"
-                              : "text-slate-200"
-                          }`}
+                          style={{
+                            color: isSelected ? "#ffffff" : theme.text,
+                            fontWeight: isSelected ? "600" : "normal",
+                          }}
                         >
                           {category.label}
                         </Text>
                       </View>
-                      {selectedCategory === category.key && (
-                        <Check size={16} color="#ffffff" />
-                      )}
+                      {isSelected && <Check size={16} color="#ffffff" />}
                     </TouchableOpacity>
                   );
                 })}
