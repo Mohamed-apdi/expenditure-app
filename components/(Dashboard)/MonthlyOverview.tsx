@@ -1,28 +1,51 @@
 import { View, Text } from "react-native";
 import { DollarSign, TrendingDown, Target } from "lucide-react-native";
-
+import { useTheme } from "~/lib/theme";
 interface MonthlyOverviewProps {
   spent: number;
   budget: number;
 }
 
-export default function MonthlyOverview({ spent, budget }: MonthlyOverviewProps) {
+export default function MonthlyOverview({
+  spent,
+  budget,
+}: MonthlyOverviewProps) {
+  const theme = useTheme();
   return (
     <View className="px-6 mb-5">
-      <Text className="text-white text-lg font-bold mb-4">Monthly Overview</Text>
+      <Text className=" text-lg font-bold mb-4" style={{ color: theme.text }}>
+        Monthly Overview
+      </Text>
 
       <View className="flex-row gap-3 mb-4">
-        <View className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 items-center">
+        <View
+          className="flex-1  p-4 rounded-xl border border-slate-700 items-center"
+          style={{
+            backgroundColor: theme.cardBackground,
+            borderColor: theme.border,
+          }}
+        >
           <DollarSign size={20} color="#10b981" />
           <Text className="text-slate-400 text-xs mt-2 mb-1">Spent</Text>
-          <Text className="text-white text-lg font-bold">${spent}</Text>
+          <Text className=" text-lg font-bold" style={{ color: theme.primary }}>
+            ${spent}
+          </Text>
           <Text className="text-slate-500 text-xs">of ${budget}</Text>
         </View>
 
-        <View className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 items-center">
+        <View
+          className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 items-center"
+          style={{
+            backgroundColor: theme.cardBackground,
+            borderColor: theme.border,
+          }}
+        >
           <TrendingDown size={20} color="#3b82f6" />
           <Text className="text-slate-400 text-xs mt-2 mb-1">Remaining</Text>
-          <Text className="text-white text-lg font-bold">
+          <Text
+            className="text-white text-lg font-bold"
+            style={{ color: theme.primary }}
+          >
             ${budget - spent}
           </Text>
           <Text className="text-slate-500 text-xs">
@@ -30,10 +53,19 @@ export default function MonthlyOverview({ spent, budget }: MonthlyOverviewProps)
           </Text>
         </View>
 
-        <View className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 items-center">
+        <View
+          className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 items-center"
+          style={{
+            backgroundColor: theme.cardBackground,
+            borderColor: theme.border,
+          }}
+        >
           <Target size={20} color="#8b5cf6" />
           <Text className="text-slate-400 text-xs mt-2 mb-1">Avg/Day</Text>
-          <Text className="text-white text-lg font-bold">
+          <Text
+            className="text-white text-lg font-bold"
+            style={{ color: theme.primary }}
+          >
             ${Math.round(spent / new Date().getDate())}
           </Text>
           <Text className="text-slate-500 text-xs">this month</Text>

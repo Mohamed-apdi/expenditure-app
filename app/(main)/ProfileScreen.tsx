@@ -37,6 +37,7 @@ import {
 import { deleteItemAsync } from "expo-secure-store";
 import { supabase } from "~/lib/supabase";
 import { UserProfile } from "~/types/userTypes";
+import { useTheme } from "~/lib/theme";
 
 type PasswordData = {
   currentPassword: string;
@@ -63,6 +64,9 @@ export default function ProfileScreen() {
     new: false,
     confirm: false,
   });
+
+  const theme = useTheme();
+
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
@@ -217,44 +221,18 @@ export default function ProfileScreen() {
       setLoading(false);
     }
   };
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      "Delete Account",
-      "Are you absolutely sure? This action cannot be undone and will permanently delete your account and all associated data.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => {
-            Alert.alert(
-              "Account Deleted",
-              "Your account has been permanently deleted."
-            );
-            router.push("../(onboarding)/welcomeScreen.tsx" as any);
-          },
-        },
-      ]
-    );
-  };
 
   const handleLogout = async () => {
     try {
-      // 1. Sign out from Supabase
       const { error } = await supabase.auth.signOut();
 
       if (error) {
         throw error;
       }
 
-      // 2. Clear all stored tokens
       await deleteItemAsync("token");
-      await deleteItemAsync("refresh_token"); // If you stored this
+      await deleteItemAsync("refresh_token");
 
-      // 3. Optional: Clear any other user-related data
-      // await deleteItemAsync('user_profile');
-
-      // 4. Redirect to login screen
       router.replace("../(onboarding)/welcomeScreen" as any);
 
       return true;
@@ -265,11 +243,22 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
+    <SafeAreaView
+      className="flex-1 "
+      style={{ backgroundColor: theme.background }}
+    >
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
         {/* Header */}
         <View className="flex-row justify-between items-center px-6 py-5">
-          <Text className="text-white text-2xl font-bold">Profile</Text>
+          <Text
+            className="text-xs"
+            style={{
+              color: theme.text,
+            }}
+            className=" text-2xl font-bold"
+          >
+            Profile
+          </Text>
           <TouchableOpacity
             className="p-2"
             onPress={() =>
@@ -279,7 +268,7 @@ export default function ProfileScreen() {
               })
             }
           >
-            <Edit3 size={20} color="#10b981" />
+            <Edit3 size={20} color={theme.icon} />
           </TouchableOpacity>
         </View>
 
@@ -294,9 +283,16 @@ export default function ProfileScreen() {
                     encodeURIComponent(userProfile.fullName || "User"),
               }}
               className="w-32 h-32 rounded-full border-4 border-emerald-500"
+              style={{
+                borderColor: theme.border,
+              }}
             />
             <TouchableOpacity
-              className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-emerald-500 justify-center items-center border-[3px] border-slate-900"
+              className="absolute bottom-0 right-0 w-9 h-9 rounded-full  justify-center items-center border-[3px] "
+              style={{
+                backgroundColor: theme.primary,
+                borderColor: theme.border,
+              }}
               onPress={() =>
                 router.push({
                   pathname: "../(profile)/UpdateProfileScreen" as any,
@@ -312,7 +308,13 @@ export default function ProfileScreen() {
           </View>
 
           <View className="items-center">
-            <Text className="text-white text-2xl font-bold mb-1">
+            <Text
+              className="text-xs"
+              style={{
+                color: theme.text,
+              }}
+              className=" text-2xl font-bold mb-1"
+            >
               {loading
                 ? "Loading..."
                 : userProfile.fullName || "No name provided"}
@@ -331,46 +333,121 @@ export default function ProfileScreen() {
 
         {/* Stats Cards */}
         <View className="flex-row px-6 mb-8 gap-3">
-          <View className="flex-1 bg-slate-800 rounded-xl p-4 items-center border border-slate-700">
+          <View
+            className="flex-1  rounded-xl p-4 items-center border "
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderColor: theme.border,
+            }}
+          >
             <Calendar size={20} color="#10b981" />
-            <Text className="text-white text-xl font-bold mt-2 mb-1">
+            <Text
+              className=" text-xl font-bold mt-2 mb-1"
+              style={{
+                color: theme.text,
+              }}
+            >
               {userProfile.totalPredictions}
             </Text>
-            <Text className="text-slate-400 text-xs">Predictions</Text>
+            <Text
+              className="text-xs"
+              style={{
+                color: theme.textSecondary,
+              }}
+            >
+              Predictions
+            </Text>
           </View>
-          <View className="flex-1 bg-slate-800 rounded-xl p-4 items-center border border-slate-700">
+          <View
+            className="flex-1  rounded-xl p-4 items-center border "
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderColor: theme.border,
+            }}
+          >
             <Target size={20} color="#3b82f6" />
-            <Text className="text-white text-xl font-bold mt-2 mb-1">
+            <Text
+              className="text-xs"
+              style={{
+                color: theme.text,
+              }}
+              className="text-xl font-bold mt-2 mb-1"
+            >
               {userProfile.avgAccuracy}%
             </Text>
-            <Text className="text-slate-400 text-xs">Accuracy</Text>
+            <Text
+              className="text-xs"
+              style={{
+                color: theme.textSecondary,
+              }}
+              className=" text-xs"
+            >
+              Accuracy
+            </Text>
           </View>
-          <View className="flex-1 bg-slate-800 rounded-xl p-4 items-center border border-slate-700">
+          <View
+            className="flex-1  rounded-xl p-4 items-center border "
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderColor: theme.border,
+            }}
+          >
             <UserCheck size={20} color="#8b5cf6" />
-            <Text className="text-white text-xl font-bold mt-2 mb-1">
+            <Text
+              className="text-xs"
+              style={{
+                color: theme.text,
+              }}
+              className="text-xl font-bold mt-2 mb-1"
+            >
               {Math.floor(
                 (new Date().getTime() -
                   new Date(userProfile.joinDate).getTime()) /
                   (1000 * 60 * 60 * 24)
               )}
             </Text>
-            <Text className="text-slate-400 text-xs">Days Active</Text>
+            <Text
+              className="text-xs"
+              style={{
+                color: theme.textSecondary,
+              }}
+              className="text-xs"
+            >
+              Days Active
+            </Text>
           </View>
         </View>
 
         {/* Contact Information */}
         <View className="px-6 mb-8">
-          <Text className="text-white text-lg font-bold mb-4">
+          <Text
+            className="text-xs"
+            style={{
+              color: theme.text,
+            }}
+            className=" text-lg font-bold mb-4"
+          >
             Contact Information
           </Text>
 
-          <View className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+          <View
+            className=" rounded-xl border  overflow-hidden"
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderColor: theme.border,
+            }}
+          >
             {/* Full Name */}
             <View className="flex-row items-center p-4">
               <User size={20} color="#64748b" />
               <View className="ml-4 flex-1">
                 <Text className="text-slate-400 text-xs mb-1">Full Name</Text>
-                <Text className="text-white text-base font-medium">
+                <Text
+                  style={{
+                    color: theme.text,
+                  }}
+                  className="text-base font-medium"
+                >
                   {loading
                     ? "Loading..."
                     : userProfile.fullName || "No name provided"}
@@ -388,7 +465,7 @@ export default function ProfileScreen() {
                   })
                 }
               >
-                <Edit3 size={16} color="#94a3b8" />
+                <Edit3 size={16} color={theme.icon} />
               </TouchableOpacity>
             </View>
 
@@ -402,7 +479,12 @@ export default function ProfileScreen() {
                 <Text className="text-slate-400 text-xs mb-1">
                   Phone Number
                 </Text>
-                <Text className="text-white text-base font-medium">
+                <Text
+                  style={{
+                    color: theme.text,
+                  }}
+                  className=" text-base font-medium"
+                >
                   {loading
                     ? "Loading..."
                     : userProfile.phone || "No phone provided"}
@@ -420,7 +502,7 @@ export default function ProfileScreen() {
                   })
                 }
               >
-                <Edit3 size={16} color="#94a3b8" />
+                <Edit3 size={16} color={theme.icon} />
               </TouchableOpacity>
             </View>
 
@@ -434,7 +516,12 @@ export default function ProfileScreen() {
                 <Text className="text-slate-400 text-xs mb-1">
                   Email Address
                 </Text>
-                <Text className="text-white text-base font-medium">
+                <Text
+                  style={{
+                    color: theme.text,
+                  }}
+                  className=" text-base font-medium"
+                >
                   {loading
                     ? "Loading..."
                     : userProfile.email || "No phone provided"}
@@ -446,18 +533,33 @@ export default function ProfileScreen() {
 
         {/* Security Section */}
         <View className="px-6 mb-8">
-          <Text className="text-white text-lg font-bold mb-4">Security</Text>
+          <Text
+            style={{ color: theme.text }}
+            className="text-lg font-bold mb-4"
+          >
+            Security
+          </Text>
 
           {/* Change Password */}
           <TouchableOpacity
-            className="flex-row items-center bg-slate-800 rounded-xl p-4 mb-3 border border-slate-700"
+            className="flex-row items-center  rounded-xl p-4 mb-3 border "
             onPress={() => setShowChangePassword(true)}
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderColor: theme.border,
+            }}
           >
-            <View className="w-10 h-10 rounded-full bg-slate-700 justify-center items-center mr-4">
+            <View
+              className="w-10 h-10 rounded-full  justify-center items-center mr-4"
+              style={{ backgroundColor: theme.cardBackground }}
+            >
               <Key size={20} color="#10b981" />
             </View>
             <View className="flex-1">
-              <Text className="text-white text-base font-semibold mb-1">
+              <Text
+                style={{ color: theme.text }}
+                className=" text-base font-semibold mb-1"
+              >
                 Change Password
               </Text>
               <Text className="text-slate-400 text-sm">
@@ -487,17 +589,23 @@ export default function ProfileScreen() {
         animationType="slide"
         onRequestClose={() => setShowChangePassword(false)}
       >
-        <SafeAreaView className="flex-1 bg-slate-900">
+        <SafeAreaView
+          className="flex-1 "
+          style={{ backgroundColor: theme.background }}
+        >
           {/* Modal Header */}
-          <View className="flex-row justify-between items-center px-6 py-4 border-b border-slate-700">
-            <Text className="text-white text-xl font-bold">
+          <View
+            className="flex-row justify-between items-center px-6 py-4 border-b "
+            style={{ borderBottomColor: theme.border }}
+          >
+            <Text style={{ color: theme.text }} className="text-xl font-bold">
               Change Password
             </Text>
             <TouchableOpacity
               className="p-2"
               onPress={() => setShowChangePassword(false)}
             >
-              <X size={24} color="#f8fafc" />
+              <X size={24} color={theme.icon} />
             </TouchableOpacity>
           </View>
 
@@ -506,10 +614,19 @@ export default function ProfileScreen() {
             <View className="py-6">
               {/* Current Password */}
               <View className="mb-5">
-                <Text className="text-white text-sm font-semibold mb-2">
+                <Text
+                  style={{ color: theme.text }}
+                  className=" text-sm font-semibold mb-2"
+                >
                   Current Password
                 </Text>
-                <View className="flex-row items-center bg-slate-800 rounded-xl border border-slate-700 px-4">
+                <View
+                  className="flex-row items-center  rounded-xl border  px-4"
+                  style={{
+                    backgroundColor: theme.cardBackground,
+                    borderColor: theme.border,
+                  }}
+                >
                   <Lock size={20} color="#64748b" className="mr-3" />
                   <TextInput
                     className="flex-1 py-4 text-white text-base"
@@ -543,11 +660,19 @@ export default function ProfileScreen() {
 
               {/* New Password */}
               <View className="mb-5">
-                <Text className="text-white text-sm font-semibold mb-2">
+                <Text
+                  style={{ color: theme.text }}
+                  className=" text-sm font-semibold mb-2"
+                >
                   New Password
                 </Text>
-                <View className="flex-row items-center bg-slate-800 rounded-xl border border-slate-700 px-4">
-                  <Lock size={20} color="#64748b" className="mr-3" />
+                <View
+                  className="flex-row items-center  rounded-xl border  px-4"
+                  style={{
+                    backgroundColor: theme.cardBackground,
+                    borderColor: theme.border,
+                  }}
+                >
                   <TextInput
                     className="flex-1 py-4 text-white text-base"
                     placeholder="Enter new password"
@@ -577,10 +702,19 @@ export default function ProfileScreen() {
 
               {/* Confirm Password */}
               <View className="mb-5">
-                <Text className="text-white text-sm font-semibold mb-2">
+                <Text
+                  style={{ color: theme.text }}
+                  className=" text-sm font-semibold mb-2"
+                >
                   Confirm New Password
                 </Text>
-                <View className="flex-row items-center bg-slate-800 rounded-xl border border-slate-700 px-4">
+                <View
+                  className="flex-row items-center  rounded-xl border  px-4"
+                  style={{
+                    backgroundColor: theme.cardBackground,
+                    borderColor: theme.border,
+                  }}
+                >
                   <Lock size={20} color="#64748b" className="mr-3" />
                   <TextInput
                     className="flex-1 py-4 text-white text-base"
@@ -613,8 +747,19 @@ export default function ProfileScreen() {
               </View>
 
               {/* Password Requirements */}
-              <View className="bg-slate-800 rounded-lg p-4 border border-slate-700 mb-6">
-                <Text className="text-slate-400 text-xs font-medium mb-2">
+              <View
+                className=" rounded-lg p-4 border  mb-6"
+                style={{
+                  backgroundColor: theme.cardBackground,
+                  borderColor: theme.border,
+                }}
+              >
+                <Text
+                  style={{
+                    color: theme.text,
+                  }}
+                  className=" text-xs font-medium mb-2"
+                >
                   Password Requirements:
                 </Text>
 
@@ -627,7 +772,12 @@ export default function ProfileScreen() {
                         : "#ef4444"
                     }
                   />
-                  <Text className="text-slate-200 text-xs ml-2">
+                  <Text
+                    style={{
+                      color: theme.textSecondary,
+                    }}
+                    className=" text-xs ml-2"
+                  >
                     At least 8 characters
                   </Text>
                 </View>
@@ -641,7 +791,12 @@ export default function ProfileScreen() {
                         : "#ef4444"
                     }
                   />
-                  <Text className="text-slate-200 text-xs ml-2">
+                  <Text
+                    style={{
+                      color: theme.textSecondary,
+                    }}
+                    className="text-xs ml-2"
+                  >
                     One uppercase letter
                   </Text>
                 </View>
@@ -655,7 +810,12 @@ export default function ProfileScreen() {
                         : "#ef4444"
                     }
                   />
-                  <Text className="text-slate-200 text-xs ml-2">
+                  <Text
+                    style={{
+                      color: theme.textSecondary,
+                    }}
+                    className=" text-xs ml-2"
+                  >
                     One number
                   </Text>
                 </View>

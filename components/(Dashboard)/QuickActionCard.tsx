@@ -1,5 +1,5 @@
 import { TouchableOpacity, Text, View } from "react-native";
-
+import { useTheme } from "~/lib/theme";
 interface QuickActionCardProps {
   icon: React.ComponentType<{ size: number; color: string }>;
   title: string;
@@ -7,15 +7,20 @@ interface QuickActionCardProps {
   onPress: () => void;
 }
 
-export default function QuickActionCard({ 
-  icon: Icon, 
-  title, 
-  color, 
-  onPress 
+export default function QuickActionCard({
+  icon: Icon,
+  title,
+  color,
+  onPress,
 }: QuickActionCardProps) {
+  const theme = useTheme();
   return (
     <TouchableOpacity
-      className="bg-slate-800 p-4 rounded-xl border border-slate-700 items-center flex-1 min-w-[45%]"
+      className="p-4 rounded-xl border items-center flex-1 min-w-[45%]"
+      style={{
+        backgroundColor: theme.cardBackground,
+        borderColor: theme.border,
+      }}
       onPress={onPress}
     >
       <View
@@ -24,7 +29,9 @@ export default function QuickActionCard({
       >
         <Icon size={24} color={color} />
       </View>
-      <Text className="text-white font-medium text-center">{title}</Text>
+      <Text className="font-medium text-center" style={{ color: theme.text }}>
+        {title}
+      </Text>
     </TouchableOpacity>
   );
 }

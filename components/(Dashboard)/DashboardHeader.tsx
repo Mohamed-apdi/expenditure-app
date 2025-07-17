@@ -1,7 +1,15 @@
 import React, { useState, useRef } from "react";
 import { View, Text, TouchableOpacity, Image, Animated } from "react-native";
-import { ChevronDown, User, Settings, LogOut } from "lucide-react-native";
-import { ThemeToggle } from "../ThemeToggle";
+import {
+  ChevronDown,
+  User,
+  Settings,
+  LogOut,
+  Sun,
+  Moon,
+} from "lucide-react-native";
+import { useColorScheme } from "~/lib/useColorScheme";
+import { useTheme } from "~/lib/theme";
 
 interface DashboardHeaderProps {
   userName: string;
@@ -18,11 +26,17 @@ export default function DashboardHeader({
   onSettingsPress,
   onLogoutPress,
 }: DashboardHeaderProps) {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownAnimation = useRef(new Animated.Value(0)).current;
   const rotateAnimation = useRef(new Animated.Value(0)).current;
   const scaleAnimation = useRef(new Animated.Value(1)).current;
 
+  const { isDarkColorScheme, toggleColorScheme } = useColorScheme();
+
+  const theme = useTheme();
+
+  const dropdownAnimation = useRef(new Animated.Value(0)).current;
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const firstName = userName?.split(" ")[0] || "User";
 
   const toggleDropdown = () => {
@@ -106,12 +120,15 @@ export default function DashboardHeader({
       )}
 
       <View
-        className="flex-row justify-between items-center px-6 py-5 bg-slate-900"
-        style={{ zIndex: 50 }}
+        className="flex-row justify-between items-center px-6 py-5 "
+        style={{ zIndex: 50, backgroundColor: theme.background }}
       >
         {/* Greeting Section */}
         <View className="flex-1">
-          <Text className="text-2xl font-bold text-white tracking-tight">
+          <Text
+            className="text-2xl font-bold tracking-tight"
+            style={{ color: theme.text }}
+          >
             Good Morning, {firstName}!
           </Text>
           <Text className="text-sm text-slate-400 mt-1 font-normal">
@@ -120,7 +137,7 @@ export default function DashboardHeader({
         </View>
         <ThemeToggle />
         {/* Actions Section */}
-        <View className="flex-row items-center gap-4">
+        <View className="flex-row items-center gap-4 ">
           {/* Profile Dropdown */}
           <View className="relative">
             <Animated.View style={{ transform: [{ scale: scaleAnimation }] }}>
@@ -149,10 +166,11 @@ export default function DashboardHeader({
                 top: 50,
                 right: 0,
                 minWidth: 240,
-                backgroundColor: "white",
+                backgroundColor: theme.background,
+                //backgroundColor: "#1e293b",
                 borderRadius: 12,
                 borderWidth: 1,
-                borderColor: "#e2e8f0",
+                borderColor: theme.border, // darker border
                 opacity: dropdownOpacity,
                 transform: [{ translateY: dropdownTranslateY }],
                 shadowColor: "#000",
@@ -176,10 +194,16 @@ export default function DashboardHeader({
                     className="w-9 h-9 rounded-full"
                   />
                   <View className="flex-1">
-                    <Text className="text-sm font-semibold text-slate-900">
+                    <Text
+                      className="text-sm font-semibold "
+                      style={{ color: theme.text }}
+                    >
                       {userName}
                     </Text>
-                    <Text className="text-xs text-slate-500 mt-0.5">
+                    <Text
+                      className="text-xs  mt-0.5"
+                      style={{ color: theme.text }}
+                    >
                       {userEmail}
                     </Text>
                   </View>
@@ -187,7 +211,23 @@ export default function DashboardHeader({
 
                 {/* Separator */}
                 <View className="h-px bg-slate-200 my-1" />
-
+                <TouchableOpacity
+                  onPress={toggleColorScheme}
+                  activeOpacity={0.7}
+                  className="flex-row items-center p-3 rounded-lg gap-3 active:bg-slate-50"
+                >
+                  {isDarkColorScheme ? (
+                    <Sun size={18} color="#FFDE21" />
+                  ) : (
+                    <Moon size={18} color="#D2CFDA" />
+                  )}
+                  <Text
+                    className="text-sm font-medium "
+                    style={{ color: theme.text }}
+                  >
+                    Dark Mode
+                  </Text>
+                </TouchableOpacity>
                 {/* Menu Items */}
                 {menuItems.map((item, index) => (
                   <TouchableOpacity
@@ -201,12 +241,14 @@ export default function DashboardHeader({
                   >
                     <item.icon
                       size={18}
-                      color={item.isDestructive ? "#ef4444" : "#64748b"}
+                      color={item.isDestructive ? "#ef4444" : theme.text}
                     />
                     <Text
-                      className={`text-sm font-medium ${
-                        item.isDestructive ? "text-red-500" : "text-gray-700"
-                      }`}
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "500",
+                        color: item.isDestructive ? "#ef4444" : theme.text,
+                      }}
                     >
                       {item.label}
                     </Text>

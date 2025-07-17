@@ -29,6 +29,7 @@ import {
   ChevronRight,
 } from "lucide-react-native";
 import { supabase } from "~/lib/supabase";
+import { useTheme } from "~/lib/theme";
 
 type Expense = {
   id: string;
@@ -56,6 +57,7 @@ export default function ExpenseHistoryScreen() {
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [selectedDateRange, setSelectedDateRange] = useState("this_month");
+  const theme = useTheme();
 
   const categoryMeta = {
     Food: { icon: ShoppingCart, color: "#10b981" },
@@ -200,82 +202,123 @@ export default function ExpenseHistoryScreen() {
 
   const FilterModal = () => (
     <Modal visible={showFilterModal} animationType="slide">
-      <SafeAreaView className="flex-1 bg-slate-900">
-        <View className="flex-row justify-between items-center px-6 py-4 border-b border-slate-700">
-          <Text className="text-white text-xl font-bold">Filter Expenses</Text>
+      <SafeAreaView
+        className="flex-1 "
+        style={{
+          backgroundColor: theme.background,
+        }}
+      >
+        <View
+          className="flex-row justify-between items-center px-6 py-4 border-b "
+          style={{
+            borderColor: theme.border,
+          }}
+        >
+          <Text
+            className="text-white text-xl font-bold"
+            style={{
+              color: theme.text,
+            }}
+          >
+            Filter Expenses
+          </Text>
           <TouchableOpacity onPress={() => setShowFilterModal(false)}>
-            <X size={24} color="#f8fafc" />
+            <X size={24} style={{ color: theme.icon }} />
           </TouchableOpacity>
         </View>
 
         <ScrollView className="flex-1 px-6">
           <View className="my-6">
-            <Text className="text-white text-lg font-bold mb-4">Category</Text>
+            <Text
+              className="text-lg font-bold mb-4"
+              style={{
+                color: theme.text,
+              }}
+            >
+              Category
+            </Text>
             <View className="gap-2">
-              {categories.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  className={`flex-row justify-between items-center p-4 rounded-xl border ${
-                    selectedFilter === cat
-                      ? "bg-emerald-500 border-emerald-500"
-                      : "bg-slate-800 border-slate-700"
-                  }`}
-                  onPress={() => setSelectedFilter(cat)}
-                >
-                  <Text
-                    className={`${
-                      selectedFilter === cat
-                        ? "text-white font-semibold"
-                        : "text-slate-200"
-                    }`}
+              {categories.map((cat) => {
+                const isSelected = selectedFilter === cat;
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    className="flex-row justify-between items-center p-4 rounded-xl border"
+                    style={{
+                      backgroundColor: isSelected
+                        ? "#10b981"
+                        : theme.cardBackground,
+                      borderColor: theme.border,
+                    }}
+                    onPress={() => setSelectedFilter(cat)}
                   >
-                    {cat === "all" ? "All Categories" : cat}
-                  </Text>
-                  {selectedFilter === cat && (
-                    <Check size={16} color="#ffffff" />
-                  )}
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={{
+                        color: isSelected ? "#ffffff" : theme.text,
+                        fontWeight: isSelected ? "600" : "500",
+                      }}
+                    >
+                      {cat === "all" ? "All Categories" : cat}
+                    </Text>
+                    {isSelected && <Check size={16} color="#ffffff" />}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
           <View className="my-6">
-            <Text className="text-white text-lg font-bold mb-4">
+            <Text
+              className="text-lg font-bold mb-4"
+              style={{ color: theme.text }}
+            >
               Date Range
             </Text>
             <View className="gap-2">
-              {dateRanges.map((range) => (
-                <TouchableOpacity
-                  key={range.key}
-                  className={`flex-row justify-between items-center p-4 rounded-xl border ${
-                    selectedDateRange === range.key
-                      ? "bg-emerald-500 border-emerald-500"
-                      : "bg-slate-800 border-slate-700"
-                  }`}
-                  onPress={() => setSelectedDateRange(range.key)}
-                >
-                  <Text
-                    className={`${
-                      selectedDateRange === range.key
-                        ? "text-white font-semibold"
-                        : "text-slate-200"
-                    }`}
+              {dateRanges.map((range) => {
+                const isSelected = selectedDateRange === range.key;
+                return (
+                  <TouchableOpacity
+                    key={range.key}
+                    className="flex-row justify-between items-center p-4 rounded-xl border"
+                    style={{
+                      backgroundColor: isSelected
+                        ? "#10b981"
+                        : theme.cardBackground,
+                      borderColor: isSelected ? "#10b981" : theme.border,
+                    }}
+                    onPress={() => setSelectedDateRange(range.key)}
                   >
-                    {range.label}
-                  </Text>
-                  {selectedDateRange === range.key && (
-                    <Check size={16} color="#ffffff" />
-                  )}
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={{
+                        color: isSelected ? "#ffffff" : theme.text,
+                        fontWeight: isSelected ? "300" : "500",
+                      }}
+                    >
+                      {range.label}
+                    </Text>
+                    {isSelected && <Check size={16} color="#ffffff" />}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
           <TouchableOpacity
-            className="bg-emerald-500 py-4 rounded-xl items-center my-6"
+            className="py-4 rounded-xl items-center my-6"
+            style={{
+              backgroundColor: theme.primary,
+            }}
             onPress={() => setShowFilterModal(false)}
           >
-            <Text className="text-white font-bold">Apply Filters</Text>
+            <Text
+              className="font-bold"
+              style={{
+                color: "#ffffff",
+              }}
+            >
+              Apply Filters
+            </Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
@@ -283,9 +326,14 @@ export default function ExpenseHistoryScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
+    <SafeAreaView
+      className="flex-1 "
+      style={{ backgroundColor: theme.background }}
+    >
       <View className="flex-row justify-between items-center px-6 py-5">
-        <Text className="text-white text-2xl font-bold">Expense History</Text>
+        <Text className=" text-2xl font-bold" style={{ color: theme.text }}>
+          Expense History
+        </Text>
         <TouchableOpacity
           className="bg-emerald-500 w-10 h-10 rounded-full justify-center items-center"
           onPress={() => router.push("/AddExpense")}
@@ -295,10 +343,17 @@ export default function ExpenseHistoryScreen() {
       </View>
 
       <View className="flex-row px-6 mb-5 gap-3">
-        <View className="flex-row items-center flex-1 bg-slate-800 rounded-xl border border-slate-700 px-4">
+        <View
+          className="flex-row items-center flex-1  rounded-xl border  px-4"
+          style={{
+            backgroundColor: theme.cardBackground,
+            borderColor: theme.border,
+          }}
+        >
           <Search size={20} color="#64748b" />
           <TextInput
-            className="flex-1 py-3 px-3 text-white"
+            className="flex-1 py-3 px-3"
+            style={{ color: theme.placeholder }}
             placeholder="Search expenses..."
             placeholderTextColor="#64748b"
             value={searchQuery}
@@ -306,20 +361,42 @@ export default function ExpenseHistoryScreen() {
           />
         </View>
         <TouchableOpacity
-          className="bg-slate-800 w-12 h-12 rounded-xl border border-slate-700 justify-center items-center"
+          className=" w-12 h-12 rounded-xl border  justify-center items-center"
           onPress={() => setShowFilterModal(true)}
+          style={{
+            backgroundColor: theme.primary,
+            borderColor: theme.border,
+          }}
         >
           <Filter size={20} color="#f8fafc" />
         </TouchableOpacity>
       </View>
 
       <View className="px-6 mb-5">
-        <View className="bg-slate-800 p-5 rounded-xl border border-slate-700 items-center">
-          <Text className="text-slate-400 mb-2">Total Expenses</Text>
+        <View
+          className=" p-5 rounded-xl border  items-center"
+          style={{
+            backgroundColor: theme.cardBackground,
+            borderColor: theme.border,
+          }}
+        >
+          <Text
+            className=" mb-2"
+            style={{
+              color: theme.text,
+            }}
+          >
+            Total Expenses
+          </Text>
           <Text className="text-rose-500 text-3xl font-bold mb-1">
             ${totalAmount.toFixed(2)}
           </Text>
-          <Text className="text-slate-500 text-sm">
+          <Text
+            className=" text-sm"
+            style={{
+              color: theme.text,
+            }}
+          >
             {filteredExpenses.length} transactions
           </Text>
         </View>
@@ -331,7 +408,14 @@ export default function ExpenseHistoryScreen() {
         <ScrollView showsVerticalScrollIndicator={false}>
           {Object.entries(groupedExpenses).map(([dateKey, dayExpenses]) => (
             <View key={dateKey} className="mb-6">
-              <Text className="text-white font-bold px-6 mb-3">{dateKey}</Text>
+              <Text
+                className=" font-bold px-6 mb-3"
+                style={{
+                  color: theme.text,
+                }}
+              >
+                {dateKey}
+              </Text>
               <View className="px-6 gap-2">
                 {dayExpenses.map((expense) => {
                   const Icon = expense.icon;
@@ -341,7 +425,11 @@ export default function ExpenseHistoryScreen() {
                       onPress={() =>
                         router.push(`/expense-detail/${expense.id}`)
                       }
-                      className="flex-row bg-slate-800 p-4 rounded-xl border border-slate-700 items-start"
+                      className="flex-row  p-4 rounded-xl border  items-start"
+                      style={{
+                        backgroundColor: theme.cardBackground,
+                        borderColor: theme.border,
+                      }}
                     >
                       <View
                         className="w-10 h-10 rounded-full justify-center items-center mr-3"
@@ -355,6 +443,9 @@ export default function ExpenseHistoryScreen() {
                           <View className="flex-1 pr-2">
                             <Text
                               className="text-white font-medium"
+                              style={{
+                                color: theme.text,
+                              }}
                               numberOfLines={1}
                             >
                               {expense.description}
@@ -376,17 +467,10 @@ export default function ExpenseHistoryScreen() {
                         </View>
 
                         <View className="flex-row items-center flex-wrap">
-                          <Text className="text-slate-400 text-xs">
+                          <Text className="text-slate-500 text-xs">
                             {expense.category}
                           </Text>
-                          {expense.location && (
-                            <>
-                              <Text className="text-slate-600 mx-2">•</Text>
-                              <Text className="text-slate-400 text-xs">
-                                {expense.location}
-                              </Text>
-                            </>
-                          )}
+
                           {expense.is_recurring && (
                             <>
                               <Text className="text-slate-600 mx-2">•</Text>
