@@ -135,7 +135,6 @@ export default function DashboardHeader({
             Here's your spending overview
           </Text>
         </View>
-        <ThemeToggle />
         {/* Actions Section */}
         <View className="flex-row items-center gap-4 ">
           {/* Profile Dropdown */}
