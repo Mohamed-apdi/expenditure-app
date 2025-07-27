@@ -26,6 +26,7 @@ import {
 import { supabase } from "~/lib/supabase";
 import * as ImagePicker from "expo-image-picker";
 import { decode } from "base64-arraybuffer";
+import { useTheme } from "~/lib/theme";
 type FormData = {
   fullName: string;
   email: string;
@@ -63,6 +64,7 @@ export default function UpdateProfileScreen() {
   const fullNameRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
   const phoneRef = useRef<TextInput>(null);
+  const theme = useTheme();
 
   // Get current user ID when component mounts
   useEffect(() => {
@@ -308,17 +310,23 @@ export default function UpdateProfileScreen() {
   };
   return (
     <ScrollView>
-      <SafeAreaView className="flex-1 bg-slate-900 h-[100vh]">
+      <SafeAreaView
+        className="flex-1"
+        tyle={{ backgroundColor: theme.background }}
+      >
         <KeyboardAvoidingView
           className="flex-1"
           behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ borderBottomColor: theme.border }}
         >
           {/* Header */}
           <View className="flex-row justify-between items-center px-6 py-4 border-b border-slate-700">
             <TouchableOpacity className="p-2" onPress={handleCancel}>
-              <X size={24} color="#94a3b8" />
+              <X size={24} color={theme.icon} />
             </TouchableOpacity>
-            <Text className="text-white text-lg font-bold">Update Profile</Text>
+            <Text style={{ color: theme.text }} className=" text-lg font-bold">
+              Update Profile
+            </Text>
             <TouchableOpacity
               className={`py-2 px-4 rounded-lg ${!hasChanges || loading ? "bg-slate-700" : "bg-emerald-500"}`}
               onPress={handleSave}
@@ -340,21 +348,39 @@ export default function UpdateProfileScreen() {
                   <Image
                     source={{ uri: formData.image_url }}
                     className="w-32 h-32 rounded-full border-4 border-emerald-500"
-                    style={{ width: 128, height: 128 }} // Add this as a fallback
+                    style={{
+                      width: 128,
+                      height: 128,
+                      borderColor: theme.border,
+                    }}
                   />
                 ) : (
-                  <View className="w-32 h-32 rounded-full bg-slate-800 border-4 border-slate-700 justify-center items-center">
-                    <User size={40} color="#64748b" />
+                  <View
+                    className="w-32 h-32 rounded-full  border-4 justify-center items-center"
+                    style={{
+                      backgroundColor: theme.cardBackground,
+                      borderColor: theme.border,
+                      borderWidth: 4,
+                    }}
+                  >
+                    <User size={40} color={theme.icon} />
                   </View>
                 )}
                 <TouchableOpacity
-                  className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-emerald-500 justify-center items-center border-[3px] border-slate-900"
+                  className="absolute bottom-0 right-0 w-9 h-9 rounded-full justify-center items-center border-[3px]"
+                  style={{
+                    backgroundColor: theme.primary,
+                    borderColor: theme.border,
+                  }}
                   onPress={handleChangePhoto}
                 >
                   <Camera size={16} color="#ffffff" />
                 </TouchableOpacity>
               </View>
-              <Text className="text-slate-400 text-sm text-center">
+              <Text
+                className=" text-sm text-center"
+                style={{ color: theme.textSecondary }}
+              >
                 Tap to change your profile photo
               </Text>
             </View>
@@ -363,18 +389,30 @@ export default function UpdateProfileScreen() {
             <View className="px-6">
               {/* Full Name */}
               <View className="mb-6">
-                <Text className="text-white text-sm font-semibold mb-2">
+                <Text
+                  style={{ color: theme.text }}
+                  className=" text-sm font-semibold mb-2"
+                >
                   Full Name
                 </Text>
                 <View
-                  className={`flex-row items-center bg-slate-800 rounded-xl border ${errors.fullName ? "border-red-500" : "border-slate-700"} px-4`}
+                  className="flex-row items-center rounded-xl border px-4"
+                  style={{
+                    backgroundColor: theme.inputBackground,
+                    borderColor: theme.inputBorder,
+                  }}
                 >
-                  <User size={20} color="#64748b" className="mr-3" />
+                  <User
+                    size={20}
+                    color={theme.textSecondary}
+                    className="mr-3"
+                  />
                   <TextInput
                     ref={fullNameRef}
                     className="flex-1 py-4 text-white text-base"
                     placeholder="Enter your full name"
-                    placeholderTextColor="#64748b"
+                    placeholderTextColor={theme.placeholder}
+                    style={{ color: theme.text }}
                     value={formData.fullName}
                     onChangeText={(value) => updateFormData("fullName", value)}
                     autoCapitalize="words"
@@ -390,13 +428,24 @@ export default function UpdateProfileScreen() {
 
               {/* Email */}
               <View className="mb-6">
-                <Text className="text-white text-sm font-semibold mb-2">
+                <Text
+                  style={{ color: theme.text }}
+                  className=" text-sm font-semibold mb-2"
+                >
                   Email Address
                 </Text>
                 <View
-                  className={`flex-row items-center bg-slate-800 rounded-xl border ${errors.email ? "border-red-500" : "border-slate-700"} px-4`}
+                  className="flex-row items-center rounded-xl border px-4"
+                  style={{
+                    backgroundColor: theme.inputBackground,
+                    borderColor: theme.inputBorder,
+                  }}
                 >
-                  <Mail size={20} color="#64748b" className="mr-3" />
+                  <Mail
+                    size={20}
+                    color={theme.textSecondary}
+                    className="mr-3"
+                  />
                   <TextInput
                     ref={emailRef}
                     className="flex-1 py-4 text-slate-400 text-base"
@@ -414,18 +463,30 @@ export default function UpdateProfileScreen() {
 
               {/* Phone Number */}
               <View className="mb-6">
-                <Text className="text-white text-sm font-semibold mb-2">
+                <Text
+                  style={{ color: theme.text }}
+                  className=" text-sm font-semibold mb-2"
+                >
                   Phone Number
                 </Text>
                 <View
-                  className={`flex-row items-center bg-slate-800 rounded-xl border ${errors.phone ? "border-red-500" : "border-slate-700"} px-4`}
+                  className="flex-row items-center rounded-xl border px-4"
+                  style={{
+                    backgroundColor: theme.inputBackground,
+                    borderColor: theme.inputBorder,
+                  }}
                 >
-                  <Phone size={20} color="#64748b" className="mr-3" />
+                  <Phone
+                    size={20}
+                    color={theme.textSecondary}
+                    className="mr-3"
+                  />
                   <TextInput
                     ref={phoneRef}
                     className="flex-1 py-4 text-white text-base"
                     placeholder="Enter your phone number"
-                    placeholderTextColor="#64748b"
+                    placeholderTextColor={theme.placeholder}
+                    style={{ color: theme.text }}
                     value={formData.phone}
                     onChangeText={(value) => updateFormData("phone", value)}
                     keyboardType="phone-pad"
@@ -437,16 +498,28 @@ export default function UpdateProfileScreen() {
                     {errors.phone}
                   </Text>
                 )}
-                <Text className="text-slate-400 text-xs mt-1 ml-1">
+                <Text
+                  className=" text-xs mt-1 ml-1"
+                  style={{ color: theme.textSecondary }}
+                >
                   Include country code (e.g., +1 555 123 4567)
                 </Text>
               </View>
             </View>
 
             {/* Info Box */}
-            <View className="flex-row items-start bg-slate-800 mx-6 my-4 p-4 rounded-xl border border-blue-500">
-              <Info size={20} color="#3b82f6" className="mt-0.5" />
-              <Text className="text-slate-400 text-sm ml-3 flex-1">
+            <View
+              className="flex-row items-start mx-6 my-4 p-4 rounded-xl border"
+              style={{
+                backgroundColor: theme.cardBackground,
+                borderColor: "#3b82f6",
+              }}
+            >
+              <Info size={20} color="#3b82f6" />
+              <Text
+                className="text-sm ml-3 flex-1"
+                style={{ color: theme.textSecondary }}
+              >
                 Your profile information is encrypted and stored securely. We
                 never share your personal data with third parties.
               </Text>

@@ -1,5 +1,12 @@
 import { Tabs } from "expo-router";
-import { Home, TrendingUp, PieChart, Layers, User, Wallet } from "lucide-react-native";
+import {
+  Home,
+  TrendingUp,
+  PieChart,
+  Layers,
+  User,
+  Wallet,
+} from "lucide-react-native";
 import { useColorScheme } from "~/lib/useColorScheme";
 
 export default function MainLayout() {
@@ -40,10 +47,7 @@ export default function MainLayout() {
       <Tabs.Screen
         name="ExpenseListScreen"
         options={{
-          title: "Expenses",
-          tabBarIcon: ({ color, size }) => (
-            <Wallet color={color} size={size} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen
@@ -65,8 +69,7 @@ export default function MainLayout() {
       <Tabs.Screen
         name="ProfileScreen"
         options={{
-          title: "Profile",
-          tabBarIcon: ({ color, size }) => <User color={color} size={size} />,
+          href: null,
         }}
       />
     </Tabs>

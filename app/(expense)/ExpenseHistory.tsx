@@ -1,5 +1,13 @@
-import { useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Modal } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  Modal,
+  ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
@@ -18,18 +26,22 @@ import {
   Utensils,
   Repeat,
   MoreVertical,
+  ChevronRight,
 } from "lucide-react-native";
+import { supabase } from "~/lib/supabase";
+import { useTheme } from "~/lib/theme";
 
 type Expense = {
-  id: number;
+  id: string;
   category: string;
   amount: number;
   description: string;
   date: string;
-  icon: React.ComponentType<{ size: number; color: string }>;
-  color: string;
+  payment_method: string;
   location?: string;
-  recurring?: boolean;
+  is_recurring?: boolean;
+  icon?: any;
+  color?: string;
 };
 
 type DateRange = {
@@ -39,121 +51,126 @@ type DateRange = {
 
 export default function ExpenseHistoryScreen() {
   const router = useRouter();
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [selectedDateRange, setSelectedDateRange] = useState("this_month");
+  const theme = useTheme();
 
-  const [expenses] = useState<Expense[]>([
-    {
-      id: 1,
-      category: "Food",
-      amount: 25,
-      description: "Grocery Store",
-      date: "2024-01-15",
-      icon: ShoppingCart,
-      color: "#10b981",
-      location: "Walmart",
-    },
-    {
-      id: 2,
-      category: "Transport",
-      amount: 12,
-      description: "Bus Fare",
-      date: "2024-01-15",
-      icon: Truck,
-      color: "#3b82f6",
-    },
-    {
-      id: 3,
-      category: "Food",
-      amount: 8,
-      description: "Coffee Shop",
-      date: "2024-01-14",
-      icon: Coffee,
-      color: "#10b981",
-      location: "Starbucks",
-    },
-    {
-      id: 4,
-      category: "Utilities",
-      amount: 85,
-      description: "Electricity Bill",
-      date: "2024-01-13",
-      icon: Zap,
-      color: "#f59e0b",
-      recurring: true,
-    },
-    {
-      id: 5,
-      category: "Entertainment",
-      amount: 15,
-      description: "Movie Ticket",
-      date: "2024-01-12",
-      icon: Film,
-      color: "#8b5cf6",
-      location: "AMC Theater",
-    },
-    {
-      id: 6,
-      category: "Healthcare",
-      amount: 45,
-      description: "Pharmacy",
-      date: "2024-01-12",
-      icon: Heart,
-      color: "#ef4444",
-    },
-    {
-      id: 7,
-      category: "Shopping",
-      amount: 120,
-      description: "Clothing Store",
-      date: "2024-01-11",
-      icon: ShoppingBag,
-      color: "#06b6d4",
-      location: "H&M",
-    },
-    {
-      id: 8,
-      category: "Food",
-      amount: 32,
-      description: "Restaurant",
-      date: "2024-01-10",
-      icon: Utensils,
-      color: "#10b981",
-      location: "Pizza Hut",
-    },
-  ]);
+  const categoryMeta = {
+    Food: { icon: ShoppingCart, color: "#10b981" },
+    Transport: { icon: Truck, color: "#3b82f6" },
+    Utilities: { icon: Zap, color: "#f59e0b" },
+    Entertainment: { icon: Film, color: "#8b5cf6" },
+    Healthcare: { icon: Heart, color: "#ef4444" },
+    Shopping: { icon: ShoppingBag, color: "#06b6d4" },
+    Coffee: { icon: Coffee, color: "#f43f5e" },
+    Other: { icon: Utensils, color: "#64748b" },
+  };
 
-  const categories = ["all", "Food", "Transport", "Utilities", "Entertainment", "Healthcare", "Shopping"];
+  const categories = ["all", ...Object.keys(categoryMeta)];
+
   const dateRanges: DateRange[] = [
     { key: "today", label: "Today" },
     { key: "this_week", label: "This Week" },
     { key: "this_month", label: "This Month" },
     { key: "last_month", label: "Last Month" },
     { key: "this_year", label: "This Year" },
-    { key: "custom", label: "Custom Range" },
   ];
 
-  const filteredExpenses = expenses.filter((expense) => {
-    const matchesSearch =
-      expense.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      expense.category.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedFilter === "all" || expense.category === selectedFilter;
-    return matchesSearch && matchesCategory;
-  });
+  useEffect(() => {
+    fetchExpenses();
+  }, [selectedFilter, selectedDateRange, searchQuery]);
 
-  const totalAmount = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const fetchExpenses = async () => {
+    setLoading(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      let query = supabase.from("expenses").select("*").eq("user_id", user.id);
+
+      if (selectedFilter !== "all") {
+        query = query.eq("category", selectedFilter);
+      }
+
+      if (selectedDateRange) {
+        const today = new Date();
+        let start: string | null = null;
+        let end: string | null = null;
+
+        switch (selectedDateRange) {
+          case "today":
+            start = today.toISOString().split("T")[0];
+            end = start;
+            break;
+          case "this_week": {
+            const day = today.getDay();
+            const first = new Date(today);
+            first.setDate(today.getDate() - day);
+            start = first.toISOString().split("T")[0];
+            end = today.toISOString().split("T")[0];
+            break;
+          }
+          case "this_month": {
+            const first = new Date(today.getFullYear(), today.getMonth(), 1);
+            start = first.toISOString().split("T")[0];
+            end = today.toISOString().split("T")[0];
+            break;
+          }
+          case "last_month": {
+            const first = new Date(
+              today.getFullYear(),
+              today.getMonth() - 1,
+              1
+            );
+            const last = new Date(today.getFullYear(), today.getMonth(), 0);
+            start = first.toISOString().split("T")[0];
+            end = last.toISOString().split("T")[0];
+            break;
+          }
+          case "this_year":
+            start = `${today.getFullYear()}-01-01`;
+            end = today.toISOString().split("T")[0];
+            break;
+        }
+
+        if (start && end) {
+          query = query.gte("date", start).lte("date", end);
+        }
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      const enriched = (data || []).map((e) => {
+        const meta = categoryMeta[e.category] || categoryMeta.Other;
+        return { ...e, icon: meta.icon, color: meta.color };
+      });
+
+      setExpenses(enriched);
+    } catch (err) {
+      console.error("Error fetching expenses:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const groupExpensesByDate = (expenses: Expense[]) => {
     const groups: Record<string, Expense[]> = {};
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
     expenses.forEach((expense) => {
       const date = new Date(expense.date);
-      const today = new Date();
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-
       let dateKey: string;
+
       if (date.toDateString() === today.toDateString()) {
         dateKey = "Today";
       } else if (date.toDateString() === yesterday.toDateString()) {
@@ -166,88 +183,142 @@ export default function ExpenseHistoryScreen() {
         });
       }
 
-      if (!groups[dateKey]) {
-        groups[dateKey] = [];
-      }
+      if (!groups[dateKey]) groups[dateKey] = [];
       groups[dateKey].push(expense);
     });
+
     return groups;
   };
 
+  const filteredExpenses = expenses.filter((expense) => {
+    return (
+      expense.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      expense.category?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
+
   const groupedExpenses = groupExpensesByDate(filteredExpenses);
+  const totalAmount = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   const FilterModal = () => (
-    <Modal visible={showFilterModal} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView className="flex-1 bg-slate-900">
-        {/* Modal Header */}
-        <View className="flex-row justify-between items-center px-6 py-4 border-b border-slate-700">
-          <Text className="text-white text-xl font-bold">Filter Expenses</Text>
+    <Modal visible={showFilterModal} animationType="slide">
+      <SafeAreaView
+        className="flex-1 "
+        style={{
+          backgroundColor: theme.background,
+        }}
+      >
+        <View
+          className="flex-row justify-between items-center px-6 py-4 border-b "
+          style={{
+            borderColor: theme.border,
+          }}
+        >
+          <Text
+            className="text-white text-xl font-bold"
+            style={{
+              color: theme.text,
+            }}
+          >
+            Filter Expenses
+          </Text>
           <TouchableOpacity onPress={() => setShowFilterModal(false)}>
-            <X size={24} color="#f8fafc" />
+            <X size={24} style={{ color: theme.icon }} />
           </TouchableOpacity>
         </View>
 
         <ScrollView className="flex-1 px-6">
-          {/* Category Filter */}
           <View className="my-6">
-            <Text className="text-white text-lg font-bold mb-4">Category</Text>
+            <Text
+              className="text-lg font-bold mb-4"
+              style={{
+                color: theme.text,
+              }}
+            >
+              Category
+            </Text>
             <View className="gap-2">
-              {categories.map((category) => (
-                <TouchableOpacity
-                  key={category}
-                  className={`flex-row justify-between items-center p-4 rounded-xl border ${
-                    selectedFilter === category
-                      ? "bg-emerald-500 border-emerald-500"
-                      : "bg-slate-800 border-slate-700"
-                  }`}
-                  onPress={() => setSelectedFilter(category)}
-                >
-                  <Text
-                    className={`font-medium ${
-                      selectedFilter === category ? "text-white font-semibold" : "text-slate-200"
-                    }`}
+              {categories.map((cat) => {
+                const isSelected = selectedFilter === cat;
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    className="flex-row justify-between items-center p-4 rounded-xl border"
+                    style={{
+                      backgroundColor: isSelected
+                        ? "#10b981"
+                        : theme.cardBackground,
+                      borderColor: theme.border,
+                    }}
+                    onPress={() => setSelectedFilter(cat)}
                   >
-                    {category === "all" ? "All Categories" : category}
-                  </Text>
-                  {selectedFilter === category && <Check size={16} color="#ffffff" />}
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={{
+                        color: isSelected ? "#ffffff" : theme.text,
+                        fontWeight: isSelected ? "600" : "500",
+                      }}
+                    >
+                      {cat === "all" ? "All Categories" : cat}
+                    </Text>
+                    {isSelected && <Check size={16} color="#ffffff" />}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
-          {/* Date Range Filter */}
           <View className="my-6">
-            <Text className="text-white text-lg font-bold mb-4">Date Range</Text>
+            <Text
+              className="text-lg font-bold mb-4"
+              style={{ color: theme.text }}
+            >
+              Date Range
+            </Text>
             <View className="gap-2">
-              {dateRanges.map((range) => (
-                <TouchableOpacity
-                  key={range.key}
-                  className={`flex-row justify-between items-center p-4 rounded-xl border ${
-                    selectedDateRange === range.key
-                      ? "bg-emerald-500 border-emerald-500"
-                      : "bg-slate-800 border-slate-700"
-                  }`}
-                  onPress={() => setSelectedDateRange(range.key)}
-                >
-                  <Text
-                    className={`font-medium ${
-                      selectedDateRange === range.key ? "text-white font-semibold" : "text-slate-200"
-                    }`}
+              {dateRanges.map((range) => {
+                const isSelected = selectedDateRange === range.key;
+                return (
+                  <TouchableOpacity
+                    key={range.key}
+                    className="flex-row justify-between items-center p-4 rounded-xl border"
+                    style={{
+                      backgroundColor: isSelected
+                        ? "#10b981"
+                        : theme.cardBackground,
+                      borderColor: isSelected ? "#10b981" : theme.border,
+                    }}
+                    onPress={() => setSelectedDateRange(range.key)}
                   >
-                    {range.label}
-                  </Text>
-                  {selectedDateRange === range.key && <Check size={16} color="#ffffff" />}
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={{
+                        color: isSelected ? "#ffffff" : theme.text,
+                        fontWeight: isSelected ? "300" : "500",
+                      }}
+                    >
+                      {range.label}
+                    </Text>
+                    {isSelected && <Check size={16} color="#ffffff" />}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
-          {/* Apply Button */}
           <TouchableOpacity
-            className="bg-emerald-500 py-4 rounded-xl items-center my-6"
+            className="py-4 rounded-xl items-center my-6"
+            style={{
+              backgroundColor: theme.primary,
+            }}
             onPress={() => setShowFilterModal(false)}
           >
-            <Text className="text-white font-bold">Apply Filters</Text>
+            <Text
+              className="font-bold"
+              style={{
+                color: "#ffffff",
+              }}
+            >
+              Apply Filters
+            </Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
@@ -255,24 +326,34 @@ export default function ExpenseHistoryScreen() {
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
-      {/* Header */}
+    <SafeAreaView
+      className="flex-1 "
+      style={{ backgroundColor: theme.background }}
+    >
       <View className="flex-row justify-between items-center px-6 py-5">
-        <Text className="text-white text-2xl font-bold">Expense History</Text>
+        <Text className=" text-2xl font-bold" style={{ color: theme.text }}>
+          Expense History
+        </Text>
         <TouchableOpacity
           className="bg-emerald-500 w-10 h-10 rounded-full justify-center items-center"
-          onPress={() => router.push("/add-expense" as any)}
+          onPress={() => router.push("/AddExpense")}
         >
           <Plus size={20} color="#ffffff" />
         </TouchableOpacity>
       </View>
 
-      {/* Search and Filter */}
       <View className="flex-row px-6 mb-5 gap-3">
-        <View className="flex-row items-center flex-1 bg-slate-800 rounded-xl border border-slate-700 px-4">
+        <View
+          className="flex-row items-center flex-1  rounded-xl border  px-4"
+          style={{
+            backgroundColor: theme.cardBackground,
+            borderColor: theme.border,
+          }}
+        >
           <Search size={20} color="#64748b" />
           <TextInput
-            className="flex-1 py-3 px-3 text-white"
+            className="flex-1 py-3 px-3"
+            style={{ color: theme.placeholder }}
             placeholder="Search expenses..."
             placeholderTextColor="#64748b"
             value={searchQuery}
@@ -280,98 +361,137 @@ export default function ExpenseHistoryScreen() {
           />
         </View>
         <TouchableOpacity
-          className="bg-slate-800 w-12 h-12 rounded-xl border border-slate-700 justify-center items-center"
+          className=" w-12 h-12 rounded-xl border  justify-center items-center"
           onPress={() => setShowFilterModal(true)}
+          style={{
+            backgroundColor: theme.primary,
+            borderColor: theme.border,
+          }}
         >
           <Filter size={20} color="#f8fafc" />
         </TouchableOpacity>
       </View>
 
-      {/* Summary */}
       <View className="px-6 mb-5">
-        <View className="bg-slate-800 p-5 rounded-xl border border-slate-700 items-center">
-          <Text className="text-slate-400 mb-2">Total Expenses</Text>
-          <Text className="text-rose-500 text-3xl font-bold mb-1">${totalAmount}</Text>
-          <Text className="text-slate-500 text-sm">{filteredExpenses.length} transactions</Text>
+        <View
+          className=" p-5 rounded-xl border  items-center"
+          style={{
+            backgroundColor: theme.cardBackground,
+            borderColor: theme.border,
+          }}
+        >
+          <Text
+            className=" mb-2"
+            style={{
+              color: theme.text,
+            }}
+          >
+            Total Expenses
+          </Text>
+          <Text className="text-rose-500 text-3xl font-bold mb-1">
+            ${totalAmount.toFixed(2)}
+          </Text>
+          <Text
+            className=" text-sm"
+            style={{
+              color: theme.text,
+            }}
+          >
+            {filteredExpenses.length} transactions
+          </Text>
         </View>
       </View>
 
-      {/* Expenses List */}
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {Object.entries(groupedExpenses).map(([dateKey, dayExpenses]) => (
-          <View key={dateKey} className="mb-6">
-            <Text className="text-white font-bold px-6 mb-3">{dateKey}</Text>
-            <View className="px-6 gap-2">
-              {dayExpenses.map((expense) => {
-                const IconComponent = expense.icon;
-                return (
-                  <TouchableOpacity
-                    key={expense.id}
-                    className="flex-row items-center bg-slate-800 p-4 rounded-xl border border-slate-700"
-                  >
-                    <View
-                      className="w-10 h-10 rounded-full justify-center items-center mr-3"
-                      style={{ backgroundColor: `${expense.color}20` }}
-                    >
-                      <IconComponent size={20} color={expense.color} />
-                    </View>
-
-                    <View className="flex-1">
-                      <View className="flex-row justify-between items-center mb-1">
-                        <Text className="text-white font-medium">{expense.description}</Text>
-                        <Text className="text-rose-500 font-bold">-${expense.amount}</Text>
-                      </View>
-
-                      <View className="flex-row items-center">
-                        <Text className="text-slate-400 text-xs">{expense.category}</Text>
-                        {expense.location && (
-                          <>
-                            <Text className="text-slate-600 mx-2">•</Text>
-                            <Text className="text-slate-400 text-xs">{expense.location}</Text>
-                          </>
-                        )}
-                        {expense.recurring && (
-                          <>
-                            <Text className="text-slate-600 mx-2">•</Text>
-                            <View className="flex-row items-center bg-emerald-500/20 px-1.5 py-0.5 rounded">
-                              <Repeat size={10} color="#10b981" />
-                              <Text className="text-emerald-500 text-xs ml-1 font-medium">Recurring</Text>
-                            </View>
-                          </>
-                        )}
-                      </View>
-                    </View>
-
-                    <TouchableOpacity className="p-2 ml-2">
-                      <MoreVertical size={16} color="#64748b" />
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        ))}
-
-        {filteredExpenses.length === 0 && (
-          <View className="items-center py-16 px-10">
-            <Search size={48} color="#64748b" />
-            <Text className="text-white text-xl font-bold mt-4 mb-2">No expenses found</Text>
-            <Text className="text-slate-400 text-center mb-6">
-              {searchQuery
-                ? "Try adjusting your search or filters"
-                : "Start tracking your expenses to see them here"}
-            </Text>
-            {!searchQuery && (
-              <TouchableOpacity
-                className="bg-emerald-500 py-3 px-6 rounded-lg"
-                onPress={() => router.push("/add-expense" as any)}
+      {loading ? (
+        <ActivityIndicator color="#10b981" style={{ marginTop: 30 }} />
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {Object.entries(groupedExpenses).map(([dateKey, dayExpenses]) => (
+            <View key={dateKey} className="mb-6">
+              <Text
+                className=" font-bold px-6 mb-3"
+                style={{
+                  color: theme.text,
+                }}
               >
-                <Text className="text-white font-semibold">Add Your First Expense</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-      </ScrollView>
+                {dateKey}
+              </Text>
+              <View className="px-6 gap-2">
+                {dayExpenses.map((expense) => {
+                  const Icon = expense.icon;
+                  return (
+                    <TouchableOpacity
+                      key={expense.id}
+                      onPress={() =>
+                        router.push(`/expense-detail/${expense.id}`)
+                      }
+                      className="flex-row  p-4 rounded-xl border  items-start"
+                      style={{
+                        backgroundColor: theme.cardBackground,
+                        borderColor: theme.border,
+                      }}
+                    >
+                      <View
+                        className="w-10 h-10 rounded-full justify-center items-center mr-3"
+                        style={{ backgroundColor: `${expense.color}20` }}
+                      >
+                        <Icon size={20} color={expense.color} />
+                      </View>
+
+                      <View className="flex-1">
+                        <View className="flex-row justify-between items-start mb-1">
+                          <View className="flex-1 pr-2">
+                            <Text
+                              className="text-white font-medium"
+                              style={{
+                                color: theme.text,
+                              }}
+                              numberOfLines={1}
+                            >
+                              {expense.description}
+                            </Text>
+                          </View>
+                          <View className="flex-row items-center gap-2">
+                            <Text className="text-rose-500 font-bold text-right">
+                              -${expense.amount}
+                            </Text>
+                            <TouchableOpacity
+                              className="p-1"
+                              onPress={() =>
+                                router.push(`/expense-detail/${expense.id}`)
+                              }
+                            >
+                              <ChevronRight size={20} color="#64748b" />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+
+                        <View className="flex-row items-center flex-wrap">
+                          <Text className="text-slate-500 text-xs">
+                            {expense.category}
+                          </Text>
+
+                          {expense.is_recurring && (
+                            <>
+                              <Text className="text-slate-600 mx-2">•</Text>
+                              <View className="flex-row items-center bg-emerald-500/20 px-1.5 py-0.5 rounded">
+                                <Repeat size={10} color="#10b981" />
+                                <Text className="text-emerald-500 text-xs ml-1 font-medium">
+                                  Recurring
+                                </Text>
+                              </View>
+                            </>
+                          )}
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      )}
 
       <FilterModal />
     </SafeAreaView>
