@@ -15,48 +15,23 @@ import React from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import RNPickerSelect from 'react-native-picker-select';
 type FormData = {
-  // Basic Info
-  hhsize: number;
-  region_n: number;
-  hh_water_type: number;
-  hh_electricity: number;
+ // Basic Info
+  Number_of_Members: number;
+  Region: number;
+  Residence_Type: string;
   
   // Expenditures
-  exp_food: number;
-  exp_nfnd: number;
-  exp_rent: number;
+  Food_Expenditure: number;
+  NonFood_Expenditure: number;
+  Housing_Expenditure: number;
+  Utilities_Expenditure: number;
+  Transport_Expenditure: number;
   
-  // Economic Indicators
-  pce: number;
-  pcer: number;
-  poor: number;
-  foodsec7_07: number;
-  remt9_11: number;
-  
-  // Livestock/Assets
-  liv4_04: number;
-  liv4_12: number;
-  liv4_13: number;
-  liv4_21: number;
-  liv4_22: number;
-  liv4_24: number;
-  liv4_25: number;
-  
-  // Non-Farm Enterprises
-  nfe16_13: number;
-  nfe16_33: number;
-  
-  // Shocks
-  shock10_03: number;
-  shock10_04: number;
-  shock10_07_21: number;
-  shock10_07_23: number;
-  
-  // Consumption Quantities
-  cr15_04quantity: number;
-  cr15_05quantity: number;
-  cr15_06: number;
-  cr15_10: number;
+  // Additional Economic Indicators
+  Spent_on_Food_Drink_Outside: number;
+  General_NonFood_Expenditure: number;
+  Livestock_Byproducts_Value: number;
+  Business_Revenue: number;
 };
 
 
@@ -83,39 +58,30 @@ interface FieldGroup {
   fields: FormField[];
 }
 
-const waterTypeOptions = [
-  { label: "Piped water into dwelling", value: 1 },
-  { label: "Tubewell/borehole", value: 2 },
-  { label: "Tanker-truck", value: 3 },
-  { label: "Protected dug well", value: 4 },
-  { label: "Piped water to yard/plot", value: 5 },
-  { label: "Rainwater collection", value: 6 },
-  { label: "Natural surface water (river, dam, lake)", value: 7 },
-  { label: "Public tap/standpipe", value: 8 },
-  { label: "Unprotected dug well", value: 9 },
-  { label: "Cart with small tank/drum", value: 10 },
-  { label: "Protected spring", value: 11 },
-  { label: "Surface water (pond, stream, canal)", value: 12 },
-  { label: "Water catchment", value: 13 },
-  { label: "From neighbours", value: 14 },
-  { label: "Unprotected spring", value: 15 },
-  { label: "Bottled water", value: 16 },
-  { label: "Other (specify)", value: 17 }
+const residenceTypeOptions  = [
+  { label: "Urban", value: "Urban" },
+  { label: "Rural", value: "Rural" },
+  { label: "Nomadic", value: "Nomadic" }
 ];
 
-const shockTypeOptions = [
-  { label: "None", value: 0 },
-  { label: "Drought", value: 1 },
-  { label: "Flood", value: 2 },
-  { label: "Price Increase", value: 3 },
-  { label: "Job Loss", value: 4 }
-];
-
-const lossTypeOptions = [
-  { label: "None", value: 0 },
-  { label: "Income Loss", value: 1 },
-  { label: "Asset Loss", value: 2 },
-  { label: "Crop Loss", value: 3 }
+const regionOptions = [
+  { label: "Awdal", value: "Awdal" },
+  { label: "Bakool", value: "Bakool" },
+  { label: "Banadir", value: "Banadir" },
+  { label: "Bari", value: "Bari" },
+  { label: "Bay", value: "Bay" },
+  { label: "Galgaduud", value: "Galgaduud" },
+  { label: "Gedo", value: "Gedo" },
+  { label: "Hiraan", value: "Hiraan" },
+  { label: "Lower Juba", value: "Lower Juba" },
+  { label: "Lower Shabelle", value: "Lower Shabelle" },
+  { label: "Waqooyi Galbeed", value: "Waqooyi Galbeed" },
+  { label: "Middle Shabelle", value: "Middle Shabelle" },
+  { label: "Mudug", value: "Mudug" },
+  { label: "Nugaal", value: "Nugaal" },
+  { label: "Sanaag", value: "Sanaag" },
+  { label: "Sool", value: "Sool" },
+  { label: "Togdheer", value: "Togdheer" }
 ];
 
 // Group fields into logical categories
@@ -124,142 +90,116 @@ const fieldGroups: FieldGroup[] = [
     title: "Household Profile",
     icon: <Home size={20} color="#10b981" />,
     fields: [
-      { key: "hhsize", label: "Household Size", type: "number", min: 1, max: 20, icon: <Users size={16} /> },
+      { 
+        key: "Number_of_Members", 
+        label: "Number of Household Members", 
+        type: "number", 
+        min: 1, 
+        max: 20, 
+        icon: <Users size={16} /> 
+      },
       {
-      key: "region_n", 
-      label: "Region", 
-      type: "select", 
-      options: [
-        { label: "Waqooyi Galbeed", value: 1 },
-        { label: "Banadir", value: 2 },
-        { label: "Togdheer", value: 3 },
-        { label: "Mudug", value: 4 },
-        { label: "Galgaduud", value: 5 },
-        { label: "Middle Shabelle", value: 6 },
-        { label: "Gedo", value: 7 },
-        { label: "Lower Shabelle", value: 8 },
-        { label: "Hiraan", value: 9 },
-        { label: "Bay", value: 10 },
-        { label: "Nugaal", value: 11 },
-        { label: "Bari", value: 12 },
-        { label: "Lower Juba", value: 13 },
-        { label: "Bakool", value: 14 },
-        { label: "Sool", value: 15 },
-        { label: "Sanaag", value: 16 },
-        { label: "Awdal", value: 17 }
-      ],
-      icon: <MapPin size={16} />
-    },
-      { key: "hh_water_type", label: "Water Source", type: "select", options: waterTypeOptions, icon: <Droplet size={16} /> },
-      { key: "hh_electricity", label: "Has Electricity", type: "toggle", icon: <Battery size={16} /> },
+        key: "Region", 
+        label: "Region", 
+        type: "select", 
+        options: regionOptions,
+        icon: <MapPin size={16} />
+      },
+      {
+        key: "Residence_Type", 
+        label: "Residence Type", 
+        type: "select", 
+        options: residenceTypeOptions,
+        icon: <Home size={16} />
+      },
     ]
   },
   {
     title: "Monthly Expenditures",
     icon: <TrendingUp size={20} color="#3b82f6" />,
     fields: [
-      { key: "exp_food", label: "Food Expenses", type: "currency", icon: <ShoppingCart size={16} /> },
-      { key: "exp_nfnd", label: "Non-Food Expenses", type: "currency", icon: <Package size={16} /> },
-      { key: "exp_rent", label: "Housing Expenses", type: "currency", icon: <Home size={16} /> },
+      { 
+        key: "Food_Expenditure", 
+        label: "Food Expenditure", 
+        type: "currency", 
+        icon: <ShoppingCart size={16} /> 
+      },
+      { 
+        key: "NonFood_Expenditure", 
+        label: "Non-Food Expenditure", 
+        type: "currency", 
+        icon: <Package size={16} /> 
+      },
+      { 
+        key: "Housing_Expenditure", 
+        label: "Housing Expenditure", 
+        type: "currency", 
+        icon: <Home size={16} /> 
+      },
+      { 
+        key: "Utilities_Expenditure", 
+        label: "Utilities Expenditure", 
+        type: "currency", 
+        icon: <Droplet size={16} /> 
+      },
+      { 
+        key: "Transport_Expenditure", 
+        label: "Transport Expenditure", 
+        type: "currency", 
+        icon: <Activity size={16} /> 
+      },
     ]
   },
   {
-    title: "Economic Status",
+    title: "Additional Economic Data",
     icon: <BarChart2 size={20} color="#f59e0b" />,
     fields: [
-      { key: "pce", label: "Per Capita Expenditure", type: "currency", icon: <Activity size={16} /> },
-      { key: "pcer", label: "PCE Rate (%)", type: "number", min: 0, max: 100, step: 5, icon: <TrendingUp size={16} /> },
-      { key: "poor", label: "Poverty Status", type: "toggle", icon: <Heart size={16} /> },
-      { key: "foodsec7_07", label: "Food Insecurity", type: "toggle", icon: <AlertTriangle size={16} /> },
-      { key: "remt9_11", label: "Remittances Received", type: "currency", icon: <Gift size={16} /> },
-    ]
-  },
-  {
-    title: "Livestock & Assets",
-    icon: <Beef size={20} color="#8b5cf6" />,
-    fields: [
-      { key: "liv4_04", label: "Cattle Owned", type: "number", min: 0, max: 20, icon: <Beef size={16} /> },
-      { key: "liv4_12", label: "Goats Owned", type: "number", min: 0, max: 20, icon: <Beef size={16} /> },
-      { key: "liv4_13", label: "Sheep Owned", type: "number", min: 0, max: 20, icon: <Beef size={16} /> },
-      { key: "liv4_21", label: "Poultry Owned", type: "number", min: 0, max: 50, icon: <Beef size={16} /> },
-      { key: "liv4_22", label: "Pigs Owned", type: "number", min: 0, max: 20, icon: <PiggyBank size={16} /> },
-      { key: "liv4_24", label: "Farm Tools", type: "number", min: 0, max: 20, icon: <Shield size={16} /> },
-      { key: "liv4_25", label: "Vehicles", type: "number", min: 0, max: 5, icon: <Shield size={16} /> },
-    ]
-  },
-  {
-    title: "Non-Farm Enterprises",
-    icon: <PiggyBank size={20} color="#ec4899" />,
-    fields: [
-      { key: "nfe16_13", label: "Small Trade Value", type: "currency", icon: <Activity size={16} /> },
-      { key: "nfe16_33", label: "Service Business Value", type: "currency", icon: <Activity size={16} /> },
-    ]
-  },
-  {
-    title: "Shocks & Coping",
-    icon: <AlertTriangle size={20} color="#ef4444" />,
-    fields: [
-      { key: "shock10_03", label: "Recent Shock Type", type: "select", options: shockTypeOptions, icon: <Crosshair size={16} /> },
-      { key: "shock10_04", label: "Loss Type", type: "select", options: lossTypeOptions, icon: <AlertTriangle size={16} /> },
-      { key: "shock10_07_21", label: "Sold Assets", type: "toggle", icon: <Shield size={16} /> },
-      { key: "shock10_07_23", label: "Reduced Food", type: "toggle", icon: <ShoppingCart size={16} /> },
-    ]
-  },
-  {
-    title: "Consumption",
-    icon: <ShoppingCart size={20} color="#14b8a6" />,
-    fields: [
-      { key: "cr15_04quantity", label: "Staple Food (kg)", type: "number", min: 0, max: 100, step: 5, icon: <Package size={16} /> },
-      { key: "cr15_05quantity", label: "Protein Food (kg)", type: "number", min: 0, max: 50, step: 1, icon: <Package size={16} /> },
-      { key: "cr15_06", label: "Vegetables (kg)", type: "number", min: 0, max: 50, step: 1, icon: <Package size={16} /> },
-      { key: "cr15_10", label: "Other Items", type: "number", min: 0, max: 50, step: 1, icon: <Package size={16} /> },
+      { 
+        key: "Spent_on_Food_Drink_Outside", 
+        label: "Spent on Food/Drink Outside", 
+        type: "currency", 
+        icon: <ShoppingCart size={16} /> 
+      },
+      { 
+        key: "General_NonFood_Expenditure", 
+        label: "General Non-Food Expenditure", 
+        type: "currency", 
+        icon: <Package size={16} /> 
+      },
+      { 
+        key: "Livestock_Byproducts_Value", 
+        label: "Livestock Byproducts Value", 
+        type: "currency", 
+        icon: <Beef size={16} /> 
+      },
+      { 
+        key: "Business_Revenue", 
+        label: "Business Revenue", 
+        type: "currency", 
+        icon: <PiggyBank size={16} /> 
+      },
     ]
   }
 ];
 
 const defaultValues: FormData = {
   // Basic Info
-  hhsize: 4,
-  region_n: 1,
-  hh_water_type: 1,
-  hh_electricity: 0,
+  Number_of_Members: 1,
+  Region: "Banadir",
+  Residence_Type: "Urban",
   
   // Expenditures
-  exp_food: 0,
-  exp_nfnd: 0,
-  exp_rent: 0,
+  Food_Expenditure: 0,
+  NonFood_Expenditure: 0,
+  Housing_Expenditure: 0,
+  Utilities_Expenditure: 0,
+  Transport_Expenditure: 0,
   
-  // Economic Indicators
-  pce: 0,
-  pcer: 0,
-  poor: 0,
-  foodsec7_07: 0,
-  remt9_11: 0,
-  
-  // Livestock/Assets
-  liv4_04: 0,
-  liv4_12: 0,
-  liv4_13: 0,
-  liv4_21: 0,
-  liv4_22: 0,
-  liv4_24: 0,
-  liv4_25: 0,
-  
-  // Non-Farm Enterprises
-  nfe16_13: 0,
-  nfe16_33: 0,
-  
-  // Shocks
-  shock10_03: 0,
-  shock10_04: 0,
-  shock10_07_21: 0,
-  shock10_07_23: 0,
-  
-  // Consumption Quantities
-  cr15_04quantity: 0,
-  cr15_05quantity: 0,
-  cr15_06: 0,
-  cr15_10: 0,
+  // Additional Economic Indicators
+  Spent_on_Food_Drink_Outside: 0,
+  General_NonFood_Expenditure: 0,
+  Livestock_Byproducts_Value: 0,
+  Business_Revenue: 0,
 };
 
 export default function PredictScreen() {
@@ -299,13 +239,9 @@ export default function PredictScreen() {
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      const payload = {
-        ...form,
-        log_exp_food: Math.log1p(form.exp_food),
-        log_exp_nfnd: Math.log1p(form.exp_nfnd),
-        log_exp_rent: Math.log1p(form.exp_rent),
-      };
-      const res = await predictExpenditure(payload);
+      console.log("Submitting form data:", form);
+      const res = await predictExpenditure(form);
+      console.log("Prediction result:", res);
       setResult(res.predicted_expenditure);
     } catch (err: any) {
       console.error("Prediction error:", err);
@@ -331,7 +267,7 @@ export default function PredictScreen() {
             <View className="flex-row items-center">
               <TouchableOpacity 
                 className="w-8 h-8 rounded-full bg-slate-700 justify-center items-center"
-                onPress={() => handleChange(field.key, Math.max(field.min || 0, form[field.key] - (field.step || 1)))}
+                onPress={() => handleChange(field.key, Math.max(field.min || 0, (form[field.key] as number) - (field.step || 1)))}
               >
                 <Text className="text-white text-lg">-</Text>
               </TouchableOpacity>
@@ -340,7 +276,7 @@ export default function PredictScreen() {
               </Text>
               <TouchableOpacity 
                 className="w-8 h-8 rounded-full bg-slate-700 justify-center items-center"
-                onPress={() => handleChange(field.key, Math.min(field.max || 100, form[field.key] + (field.step || 1)))}
+                onPress={() => handleChange(field.key, Math.min(field.max || 100, (form[field.key] as number) + (field.step || 1)))}
               >
                 <Text className="text-white text-lg">+</Text>
               </TouchableOpacity>
@@ -372,7 +308,6 @@ export default function PredictScreen() {
           </View>
         );
       
-      // Update the renderField function for select type:
       case "select":
         return (
           <View className="bg-slate-800 p-4 rounded-lg">
@@ -402,7 +337,6 @@ export default function PredictScreen() {
                   label: option.label,
                   value: option.value,
                   color: '#000',
-                  
                 }))}
                 style={{
                   inputIOS: {
@@ -416,13 +350,18 @@ export default function PredictScreen() {
                     paddingVertical: 12,
                     paddingHorizontal: 10,
                     fontSize: 16,
+                    paddingRight: 30, // to make space for the icon
                   },
                   placeholder: {
                     color: '#a3a3a3',
                   },
+                  iconContainer: {
+                    top: 7,
+                    right: 12,
+                  },
                 }}
                 useNativeAndroidPickerStyle={false}
-                Icon={() => <ChevronDown size={16} color="#64748b" />}
+                Icon={() => <ChevronDown size={25} color="#64748b" style={{ marginTop: 5 }} />}
               />
             </View>
           </View>
@@ -485,15 +424,23 @@ export default function PredictScreen() {
               <View className="gap-2">
                 <View className="flex-row justify-between">
                   <Text className="text-slate-300">Food</Text>
-                  <Text className="text-slate-400 font-bold">${form.exp_food}</Text>
+                  <Text className="text-slate-400 font-bold">${form.Food_Expenditure}</Text>
                 </View>
                 <View className="flex-row justify-between">
                   <Text className="text-slate-300">Non-Food</Text>
-                  <Text className="text-slate-400 font-bold">${form.exp_nfnd}</Text>
+                  <Text className="text-slate-400 font-bold">${form.NonFood_Expenditure}</Text>
                 </View>
                 <View className="flex-row justify-between">
                   <Text className="text-slate-300">Housing</Text>
-                  <Text className="text-slate-400 font-bold">${form.exp_rent}</Text>
+                  <Text className="text-slate-400 font-bold">${form.Housing_Expenditure}</Text>
+                </View>
+                <View className="flex-row justify-between">
+                  <Text className="text-slate-300">Utilities</Text>
+                  <Text className="text-slate-400 font-bold">${form.Utilities_Expenditure}</Text>
+                </View>
+                <View className="flex-row justify-between">
+                  <Text className="text-slate-300">Transport</Text>
+                  <Text className="text-slate-400 font-bold">${form.Transport_Expenditure}</Text>
                 </View>
               </View>
             </View>
@@ -502,20 +449,12 @@ export default function PredictScreen() {
               <Text className="text-white font-semibold mb-2">Household Profile</Text>
               <View className="gap-2">
                 <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Household Size</Text>
-                  <Text className="text-slate-400 font-bold">{form.hhsize}</Text>
+                  <Text className="text-slate-300">Household Members</Text>
+                  <Text className="text-slate-400 font-bold">{form.Number_of_Members}</Text>
                 </View>
                 <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Region</Text>
-                  <Text className="text-slate-400 font-bold">
-                    {form.region_n === 1 ? "Rural" : "Urban"}
-                  </Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Poverty Status</Text>
-                  <Text className="text-slate-400 font-bold">
-                    {form.poor === 1 ? "Poor" : "Not Poor"}
-                  </Text>
+                  <Text className="text-slate-300">Residence Type</Text>
+                  <Text className="text-slate-400 font-bold">{form.Residence_Type}</Text>
                 </View>
               </View>
             </View>
@@ -532,6 +471,7 @@ export default function PredictScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
       ) : (
         /* Form View */
         <View className="flex-1">
