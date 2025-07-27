@@ -382,10 +382,11 @@ export default function ProfileScreen() {
               }}
               className=" text-xs"
             >
-              Accuracy
+              Expense Accuracy
             </Text>
           </View>
-          <View
+
+          {/*<View
             className="flex-1  rounded-xl p-4 items-center border "
             style={{
               backgroundColor: theme.cardBackground,
@@ -415,7 +416,7 @@ export default function ProfileScreen() {
             >
               Days Active
             </Text>
-          </View>
+          </View>*/}
         </View>
 
         {/* Contact Information */}

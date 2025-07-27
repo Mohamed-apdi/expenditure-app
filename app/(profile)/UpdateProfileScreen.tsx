@@ -162,7 +162,7 @@ export default function UpdateProfileScreen() {
         .update({
           full_name: formData.fullName,
           phone: formData.phone,
-          image_url: formData.image_url,
+          image_url: formData.image_url, // This will be included in the update
         })
         .eq("id", currentUserId);
 
@@ -217,8 +217,8 @@ export default function UpdateProfileScreen() {
       router.back();
     }
   };
-  const uploadImage = async (base64Data: string) => {
-    if (!currentUserId) return;
+  const uploadImage = async (base64Data: string): Promise<string | null> => {
+    if (!currentUserId) return null;
 
     setLoading(true);
 
@@ -241,20 +241,11 @@ export default function UpdateProfileScreen() {
         data: { publicUrl },
       } = supabase.storage.from("images").getPublicUrl(filePath);
 
-      // Update the profile with the new image URL
-      const { error: updateError } = await supabase
-        .from("profiles")
-        .update({ image_url: publicUrl })
-        .eq("id", currentUserId);
-
-      if (updateError) throw updateError;
-
-      // Update local state
-      updateFormData("image_url", publicUrl);
-      setHasChanges(true);
+      return publicUrl;
     } catch (error: any) {
       console.error("Upload error:", error);
       Alert.alert("Error", error.message || "Failed to upload image");
+      return null;
     } finally {
       setLoading(false);
     }
@@ -301,7 +292,10 @@ export default function UpdateProfileScreen() {
       }
 
       if (!result.canceled && result.assets[0].base64) {
-        await uploadImage(result.assets[0].base64);
+        const publicUrl = await uploadImage(result.assets[0].base64);
+        if (publicUrl) {
+          updateFormData("image_url", publicUrl);
+        }
       }
     } catch (error) {
       console.error("Image picker error:", error);
