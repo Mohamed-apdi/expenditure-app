@@ -1,565 +1,357 @@
-import { useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView, TextInput } from "react-native";
+"use client";
+
+import { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { 
-  Zap, Home, Users, MapPin, TrendingUp, 
-  ShoppingCart, Package,  Check,
-  ChevronRight, ChevronLeft, Droplet, 
-  Battery, Heart, Shield, Gift, Beef, PiggyBank,
-  Activity, AlertTriangle, Crosshair, BarChart2,
-  ChevronDown,
+import {
+  Plus,
+  DollarSign,
+  Users,
+  MapPin,
+  Home,
+  Trash2,
+  Edit3,
+  TrendingUp,
+  BarChart3,
+  Clock,
 } from "lucide-react-native";
-import { predictExpenditure } from "~/lib/api";
-import React from "react";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import RNPickerSelect from 'react-native-picker-select';
-type FormData = {
- // Basic Info
-  Number_of_Members: number;
-  Region: number;
-  Residence_Type: string;
-  
-  // Expenditures
-  Food_Expenditure: number;
-  NonFood_Expenditure: number;
-  Housing_Expenditure: number;
-  Utilities_Expenditure: number;
-  Transport_Expenditure: number;
-  
-  // Additional Economic Indicators
-  Spent_on_Food_Drink_Outside: number;
-  General_NonFood_Expenditure: number;
-  Livestock_Byproducts_Value: number;
-  Business_Revenue: number;
-};
+import { supabase } from "~/lib/supabase";
 
-
-interface FieldOption {
-  label: string;
-  value: number;
+interface PredictionData {
+  id: string;
+  user_id: string;
+  input_data: {
+    Region: string;
+    Residence_Type: string;
+    Business_Revenue: number;
+    Food_Expenditure: number;
+    Number_of_Members: number;
+    Housing_Expenditure: number;
+    NonFood_Expenditure: number;
+    Transport_Expenditure: number;
+    Utilities_Expenditure: number;
+    Livestock_Byproducts_Value: number;
+    General_NonFood_Expenditure: number;
+    Spent_on_Food_Drink_Outside: number;
+  };
+  predicted_exp: number;
+  model_used: string;
+  created_at: string;
 }
-
-
-interface FormField {
-  key: keyof FormData;
-  label: string;
-  type: "number" | "currency" | "select" | "toggle";
-  min?: number;
-  max?: number;
-  icon?: React.ReactElement;
-  options?: FieldOption[];
-  step?: number;
-}
-
-interface FieldGroup {
-  title: string;
-  icon: React.ReactElement;
-  fields: FormField[];
-}
-
-const residenceTypeOptions  = [
-  { label: "Urban", value: "Urban" },
-  { label: "Rural", value: "Rural" },
-  { label: "Nomadic", value: "Nomadic" }
-];
-
-const regionOptions = [
-  { label: "Awdal", value: "Awdal" },
-  { label: "Bakool", value: "Bakool" },
-  { label: "Banadir", value: "Banadir" },
-  { label: "Bari", value: "Bari" },
-  { label: "Bay", value: "Bay" },
-  { label: "Galgaduud", value: "Galgaduud" },
-  { label: "Gedo", value: "Gedo" },
-  { label: "Hiraan", value: "Hiraan" },
-  { label: "Lower Juba", value: "Lower Juba" },
-  { label: "Lower Shabelle", value: "Lower Shabelle" },
-  { label: "Waqooyi Galbeed", value: "Waqooyi Galbeed" },
-  { label: "Middle Shabelle", value: "Middle Shabelle" },
-  { label: "Mudug", value: "Mudug" },
-  { label: "Nugaal", value: "Nugaal" },
-  { label: "Sanaag", value: "Sanaag" },
-  { label: "Sool", value: "Sool" },
-  { label: "Togdheer", value: "Togdheer" }
-];
-
-// Group fields into logical categories
-const fieldGroups: FieldGroup[] = [
-  {
-    title: "Household Profile",
-    icon: <Home size={20} color="#10b981" />,
-    fields: [
-      { 
-        key: "Number_of_Members", 
-        label: "Number of Household Members", 
-        type: "number", 
-        min: 1, 
-        max: 20, 
-        icon: <Users size={16} /> 
-      },
-      {
-        key: "Region", 
-        label: "Region", 
-        type: "select", 
-        options: regionOptions,
-        icon: <MapPin size={16} />
-      },
-      {
-        key: "Residence_Type", 
-        label: "Residence Type", 
-        type: "select", 
-        options: residenceTypeOptions,
-        icon: <Home size={16} />
-      },
-    ]
-  },
-  {
-    title: "Monthly Expenditures",
-    icon: <TrendingUp size={20} color="#3b82f6" />,
-    fields: [
-      { 
-        key: "Food_Expenditure", 
-        label: "Food Expenditure", 
-        type: "currency", 
-        icon: <ShoppingCart size={16} /> 
-      },
-      { 
-        key: "NonFood_Expenditure", 
-        label: "Non-Food Expenditure", 
-        type: "currency", 
-        icon: <Package size={16} /> 
-      },
-      { 
-        key: "Housing_Expenditure", 
-        label: "Housing Expenditure", 
-        type: "currency", 
-        icon: <Home size={16} /> 
-      },
-      { 
-        key: "Utilities_Expenditure", 
-        label: "Utilities Expenditure", 
-        type: "currency", 
-        icon: <Droplet size={16} /> 
-      },
-      { 
-        key: "Transport_Expenditure", 
-        label: "Transport Expenditure", 
-        type: "currency", 
-        icon: <Activity size={16} /> 
-      },
-    ]
-  },
-  {
-    title: "Additional Economic Data",
-    icon: <BarChart2 size={20} color="#f59e0b" />,
-    fields: [
-      { 
-        key: "Spent_on_Food_Drink_Outside", 
-        label: "Spent on Food/Drink Outside", 
-        type: "currency", 
-        icon: <ShoppingCart size={16} /> 
-      },
-      { 
-        key: "General_NonFood_Expenditure", 
-        label: "General Non-Food Expenditure", 
-        type: "currency", 
-        icon: <Package size={16} /> 
-      },
-      { 
-        key: "Livestock_Byproducts_Value", 
-        label: "Livestock Byproducts Value", 
-        type: "currency", 
-        icon: <Beef size={16} /> 
-      },
-      { 
-        key: "Business_Revenue", 
-        label: "Business Revenue", 
-        type: "currency", 
-        icon: <PiggyBank size={16} /> 
-      },
-    ]
-  }
-];
-
-const defaultValues: FormData = {
-  // Basic Info
-  Number_of_Members: 1,
-  Region: "Banadir",
-  Residence_Type: "Urban",
-  
-  // Expenditures
-  Food_Expenditure: 0,
-  NonFood_Expenditure: 0,
-  Housing_Expenditure: 0,
-  Utilities_Expenditure: 0,
-  Transport_Expenditure: 0,
-  
-  // Additional Economic Indicators
-  Spent_on_Food_Drink_Outside: 0,
-  General_NonFood_Expenditure: 0,
-  Livestock_Byproducts_Value: 0,
-  Business_Revenue: 0,
-};
 
 export default function PredictScreen() {
   const router = useRouter();
-  const [form, setForm] = useState<FormData>(defaultValues);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<number | null>(null);
+  const [predictions, setPredictions] = useState<PredictionData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // inside your PredictScreen component
-  const insets = useSafeAreaInsets();
-  const contentInsets = {
-    top: insets.top,
-    bottom: insets.bottom,
-    left: 12,
-    right: 12,
+  const SUPABASE_URL = process.env.SUPABASE_URL!;
+  const SUPABASE_KEY = process.env.SUPABASE_KEY!;
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
-  const handleChange = <K extends keyof FormData>(key: K, value: FormData[K]) => {
-    setForm(prev => ({ ...prev, [key]: value }));
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
   };
 
-  const handleNext = () => {
-    if (currentStep < fieldGroups.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      handleSubmit();
-    }
+  useEffect(() => {
+    const loadUserPredictions = async () => {
+      try {
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+          throw new Error("Not authenticated");
+        }
+
+        const { data, error: fetchError } = await supabase
+          .from<PredictionData>("predictions")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+
+        if (fetchError) {
+          throw fetchError;
+        }
+
+        setPredictions(data || []);
+      } catch (err: any) {
+        console.error(err);
+        Alert.alert("Error", err.message || "Could not load predictions");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserPredictions();
+  }, []);
+
+  const handleDeletePrediction = (id: string) => {
+    Alert.alert(
+      "Delete Prediction",
+      "Are you sure you want to delete this prediction?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () =>
+            setPredictions((prev) => prev.filter((p) => p.id !== id)),
+        },
+      ]
+    );
   };
 
-  const handlePrev = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
-    }
+  const handleEditPrediction = (prediction: PredictionData) => {
+    router.push({
+      pathname: "/(predict)/NewPrediction",
+      params: {
+        mode: "edit",
+        predictionId: prediction.id,
+        predictionData: JSON.stringify(prediction),
+      },
+    });
   };
 
-  const handleSubmit = async () => {
-    try {
-      setLoading(true);
-      console.log("Submitting form data:", form);
-      const res = await predictExpenditure(form);
-      console.log("Prediction result:", res);
-      setResult(res.predicted_expenditure);
-    } catch (err: any) {
-      console.error("Prediction error:", err);
-      alert(err.message);
-    } finally {
-      setLoading(false);
-    }
+  const handleAddNewPrediction = () => {
+    router.push("/(predict)/NewPrediction");
   };
 
-  const renderField = (field: FormField) => {
-    switch (field.type) {
-      case "number":
-        return (
-          <View className="flex-row items-center justify-between bg-slate-800 p-4 rounded-lg">
-            <View className="flex-row items-center">
-              {field.icon && (
-                <View className="mr-3">
-                  {React.cloneElement(field.icon as React.ReactElement<any>, { color: "#64748b" })}
-                </View>
-              )}
-              <Text className="text-white">{field.label}</Text>
-            </View>
-            <View className="flex-row items-center">
-              <TouchableOpacity 
-                className="w-8 h-8 rounded-full bg-slate-700 justify-center items-center"
-                onPress={() => handleChange(field.key, Math.max(field.min || 0, (form[field.key] as number) - (field.step || 1)))}
-              >
-                <Text className="text-white text-lg">-</Text>
-              </TouchableOpacity>
-              <Text className="text-white mx-4 min-w-[30px] text-center">
-                {form[field.key]}
+  // Show a spinner while loading
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 justify-center items-center bg-slate-900">
+        <ActivityIndicator size="large" color="#10b981" />
+        <Text className="text-slate-400 mt-2">Loading predictions…</Text>
+      </SafeAreaView>
+    );
+  }
+
+  const PredictionCard = ({ prediction }: { prediction: PredictionData }) => {
+    const totalInputs =
+      prediction.input_data.Food_Expenditure +
+      prediction.input_data.NonFood_Expenditure +
+      prediction.input_data.Housing_Expenditure +
+      prediction.input_data.Transport_Expenditure +
+      prediction.input_data.Utilities_Expenditure;
+
+    return (
+      <TouchableOpacity
+        className="bg-slate-800 rounded-xl p-4 mb-4 border border-slate-700"
+        onPress={() => handleEditPrediction(prediction)}
+        activeOpacity={0.7}
+      >
+        {/* Header */}
+        <View className="flex-row justify-between items-start mb-3">
+          <View className="flex-1">
+            <View className="flex-row items-center mb-1">
+              <BarChart3 size={16} color="#10b981" />
+              <Text className="text-emerald-500 font-bold text-lg ml-2">
+                {formatCurrency(prediction.predicted_exp)}
               </Text>
-              <TouchableOpacity 
-                className="w-8 h-8 rounded-full bg-slate-700 justify-center items-center"
-                onPress={() => handleChange(field.key, Math.min(field.max || 100, (form[field.key] as number) + (field.step || 1)))}
-              >
-                <Text className="text-white text-lg">+</Text>
-              </TouchableOpacity>
             </View>
-          </View>
-        );
-      
-      case "currency":
-        return (
-          <View className="bg-slate-800 p-4 rounded-lg">
-            <View className="flex-row items-center mb-2">
-              {field.icon && (
-                <View className="mr-3">
-                  {React.cloneElement(field.icon as React.ReactElement<any>, { color: "#64748b" })}
-                </View>
-              )}
-              <Text className="text-white">{field.label}</Text>
-            </View>
-            <View className="flex-row items-center border-b border-slate-700 pb-2">
-              <Text className="text-slate-400 mr-1">$</Text>
-              <TextInput
-                className="flex-1 text-white text-lg"
-                value={form[field.key].toString()}
-                onChangeText={(val) => handleChange(field.key, parseFloat(val) || 0)}
-                keyboardType="numeric"
-                placeholder="0"
-              />
-            </View>
-          </View>
-        );
-      
-      case "select":
-        return (
-          <View className="bg-slate-800 p-4 rounded-lg">
-            <View className="flex-row items-center mb-3">
-              {field.icon && (
-                <View className="mr-3">
-                  {React.cloneElement(field.icon as React.ReactElement<any>, { color: "#64748b" })}
-                </View>
-              )}
-              <Text className="text-white text-sm font-medium">{field.label}</Text>
-            </View>
-
-            <View className="bg-slate-700 rounded-lg overflow-hidden">
-              <RNPickerSelect
-                placeholder={{
-                  label: `Select ${field.label}`,
-                  value: null,
-                  color: '#a3a3a3',
-                }}
-                value={form[field.key]}
-                onValueChange={(value) => {
-                  if (value !== null) {
-                    handleChange(field.key, value);
-                  }
-                }}
-                items={(field.options || []).map((option) => ({
-                  label: option.label,
-                  value: option.value,
-                  color: '#000',
-                }))}
-                style={{
-                  inputIOS: {
-                    color: 'white',
-                    paddingVertical: 12,
-                    paddingHorizontal: 10,
-                    fontSize: 16,
-                  },
-                  inputAndroid: {
-                    color: 'white',
-                    paddingVertical: 12,
-                    paddingHorizontal: 10,
-                    fontSize: 16,
-                    paddingRight: 30, // to make space for the icon
-                  },
-                  placeholder: {
-                    color: '#a3a3a3',
-                  },
-                  iconContainer: {
-                    top: 7,
-                    right: 12,
-                  },
-                }}
-                useNativeAndroidPickerStyle={false}
-                Icon={() => <ChevronDown size={25} color="#64748b" style={{ marginTop: 5 }} />}
-              />
-            </View>
-          </View>
-        );
-      
-      case "toggle":
-        return (
-          <View className="flex-row justify-between items-center bg-slate-800 p-4 rounded-lg">
             <View className="flex-row items-center">
-              {field.icon && (
-                <View className="mr-3">
-                  {React.cloneElement(field.icon as React.ReactElement<any>, { color: "#64748b" })}
-                </View>
-              )}
-              <Text className="text-white">{field.label}</Text>
+              <Clock size={12} color="#64748b" />
+              <Text className="text-slate-400 text-xs ml-1">
+                {formatDate(prediction.created_at)}
+              </Text>
             </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View className="flex-row gap-2">
             <TouchableOpacity
-              className={`w-12 h-6 rounded-full justify-center ${
-                form[field.key] === 1 ? "bg-emerald-500" : "bg-slate-700"
-              }`}
-              onPress={() => handleChange(field.key, form[field.key] === 1 ? 0 : 1)}
+              className="bg-blue-500/20 p-2 rounded-lg"
+              onPress={() => handleEditPrediction(prediction)}
             >
-              <View
-                className={`w-5 h-5 rounded-full bg-white ${
-                  form[field.key] === 1 ? "self-end mr-1" : "self-start ml-1"
-                }`}
-              />
+              <Edit3 size={16} color="#3b82f6" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              className="bg-red-500/20 p-2 rounded-lg"
+              onPress={() => handleDeletePrediction(prediction.id)}
+            >
+              <Trash2 size={16} color="#ef4444" />
             </TouchableOpacity>
           </View>
-        );
-      
-      default:
-        return null;
-    }
+        </View>
+
+        {/* Household Info */}
+        <View className="flex-row justify-between mb-3">
+          <View className="flex-row items-center">
+            <MapPin size={14} color="#64748b" />
+            <Text className="text-slate-300 text-sm ml-1">
+              {prediction.input_data.Region}
+            </Text>
+          </View>
+          <View className="flex-row items-center">
+            <Home size={14} color="#64748b" />
+            <Text className="text-slate-300 text-sm ml-1">
+              {prediction.input_data.Residence_Type}
+            </Text>
+          </View>
+          <View className="flex-row items-center">
+            <Users size={14} color="#64748b" />
+            <Text className="text-slate-300 text-sm ml-1">
+              {prediction.input_data.Number_of_Members} members
+            </Text>
+          </View>
+        </View>
+
+        {/* Expenditure Breakdown */}
+        <View className="bg-slate-700/50 rounded-lg p-3">
+          <Text className="text-slate-300 text-xs font-medium mb-2">
+            Input Breakdown
+          </Text>
+          <View className="flex-row justify-between">
+            <View className="items-center">
+              <Text className="text-slate-400 text-xs">Food</Text>
+              <Text className="text-white text-sm font-bold">
+                {formatCurrency(prediction.input_data.Food_Expenditure)}
+              </Text>
+            </View>
+            <View className="items-center">
+              <Text className="text-slate-400 text-xs">Housing</Text>
+              <Text className="text-white text-sm font-bold">
+                {formatCurrency(prediction.input_data.Housing_Expenditure)}
+              </Text>
+            </View>
+            <View className="items-center">
+              <Text className="text-slate-400 text-xs">Transport</Text>
+              <Text className="text-white text-sm font-bold">
+                {formatCurrency(prediction.input_data.Transport_Expenditure)}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Model Info */}
+        <View className="flex-row justify-between items-center mt-3 pt-3 border-t border-slate-700">
+          <View className="flex-row items-center">
+            <View className="w-2 h-2 bg-emerald-500 rounded-full mr-2" />
+            <Text className="text-slate-400 text-xs">
+              Model: {prediction.model_used}
+            </Text>
+          </View>
+          <View className="flex-row items-center">
+            <TrendingUp size={12} color="#64748b" />
+            <Text className="text-slate-400 text-xs ml-1">
+              {((prediction.predicted_exp / totalInputs - 1) * 100).toFixed(1)}%
+              variance
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
       {/* Header */}
-      <View className="px-6 py-5">
-        <Text className="text-white text-2xl font-bold mb-2">
-          {result ? "Prediction Result" : "Household Expenditure Predictor"}
-        </Text>
-        <Text className="text-slate-400">
-          {result ? "Your household expenditure prediction" : `Step ${currentStep + 1} of ${fieldGroups.length}`}
-        </Text>
+      <View className="px-6 py-5 border-b border-slate-800">
+        <View className="flex-row justify-between items-center">
+          <View>
+            <Text className="text-white text-2xl font-bold">Predictions</Text>
+            <Text className="text-slate-400 mt-1">
+              {predictions.length} prediction
+              {predictions.length !== 1 ? "s" : ""} saved
+            </Text>
+          </View>
+          <TouchableOpacity
+            className="bg-emerald-500 px-4 py-2 rounded-xl flex-row items-center"
+            onPress={handleAddNewPrediction}
+          >
+            <Plus size={18} color="#ffffff" />
+            <Text className="text-white font-bold ml-2">New</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {result ? (
-        /* Result View */
-        <View className="flex-1 px-6">
-          <View className="bg-slate-800 p-6 rounded-xl border border-emerald-500 mb-6">
-            <View className="items-center mb-4">
-              <Text className="text-emerald-500 text-4xl font-bold">${result.toFixed(2)}</Text>
-              <Text className="text-slate-400 mt-2">Predicted Monthly Expenditure</Text>
-            </View>
-            
-            <View className="bg-slate-700 p-4 rounded-lg mb-4">
-              <Text className="text-white font-semibold mb-2">Key Expenditures</Text>
-              <View className="gap-2">
-                <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Food</Text>
-                  <Text className="text-slate-400 font-bold">${form.Food_Expenditure}</Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Non-Food</Text>
-                  <Text className="text-slate-400 font-bold">${form.NonFood_Expenditure}</Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Housing</Text>
-                  <Text className="text-slate-400 font-bold">${form.Housing_Expenditure}</Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Utilities</Text>
-                  <Text className="text-slate-400 font-bold">${form.Utilities_Expenditure}</Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Transport</Text>
-                  <Text className="text-slate-400 font-bold">${form.Transport_Expenditure}</Text>
-                </View>
-              </View>
-            </View>
-
-            <View className="bg-slate-700 p-4 rounded-lg mb-4">
-              <Text className="text-white font-semibold mb-2">Household Profile</Text>
-              <View className="gap-2">
-                <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Household Members</Text>
-                  <Text className="text-slate-400 font-bold">{form.Number_of_Members}</Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Residence Type</Text>
-                  <Text className="text-slate-400 font-bold">{form.Residence_Type}</Text>
-                </View>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              className="bg-emerald-500 py-3 rounded-lg flex-row justify-center items-center"
-              onPress={() => {
-                setResult(null);
-                setCurrentStep(0);
-              }}
-            >
-              <Text className="text-white font-bold mr-2">New Prediction</Text>
-              <Zap size={18} color="#ffffff" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-      ) : (
-        /* Form View */
-        <View className="flex-1">
-          {/* Progress Steps */}
-          <View className="px-6 py-4">
-            <View className="flex-row justify-between mb-2">
-              {fieldGroups.map((_, index) => (
-                <View key={index} className="items-center">
-                  <View className={`w-8 h-8 rounded-full justify-center items-center ${
-                    currentStep === index ? "bg-emerald-500" : "bg-slate-700"
-                  }`}>
-                    {currentStep > index ? (
-                      <Check size={16} color="#ffffff" />
-                    ) : (
-                      <Text className={`${
-                        currentStep === index ? "text-white font-bold" : "text-slate-400"
-                      }`}>
-                        {index + 1}
-                      </Text>
-                    )}
-                  </View>
-                </View>
-              ))}
-            </View>
-            <View className="h-1 bg-slate-700 rounded-full">
-              <View 
-                className="h-full bg-emerald-500 rounded-full" 
-                style={{ width: `${(currentStep + 1) / fieldGroups.length * 100}%` }}
-              />
-            </View>
-          </View>
-
-          {/* Form Fields */}
-          <ScrollView className="px-6 mb-4" contentContainerStyle={{ paddingBottom: 20 }}>
-            <View className="mb-6">
-              <View className="flex-row items-center mb-4">
-                <View className="w-10 h-10 rounded-lg bg-emerald-500/20 justify-center items-center mr-3">
-                  {fieldGroups[currentStep].icon}
-                </View>
-                <Text className="text-white text-xl font-bold">
-                  {fieldGroups[currentStep].title}
-                </Text>
-              </View>
-
-              <View className="gap-4">
-                {fieldGroups[currentStep].fields.map((field) => (
-                  <View key={field.key}>
-                    {renderField(field)}
-                  </View>
-                ))}
-              </View>
-            </View>
-          </ScrollView>
-
-          {/* Navigation Buttons */}
-          <View className="px-6 py-4 flex-row justify-between bg-slate-900 border-t border-slate-800">
-            {currentStep > 0 ? (
-              <TouchableOpacity
-                className="flex-row items-center px-6 py-3 rounded-lg bg-slate-800"
-                onPress={handlePrev}
-              >
-                <ChevronLeft size={18} color="#ffffff" />
-                <Text className="text-white ml-2">Back</Text>
-              </TouchableOpacity>
-            ) : (
-              <View className="flex-1" />
-            )}
-
-            <TouchableOpacity
-              className={`flex-row items-center px-6 py-3 rounded-lg ${
-                currentStep === fieldGroups.length - 1 ? "bg-emerald-500" : "bg-blue-500"
-              }`}
-              onPress={handleNext}
-              disabled={loading}
-            >
-              <Text className="text-white font-bold mr-2">
-                {loading ? "Processing..." : 
-                 currentStep === fieldGroups.length - 1 ? "Predict Expenditure" : "Continue"}
+      {/* Stats Overview */}
+      <View className="px-6 py-4">
+        <View className="flex-row gap-4">
+          <View className="flex-1 bg-slate-800 rounded-xl p-4">
+            <View className="flex-row items-center mb-2">
+              <DollarSign size={16} color="#10b981" />
+              <Text className="text-slate-400 text-sm ml-2">
+                Avg Prediction
               </Text>
-              {!loading && (
-                currentStep === fieldGroups.length - 1 ? 
-                <Zap size={18} color="#ffffff" /> : 
-                <ChevronRight size={18} color="#ffffff" />
+            </View>
+            <Text className="text-white text-lg font-bold">
+              {formatCurrency(
+                predictions.reduce((sum, p) => sum + p.predicted_exp, 0) /
+                  predictions.length || 0
               )}
-            </TouchableOpacity>
+            </Text>
+          </View>
+
+          <View className="flex-1 bg-slate-800 rounded-xl p-4">
+            <View className="flex-row items-center mb-2">
+              <TrendingUp size={16} color="#3b82f6" />
+              <Text className="text-slate-400 text-sm ml-2">Highest</Text>
+            </View>
+            <Text className="text-white text-lg font-bold">
+              {formatCurrency(
+                Math.max(...predictions.map((p) => p.predicted_exp))
+              )}
+            </Text>
           </View>
         </View>
-      )}
+      </View>
+
+      {/* Predictions List */}
+      <ScrollView className="flex-1 px-6" showsVerticalScrollIndicator={false}>
+        {predictions.length === 0 ? (
+          <View className="flex-1 justify-center items-center py-20">
+            <View className="bg-slate-800 w-20 h-20 rounded-full justify-center items-center mb-4">
+              <BarChart3 size={32} color="#64748b" />
+            </View>
+            <Text className="text-slate-300 text-lg font-bold mb-2">
+              No Predictions Yet
+            </Text>
+            <Text className="text-slate-400 text-center mb-6 px-8">
+              Create your first household expenditure prediction to get started
+            </Text>
+            <TouchableOpacity
+              className="bg-emerald-500 px-6 py-3 rounded-xl flex-row items-center"
+              onPress={handleAddNewPrediction}
+            >
+              <Plus size={18} color="#ffffff" />
+              <Text className="text-white font-bold ml-2">
+                Create Prediction
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View className="pb-6">
+            {predictions.map((prediction) => (
+              <PredictionCard key={prediction.id} prediction={prediction} />
+            ))}
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
