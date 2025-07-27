@@ -9,6 +9,7 @@ import { Dimensions } from "react-native"
 import { fetchPredictions, fetchExpenses, getSupabaseWithToken } from '../../lib/supabase'
 import { getItemAsync } from 'expo-secure-store'
 import { compareExpenses } from "~/lib/compare"
+import { saveComparison } from "~/lib/comparison"
 const { width } = Dimensions.get("window")
 
 export default function CompareScreen({ navigation }) {
@@ -40,27 +41,27 @@ export default function CompareScreen({ navigation }) {
   ]
 
   // Add useEffect to fetch data on mount
-useEffect(() => {
-  const loadInitialData = async () => {
-    try {
-      const userId = await getItemAsync('userId')
-      if (!userId) throw new Error('User not authenticated')
-      
-      const token = await getItemAsync('token')
-      await getSupabaseWithToken(token)
-      
-      // Fetch initial expenses (current month)
-      const currentMonth = new Date().getMonth()
-      const currentYear = new Date().getFullYear()
-      const exps = await fetchExpenses(userId, currentMonth, currentYear)
-      setExpenses(exps)
-    } catch (error) {
-      Alert.alert('Error', error.message)
+  useEffect(() => {
+    const loadInitialData = async () => {
+      try {
+        const userId = await getItemAsync('userId')
+        if (!userId) throw new Error('User not authenticated')
+        
+        const token = await getItemAsync('token')
+        await getSupabaseWithToken(token)
+        
+        // Fetch initial expenses (current month)
+        const currentMonth = new Date().getMonth()
+        const currentYear = new Date().getFullYear()
+        const exps = await fetchExpenses(userId, currentMonth, currentYear)
+        setExpenses(exps)
+      } catch (error) {
+        Alert.alert('Error', error.message)
+      }
     }
-  }
 
-  loadInitialData()
-}, [])
+    loadInitialData()
+  }, [])
 
 // Update the getExpensesForMonth function to use the existing expenses state
 const getExpensesForMonth = async (month: number, year: number) => {
@@ -121,12 +122,6 @@ const getExpensesForMonth = async (month: number, year: number) => {
     return
   }
 
-  setIsLoading(true);
-  const timeout = setTimeout(() => {
-    setIsLoading(false);
-    Alert.alert('Error', 'Request timed out');
-  }, 30000); // 30 second timeout
-
   try {
     const token = await getItemAsync('token')
     const userId = await getItemAsync('userId')
@@ -155,15 +150,11 @@ const getExpensesForMonth = async (month: number, year: number) => {
         prediction_id: selectedPrediction.id
       }
     }
-
-    const response = await compareExpenses(comparisonData, token)
-
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || 'Comparison failed')
-    }
-
-    const result = await response.json()
+    console.log("selectedMonth: ", selectedMonth)
+    console.log("comparisonData: ", comparisonData)
+    const result = await compareExpenses(comparisonData, token)
+    console.log("result: ", result)
+   
     
     // Calculate additional data for UI
     const isUnderBudget = result.total_actual < result.total_predicted_monthly
@@ -182,7 +173,6 @@ const getExpensesForMonth = async (month: number, year: number) => {
   } catch (error) {
     Alert.alert('Error', error.message)
   } finally {
-    clearTimeout(timeout);
     setIsLoading(false)
   }
 }
@@ -707,9 +697,27 @@ const getExpensesForMonth = async (month: number, year: number) => {
 
               <TouchableOpacity
                 className="flex-1 bg-emerald-500 flex-row items-center justify-center py-3 rounded-lg gap-2"
-                onPress={() => {
-                  setShowResults(false)
-                  navigation.navigate("Dashboard")
+                 onPress={async () => {
+                  try {
+                    setIsLoading(true);
+                    await saveComparison(
+                      selectedPrediction.id,
+                      {
+                        comparisonMode,
+                        month: comparisonMode === 'monthly' ? selectedMonth : null,
+                        year: comparisonMode === 'monthly' ? selectedYear : null,
+                        expenseIds: comparisonMode === 'manual' ? selectedExpenses : null
+                      },
+                      comparisonResults
+                    );
+                    Alert.alert('Saved', 'Comparison results saved successfully');
+                    setShowResults(false);
+                    navigation.navigate("Dashboard");
+                  } catch (error) {
+                    Alert.alert('Error', error.message || 'Failed to save comparison');
+                  } finally {
+                    setIsLoading(false);
+                  }
                 }}
               >
                 <Icon name="save" size={16} color="#ffffff" />
@@ -908,7 +916,7 @@ const getExpensesForMonth = async (month: number, year: number) => {
             </View>
           </View>
           <View className="flex-row items-center bg-amber-500/20 p-3 rounded-lg">
-            {/* <Icon name="lightbulb" size={16} color="#f59e0b" /> */}
+            <Icon name="bulb" size={16} color="#f59e0b" />
             <Text className="text-xs text-amber-500 ml-2 flex-1">
               Tip: Compare monthly to spot spending trends over time
             </Text>
