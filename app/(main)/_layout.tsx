@@ -61,10 +61,20 @@ export default function MainLayout() {
       />
       <Tabs.Screen
         name="scenarios"
+        // options={{
+        //   title: "Scenarios",
+        //   tabBarIcon: ({ color, size }) => <Layers color={color} size={size} />,
+        // }}
         options={{
-          title: "Scenarios",
-          tabBarIcon: ({ color, size }) => <Layers color={color} size={size} />,
+          href: null,
         }}
+      />
+      <Tabs.Screen
+      name="CompareScreen"
+      options={{
+        title: "Compare",
+        tabBarIcon: ({ color, size }) => <Wallet color={color} size={size} />,
+      }}
       />
       <Tabs.Screen
         name="ProfileScreen"

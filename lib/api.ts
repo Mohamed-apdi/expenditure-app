@@ -1,6 +1,6 @@
 import { getItemAsync } from "expo-secure-store";
 
-export const API_URL = "http://192.168.56.1:8000"; // Use your Windows Wi-Fi IP
+export const API_URL = "http://192.168.18.124:8000"; // Use your Windows Wi-Fi IP 192.168.18.124
 
 export async function predictExpenditure(inputData: Record<string, any>) {
 
