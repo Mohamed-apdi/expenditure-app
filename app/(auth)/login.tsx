@@ -37,15 +37,13 @@ export default function LoginScreen() {
       email,
       password,
     });
-   
-    // i want work here ?
 
     setLoading(false);
 
     if (error) {
       Toast.show({
         type: "error", // or 'error', 'info', custom
-        position: "top", // 'top' | 'bottom'
+        position: "top", // 'top' | 'bottom'~
         text1: "Error",
         text2: "Missing credentials or invalid email/password",
         visibilityTime: 6000, // 6 seconds
@@ -77,10 +75,7 @@ export default function LoginScreen() {
     setSocialLoading(provider);
 
     try {
-      const redirectUrl = AuthSession.makeRedirectUri({
-        scheme: "myapp",
-        path: "Dashboard" // this is okay IF your expo-router route is /Dashboard
-      });
+      const redirectUrl = AuthSession.makeRedirectUri({ useProxy: true })
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
@@ -115,7 +110,7 @@ export default function LoginScreen() {
 
             if (sessionData.session?.access_token) {
               await setItemAsync("token", sessionData.session.access_token);
-              router.push("/Dashboard" as any);
+              router.push("../(main)/Dashboard" as any);
             }
           }
         }
