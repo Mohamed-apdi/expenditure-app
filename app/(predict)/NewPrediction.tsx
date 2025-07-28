@@ -32,6 +32,7 @@ import {
 import { predictExpenditure } from "~/lib/api";
 import React from "react";
 import RNPickerSelect from "react-native-picker-select";
+import { supabase } from "~/lib/supabase";
 
 type FormData = {
   // Basic Info
@@ -266,13 +267,54 @@ export default function NewPredictionScreen() {
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      console.log("Submitting form data:", form);
+
+      // Prevent double submission
+      if (result) return;
+
       const res = await predictExpenditure(form);
-      console.log("Prediction result:", res);
-      setResult(res.predicted_expenditure);
+      const predictedExp = res.predicted_expenditure;
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error("Not authenticated");
+
+      if (isEditMode) {
+        const { error: updateError } = await supabase
+          .from("predictions")
+          .update({
+            input_data: form,
+            predicted_exp: predictedExp,
+            model_used: res.model || "RF",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", predictionId);
+
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from("predictions")
+          .insert({
+            user_id: user.id,
+            input_data: form,
+            predicted_exp: predictedExp,
+            model_used: res.model || "RF",
+            created_at: new Date().toISOString(),
+          });
+
+        if (insertError) throw insertError;
+      }
+
+      setResult(predictedExp);
+
+      // Navigate back after showing result
+      setTimeout(() => {
+        router.back();
+      }, 1500);
     } catch (err: any) {
-      console.error("Prediction error:", err);
-      alert(err.message);
+      console.error(err);
+      Alert.alert("Error", err.message);
     } finally {
       setLoading(false);
     }
@@ -434,7 +476,7 @@ export default function NewPredictionScreen() {
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
       {/* Header */}
-      <View className="px-6 py-5 border-b border-slate-800">
+      {/* <View className="px-6 py-5 border-b border-slate-800">
         <View className="flex-row items-center">
           <TouchableOpacity
             className="mr-4 p-2 -ml-2"
@@ -448,7 +490,7 @@ export default function NewPredictionScreen() {
                 ? "Prediction Result"
                 : isEditMode
                   ? "Edit Prediction"
-                  : "New Prediction"}
+                  : "Edit Prediction"}
             </Text>
             <Text className="text-slate-400">
               {result
@@ -457,7 +499,7 @@ export default function NewPredictionScreen() {
             </Text>
           </View>
         </View>
-      </View>
+      </View> */}
 
       {result ? (
         /* Result View */
@@ -545,7 +587,7 @@ export default function NewPredictionScreen() {
                 }}
               >
                 <Text className="text-white font-bold mr-2">
-                  New Prediction
+                  Edit Prediction
                 </Text>
                 <Zap size={18} color="#ffffff" />
               </TouchableOpacity>

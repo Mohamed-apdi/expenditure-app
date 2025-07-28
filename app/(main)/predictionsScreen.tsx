@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import {
   Plus,
   DollarSign,
@@ -75,39 +75,80 @@ export default function PredictScreen() {
     }).format(amount);
   };
 
+  const loadUserPredictions = async () => {
+    setLoading(true);
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error("Not authenticated");
+
+      const { data, error: fetchError } = await supabase
+        .from("predictions")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (fetchError) throw fetchError;
+      setPredictions(data || []);
+    } catch (err: any) {
+      console.error(err);
+      Alert.alert("Error", err.message || "Could not load predictions");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadUserPredictions = async () => {
-      try {
-        const {
-          data: { user },
-          error: authError,
-        } = await supabase.auth.getUser();
+    let channel;
 
-        if (authError || !user) {
-          throw new Error("Not authenticated");
-        }
+    const setupChannel = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-        const { data, error: fetchError } = await supabase
-          .from<PredictionData>("predictions")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
+      channel = supabase
+        .channel("predictions_changes")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "predictions",
+            filter: `user_id=eq.${user?.id}`,
+          },
+          (payload) => {
+            console.log("Change received:", payload);
+            if (payload.eventType === "INSERT") {
+              setPredictions((prev) => [payload.new, ...prev]);
+            } else if (payload.eventType === "UPDATE") {
+              setPredictions((prev) =>
+                prev.map((p) => (p.id === payload.new.id ? payload.new : p))
+              );
+            } else if (payload.eventType === "DELETE") {
+              setPredictions((prev) =>
+                prev.filter((p) => p.id !== payload.old.id)
+              );
+            }
+          }
+        )
+        .subscribe();
 
-        if (fetchError) {
-          throw fetchError;
-        }
-
-        setPredictions(data || []);
-      } catch (err: any) {
-        console.error(err);
-        Alert.alert("Error", err.message || "Could not load predictions");
-      } finally {
-        setLoading(false);
-      }
+      return () => {
+        if (channel) supabase.removeChannel(channel);
+      };
     };
 
-    loadUserPredictions();
+    setupChannel();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUserPredictions();
+      return () => {};
+    }, [])
+  );
 
   const handleDeletePrediction = (id: string) => {
     Alert.alert(
@@ -118,8 +159,20 @@ export default function PredictScreen() {
         {
           text: "Delete",
           style: "destructive",
-          onPress: () =>
-            setPredictions((prev) => prev.filter((p) => p.id !== id)),
+          onPress: async () => {
+            // 1) delete from Supabase
+            const { error } = await supabase
+              .from("predictions")
+              .delete() // ← delete operation
+              .eq("id", id); // ← match on id :contentReference[oaicite:0]{index=0}
+
+            if (error) {
+              return Alert.alert("Error deleting", error.message);
+            }
+
+            // 2) update local list
+            setPredictions((prev) => prev.filter((p) => p.id !== id));
+          },
         },
       ]
     );
