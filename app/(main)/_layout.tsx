@@ -47,26 +47,17 @@ export default function MainLayout() {
       <Tabs.Screen
         name="ExpenseListScreen"
         options={{
-          href: null,
+          title: "Expenses",
+          tabBarIcon: ({ color, size }) => <Layers color={color} size={size} />,
         }}
       />
       <Tabs.Screen
-        name="insightsScreen"
+        name="AdvancedAnalytics"
         options={{
-          title: "Insights",
+          title: "analytics",
           tabBarIcon: ({ color, size }) => (
             <PieChart color={color} size={size} />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="scenarios"
-        // options={{
-        //   title: "Scenarios",
-        //   tabBarIcon: ({ color, size }) => <Layers color={color} size={size} />,
-        // }}
-        options={{
-          href: null,
         }}
       />
       <Tabs.Screen

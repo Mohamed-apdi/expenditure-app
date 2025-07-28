@@ -204,57 +204,16 @@ export default function DashboardScreen() {
     };
     return colors[category] || "#64748b";
   };
-
-  const alerts = [
-    {
-      id: 1,
-      type: "warning",
-      message:
-        todaySpending > dailyBudget * 0.8
-          ? `You've spent ${Math.round((todaySpending / dailyBudget) * 100)}% of your daily budget`
-          : "Food spending 20% above average",
-      icon: AlertTriangle,
-      color: todaySpending > dailyBudget * 0.8 ? "#f59e0b" : "#ef4444",
-    },
-    {
-      id: 2,
-      type: "success",
-      message:
-        monthlySpending < monthlyBudget * 0.7
-          ? "On track for monthly savings goal"
-          : `You've used ${Math.round((monthlySpending / monthlyBudget) * 100)}% of monthly budget`,
-      icon: CheckCircle,
-      color: "#10b981",
-    },
-  ];
-
   const todayProgress = (todaySpending / dailyBudget) * 100;
   const monthlyProgress = (monthlySpending / monthlyBudget) * 100;
 
   const quickActions: QuickAction[] = [
+   
     {
-      title: "Add Expense",
-      icon: Plus,
-      color: "#10b981",
-      screen: "../(expense)/AddExpense",
-    },
-    {
-      title: "View Budget",
+      title: "History Expenses",
       icon: PieChart,
       color: "#3b82f6",
       screen: "../(expense)/ExpenseHistory",
-    },
-    {
-      title: "Analytics",
-      icon: TrendingUp,
-      color: "#8b5cf6",
-      screen: "../(analytics)/AdvancedAnalytics",
-    },
-    {
-      title: "Scan Report",
-      icon: FileText, // Consider replacing with a scanner icon if available
-      color: "#f59e0b",
-      screen: "../(expense)/ReceiptScanner",
     },
     {
       title: "Generate Report",
@@ -322,26 +281,6 @@ export default function DashboardScreen() {
           budget={monthlyBudget}
           progressColor={getProgressColor(monthlyProgress)}
         />
-
-        {/* Alerts Section */}
-        <View className="px-6 mb-5">
-          <Text
-            className="text-white text-lg font-bold mb-4"
-            style={{ color: theme.text }}
-          >
-            Alerts
-          </Text>
-          <View className="gap-2">
-            {alerts.map((alert) => (
-              <AlertCard
-                key={alert.id}
-                icon={alert.icon}
-                message={alert.message}
-                color={alert.color}
-              />
-            ))}
-          </View>
-        </View>
 
         {/* Quick Actions */}
         <View className="px-6 mb-5">
