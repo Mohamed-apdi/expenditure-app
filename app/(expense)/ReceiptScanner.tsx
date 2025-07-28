@@ -722,9 +722,13 @@ export default function ReceiptScannerScreen() {
                 }}
               >
                 <View
-                  className={`w-6 h-6 rounded-full bg-white ${
-                    isRecurring ? "self-end" : "self-start"
-                  }`}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    backgroundColor: "#fff",
+                    borderRadius: 999,
+                    alignSelf: isRecurring ? "flex-end" : "flex-start",
+                  }}
                 />
               </TouchableOpacity>
             </View>
@@ -862,7 +866,7 @@ export default function ReceiptScannerScreen() {
         <Text style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}>
           Scan Receipt
         </Text>
-        <View style={{ width: 24 }} /> {/* spacer */}
+        <View style={{ width: 24 }} />
       </View>
 
       <View style={{ flex: 1, paddingHorizontal: 24, paddingVertical: 20 }}>

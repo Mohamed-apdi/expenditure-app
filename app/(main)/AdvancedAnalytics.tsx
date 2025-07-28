@@ -5,11 +5,11 @@ import { View, Text, TouchableOpacity, ScrollView, Dimensions } from "react-nati
 import { SafeAreaView } from "react-native-safe-area-context"
 import Icon from "react-native-vector-icons/Feather"
 import { LineChart, PieChart } from "react-native-chart-kit"
-import { ExpenseAnalytics } from "./ExpenseAnalytics"
-import { PredictionsAnalytics } from "./PredictionsAnalytics"
-import { AnalyticsHeader } from "./Header"
-import { DataTypeSelector } from "./DataTypeSelector"
-import { TabNavigation } from "./TabNavigation"
+import { ExpenseAnalytics } from "../(analytics)/ExpenseAnalytics"
+import { PredictionsAnalytics } from "../(analytics)/PredictionsAnalytics"
+import { AnalyticsHeader } from "../(analytics)/Header"
+import { DataTypeSelector } from "../(analytics)/DataTypeSelector"
+import { TabNavigation } from "../(analytics)/TabNavigation"
 
 const { width } = Dimensions.get("window")
 
