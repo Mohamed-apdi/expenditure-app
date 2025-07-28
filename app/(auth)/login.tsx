@@ -42,8 +42,8 @@ export default function LoginScreen() {
 
     if (error) {
       Toast.show({
-        type: "error", // or 'error', 'info', custom
-        position: "top", // 'top' | 'bottom'~
+        type: "error", 
+        position: "top",
         text1: "Error",
         text2: "Missing credentials or invalid email/password",
         visibilityTime: 6000, // 6 seconds
