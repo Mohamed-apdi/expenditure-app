@@ -22,6 +22,12 @@ import {
   TrendingUp,
   BarChart3,
   Clock,
+  ShoppingCart,
+  BookOpen,
+  Droplet,
+  Zap,
+  Wifi,
+  PiggyBank,
 } from "lucide-react-native";
 import { supabase } from "~/lib/supabase";
 
@@ -29,18 +35,16 @@ interface PredictionData {
   id: string;
   user_id: string;
   input_data: {
-    Region: string;
-    Residence_Type: string;
-    Business_Revenue: number;
-    Food_Expenditure: number;
-    Number_of_Members: number;
-    Housing_Expenditure: number;
-    NonFood_Expenditure: number;
-    Transport_Expenditure: number;
-    Utilities_Expenditure: number;
-    Livestock_Byproducts_Value: number;
-    General_NonFood_Expenditure: number;
-    Spent_on_Food_Drink_Outside: number;
+    hhsize: number;
+    Region_Name: string;
+    Area_Name: string;
+    exp_food: number;
+    exp_rent: number;
+    exp_Education: number;
+    exp_Water: number;
+    exp_Electricity: number;
+    Savings_or_Insurance_Payment: number;
+    Communication_Exp: number;
   };
   predicted_exp: number;
   model_used: string;
@@ -51,9 +55,6 @@ export default function PredictScreen() {
   const router = useRouter();
   const [predictions, setPredictions] = useState<PredictionData[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const SUPABASE_URL = process.env.SUPABASE_URL!;
-  const SUPABASE_KEY = process.env.SUPABASE_KEY!;
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -140,7 +141,6 @@ export default function PredictScreen() {
     router.push("/(predict)/NewPrediction");
   };
 
-  // Show a spinner while loading
   if (loading) {
     return (
       <SafeAreaView className="flex-1 justify-center items-center bg-slate-900">
@@ -151,121 +151,122 @@ export default function PredictScreen() {
   }
 
   const PredictionCard = ({ prediction }: { prediction: PredictionData }) => {
-    const totalInputs =
-      prediction.input_data.Food_Expenditure +
-      prediction.input_data.NonFood_Expenditure +
-      prediction.input_data.Housing_Expenditure +
-      prediction.input_data.Transport_Expenditure +
-      prediction.input_data.Utilities_Expenditure;
+  const totalInputs =
+    prediction.input_data.exp_food +
+    prediction.input_data.exp_rent +
+    prediction.input_data.exp_Education;
 
-    return (
-      <TouchableOpacity
-        className="bg-slate-800 rounded-xl p-4 mb-4 border border-slate-700"
-        onPress={() => handleEditPrediction(prediction)}
-        activeOpacity={0.7}
-      >
-        {/* Header */}
-        <View className="flex-row justify-between items-start mb-3">
-          <View className="flex-1">
-            <View className="flex-row items-center mb-1">
-              <BarChart3 size={16} color="#10b981" />
-              <Text className="text-emerald-500 font-bold text-lg ml-2">
-                {formatCurrency(prediction.predicted_exp)}
-              </Text>
-            </View>
-            <View className="flex-row items-center">
-              <Clock size={12} color="#64748b" />
-              <Text className="text-slate-400 text-xs ml-1">
-                {formatDate(prediction.created_at)}
-              </Text>
-            </View>
-          </View>
-
-          {/* Action Buttons */}
-          <View className="flex-row gap-2">
-            <TouchableOpacity
-              className="bg-blue-500/20 p-2 rounded-lg"
-              onPress={() => handleEditPrediction(prediction)}
-            >
-              <Edit3 size={16} color="#3b82f6" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              className="bg-red-500/20 p-2 rounded-lg"
-              onPress={() => handleDeletePrediction(prediction.id)}
-            >
-              <Trash2 size={16} color="#ef4444" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Household Info */}
-        <View className="flex-row justify-between mb-3">
-          <View className="flex-row items-center">
-            <MapPin size={14} color="#64748b" />
-            <Text className="text-slate-300 text-sm ml-1">
-              {prediction.input_data.Region}
+  return (
+    <TouchableOpacity
+      className="bg-slate-800 rounded-xl p-4 mb-4 border border-slate-700"
+      onPress={() => handleEditPrediction(prediction)}
+      activeOpacity={0.7}
+    >
+      {/* Header */}
+      <View className="flex-row justify-between items-start mb-3">
+        <View className="flex-1">
+          <View className="flex-row items-center mb-1">
+            <BarChart3 size={16} color="#10b981" />
+            <Text className="text-emerald-500 font-bold text-lg ml-2">
+              {formatCurrency(prediction.predicted_exp)}
             </Text>
           </View>
           <View className="flex-row items-center">
-            <Home size={14} color="#64748b" />
-            <Text className="text-slate-300 text-sm ml-1">
-              {prediction.input_data.Residence_Type}
-            </Text>
-          </View>
-          <View className="flex-row items-center">
-            <Users size={14} color="#64748b" />
-            <Text className="text-slate-300 text-sm ml-1">
-              {prediction.input_data.Number_of_Members} members
-            </Text>
-          </View>
-        </View>
-
-        {/* Expenditure Breakdown */}
-        <View className="bg-slate-700/50 rounded-lg p-3">
-          <Text className="text-slate-300 text-xs font-medium mb-2">
-            Input Breakdown
-          </Text>
-          <View className="flex-row justify-between">
-            <View className="items-center">
-              <Text className="text-slate-400 text-xs">Food</Text>
-              <Text className="text-white text-sm font-bold">
-                {formatCurrency(prediction.input_data.Food_Expenditure)}
-              </Text>
-            </View>
-            <View className="items-center">
-              <Text className="text-slate-400 text-xs">Housing</Text>
-              <Text className="text-white text-sm font-bold">
-                {formatCurrency(prediction.input_data.Housing_Expenditure)}
-              </Text>
-            </View>
-            <View className="items-center">
-              <Text className="text-slate-400 text-xs">Transport</Text>
-              <Text className="text-white text-sm font-bold">
-                {formatCurrency(prediction.input_data.Transport_Expenditure)}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Model Info */}
-        <View className="flex-row justify-between items-center mt-3 pt-3 border-t border-slate-700">
-          <View className="flex-row items-center">
-            <View className="w-2 h-2 bg-emerald-500 rounded-full mr-2" />
-            <Text className="text-slate-400 text-xs">
-              Model: {prediction.model_used}
-            </Text>
-          </View>
-          <View className="flex-row items-center">
-            <TrendingUp size={12} color="#64748b" />
+            <Clock size={12} color="#64748b" />
             <Text className="text-slate-400 text-xs ml-1">
-              {((prediction.predicted_exp / totalInputs - 1) * 100).toFixed(1)}%
-              variance
+              {formatDate(prediction.created_at)}
             </Text>
           </View>
         </View>
-      </TouchableOpacity>
-    );
-  };
+
+        {/* Action Buttons */}
+        <View className="flex-row gap-2">
+          <TouchableOpacity
+            className="bg-blue-500/20 p-2 rounded-lg"
+            onPress={() => handleEditPrediction(prediction)}
+          >
+            <Edit3 size={16} color="#3b82f6" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="bg-red-500/20 p-2 rounded-lg"
+            onPress={() => handleDeletePrediction(prediction.id)}
+          >
+            <Trash2 size={16} color="#ef4444" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Household Info */}
+      <View className="flex-row justify-between mb-3">
+        <View className="flex-row items-center">
+          <MapPin size={14} color="#64748b" />
+          <Text className="text-slate-300 text-sm ml-1">
+            {prediction.input_data.Region_Name}
+          </Text>
+        </View>
+        <View className="flex-row items-center">
+          <Home size={14} color="#64748b" />
+          <Text className="text-slate-300 text-sm ml-1">
+            {prediction.input_data.Area_Name}
+          </Text>
+        </View>
+        <View className="flex-row items-center">
+          <Users size={14} color="#64748b" />
+          <Text className="text-slate-300 text-sm ml-1">
+            {prediction.input_data.hhsize} members
+          </Text>
+        </View>
+      </View>
+
+      {/* Expenditure Breakdown */}
+      <View className="bg-slate-700/50 rounded-lg p-3">
+        <Text className="text-slate-300 text-xs font-medium mb-2">
+          Input Breakdown
+        </Text>
+        <View className="flex-row justify-between">
+          <View className="items-center">
+            <ShoppingCart size={14} color="#64748b" />
+            <Text className="text-slate-400 text-xs">Food</Text>
+            <Text className="text-white text-sm font-bold">
+              {formatCurrency(prediction.input_data.exp_food)}
+            </Text>
+          </View>
+          <View className="items-center">
+            <Home size={14} color="#64748b" />
+            <Text className="text-slate-400 text-xs">Rent</Text>
+            <Text className="text-white text-sm font-bold">
+              {formatCurrency(prediction.input_data.exp_rent)}
+            </Text>
+          </View>
+          <View className="items-center">
+            <BookOpen size={14} color="#64748b" />
+            <Text className="text-slate-400 text-xs">Education</Text>
+            <Text className="text-white text-sm font-bold">
+              {formatCurrency(prediction.input_data.exp_Education)}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Model Info */}
+      <View className="flex-row justify-between items-center mt-3 pt-3 border-t border-slate-700">
+        <View className="flex-row items-center">
+          <View className="w-2 h-2 bg-emerald-500 rounded-full mr-2" />
+          <Text className="text-slate-400 text-xs">
+            Model: {prediction.model_used}
+          </Text>
+        </View>
+        <View className="flex-row items-center">
+          <TrendingUp size={12} color="#64748b" />
+          <Text className="text-slate-400 text-xs ml-1">
+            {((prediction.predicted_exp / totalInputs - 1) * 100).toFixed(1)}%
+            variance
+          </Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
   return (
     <SafeAreaView className="flex-1 bg-slate-900">

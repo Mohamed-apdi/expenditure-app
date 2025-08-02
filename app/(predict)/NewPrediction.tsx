@@ -1,5 +1,5 @@
 "use client";
-
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useState, useEffect } from "react";
 import {
   View,
@@ -22,10 +22,9 @@ import {
   ChevronRight,
   ChevronLeft,
   Droplet,
-  Beef,
   PiggyBank,
-  Activity,
-  BarChart2,
+  BookOpen,
+  Wifi,
   ChevronDown,
   ArrowLeft,
 } from "lucide-react-native";
@@ -35,22 +34,18 @@ import RNPickerSelect from "react-native-picker-select";
 
 type FormData = {
   // Basic Info
-  Number_of_Members: number;
-  Region: string;
-  Residence_Type: string;
+  hhsize: number;
+  Region_Name: string;
+  Area_Name: string;
 
   // Expenditures
-  Food_Expenditure: number;
-  NonFood_Expenditure: number;
-  Housing_Expenditure: number;
-  Utilities_Expenditure: number;
-  Transport_Expenditure: number;
-
-  // Additional Economic Indicators
-  Spent_on_Food_Drink_Outside: number;
-  General_NonFood_Expenditure: number;
-  Livestock_Byproducts_Value: number;
-  Business_Revenue: number;
+  exp_food: number;
+  exp_rent: number;
+  exp_Education: number;
+  exp_Water: number;
+  exp_Electricity: number;
+  Savings_or_Insurance_Payment: number;
+  Communication_Exp: number;
 };
 
 interface FieldOption {
@@ -75,10 +70,9 @@ interface FieldGroup {
   fields: FormField[];
 }
 
-const residenceTypeOptions = [
+const areaOptions = [
   { label: "Urban", value: "Urban" },
   { label: "Rural", value: "Rural" },
-  { label: "Nomadic", value: "Nomadic" },
 ];
 
 const regionOptions = [
@@ -108,25 +102,25 @@ const fieldGroups: FieldGroup[] = [
     icon: <Home size={20} color="#10b981" />,
     fields: [
       {
-        key: "Number_of_Members",
-        label: "Number of Household Members",
+        key: "hhsize",
+        label: "Household Size",
         type: "number",
         min: 1,
         max: 20,
         icon: <Users size={16} />,
       },
       {
-        key: "Region",
+        key: "Region_Name",
         label: "Region",
         type: "select",
         options: regionOptions,
         icon: <MapPin size={16} />,
       },
       {
-        key: "Residence_Type",
-        label: "Residence Type",
+        key: "Area_Name",
+        label: "Area Type",
         type: "select",
-        options: residenceTypeOptions,
+        options: areaOptions,
         icon: <Home size={16} />,
       },
     ],
@@ -136,64 +130,46 @@ const fieldGroups: FieldGroup[] = [
     icon: <TrendingUp size={20} color="#3b82f6" />,
     fields: [
       {
-        key: "Food_Expenditure",
+        key: "exp_food",
         label: "Food Expenditure",
         type: "currency",
         icon: <ShoppingCart size={16} />,
       },
       {
-        key: "NonFood_Expenditure",
-        label: "Non-Food Expenditure",
-        type: "currency",
-        icon: <Package size={16} />,
-      },
-      {
-        key: "Housing_Expenditure",
-        label: "Housing Expenditure",
+        key: "exp_rent",
+        label: "Rent Expenditure",
         type: "currency",
         icon: <Home size={16} />,
       },
       {
-        key: "Utilities_Expenditure",
-        label: "Utilities Expenditure",
+        key: "exp_Education",
+        label: "Education Expenditure",
+        type: "currency",
+        icon: <BookOpen size={16} />,
+      },
+      {
+        key: "exp_Water",
+        label: "Water Expenditure",
         type: "currency",
         icon: <Droplet size={16} />,
       },
       {
-        key: "Transport_Expenditure",
-        label: "Transport Expenditure",
+        key: "exp_Electricity",
+        label: "Electricity Expenditure",
         type: "currency",
-        icon: <Activity size={16} />,
-      },
-    ],
-  },
-  {
-    title: "Additional Economic Data",
-    icon: <BarChart2 size={20} color="#f59e0b" />,
-    fields: [
-      {
-        key: "Spent_on_Food_Drink_Outside",
-        label: "Spent on Food/Drink Outside",
-        type: "currency",
-        icon: <ShoppingCart size={16} />,
+        icon: <Zap size={16} />,
       },
       {
-        key: "General_NonFood_Expenditure",
-        label: "General Non-Food Expenditure",
-        type: "currency",
-        icon: <Package size={16} />,
-      },
-      {
-        key: "Livestock_Byproducts_Value",
-        label: "Livestock Byproducts Value",
-        type: "currency",
-        icon: <Beef size={16} />,
-      },
-      {
-        key: "Business_Revenue",
-        label: "Business Revenue",
+        key: "Savings_or_Insurance_Payment",
+        label: "Savings/Insurance Payment",
         type: "currency",
         icon: <PiggyBank size={16} />,
+      },
+      {
+        key: "Communication_Exp",
+        label: "Communication Expenses",
+        type: "currency",
+        icon: <Wifi size={16} />,
       },
     ],
   },
@@ -201,22 +177,18 @@ const fieldGroups: FieldGroup[] = [
 
 const defaultValues: FormData = {
   // Basic Info
-  Number_of_Members: 1,
-  Region: "Banadir",
-  Residence_Type: "Urban",
+  hhsize: 1,
+  Region_Name: "Banadir",
+  Area_Name: "Urban",
 
   // Expenditures
-  Food_Expenditure: 0,
-  NonFood_Expenditure: 0,
-  Housing_Expenditure: 0,
-  Utilities_Expenditure: 0,
-  Transport_Expenditure: 0,
-
-  // Additional Economic Indicators
-  Spent_on_Food_Drink_Outside: 0,
-  General_NonFood_Expenditure: 0,
-  Livestock_Byproducts_Value: 0,
-  Business_Revenue: 0,
+  exp_food: 0,
+  exp_rent: 0,
+  exp_Education: 0,
+  exp_Water: 0,
+  exp_Electricity: 0,
+  Savings_or_Insurance_Payment: 0,
+  Communication_Exp: 0,
 };
 
 export default function NewPredictionScreen() {
@@ -226,7 +198,6 @@ export default function NewPredictionScreen() {
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<number | null>(null);
-
   const isEditMode = params.mode === "edit";
   const predictionId = params.predictionId as string;
 
@@ -321,8 +292,8 @@ export default function NewPredictionScreen() {
                       (form[field.key] as number) + (field.step || 1)
                     )
                   )
-                }
-              >
+                  }
+                >
                 <Text className="text-white text-lg">+</Text>
               </TouchableOpacity>
             </View>
@@ -432,138 +403,133 @@ export default function NewPredictionScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
-      {/* Header */}
-      <View className="px-6 py-5 border-b border-slate-800">
-        <View className="flex-row items-center">
-          <TouchableOpacity
-            className="mr-4 p-2 -ml-2"
-            onPress={() => router.back()}
-          >
-            <ArrowLeft size={24} color="#ffffff" />
-          </TouchableOpacity>
-          <View>
-            <Text className="text-white text-2xl font-bold">
-              {result
-                ? "Prediction Result"
-                : isEditMode
-                  ? "Edit Prediction"
-                  : "New Prediction"}
-            </Text>
-            <Text className="text-slate-400">
-              {result
-                ? "Your household expenditure prediction"
-                : `Step ${currentStep + 1} of ${fieldGroups.length}`}
-            </Text>
-          </View>
+  <SafeAreaView className="flex-1 bg-slate-900">
+    {/* Fixed Header */}
+    <View className="px-6 py-5 border-b border-slate-800 bg-slate-900 z-10">
+      <View className="flex-row items-center">
+        <TouchableOpacity
+          className="mr-4 p-2 -ml-2"
+          onPress={() => router.back()}
+        >
+          <ArrowLeft size={24} color="#ffffff" />
+        </TouchableOpacity>
+        <View>
+          <Text className="text-white text-2xl font-bold">
+            {result
+              ? "Prediction Result"
+              : isEditMode
+              ? "Edit Prediction"
+              : "New Prediction"}
+          </Text>
+          <Text className="text-slate-400">
+            {result
+              ? "Your household expenditure prediction"
+              : `Step ${currentStep + 1} of ${fieldGroups.length}`}
+          </Text>
         </View>
       </View>
+    </View>
 
+    {/* Scrollable Content */}
+    <KeyboardAwareScrollView
+      className="flex-1"
+      contentContainerStyle={{ flexGrow: 1, paddingBottom: 80, paddingHorizontal: 24 }}
+      enableOnAndroid
+      extraScrollHeight={80}
+      keyboardShouldPersistTaps="handled"
+    >
       {result ? (
-        /* Result View */
-        <ScrollView className="flex-1 px-6 py-6">
-          <View className="bg-slate-800 p-6 rounded-xl border border-emerald-500 mb-6">
-            <View className="items-center mb-4">
-              <Text className="text-emerald-500 text-4xl font-bold">
-                ${result.toFixed(2)}
-              </Text>
-              <Text className="text-slate-400 mt-2">
-                Predicted Monthly Expenditure
-              </Text>
-            </View>
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 20 }}
+          className="flex-1"
+        >
+          <View className="bg-slate-800 p-6 rounded-2xl border border-emerald-500 mb-8 shadow-md">
+          {/* Prediction Result */}
+          <View className="items-center mb-6">
+            <Text className="text-emerald-400 text-5xl font-extrabold tracking-tight">
+              ${result.toFixed(2)}
+            </Text>
+            <Text className="text-slate-400 mt-2 text-base">
+              Predicted Yearly Expenditure
+            </Text>
+          </View>
 
-            <View className="bg-slate-700 p-4 rounded-lg mb-4">
-              <Text className="text-white font-semibold mb-2">
+          {/* Key Expenditures */}
+          <View className="bg-slate-700 rounded-xl p-4 mb-4">
+            <View className="flex-row items-center mb-3">
+              <TrendingUp size={18} color="#60a5fa" className="mr-2" />
+              <Text className="text-white font-semibold text-lg">
                 Key Expenditures
               </Text>
-              <View className="gap-2">
-                <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Food</Text>
-                  <Text className="text-slate-400 font-bold">
-                    ${form.Food_Expenditure}
-                  </Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Non-Food</Text>
-                  <Text className="text-slate-400 font-bold">
-                    ${form.NonFood_Expenditure}
-                  </Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Housing</Text>
-                  <Text className="text-slate-400 font-bold">
-                    ${form.Housing_Expenditure}
-                  </Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Utilities</Text>
-                  <Text className="text-slate-400 font-bold">
-                    ${form.Utilities_Expenditure}
-                  </Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Transport</Text>
-                  <Text className="text-slate-400 font-bold">
-                    ${form.Transport_Expenditure}
-                  </Text>
-                </View>
-              </View>
             </View>
-
-            <View className="bg-slate-700 p-4 rounded-lg mb-4">
-              <Text className="text-white font-semibold mb-2">
-                Household Profile
-              </Text>
-              <View className="gap-2">
-                <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Household Members</Text>
-                  <Text className="text-slate-400 font-bold">
-                    {form.Number_of_Members}
-                  </Text>
+            <View className="gap-2">
+              {[
+                { label: "Food", value: form.exp_food },
+                { label: "Rent", value: form.exp_rent },
+                { label: "Education", value: form.exp_Education },
+                { label: "Water", value: form.exp_Water },
+                { label: "Electricity", value: form.exp_Electricity },
+                { label: "Savings/Insurance", value: form.Savings_or_Insurance_Payment },
+                { label: "Communication", value: form.Communication_Exp },
+              ].map((item) => (
+                <View key={item.label} className="flex-row justify-between">
+                  <Text className="text-slate-300">{item.label}</Text>
+                  <Text className="text-white font-semibold">${item.value}</Text>
                 </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Region</Text>
-                  <Text className="text-slate-400 font-bold">
-                    {form.Region}
-                  </Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text className="text-slate-300">Residence Type</Text>
-                  <Text className="text-slate-400 font-bold">
-                    {form.Residence_Type}
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <View className="flex-row gap-3">
-              <TouchableOpacity
-                className="flex-1 bg-emerald-500 py-3 rounded-lg flex-row justify-center items-center"
-                onPress={() => {
-                  setResult(null);
-                  setCurrentStep(0);
-                }}
-              >
-                <Text className="text-white font-bold mr-2">
-                  New Prediction
-                </Text>
-                <Zap size={18} color="#ffffff" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                className="flex-1 bg-blue-500 py-3 rounded-lg flex-row justify-center items-center"
-                onPress={() => router.back()}
-              >
-                <Text className="text-white font-bold">Save & Return</Text>
-              </TouchableOpacity>
+              ))}
             </View>
           </View>
+
+          {/* Household Profile */}
+          <View className="bg-slate-700 rounded-xl p-4 mb-6">
+            <View className="flex-row items-center mb-3">
+              <Home size={18} color="#10b981" className="mr-2" />
+              <Text className="text-white font-semibold text-lg">
+                Household Profile
+              </Text>
+            </View>
+            <View className="gap-2">
+              <View className="flex-row justify-between">
+                <Text className="text-slate-300">Household Size</Text>
+                <Text className="text-white font-semibold">{form.hhsize}</Text>
+              </View>
+              <View className="flex-row justify-between">
+                <Text className="text-slate-300">Region</Text>
+                <Text className="text-white font-semibold">{form.Region_Name}</Text>
+              </View>
+              <View className="flex-row justify-between">
+                <Text className="text-slate-300">Area Type</Text>
+                <Text className="text-white font-semibold">{form.Area_Name}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View className="flex-row gap-3">
+            <TouchableOpacity
+              className="flex-1 bg-emerald-500 py-3 rounded-xl flex-row justify-center items-center"
+              onPress={() => {
+                setResult(null);
+                setCurrentStep(0);
+              }}
+            >
+              <Text className="text-white font-bold mr-2">New Prediction</Text>
+              <Zap size={18} color="#ffffff" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              className="flex-1 bg-blue-500 py-3 rounded-xl flex-row justify-center items-center"
+              onPress={() => router.back()}
+            >
+              <Text className="text-white font-bold">Save & Return</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
         </ScrollView>
       ) : (
-        /* Form View */
         <View className="flex-1">
           {/* Progress Steps */}
-          <View className="px-6 py-4">
+          <View className="py-4">
             <View className="flex-row justify-between mb-2">
               {fieldGroups.map((_, index) => (
                 <View key={index} className="items-center">
@@ -576,7 +542,11 @@ export default function NewPredictionScreen() {
                       <Check size={16} color="#ffffff" />
                     ) : (
                       <Text
-                        className={`${currentStep === index ? "text-white font-bold" : "text-slate-400"}`}
+                        className={`${
+                          currentStep === index
+                            ? "text-white font-bold"
+                            : "text-slate-400"
+                        }`}
                       >
                         {index + 1}
                       </Text>
@@ -595,30 +565,27 @@ export default function NewPredictionScreen() {
             </View>
           </View>
 
-          {/* Form Fields */}
-          <ScrollView
-            className="px-6 mb-4"
-            contentContainerStyle={{ paddingBottom: 20 }}
-          >
-            <View className="mb-6">
-              <View className="flex-row items-center mb-4">
-                <View className="w-10 h-10 rounded-lg bg-emerald-500/20 justify-center items-center mr-3">
-                  {fieldGroups[currentStep].icon}
-                </View>
-                <Text className="text-white text-xl font-bold">
-                  {fieldGroups[currentStep].title}
-                </Text>
+          {/* Field Form */}
+          <View className="mb-6">
+            <View className="flex-row items-center mb-4">
+              <View className="w-10 h-10 rounded-lg bg-emerald-500/20 justify-center items-center mr-3">
+                {fieldGroups[currentStep].icon}
               </View>
-              <View className="gap-4">
-                {fieldGroups[currentStep].fields.map((field) => (
-                  <View key={field.key}>{renderField(field)}</View>
-                ))}
-              </View>
+              <Text className="text-white text-xl font-bold">
+                {fieldGroups[currentStep].title}
+              </Text>
             </View>
-          </ScrollView>
+            <View className="gap-4">
+              {fieldGroups[currentStep].fields.map((field) => (
+                <View key={field.key} className="w-full">{/* Add w-full here */}
+                  {renderField(field)}
+                </View>
+              ))}
+            </View>
+          </View>
 
           {/* Navigation Buttons */}
-          <View className="px-6 py-4 flex-row justify-between bg-slate-900 border-t border-slate-800">
+          <View className="py-4 flex-row justify-between border-t border-slate-800">
             {currentStep > 0 ? (
               <TouchableOpacity
                 className="flex-row items-center px-6 py-3 rounded-lg bg-slate-800"
@@ -643,10 +610,10 @@ export default function NewPredictionScreen() {
                 {loading
                   ? "Processing..."
                   : currentStep === fieldGroups.length - 1
-                    ? isEditMode
-                      ? "Update Prediction"
-                      : "Create Prediction"
-                    : "Continue"}
+                  ? isEditMode
+                    ? "Update Prediction"
+                    : "Create Prediction"
+                  : "Continue"}
               </Text>
               {!loading &&
                 (currentStep === fieldGroups.length - 1 ? (
@@ -658,6 +625,8 @@ export default function NewPredictionScreen() {
           </View>
         </View>
       )}
-    </SafeAreaView>
-  );
+    </KeyboardAwareScrollView>
+  </SafeAreaView>
+);
+
 }

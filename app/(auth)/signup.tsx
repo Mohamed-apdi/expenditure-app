@@ -1,5 +1,4 @@
 import { useState, useCallback, memo } from "react";
-import axios from "axios";
 import { API_URL } from "~/lib/api";
 import { router } from "expo-router";
 import {

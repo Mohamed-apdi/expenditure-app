@@ -67,7 +67,6 @@ export default function DashboardScreen() {
     image_url: "",
   });
   const [todaySpending, setTodaySpending] = useState(0);
-  const [dailyBudget] = useState(120);
   const [monthlySpending, setMonthlySpending] = useState(0);
   const [monthlyBudget] = useState(2500);
   const [loading, setLoading] = useState(true);
@@ -204,7 +203,6 @@ export default function DashboardScreen() {
     };
     return colors[category] || "#64748b";
   };
-  const todayProgress = (todaySpending / dailyBudget) * 100;
   const monthlyProgress = (monthlySpending / monthlyBudget) * 100;
 
   const quickActions: QuickAction[] = [
@@ -272,8 +270,6 @@ export default function DashboardScreen() {
 
         <SpendingWidget
           spent={todaySpending}
-          budget={dailyBudget}
-          progressColor={getProgressColor(todayProgress)}
         />
 
         <MonthlyOverview
