@@ -31,6 +31,7 @@ import {
 import { predictExpenditure } from "~/lib/api";
 import React from "react";
 import RNPickerSelect from "react-native-picker-select";
+import { supabase } from "~/lib/supabase";
 
 type FormData = {
   // Basic Info
@@ -237,13 +238,54 @@ export default function NewPredictionScreen() {
   const handleSubmit = async () => {
     try {
       setLoading(true);
-      console.log("Submitting form data:", form);
+
+      // Prevent double submission
+      if (result) return;
+
       const res = await predictExpenditure(form);
-      console.log("Prediction result:", res);
-      setResult(res.predicted_expenditure);
+      const predictedExp = res.predicted_expenditure;
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error("Not authenticated");
+
+      if (isEditMode) {
+        const { error: updateError } = await supabase
+          .from("predictions")
+          .update({
+            input_data: form,
+            predicted_exp: predictedExp,
+            model_used: res.model || "RF",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", predictionId);
+
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from("predictions")
+          .insert({
+            user_id: user.id,
+            input_data: form,
+            predicted_exp: predictedExp,
+            model_used: res.model || "RF",
+            created_at: new Date().toISOString(),
+          });
+
+        if (insertError) throw insertError;
+      }
+
+      setResult(predictedExp);
+
+      // Navigate back after showing result
+      setTimeout(() => {
+        router.back();
+      }, 1500);
     } catch (err: any) {
-      console.error("Prediction error:", err);
-      alert(err.message);
+      console.error(err);
+      Alert.alert("Error", err.message);
     } finally {
       setLoading(false);
     }

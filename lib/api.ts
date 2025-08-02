@@ -31,17 +31,19 @@ export async function predictExpenditure(inputData: Record<string, any>) {
   return data;
 }
 
-
 // Expense Analytics API
 export async function fetchExpenseOverview(period: string) {
   const token = await getItemAsync("token");
   if (!token) throw new Error("No token found");
 
-  const response = await fetch(`${API_URL}/analytics/expense-overview?period=${period}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const response = await fetch(
+    `${API_URL}/analytics/expense-overview?period=${period}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
 
   if (!response.ok) {
     const error = await response.json();
@@ -55,11 +57,14 @@ export async function fetchExpenseCategories(period: string) {
   const token = await getItemAsync("token");
   if (!token) throw new Error("No token found");
 
-  const response = await fetch(`${API_URL}/analytics/expense-categories?period=${period}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const response = await fetch(
+    `${API_URL}/analytics/expense-categories?period=${period}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
 
   if (!response.ok) {
     const error = await response.json();
@@ -73,11 +78,14 @@ export async function fetchExpenseTrends(period: string) {
   const token = await getItemAsync("token");
   if (!token) throw new Error("No token found");
 
-  const response = await fetch(`${API_URL}/analytics/expense-trends?period=${period}&granularity=daily`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const response = await fetch(
+    `${API_URL}/analytics/expense-trends?period=${period}&granularity=daily`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
 
   if (!response.ok) {
     const error = await response.json();
@@ -86,8 +94,6 @@ export async function fetchExpenseTrends(period: string) {
 
   return await response.json();
 }
-
-
 
 // Prediction Analytics API
 export async function fetchPredictionOverview() {
