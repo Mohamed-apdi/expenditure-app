@@ -13,16 +13,10 @@ import { supabase } from "~/lib/supabase";
 import DashboardHeader from "~/components/(Dashboard)/DashboardHeader";
 import SpendingWidget from "~/components/(Dashboard)/SpendingWidget";
 import MonthlyOverview from "~/components/(Dashboard)/MonthlyOverview";
-import AlertCard from "~/components/(Dashboard)/AlertCard";
 import QuickActionCard from "~/components/(Dashboard)/QuickActionCard";
 import TransactionItem from "~/components/(Dashboard)/TransactionItem";
-import PredictionTeaser from "~/components/(Dashboard)/PredictionTeaser";
 import {
-  AlertTriangle,
-  CheckCircle,
-  FileText,
   PieChart,
-  Plus,
   TrendingUp,
   ShoppingCart,
   Truck,
@@ -35,6 +29,7 @@ import {
 } from "lucide-react-native";
 import { formatDistanceToNow } from "date-fns";
 import { useTheme } from "~/lib/theme";
+
 type Transaction = {
   id: string;
   amount: number;
@@ -42,14 +37,7 @@ type Transaction = {
   description: string;
   created_at: string;
   payment_method: string;
-};
-
-type Alert = {
-  id: number;
-  type: string;
-  message: string;
-  icon: React.ComponentType<{ size: number; color: string }>;
-  color: string;
+  entry_type?: "Income" | "Expense" | "Lent" | "Debt/Loan" | "Saving"; // ⬅️ added
 };
 
 type QuickAction = {
@@ -67,12 +55,17 @@ export default function DashboardScreen() {
     image_url: "",
   });
   const [todaySpending, setTodaySpending] = useState(0);
-  const [monthlySpending, setMonthlySpending] = useState(0);
-  const [monthlyBudget] = useState(2500);
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const theme = useTheme();
+
+  // Category totals
+  const [totalIncome, setTotalIncome] = useState(0);
+  const [totalExpense, setTotalExpense] = useState(0);
+  const [totalLent, setTotalLent] = useState(0);
+  const [totalDebtLoan, setTotalDebtLoan] = useState(0);
+  const [totalSaving, setTotalSaving] = useState(0);
 
   const fetchData = async () => {
     try {
@@ -85,7 +78,7 @@ export default function DashboardScreen() {
         throw new Error("User not authenticated");
       }
 
-      // Fetch user profile
+      // Profile
       const { data: profileData } = await supabase
         .from("profiles")
         .select("full_name, phone, image_url, created_at")
@@ -98,44 +91,73 @@ export default function DashboardScreen() {
         image_url: profileData?.image_url || "",
       });
 
-      // Get today's date range
+      // Today's spending (expenses only)
       const today = new Date();
       const startOfToday = new Date(today.setHours(0, 0, 0, 0)).toISOString();
       const endOfToday = new Date(
         today.setHours(23, 59, 59, 999)
       ).toISOString();
 
-      // Fetch today's spending
       const { data: todaySpendingData } = await supabase
         .from("expenses")
         .select("amount")
         .eq("user_id", user.id)
+        .eq("entry_type", "Expense")
         .gte("date", startOfToday)
         .lte("date", endOfToday);
 
       const todayTotal =
-        todaySpendingData?.reduce((sum, item) => sum + item.amount, 0) || 0;
+        todaySpendingData?.reduce(
+          (sum, item) => sum + (item?.amount || 0),
+          0
+        ) || 0;
       setTodaySpending(todayTotal);
 
-      // Fetch monthly spending (current month)
-      const currentMonth = new Date().getMonth() + 1;
-      const currentYear = new Date().getFullYear();
-
-      const { data: monthlySpendingData } = await supabase
+      // Totals by entry_type
+      const { data: allTransactions } = await supabase
         .from("expenses")
-        .select("amount")
-        .eq("user_id", user.id)
-        .eq("date_month", currentMonth)
-        .eq("date_year", currentYear);
+        .select("amount, entry_type")
+        .eq("user_id", user.id);
 
-      const monthlyTotal =
-        monthlySpendingData?.reduce((sum, item) => sum + item.amount, 0) || 0;
-      setMonthlySpending(monthlyTotal);
+      let incomeTotal = 0;
+      let expenseTotal = 0;
+      let lentTotal = 0;
+      let debtLoanTotal = 0;
+      let savingTotal = 0;
 
-      // Fetch recent transactions
+      allTransactions?.forEach((t) => {
+        const amount = t.amount || 0;
+        switch (t.entry_type) {
+          case "Income":
+            incomeTotal += amount;
+            break;
+          case "Expense":
+            expenseTotal += amount;
+            break;
+          case "Lent":
+            lentTotal += amount;
+            break;
+          case "Debt/Loan":
+            debtLoanTotal += amount;
+            break;
+          case "Saving":
+            savingTotal += amount;
+            break;
+        }
+      });
+
+      setTotalIncome(incomeTotal);
+      setTotalExpense(expenseTotal);
+      setTotalLent(lentTotal);
+      setTotalDebtLoan(debtLoanTotal);
+      setTotalSaving(savingTotal);
+
+      // Recent transactions — include entry_type
       const { data: transactionsData } = await supabase
         .from("expenses")
-        .select("id, amount, category, description, created_at, payment_method")
+        .select(
+          "id, amount, category, description, created_at, payment_method, entry_type"
+        )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(5);
@@ -152,16 +174,11 @@ export default function DashboardScreen() {
   useEffect(() => {
     fetchData();
 
-    // Set up realtime subscription for expenses
     const subscription = supabase
       .channel("dashboard_updates")
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "expenses",
-        },
+        { event: "*", schema: "public", table: "expenses" },
         () => fetchData()
       )
       .subscribe();
@@ -203,10 +220,8 @@ export default function DashboardScreen() {
     };
     return colors[category] || "#64748b";
   };
-  const monthlyProgress = (monthlySpending / monthlyBudget) * 100;
 
   const quickActions: QuickAction[] = [
-   
     {
       title: "History Expenses",
       icon: PieChart,
@@ -227,12 +242,6 @@ export default function DashboardScreen() {
     },
   ];
 
-  const getProgressColor = (progress: number) => {
-    if (progress > 100) return "#ef4444";
-    if (progress > 80) return "#f59e0b";
-    return "#10b981";
-  };
-
   if (loading && !refreshing) {
     return (
       <SafeAreaView className="flex-1 bg-slate-900 items-center justify-center">
@@ -243,7 +252,7 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView
-      className="flex-1 "
+      className="flex-1"
       style={{ backgroundColor: theme.background }}
     >
       <ScrollView
@@ -268,20 +277,20 @@ export default function DashboardScreen() {
           onSettingsPress={() => router.push("/(main)/ProfileScreen")}
         />
 
-        <SpendingWidget
-          spent={todaySpending}
-        />
+        <SpendingWidget spent={todaySpending} />
 
         <MonthlyOverview
-          spent={monthlySpending}
-          budget={monthlyBudget}
-          progressColor={getProgressColor(monthlyProgress)}
+          income={totalIncome}
+          expense={totalExpense}
+          lent={totalLent}
+          debtLoan={totalDebtLoan}
+          saving={totalSaving}
         />
 
         {/* Quick Actions */}
         <View className="px-6 mb-5">
           <Text
-            className=" text-lg font-bold mb-4"
+            className="text-lg font-bold mb-4"
             style={{ color: theme.text }}
           >
             Quick Actions
@@ -302,7 +311,7 @@ export default function DashboardScreen() {
         {/* Recent Transactions */}
         <View className="px-6 mb-5">
           <View className="flex-row justify-between items-center mb-4">
-            <Text className=" text-lg font-bold" style={{ color: theme.text }}>
+            <Text className="text-lg font-bold" style={{ color: theme.text }}>
               Recent Transactions
             </Text>
             <TouchableOpacity
@@ -314,39 +323,36 @@ export default function DashboardScreen() {
 
           <View className="gap-3">
             {transactions.length > 0 ? (
-              transactions.map((transaction) => {
-                const IconComponent = getCategoryIcon(transaction.category);
-                const color = getCategoryColor(transaction.category);
-
+              transactions.map((t) => {
+                const IconComponent = getCategoryIcon(t.category);
+                const color = getCategoryColor(t.category);
                 return (
                   <TransactionItem
-                    key={transaction.id}
+                    key={t.id}
                     icon={IconComponent}
-                    description={transaction.description}
-                    category={transaction.category}
-                    time={formatDistanceToNow(
-                      new Date(transaction.created_at),
-                      { addSuffix: true }
-                    )}
-                    amount={transaction.amount}
+                    description={t.description}
+                    category={t.category}
+                    time={formatDistanceToNow(new Date(t.created_at), {
+                      addSuffix: true,
+                    })}
+                    amount={t.amount}
                     color={color}
+                    entryType={t.entry_type} // ⬅️ pass entry type
                   />
                 );
               })
             ) : (
               <View
-                className="bg-slate-800 p-4 rounded-xl border "
+                className="bg-slate-800 p-4 rounded-xl border"
                 style={{ borderColor: theme.border }}
               >
-                <Text className=" text-center" style={{ color: theme.text }}>
+                <Text className="text-center" style={{ color: theme.text }}>
                   No transactions yet
                 </Text>
               </View>
             )}
           </View>
         </View>
-
-        {/*<PredictionTeaser onPress={() => router.push("/predict")} />*/}
       </ScrollView>
     </SafeAreaView>
   );

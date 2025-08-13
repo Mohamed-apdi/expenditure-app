@@ -113,7 +113,7 @@ export default function ExpenseDetailScreen() {
                 .eq("id", id);
 
               if (error) throw error;
-              router.push("/expenses");
+              router.push("/(main)/ExpenseListScreen");
             } catch (error) {
               console.error("Error deleting expense:", error);
               Alert.alert("Error", "Failed to delete expense");
