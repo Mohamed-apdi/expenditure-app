@@ -53,9 +53,9 @@ export default function MainLayout() {
         }}
       />
       <Tabs.Screen
-        name="CompareScreen"
+        name="Accounts"
         options={{
-          title: "Compare",
+          title: "Accounts",
           tabBarIcon: ({ color, size }) => <Wallet color={color} size={size} />,
         }}
       />
