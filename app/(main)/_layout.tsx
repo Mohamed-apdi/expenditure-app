@@ -35,15 +35,7 @@ export default function MainLayout() {
           tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
         }}
       />
-      <Tabs.Screen
-        name="predictionsScreen"
-        options={{
-          title: "Predict",
-          tabBarIcon: ({ color, size }) => (
-            <TrendingUp color={color} size={size} />
-          ),
-        }}
-      />
+
       <Tabs.Screen
         name="ExpenseListScreen"
         options={{
@@ -61,11 +53,11 @@ export default function MainLayout() {
         }}
       />
       <Tabs.Screen
-      name="CompareScreen"
-      options={{
-        title: "Compare",
-        tabBarIcon: ({ color, size }) => <Wallet color={color} size={size} />,
-      }}
+        name="CompareScreen"
+        options={{
+          title: "Compare",
+          tabBarIcon: ({ color, size }) => <Wallet color={color} size={size} />,
+        }}
       />
       <Tabs.Screen
         name="ProfileScreen"

@@ -23,15 +23,22 @@ import {
   MoreHorizontal,
   Calendar,
   ChevronDown,
-  Tag,
-  ChevronRight,
   CreditCard,
   DollarSign,
   Wallet,
+  Home,
 } from "lucide-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { supabase } from "~/lib/supabase";
 import { useTheme } from "~/lib/theme";
+
+const ENTRY_TABS = [
+  { id: "Income", label: "Income" },
+  { id: "Expense", label: "Expense" },
+  { id: "Lent", label: "Lent" },
+  { id: "Debt/Loan", label: "Debt/Loan" },
+  { id: "Saving", label: "Saving" },
+];
 
 type Category = {
   id: string;
@@ -40,11 +47,20 @@ type Category = {
   color: string;
 };
 
-type Frequency = "weekly" | "monthly" | "yearly";
-type PaymentMethod = "cash" | "credit_card" | "debit_card" | "digital_wallet";
+type Frequency = "daily" | "weekly" | "monthly" | "yearly";
+type PaymentMethod =
+  | "cash"
+  | "credit_card"
+  | "debit_card"
+  | "digital_wallet"
+  | "EVC";
 
 export default function AddExpenseScreen() {
   const router = useRouter();
+  const theme = useTheme();
+
+  // States
+  const [entryType, setEntryType] = useState("Expense");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
@@ -52,18 +68,17 @@ export default function AddExpenseScreen() {
   );
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [recurringFrequency, setRecurringFrequency] =
-    useState<Frequency>("monthly");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(
     null
   );
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringFrequency, setRecurringFrequency] =
+    useState<Frequency>("monthly");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const theme = useTheme();
 
   const categories: Category[] = [
     { id: "food", name: "Food", icon: ShoppingCart, color: "#10b981" },
+    { id: "rent", name: "Rent", icon: Home, color: "#f59e0b" },
     { id: "transport", name: "Transport", icon: Truck, color: "#3b82f6" },
     { id: "utilities", name: "Utilities", icon: Zap, color: "#f59e0b" },
     {
@@ -80,6 +95,7 @@ export default function AddExpenseScreen() {
 
   const paymentMethods = [
     { id: "cash", name: "Cash", icon: DollarSign, color: "#84cc16" },
+    { id: "EVC", name: "EVC", icon: CreditCard, color: "#ef4444" },
     {
       id: "credit_card",
       name: "Credit Card",
@@ -103,7 +119,7 @@ export default function AddExpenseScreen() {
   const quickAmounts = [10, 25, 50, 100];
 
   const handleSaveExpense = async () => {
-    if (!amount || !selectedCategory || !description.trim()) {
+    if (!amount || !description.trim()) {
       Alert.alert("Missing Information", "Please fill in all required fields");
       return;
     }
@@ -114,27 +130,55 @@ export default function AddExpenseScreen() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
 
-      if (!user) {
-        throw new Error("User not authenticated");
+      // Expense balance check
+      if (entryType === "Expense") {
+        const { data: incomes } = await supabase
+          .from("expenses")
+          .select("amount")
+          .eq("user_id", user.id)
+          .eq("entry_type", "Income");
+
+        const totalIncome =
+          incomes?.reduce((sum, i) => sum + Number(i.amount), 0) || 0;
+
+        const { data: expenses } = await supabase
+          .from("expenses")
+          .select("amount")
+          .eq("user_id", user.id)
+          .eq("entry_type", "Expense");
+
+        const totalExpenses =
+          expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+
+        const balance = totalIncome - totalExpenses;
+        if (Number.parseFloat(amount) > balance) {
+          Alert.alert(
+            "Insufficient Funds",
+            "You don't have enough income to cover this expense."
+          );
+          setIsSubmitting(false);
+          return;
+        }
       }
 
+      // Save record
       const { error } = await supabase.from("expenses").insert({
         user_id: user.id,
-        amount: parseFloat(amount),
-        category: selectedCategory.name,
+        entry_type: entryType,
+        amount: Number.parseFloat(amount),
+        category: selectedCategory?.name || null,
         description: description.trim(),
-        date: date.toISOString().split("T")[0],
         payment_method: paymentMethod,
         is_recurring: isRecurring,
         recurrence_interval: isRecurring ? recurringFrequency : null,
-        is_essential: true, // You can add a toggle for this
-        tags: [], // Add tag functionality if needed
+        date: date.toISOString().split("T")[0],
       });
 
       if (error) throw error;
 
-      Alert.alert("Success", "Expense added successfully!", [
+      Alert.alert("Success", `${entryType} added successfully!`, [
         {
           text: "Add Another",
           onPress: () => {
@@ -142,16 +186,17 @@ export default function AddExpenseScreen() {
             setDescription("");
             setSelectedCategory(null);
             setPaymentMethod(null);
+            setEntryType("Expense");
           },
         },
         {
-          text: "View Expenses",
+          text: "View Records",
           onPress: () => router.push("/(main)/ExpenseListScreen"),
         },
       ]);
     } catch (error) {
-      Alert.alert("Error", "Failed to save expense. Please try again.");
-      console.error("Error saving expense:", error);
+      console.error(error);
+      Alert.alert("Error", "Failed to save record. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -226,6 +271,33 @@ export default function AddExpenseScreen() {
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+          {/* Tabs */}
+          <View style={{ flexDirection: "row", margin: 12 }}>
+            {ENTRY_TABS.map((tab) => (
+              <TouchableOpacity
+                key={tab.id}
+                style={{
+                  flex: 1,
+                  marginHorizontal: 4,
+                  padding: 5,
+                  borderRadius: 8,
+                  backgroundColor:
+                    entryType === tab.id ? "#10b981" : theme.cardBackground,
+                }}
+                onPress={() => setEntryType(tab.id)}
+              >
+                <Text
+                  style={{
+                    textAlign: "center",
+                    fontWeight: "600",
+                    color: entryType === tab.id ? "#fff" : theme.text,
+                  }}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
           {/* Amount Input */}
           <View className="px-6 py-8 items-center">
             <Text className=" mb-4" style={{ color: theme.textSecondary }}>
@@ -388,11 +460,7 @@ export default function AddExpenseScreen() {
                       />
                     </View>
                     <Text
-                      className={`${
-                        paymentMethod === method.id
-                          ? "text-emerald-500 font-semibold"
-                          : "text-slate-400"
-                      }`}
+                      className={`${paymentMethod === method.id ? "text-emerald-500 font-semibold" : "text-slate-400"}`}
                     >
                       {method.name}
                     </Text>
@@ -445,15 +513,11 @@ export default function AddExpenseScreen() {
                 Recurring Expense
               </Text>
               <TouchableOpacity
-                className={`w-12 h-7 rounded-full justify-center ${
-                  isRecurring ? "bg-emerald-500" : "bg-slate-700"
-                }`}
+                className={`w-12 h-7 rounded-full justify-center ${isRecurring ? "bg-emerald-500" : "bg-slate-700"}`}
                 onPress={() => setIsRecurring(!isRecurring)}
               >
                 <View
-                  className={`w-6 h-6 rounded-full bg-white ${
-                    isRecurring ? "self-end" : "self-start"
-                  }`}
+                  className={`w-6 h-6 rounded-full bg-white ${isRecurring ? "self-end" : "self-start"}`}
                 />
               </TouchableOpacity>
             </View>
@@ -464,7 +528,7 @@ export default function AddExpenseScreen() {
                   Frequency
                 </Text>
                 <View className="flex-row gap-3">
-                  {["weekly", "monthly", "yearly"].map((freq) => {
+                  {["daily", "weekly", "monthly", "yearly"].map((freq) => {
                     const isSelected = recurringFrequency === freq;
                     return (
                       <TouchableOpacity

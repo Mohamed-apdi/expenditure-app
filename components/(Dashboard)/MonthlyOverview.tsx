@@ -1,82 +1,63 @@
 import { View, Text } from "react-native";
-import { DollarSign, TrendingDown, Target } from "lucide-react-native";
+import {
+  ArrowUpCircle,
+  ArrowDownCircle,
+  DollarSign,
+  ArrowRightCircle,
+  PiggyBank,
+} from "lucide-react-native";
 import { useTheme } from "~/lib/theme";
-interface MonthlyOverviewProps {
-  spent: number;
-  budget: number;
-}
 
 export default function MonthlyOverview({
-  spent,
-  budget,
-}: MonthlyOverviewProps) {
+  income,
+  expense,
+  lent,
+  debtLoan,
+  saving,
+}) {
   const theme = useTheme();
+
+  const cards = [
+    { label: "Income", value: income, icon: ArrowUpCircle, color: "#10b981" },
+    {
+      label: "Expense",
+      value: expense,
+      icon: ArrowDownCircle,
+      color: "#ef4444",
+    },
+    { label: "Lent", value: lent, icon: ArrowRightCircle, color: "#f59e0b" },
+    { label: "Debt/Loan", value: debtLoan, icon: DollarSign, color: "#3b82f6" },
+    { label: "Saving", value: saving, icon: PiggyBank, color: "#84cc16" },
+  ];
+
   return (
     <View className="px-6 mb-5">
-      <Text className=" text-lg font-bold mb-4" style={{ color: theme.text }}>
+      <Text className="text-lg font-bold mb-4" style={{ color: theme.text }}>
         Monthly Overview
       </Text>
-
-      <View className="flex-row gap-3 mb-4">
-        <View
-          className="flex-1  p-4 rounded-xl border border-slate-700 items-center"
-          style={{
-            backgroundColor: theme.cardBackground,
-            borderColor: theme.border,
-          }}
-        >
-          <DollarSign size={20} color="#10b981" />
-          <Text className="text-slate-400 text-xs mt-2 mb-1">Spent</Text>
-          <Text className=" text-lg font-bold" style={{ color: theme.primary }}>
-            ${spent}
-          </Text>
-          <Text className="text-slate-500 text-xs">of ${budget}</Text>
-        </View>
-
-        <View
-          className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 items-center"
-          style={{
-            backgroundColor: theme.cardBackground,
-            borderColor: theme.border,
-          }}
-        >
-          <TrendingDown size={20} color="#3b82f6" />
-          <Text className="text-slate-400 text-xs mt-2 mb-1">Remaining</Text>
-          <Text
-            className="text-white text-lg font-bold"
-            style={{ color: theme.primary }}
+      <View className="flex-row flex-wrap gap-3">
+        {cards.map((card, i) => (
+          <View
+            key={i}
+            className="w-[48%] p-4 rounded-xl border items-center"
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderColor: theme.border,
+            }}
           >
-            ${budget - spent}
-          </Text>
-          <Text className="text-slate-500 text-xs">
-            {Math.round(((budget - spent) / budget) * 100)}% left
-          </Text>
-        </View>
-
-        <View
-          className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700 items-center"
-          style={{
-            backgroundColor: theme.cardBackground,
-            borderColor: theme.border,
-          }}
-        >
-          <Target size={20} color="#8b5cf6" />
-          <Text className="text-slate-400 text-xs mt-2 mb-1">Avg/Day</Text>
-          <Text
-            className="text-white text-lg font-bold"
-            style={{ color: theme.primary }}
-          >
-            ${Math.round(spent / new Date().getDate())}
-          </Text>
-          <Text className="text-slate-500 text-xs">this month</Text>
-        </View>
+            <card.icon size={20} color={card.color} />
+            <Text className="text-slate-400 text-xs mt-2 mb-1">
+              {card.label}
+            </Text>
+            <Text
+              className="text-lg font-bold"
+              style={{ color: theme.primary }}
+            >
+              ${card.value}
+            </Text>
+          </View>
+        ))}
       </View>
     </View>
   );
-}
-
-function getProgressColor(progress: number) {
-  if (progress > 100) return "#ef4444";
-  if (progress > 80) return "#f59e0b";
-  return "#10b981";
 }
