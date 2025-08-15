@@ -31,7 +31,7 @@ export default function MainLayout() {
       <Tabs.Screen
         name="Dashboard"
         options={{
-          title: "Dashboard",
+          title: "Home",
           tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
         }}
       />

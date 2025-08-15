@@ -1,52 +1,72 @@
-// lib/constants.ts
 export const NAV_THEME = {
   light: {
-    // screens & cards
-    background: "#ffffff", // SafeAreaView, ScrollView bg
-    cardBackground: "#f8fafc", // e.g. category containers, inputs, panels
+    // Main backgrounds
+    background: "#ffffff",
+    cardBackground: "#f8fafc",
 
-    // borders
-    border: "#e5e7eb", // thin borders
+    // Borders and dividers
+    border: "#e2e8f0",
 
-    // text
-    text: "#0f172a", // main text
-    textSecondary: "#6b7280", // subtitles, captions
+    // Text colors
+    text: "#334155",
+    textSecondary: "#64748b",
+    textMuted: "#94a3b8",
 
-    // form controls
-    placeholder: "#64748b",
-    // buttons
-    primary: "#10b981", // “Save” / accent color
-    save: "#334155",
+    // Form elements
+    placeholder: "#94a3b8",
+    inputBackground: "#f8fafc",
 
-    // icons & misc
-    icon: "#10b981",
+    // Action colors - Blue and white theme
+    primary: "#3b82f6",
+    primaryText: "#ffffff",
+    accent: "#38bdf8", // Light blue instead of orange
+    accentText: "#ffffff",
+    success: "#3b82f6", // Blue instead of green
+    successText: "#ffffff",
+    danger: "#1e40af", // Dark blue instead of red
+    dangerText: "#ffffff",
 
-    stepInactive: "#e5e7eb",
-    stepActive: "#10b981",
+    // Icons
+    icon: "#334155",
+    iconMuted: "#94a3b8",
+
+    // Status indicators
+    stepInactive: "#e2e8f0",
+    stepActive: "#0891b2",
   },
   dark: {
-    // screens & cards
+    // Main backgrounds
     background: "#0f172a",
     cardBackground: "#1e293b",
 
-    // borders
+    // Borders and dividers
     border: "#334155",
 
-    // text
+    // Text colors
     text: "#f8fafc",
-    textSecondary: "#94a3b8",
+    textSecondary: "#cbd5e1",
+    textMuted: "#94a3b8",
 
-    // form controls
-    placeholder: "#ffffff",
+    // Form elements
+    placeholder: "#94a3b8",
+    inputBackground: "#1e293b",
 
-    // buttons
-    primary: "#10b981",
-    save: "#10b981",
+    // Action colors - Blue and white theme
+    primary: "#3b82f6",
+    primaryText: "#ffffff",
+    accent: "#38bdf8", // Light blue instead of orange
+    accentText: "#ffffff",
+    success: "#0284c7", // Blue instead of green
+    successText: "#ffffff",
+    danger: "#1e40af", // Dark blue instead of red
+    dangerText: "#ffffff",
 
-    // icons & misc
-    icon: "#ffffff",
+    // Icons
+    icon: "#f8fafc",
+    iconMuted: "#94a3b8",
 
+    // Status indicators
     stepInactive: "#334155",
-    stepActive: "#10b981",
+    stepActive: "#0891b2",
   },
 };

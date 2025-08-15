@@ -102,7 +102,7 @@ export default function DashboardHeader({
   ];
 
   return (
-    <View className="relative z-50">
+    <View className="relative z-50 bg-[#F6F8FD]">
       {/* Full-screen overlay that closes dropdown when clicked */}
       {isDropdownOpen && (
         <TouchableOpacity

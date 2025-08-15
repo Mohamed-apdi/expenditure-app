@@ -1,33 +1,27 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { MoreHorizontal } from "lucide-react-native";
+import { MoreHorizontal, X } from "lucide-react-native";
 import AddAccount from "../account-details/add-account";
+import { fetchAccounts, addAccount, Account } from "~/lib/accounts";
+import { supabase } from "~/lib/supabase";
 
-type Account = {
-  id: string;
-  group: string;
-  name: string;
-  amount: number;
-  description?: string;
-  visible?: boolean;
-};
-
-type AccountGroup = {
+interface AccountGroup {
   id: string;
   name: string;
-};
+}
 
 const accountGroups: AccountGroup[] = [
   { id: "1", name: "Cash" },
   { id: "2", name: "Accounts" },
-  { id: "3", name: "Card" },
+  { id: "3", name: "SIM Card" },
   { id: "4", name: "Debit Card" },
   { id: "5", name: "Savings" },
   { id: "6", name: "Top-Up/Prepaid" },
@@ -35,47 +29,109 @@ const accountGroups: AccountGroup[] = [
   { id: "8", name: "Overdrafts" },
   { id: "9", name: "Loan" },
   { id: "10", name: "Insurance" },
-  { id: "11", name: "Others" },
+  { id: "11", name: "Card" },
+  { id: "12", name: "Others" },
 ];
 
 const Accounts = () => {
   const router = useRouter();
-  const [accounts, setAccounts] = useState<Account[]>([
-    { id: "1", group: "Cash", name: "Cash", amount: 560.0, visible: true },
-    { id: "2", group: "Cash", name: "Evc", amount: 560.0, visible: true },
-    { id: "3", group: "Accounts", name: "Accounts", amount: 5.0, visible: true },
-    { id: "4", group: "Card", name: "Card", amount: 0.0, visible: true },
-    { id: "5", group: "Investments", name: "Somnet", amount: 500.0, visible: true },
-  ]);
-
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Calculate totals for visible accounts only
+  const loadAccounts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchAccounts();
+      setAccounts(data);
+    } catch (error) {
+      console.error("Failed to load accounts:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to load accounts"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAccounts();
+  }, []);
+
+  // Calculate totals
   const assets = accounts
-    .filter(a => ["Cash", "Accounts", "Investments"].includes(a.group) && a.visible)
-    .reduce((sum, a) => sum + a.amount, 0);
+    .filter((a) => a.type === "asset")
+    .reduce((sum, a) => sum + (a.amount || 0), 0);
 
   const liabilities = accounts
-    .filter(a => ["Card", "Loan"].includes(a.group) && a.visible)
-    .reduce((sum, a) => sum + a.amount, 0);
+    .filter((a) => a.type === "liability")
+    .reduce((sum, a) => sum + (a.amount || 0), 0);
 
   const total = assets - liabilities;
 
-  const handleAddAccount = (newAccount: Account) => {
-    setAccounts([...accounts, { ...newAccount, visible: true }]);
-    setShowAddAccount(false);
+  const handleAddAccount = async (
+    newAccount: Omit<Account, "id" | "user_id" | "created_at" | "updated_at">
+  ) => {
+    try {
+      setError(null);
+
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        throw new Error("You must be logged in to add an account");
+      }
+
+      const accountWithUser = {
+        ...newAccount,
+        user_id: user.id,
+      };
+
+      const createdAccount = await addAccount(accountWithUser);
+      setAccounts((prev) => [...prev, createdAccount]);
+      setShowAddAccount(false);
+    } catch (error) {
+      console.error("Failed to add account:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to add account"
+      );
+    }
   };
 
   const handleAccountPress = (accountId: string) => {
     router.push({
       pathname: "/account-details/[id]",
-      params: { id: accountId }
+      params: { id: accountId },
     });
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-slate-900 items-center justify-center">
+        <ActivityIndicator size="large" color="#10b981" />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
+      {error && (
+        <View className="bg-red-500/20 border border-red-500 p-3 rounded-lg mx-6 mt-4">
+          <Text className="text-red-500">{error}</Text>
+          <TouchableOpacity
+            onPress={() => setError(null)}
+            className="absolute top-2 right-2"
+          >
+            <X size={16} color="#ef4444" />
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Header */}
       <View className="flex-row justify-between items-center px-6 pt-12 pb-5">
         <Text className="text-white text-2xl font-bold">Accounts</Text>
@@ -87,29 +143,16 @@ const Accounts = () => {
             <MoreHorizontal size={20} color="#ffffff" />
           </TouchableOpacity>
 
-          {/* Dropdown menu */}
           {showMenu && (
-            <View className="absolute right-0 top-12 bg-slate-800 rounded-lg border border-slate-700 z-10 w-48">
+            <View className="absolute right-0 top-12 bg-slate-800 rounded-lg border border-slate-700 z-10 w-48 shadow-lg">
               <TouchableOpacity
-                className="flex-row items-center px-4 py-3"
+                className="px-4 py-3 border-b border-slate-700"
                 onPress={() => {
                   setShowMenu(false);
                   setShowAddAccount(true);
                 }}
               >
                 <Text className="text-white">Add Account</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="flex-row items-center px-4 py-3"
-                onPress={() => {
-                  setShowMenu(false);
-                  router.push({
-                    pathname: "/account-details/account-visibility",
-                    params: { accounts: JSON.stringify(accounts) }
-                  });
-                }}
-              >
-                <Text className="text-white">Show/Hide Accounts</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -145,16 +188,16 @@ const Accounts = () => {
       {/* Accounts List */}
       <ScrollView className="flex-1 px-6 pb-20">
         {accountGroups
-          .filter(group => accounts.some(account => 
-            account.group === group.name && account.visible
-          ))
-          .map(group => (
+          .filter((group) =>
+            accounts.some((account) => account.group_name === group.name)
+          )
+          .map((group) => (
             <View key={group.id} className="mb-6">
               <Text className="text-white font-bold mb-3">{group.name}</Text>
               <View className="gap-2">
                 {accounts
-                  .filter(account => account.group === group.name && account.visible)
-                  .map(account => (
+                  .filter((account) => account.group_name === group.name)
+                  .map((account) => (
                     <TouchableOpacity
                       key={account.id}
                       className="flex-row bg-slate-800 p-4 rounded-xl border border-slate-700 items-center"
@@ -177,7 +220,7 @@ const Accounts = () => {
                             : "text-rose-500"
                         }`}
                       >
-                        ${account.amount.toFixed(2)}
+                        ${account.amount?.toFixed(2) || "0.00"}
                       </Text>
                     </TouchableOpacity>
                   ))}

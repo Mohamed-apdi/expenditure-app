@@ -1,4 +1,6 @@
-import { useState } from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,16 +10,14 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
   X,
-  ShoppingCart,
-  Truck,
   Zap,
   Film,
-  Heart,
   ShoppingBag,
   Book,
   MoreHorizontal,
@@ -27,17 +27,43 @@ import {
   DollarSign,
   Wallet,
   Home,
+  User,
+  Gift,
+  HandCoins,
+  Laptop,
+  RefreshCw,
+  Award,
+  Dice5,
+  Percent,
+  TrendingUp,
+  Briefcase,
+  Clock,
+  Utensils,
+  Bus,
+  HeartPulse,
+  GraduationCap,
+  Smile,
+  Shield,
+  HandHeart,
+  Luggage,
+  PawPrint,
+  Baby,
+  Repeat,
+  Dumbbell,
+  Smartphone,
+  Sofa,
+  Wrench,
+  Receipt,
 } from "lucide-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { supabase } from "~/lib/supabase";
-import { useTheme } from "~/lib/theme";
+import { NAV_THEME, useTheme } from "~/lib/theme";
+import { fetchAccounts } from "~/lib/accounts";
+import type { Account } from "~/lib/accounts";
 
 const ENTRY_TABS = [
   { id: "Income", label: "Income" },
   { id: "Expense", label: "Expense" },
-  { id: "Lent", label: "Lent" },
-  { id: "Debt/Loan", label: "Debt/Loan" },
-  { id: "Saving", label: "Saving" },
 ];
 
 type Category = {
@@ -55,10 +81,87 @@ type PaymentMethod =
   | "digital_wallet"
   | "EVC";
 
+const expenseCategories: Category[] = [
+  { id: "food", name: "Food & Drinks", icon: Utensils, color: "#059669" },
+  { id: "rent", name: "Home & Rent", icon: Home, color: "#0891b2" },
+  { id: "transport", name: "Travel", icon: Bus, color: "#3b82f6" },
+  { id: "utilities", name: "Bills", icon: Zap, color: "#f97316" },
+  { id: "entertainment", name: "Fun", icon: Film, color: "#8b5cf6" },
+  { id: "healthcare", name: "Health", icon: HeartPulse, color: "#dc2626" },
+  { id: "shopping", name: "Shopping", icon: ShoppingBag, color: "#06b6d4" },
+  { id: "education", name: "Learning", icon: GraduationCap, color: "#84cc16" },
+  { id: "personal_care", name: "Personal Care", icon: Smile, color: "#ec4899" },
+  { id: "insurance", name: "Insurance", icon: Shield, color: "#14b8a6" },
+  { id: "debt", name: "Loans", icon: CreditCard, color: "#f97316" },
+  { id: "gifts", name: "Gifts", icon: Gift, color: "#8b5cf6" },
+  { id: "charity", name: "Donations", icon: HandHeart, color: "#ef4444" },
+  { id: "travel", name: "Vacation", icon: Luggage, color: "#3b82f6" },
+  { id: "pets", name: "Pets", icon: PawPrint, color: "#f59e0b" },
+  { id: "kids", name: "Children", icon: Baby, color: "#ec4899" },
+  {
+    id: "subscriptions",
+    name: "Subscriptions",
+    icon: Repeat,
+    color: "#8b5cf6",
+  },
+  { id: "fitness", name: "Gym & Sports", icon: Dumbbell, color: "#059669" },
+  {
+    id: "electronics",
+    name: "Electronics",
+    icon: Smartphone,
+    color: "#64748b",
+  },
+  { id: "furniture", name: "Furniture", icon: Sofa, color: "#f59e0b" },
+  { id: "repairs", name: "Repairs", icon: Wrench, color: "#3b82f6" },
+  { id: "taxes", name: "Taxes", icon: Receipt, color: "#ef4444" },
+];
+
+const incomeCategories: Category[] = [
+  { id: "salary", name: "Job Salary", icon: DollarSign, color: "#059669" },
+  { id: "bonus", name: "Bonus", icon: Zap, color: "#3b82f6" },
+  { id: "part_time", name: "Part-time Work", icon: Clock, color: "#f97316" },
+  { id: "business", name: "Business", icon: Briefcase, color: "#8b5cf6" },
+  {
+    id: "investments",
+    name: "Investments",
+    icon: TrendingUp,
+    color: "#ef4444",
+  },
+  { id: "interest", name: "Bank Interest", icon: Percent, color: "#06b6d4" },
+  { id: "rental", name: "Rent Income", icon: Home, color: "#84cc16" },
+  { id: "sales", name: "Sales", icon: ShoppingBag, color: "#64748b" },
+  { id: "gambling", name: "Gambling", icon: Dice5, color: "#f43f5e" },
+  { id: "awards", name: "Awards", icon: Award, color: "#8b5cf6" },
+  { id: "refunds", name: "Refunds", icon: RefreshCw, color: "#3b82f6" },
+  { id: "freelance", name: "Freelance", icon: Laptop, color: "#f97316" },
+  { id: "royalties", name: "Royalties", icon: Book, color: "#84cc16" },
+  { id: "grants", name: "Grants", icon: HandCoins, color: "#059669" },
+  { id: "gifts", name: "Gifts Received", icon: Gift, color: "#8b5cf6" },
+  { id: "pension", name: "Pension", icon: User, color: "#64748b" },
+];
+
+const paymentMethods = [
+  { id: "cash", name: "Cash", icon: DollarSign, color: "#059669" },
+  { id: "EVC", name: "EVC Plus", icon: CreditCard, color: "#dc2626" },
+  {
+    id: "credit_card",
+    name: "Credit Card",
+    icon: CreditCard,
+    color: "#3b82f6",
+  },
+  { id: "debit_card", name: "Debit Card", icon: CreditCard, color: "#8b5cf6" },
+  {
+    id: "digital_wallet",
+    name: "Mobile Money",
+    icon: Wallet,
+    color: "#f97316",
+  },
+];
+
 export default function AddExpenseScreen() {
   const router = useRouter();
   const theme = useTheme();
-
+  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   // States
   const [entryType, setEntryType] = useState("Expense");
   const [amount, setAmount] = useState("");
@@ -75,52 +178,49 @@ export default function AddExpenseScreen() {
   const [recurringFrequency, setRecurringFrequency] =
     useState<Frequency>("monthly");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showMoreCategories, setShowMoreCategories] = useState(false);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
 
-  const categories: Category[] = [
-    { id: "food", name: "Food", icon: ShoppingCart, color: "#10b981" },
-    { id: "rent", name: "Rent", icon: Home, color: "#f59e0b" },
-    { id: "transport", name: "Transport", icon: Truck, color: "#3b82f6" },
-    { id: "utilities", name: "Utilities", icon: Zap, color: "#f59e0b" },
-    {
-      id: "entertainment",
-      name: "Entertainment",
-      icon: Film,
-      color: "#8b5cf6",
-    },
-    { id: "healthcare", name: "Healthcare", icon: Heart, color: "#ef4444" },
-    { id: "shopping", name: "Shopping", icon: ShoppingBag, color: "#06b6d4" },
-    { id: "education", name: "Education", icon: Book, color: "#84cc16" },
-    { id: "other", name: "Other", icon: MoreHorizontal, color: "#64748b" },
-  ];
+  useEffect(() => {
+    const loadAccounts = async () => {
+      setLoadingAccounts(true);
+      try {
+        const accountsData = await fetchAccounts();
+        setAccounts(accountsData);
+        if (accountsData.length > 0) {
+          setSelectedAccount(accountsData[0]);
+        }
+      } catch (error) {
+        console.error("Error loading accounts:", error);
+        Alert.alert("Error", "Failed to load accounts");
+      } finally {
+        setLoadingAccounts(false);
+      }
+    };
 
-  const paymentMethods = [
-    { id: "cash", name: "Cash", icon: DollarSign, color: "#84cc16" },
-    { id: "EVC", name: "EVC", icon: CreditCard, color: "#ef4444" },
-    {
-      id: "credit_card",
-      name: "Credit Card",
-      icon: CreditCard,
-      color: "#3b82f6",
-    },
-    {
-      id: "debit_card",
-      name: "Debit Card",
-      icon: CreditCard,
-      color: "#8b5cf6",
-    },
-    {
-      id: "digital_wallet",
-      name: "Digital Wallet",
-      icon: Wallet,
-      color: "#f59e0b",
-    },
-  ];
+    loadAccounts();
+  }, []);
 
-  const quickAmounts = [10, 25, 50, 100];
+  const handleEntryTypeChange = (type: string) => {
+    setEntryType(type);
+    setSelectedCategory(null);
+  };
 
   const handleSaveExpense = async () => {
     if (!amount || !description.trim()) {
-      Alert.alert("Missing Information", "Please fill in all required fields");
+      Alert.alert("Missing Info", "Please fill in the amount and description");
+      return;
+    }
+
+    if (!selectedCategory) {
+      Alert.alert("Choose Category", "Please select a category");
+      return;
+    }
+
+    if (!selectedAccount) {
+      Alert.alert("Select Account", "Please select an account");
       return;
     }
 
@@ -130,73 +230,74 @@ export default function AddExpenseScreen() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!user) throw new Error("User not authenticated");
+      if (!user) throw new Error("Please log in first");
 
-      // Expense balance check
+      const amountNum = Number.parseFloat(amount);
+
+      // For expenses, check account balance
       if (entryType === "Expense") {
-        const { data: incomes } = await supabase
-          .from("expenses")
-          .select("amount")
-          .eq("user_id", user.id)
-          .eq("entry_type", "Income");
-
-        const totalIncome =
-          incomes?.reduce((sum, i) => sum + Number(i.amount), 0) || 0;
-
-        const { data: expenses } = await supabase
-          .from("expenses")
-          .select("amount")
-          .eq("user_id", user.id)
-          .eq("entry_type", "Expense");
-
-        const totalExpenses =
-          expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
-
-        const balance = totalIncome - totalExpenses;
-        if (Number.parseFloat(amount) > balance) {
+        if (amountNum > selectedAccount.amount) {
           Alert.alert(
             "Insufficient Funds",
-            "You don't have enough income to cover this expense."
+            `Your ${selectedAccount.name} account doesn't have enough balance for this expense.`
           );
           setIsSubmitting(false);
           return;
         }
       }
 
-      // Save record
-      const { error } = await supabase.from("expenses").insert({
+      // Start a transaction
+      const { error: expenseError } = await supabase.from("expenses").insert({
         user_id: user.id,
         entry_type: entryType,
-        amount: Number.parseFloat(amount),
+        amount: amountNum,
         category: selectedCategory?.name || null,
         description: description.trim(),
         payment_method: paymentMethod,
         is_recurring: isRecurring,
         recurrence_interval: isRecurring ? recurringFrequency : null,
         date: date.toISOString().split("T")[0],
+        account_id: selectedAccount.id,
       });
 
-      if (error) throw error;
+      if (expenseError) throw expenseError;
 
-      Alert.alert("Success", `${entryType} added successfully!`, [
-        {
-          text: "Add Another",
-          onPress: () => {
-            setAmount("");
-            setDescription("");
-            setSelectedCategory(null);
-            setPaymentMethod(null);
-            setEntryType("Expense");
+      // Update account balance
+      const newBalance =
+        entryType === "Expense"
+          ? selectedAccount.amount - amountNum
+          : selectedAccount.amount + amountNum;
+
+      const { error: accountError } = await supabase
+        .from("accounts")
+        .update({ amount: newBalance })
+        .eq("id", selectedAccount.id);
+
+      if (accountError) throw accountError;
+
+      Alert.alert(
+        "Success!",
+        `Your ${entryType.toLowerCase()} has been saved!`,
+        [
+          {
+            text: "Add Another",
+            onPress: () => {
+              setAmount("");
+              setDescription("");
+              setSelectedCategory(null);
+              setPaymentMethod(null);
+              setEntryType("Expense");
+            },
           },
-        },
-        {
-          text: "View Records",
-          onPress: () => router.push("/(main)/ExpenseListScreen"),
-        },
-      ]);
+          {
+            text: "View All",
+            onPress: () => router.push("/(main)/ExpenseListScreen"),
+          },
+        ]
+      );
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Failed to save record. Please try again.");
+      Alert.alert("Error", "Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -218,79 +319,89 @@ export default function AddExpenseScreen() {
     }
   };
 
+  const isFormValid =
+    amount &&
+    selectedCategory &&
+    description.trim() &&
+    selectedAccount &&
+    !isSubmitting;
+
   return (
-    <SafeAreaView
-      className="flex-1 "
-      style={{ backgroundColor: theme.background }}
-    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
       <KeyboardAvoidingView
-        className="flex-1"
+        style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        {/* Header */}
         <View
-          className="flex-row justify-between items-center px-6 py-4 border-b "
-          style={{ borderColor: theme.border }}
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingHorizontal: 20,
+            paddingVertical: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border,
+            backgroundColor: theme.background,
+          }}
         >
           <TouchableOpacity onPress={() => router.back()}>
             <X size={24} color={theme.icon} />
           </TouchableOpacity>
-          <Text className=" text-lg font-bold" style={{ color: theme.text }}>
-            Add Expense
+          <Text
+            style={{
+              color: theme.text,
+              fontSize: 18,
+              fontWeight: "700",
+              fontFamily: "Work Sans",
+            }}
+          >
+            Add Transaction
           </Text>
           <TouchableOpacity
-            className={`py-2 px-4 rounded-lg ${
-              !amount ||
-              !selectedCategory ||
-              !description.trim() ||
-              isSubmitting
-                ? "bg-slate-700"
-                : "bg-emerald-500"
-            }`}
+            style={{
+              paddingVertical: 8,
+              paddingHorizontal: 16,
+              borderRadius: 8,
+              backgroundColor: isFormValid ? theme.primary : theme.stepInactive,
+            }}
             onPress={handleSaveExpense}
-            disabled={
-              !amount ||
-              !selectedCategory ||
-              !description.trim() ||
-              isSubmitting
-            }
+            disabled={!isFormValid}
           >
             <Text
-              className={`font-bold ${
-                !amount ||
-                !selectedCategory ||
-                !description.trim() ||
-                isSubmitting
-                  ? "text-slate-500"
-                  : "text-white"
-              }`}
+              style={{
+                fontWeight: "600",
+                color: isFormValid ? theme.primaryText : theme.textMuted,
+              }}
             >
               {isSubmitting ? "Saving..." : "Save"}
             </Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-          {/* Tabs */}
-          <View style={{ flexDirection: "row", margin: 12 }}>
+        <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+          <View style={{ flexDirection: "row", margin: 16, gap: 8 }}>
             {ENTRY_TABS.map((tab) => (
               <TouchableOpacity
                 key={tab.id}
                 style={{
                   flex: 1,
-                  marginHorizontal: 4,
-                  padding: 5,
-                  borderRadius: 8,
+                  padding: 16,
+                  borderRadius: 12,
                   backgroundColor:
-                    entryType === tab.id ? "#10b981" : theme.cardBackground,
+                    entryType === tab.id ? theme.primary : theme.cardBackground,
+                  borderWidth: 1,
+                  borderColor:
+                    entryType === tab.id ? theme.primary : theme.border,
                 }}
-                onPress={() => setEntryType(tab.id)}
+                onPress={() => handleEntryTypeChange(tab.id)}
               >
                 <Text
                   style={{
                     textAlign: "center",
                     fontWeight: "600",
-                    color: entryType === tab.id ? "#fff" : theme.text,
+                    fontSize: 16,
+                    color:
+                      entryType === tab.id ? theme.primaryText : theme.text,
                   }}
                 >
                   {tab.label}
@@ -298,199 +409,417 @@ export default function AddExpenseScreen() {
               </TouchableOpacity>
             ))}
           </View>
-          {/* Amount Input */}
-          <View className="px-6 py-8 items-center">
-            <Text className=" mb-4" style={{ color: theme.textSecondary }}>
-              Amount
+
+          <View
+            style={{
+              paddingHorizontal: 20,
+              paddingVertical: 24,
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={{
+                color: theme.textSecondary,
+                marginBottom: 16,
+                fontSize: 16,
+                fontWeight: "500",
+              }}
+            >
+              How much?
             </Text>
-            <View className="flex-row items-center mb-6">
-              <Text className="text-emerald-500 text-3xl font-bold mr-2">
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 20,
+              }}
+            >
+              <Text
+                style={{
+                  color: theme.primary,
+                  fontSize: 32,
+                  fontWeight: "700",
+                  marginRight: 8,
+                }}
+              >
                 $
               </Text>
               <TextInput
-                className=" text-4xl font-bold min-w-[120px] text-center"
-                style={{ color: theme.placeholder }}
+                style={{
+                  color: theme.text,
+                  fontSize: 36,
+                  fontWeight: "700",
+                  minWidth: 120,
+                  textAlign: "center",
+                }}
                 value={amount}
                 onChangeText={(text) => setAmount(text.replace(/[^0-9.]/g, ""))}
                 placeholder="0.00"
-                placeholderTextColor="#64748b"
+                placeholderTextColor={theme.placeholder}
                 keyboardType="decimal-pad"
                 autoFocus
               />
             </View>
-
-            {/* Quick Amount Buttons */}
-            <View className="flex-row gap-3">
-              {quickAmounts.map((quickAmount) => (
-                <TouchableOpacity
-                  key={quickAmount}
-                  style={{
-                    backgroundColor: theme.background,
-                    borderColor: theme.border,
-                  }}
-                  className=" py-2 px-4 rounded-full border "
-                  onPress={() => setAmount(quickAmount.toString())}
-                >
-                  <Text className=" font-medium" style={{ color: theme.text }}>
-                    ${quickAmount}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
           </View>
 
-          {/* Category Selection */}
-          <View className="px-6 mb-8">
+          <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
             <Text
-              className=" text-lg font-bold mb-4"
-              style={{ color: theme.text }}
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                marginBottom: 16,
+                color: theme.text,
+                fontFamily: "Work Sans",
+              }}
             >
-              Category
+              Choose Category
             </Text>
-            <View className="flex-row flex-wrap gap-3">
-              {categories.map((category) => {
-                const IconComponent = category.icon;
-                return (
-                  <TouchableOpacity
-                    key={category.id}
-                    className={`w-[22%] aspect-square justify-center items-center rounded-xl border ${
-                      selectedCategory?.id === category.id
-                        ? " bg-emerald-500/10"
-                        : theme.cardBackground
-                    }`}
-                    style={{ borderColor: theme.border }}
-                    onPress={() => setSelectedCategory(category)}
-                  >
-                    <View
-                      className={`w-8 h-8 rounded-full justify-center items-center ${
-                        selectedCategory?.id === category.id
-                          ? ""
-                          : `bg-[${category.color}50]`
-                      }`}
+            <View
+              style={{
+                flexDirection: "row",
+                flexWrap: "wrap",
+                gap: 12,
+                justifyContent: "space-between",
+              }}
+            >
+              {(entryType === "Expense" ? expenseCategories : incomeCategories)
+                .slice(0, showMoreCategories ? undefined : 7)
+                .map((category) => {
+                  const IconComponent = category.icon;
+                  const isSelected = selectedCategory?.id === category.id;
+                  return (
+                    <TouchableOpacity
+                      key={category.id}
+                      style={{
+                        width: "22%",
+                        aspectRatio: 1,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        borderRadius: 16,
+                        backgroundColor: isSelected
+                          ? `${category.color}20`
+                          : theme.cardBackground,
+                        borderWidth: 2,
+                        borderColor: isSelected ? category.color : theme.border,
+                        padding: 8,
+                      }}
+                      onPress={() => setSelectedCategory(category)}
                     >
-                      <IconComponent
-                        size={20}
-                        color={
-                          selectedCategory?.id === category.id
+                      <View
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 16,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          backgroundColor: isSelected
                             ? category.color
-                            : category.color
-                        }
-                      />
-                    </View>
-                    <Text
-                      className={`mt-2 text-xs ${
-                        selectedCategory?.id === category.id
-                          ? "text-emerald-500 font-semibold"
-                          : "text-slate-400 font-medium"
-                      }`}
-                    >
-                      {category.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+                            : `${category.color}30`,
+                          marginBottom: 8,
+                        }}
+                      >
+                        <IconComponent
+                          size={18}
+                          color={isSelected ? "#ffffff" : category.color}
+                        />
+                      </View>
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          textAlign: "center",
+                          color: isSelected
+                            ? category.color
+                            : theme.textSecondary,
+                          fontWeight: isSelected ? "600" : "500",
+                        }}
+                        numberOfLines={2}
+                      >
+                        {category.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+
+              {/* Show More button */}
+              <TouchableOpacity
+                style={{
+                  width: "22%",
+                  aspectRatio: 1,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  borderRadius: 16,
+                  backgroundColor: showMoreCategories
+                    ? `${theme.accent}20`
+                    : theme.cardBackground,
+                  borderWidth: 2,
+                  borderColor: showMoreCategories ? theme.accent : theme.border,
+                  padding: 8,
+                }}
+                onPress={() => setShowMoreCategories(!showMoreCategories)}
+              >
+                <View
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: showMoreCategories
+                      ? theme.accent
+                      : `${theme.accent}30`,
+                    marginBottom: 8,
+                  }}
+                >
+                  <MoreHorizontal
+                    size={18}
+                    color={showMoreCategories ? "#ffffff" : theme.accent}
+                  />
+                </View>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    textAlign: "center",
+                    color: showMoreCategories
+                      ? theme.accent
+                      : theme.textSecondary,
+                    fontWeight: showMoreCategories ? "600" : "500",
+                  }}
+                >
+                  {showMoreCategories ? "Less" : "More"}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
-          {/* Description */}
-          <View className="px-6 mb-8">
+          <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
             <Text
-              className=" text-lg font-bold mb-4"
-              style={{ color: theme.text }}
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                marginBottom: 16,
+                color: theme.text,
+                fontFamily: "Work Sans",
+              }}
             >
-              Description
+              What's this for?
             </Text>
             <TextInput
-              className=" rounded-xl border p-4  text-base h-24"
               style={{
-                color: theme.text,
+                borderRadius: 12,
+                borderWidth: 1,
                 borderColor: theme.border,
-                backgroundColor: theme.background,
+                padding: 16,
+                fontSize: 16,
+                minHeight: 80,
+                backgroundColor: theme.inputBackground,
+                color: theme.text,
+                textAlignVertical: "top",
               }}
               value={description}
               onChangeText={setDescription}
-              placeholder="What did you spend on?"
-              placeholderTextColor="#64748b"
+              placeholder="Add a note about this transaction..."
+              placeholderTextColor={theme.placeholder}
               multiline
-              textAlignVertical="top"
             />
           </View>
 
-          {/* Payment Method */}
-          <View className="px-6 mb-8">
-            <Text
-              className=" text-lg font-bold mb-4"
-              style={{ color: theme.text }}
-            >
-              Payment Method
-            </Text>
-            <View className="flex-row flex-wrap gap-3">
-              {paymentMethods.map((method) => {
-                const IconComponent = method.icon;
-                return (
-                  <TouchableOpacity
-                    key={method.id}
-                    className={`flex-1 min-w-[45%] flex-row items-center p-3 rounded-lg border ${
-                      paymentMethod === method.id
-                        ? "border-emerald-500 bg-emerald-500/10"
-                        : ""
-                    }`}
-                    style={{
-                      backgroundColor:
-                        paymentMethod === method.id
-                          ? "rgba(16, 185, 129, 0.1)"
-                          : theme.cardBackground,
-                      borderColor:
-                        paymentMethod === method.id ? "#10b981" : theme.border,
-                    }}
-                    onPress={() => setPaymentMethod(method.id as PaymentMethod)}
-                  >
-                    <View
-                      className={`w-8 h-8 rounded-full justify-center items-center mr-2 ${
-                        paymentMethod === method.id
-                          ? "bg-emerald-500"
-                          : `bg-[${method.color}20]`
-                      }`}
-                    >
-                      <IconComponent
-                        size={16}
-                        color={
-                          paymentMethod === method.id ? "#ffffff" : method.color
-                        }
-                      />
-                    </View>
-                    <Text
-                      className={`${paymentMethod === method.id ? "text-emerald-500 font-semibold" : "text-slate-400"}`}
-                    >
-                      {method.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
+          {/*Replace the current Select Account section with this:*/}
 
-          {/* Date Selection */}
-          <View className="px-6 mb-8">
+          <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
             <Text
-              className="text-lg font-bold mb-4"
-              style={{ color: theme.text }}
-            >
-              Date
-            </Text>
-            <TouchableOpacity
-              className="flex-row items-center  p-4 rounded-xl border "
-              onPress={() => setShowDatePicker(true)}
               style={{
-                borderColor: theme.border,
-                backgroundColor: theme.background,
+                fontSize: 18,
+                fontWeight: "700",
+                marginBottom: 16,
+                color: theme.text,
+                fontFamily: "Work Sans",
               }}
             >
-              <Calendar size={20} color="#10b981" />
-              <Text className=" ml-3 flex-1" style={{ color: theme.text }}>
+              Select Account
+            </Text>
+            {loadingAccounts ? (
+              <ActivityIndicator size="small" color={theme.primary} />
+            ) : (
+              <View>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: 16,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    backgroundColor: theme.inputBackground,
+                  }}
+                  onPress={() => setShowAccountDropdown(!showAccountDropdown)}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        backgroundColor: `${theme.primary}30`,
+                        marginRight: 16,
+                      }}
+                    >
+                      <Wallet size={20} color={theme.primary} />
+                    </View>
+                    <View>
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "600",
+                          color: theme.text,
+                        }}
+                      >
+                        {selectedAccount?.name || "Select an account"}
+                      </Text>
+                      {selectedAccount && (
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            color: theme.textSecondary,
+                          }}
+                        >
+                          {selectedAccount.group_name} • £
+                          {selectedAccount.amount.toFixed(2)}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                  <ChevronDown
+                    size={16}
+                    color={theme.iconMuted}
+                    style={{
+                      transform: [
+                        { rotate: showAccountDropdown ? "180deg" : "0deg" },
+                      ],
+                    }}
+                  />
+                </TouchableOpacity>
+
+                {showAccountDropdown && (
+                  <View
+                    style={{
+                      marginTop: 8,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      backgroundColor: theme.inputBackground,
+                      maxHeight: 300,
+                    }}
+                  >
+                    <ScrollView>
+                      {accounts.map((account) => (
+                        <TouchableOpacity
+                          key={account.id}
+                          style={{
+                            padding: 16,
+                            borderBottomWidth: 1,
+                            borderBottomColor: theme.border,
+                            flexDirection: "row",
+                            alignItems: "center",
+                            backgroundColor:
+                              selectedAccount?.id === account.id
+                                ? `${theme.primary}10`
+                                : undefined,
+                          }}
+                          onPress={() => {
+                            setSelectedAccount(account);
+                            setShowAccountDropdown(false);
+                          }}
+                        >
+                          <View
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 20,
+                              justifyContent: "center",
+                              alignItems: "center",
+                              backgroundColor: `${theme.primary}30`,
+                              marginRight: 16,
+                            }}
+                          >
+                            <Wallet size={20} color={theme.primary} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={{
+                                fontSize: 16,
+                                fontWeight: "600",
+                                color: theme.text,
+                              }}
+                            >
+                              {account.name}
+                            </Text>
+                            <Text
+                              style={{
+                                fontSize: 14,
+                                color: theme.textSecondary,
+                              }}
+                            >
+                              {account.group_name}
+                            </Text>
+                          </View>
+                          <Text
+                            style={{
+                              fontSize: 16,
+                              fontWeight: "600",
+                              color: theme.text,
+                            }}
+                          >
+                            £{account.amount.toFixed(2)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+
+          {/*When ?*/}
+          <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "700",
+                marginBottom: 16,
+                color: theme.text,
+                fontFamily: "Work Sans",
+              }}
+            >
+              When?
+            </Text>
+            <TouchableOpacity
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                padding: 16,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: theme.border,
+                backgroundColor: theme.inputBackground,
+              }}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Calendar size={20} color={theme.primary} />
+              <Text
+                style={{
+                  marginLeft: 12,
+                  flex: 1,
+                  fontSize: 16,
+                  color: theme.text,
+                }}
+              >
                 {formatDate(date)}
               </Text>
-              <ChevronDown size={16} color="#64748b" />
+              <ChevronDown size={16} color={theme.iconMuted} />
             </TouchableOpacity>
             {showDatePicker && (
               <DateTimePicker
@@ -503,50 +832,86 @@ export default function AddExpenseScreen() {
             )}
           </View>
 
-          {/* Recurring Option */}
-          <View className="px-6 mb-8">
-            <View className="flex-row justify-between items-center mb-4">
+          <View style={{ paddingHorizontal: 20, marginBottom: 32 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
               <Text
-                className=" text-lg font-bold"
-                style={{ color: theme.text }}
+                style={{
+                  fontSize: 18,
+                  fontWeight: "700",
+                  color: theme.text,
+                  fontFamily: "Work Sans",
+                }}
               >
-                Recurring Expense
+                Repeat this?
               </Text>
               <TouchableOpacity
-                className={`w-12 h-7 rounded-full justify-center ${isRecurring ? "bg-emerald-500" : "bg-slate-700"}`}
+                style={{
+                  width: 50,
+                  height: 30,
+                  borderRadius: 15,
+                  backgroundColor: isRecurring
+                    ? theme.success
+                    : theme.stepInactive,
+                  justifyContent: "center",
+                  paddingHorizontal: 2,
+                }}
                 onPress={() => setIsRecurring(!isRecurring)}
               >
                 <View
-                  className={`w-6 h-6 rounded-full bg-white ${isRecurring ? "self-end" : "self-start"}`}
+                  style={{
+                    width: 26,
+                    height: 26,
+                    borderRadius: 13,
+                    backgroundColor: "#ffffff",
+                    alignSelf: isRecurring ? "flex-end" : "flex-start",
+                  }}
                 />
               </TouchableOpacity>
             </View>
 
             {isRecurring && (
               <View>
-                <Text className="mb-3" style={{ color: theme.textSecondary }}>
-                  Frequency
+                <Text
+                  style={{
+                    marginBottom: 12,
+                    fontSize: 16,
+                    color: theme.textSecondary,
+                  }}
+                >
+                  How often?
                 </Text>
-                <View className="flex-row gap-3">
+                <View style={{ flexDirection: "row", gap: 8 }}>
                   {["daily", "weekly", "monthly", "yearly"].map((freq) => {
                     const isSelected = recurringFrequency === freq;
                     return (
                       <TouchableOpacity
                         key={freq}
-                        className="flex-1 py-3 rounded-lg border"
                         style={{
+                          flex: 1,
+                          paddingVertical: 12,
+                          borderRadius: 8,
                           backgroundColor: isSelected
-                            ? "#10b981"
+                            ? theme.primary
                             : theme.cardBackground,
-                          borderColor: isSelected ? "#10b981" : theme.border,
+                          borderWidth: 1,
+                          borderColor: isSelected
+                            ? theme.primary
+                            : theme.border,
                         }}
                         onPress={() => setRecurringFrequency(freq as Frequency)}
                       >
                         <Text
-                          className="text-center font-medium"
                           style={{
-                            color: isSelected ? "#ffffff" : theme.textSecondary,
-                            fontWeight: isSelected ? "600" : "500",
+                            textAlign: "center",
+                            fontWeight: "600",
+                            color: isSelected ? theme.primaryText : theme.text,
                           }}
                         >
                           {freq.charAt(0).toUpperCase() + freq.slice(1)}
