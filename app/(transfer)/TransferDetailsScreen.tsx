@@ -1,6 +1,5 @@
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { ChevronLeft, Clock, CalendarDays, Wallet, Wallet2, CheckCircle, ArrowRight } from "lucide-react-native";
-import React from "react";
+import { ChevronLeft } from "lucide-react-native";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "~/lib/theme";
@@ -9,173 +8,178 @@ export default function TransferDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const theme = useTheme();
+  // Use the params directly or fall back to mock data if params are empty
+  const transferData = params.id
+    ? {
+        id: params.id,
+        type: params.type || "Transfer",
+        account: {
+          from: params.from || "somnet",
+          to: params.to || "hormuud",
+        },
+        amount: {
+          from: params.amountFrom || 50,
+          to: params.amountTo || 50,
+        },
+        date: params.date || new Date().toISOString().split("T")[0],
+        time_added: params.time_added || new Date().toISOString(),
+        note: params.note || "",
+      }
+    : {
+        id: "1",
+        type: "Transfer",
+        account: {
+          from: "somnet",
+          to: "hormuud",
+        },
+        amount: {
+          from: 50,
+          to: 50,
+        },
+        date: "2025-08-15",
+        time_added: "2025-08-15T19:22:42",
+        note: "Rent",
+      };
 
-  // Process transfer data with proper typing and fallbacks
-  const transferData = {
-    id: params.id?.toString() || "1",
-    type: params.type?.toString() || "Transfer",
-    account: {
-      from: params.from?.toString() || "somnet",
-      to: params.to?.toString() || "hormuud",
-    },
-    amount: {
-      from: Number(params.amountFrom?.toString() || 50),
-      to: Number(params.amountTo?.toString() || 50),
-    },
-    date: params.date?.toString() || new Date().toISOString().split("T")[0],
-    time_added: params.time_added?.toString() || new Date().toISOString(),
-    note: params.note?.toString() || "",
-  };
-
-  // Format date and time
-  const formattedDate = new Date(transferData.date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-  
-  const formattedTime = new Date(transferData.time_added).toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
-
-  // Account icons mapping
-  const accountIcons = {
-    somnet: { icon: Wallet, color: "#3B82F6" },
-    hormuud: { icon: Wallet2, color: "#10B981" },
-  };
+  // Convert amount values to numbers if they came as strings from params
+  const amountFrom =
+    typeof transferData.amount.from === "string"
+      ? Number.parseFloat(transferData.amount.from)
+      : transferData.amount.from;
+  const amountTo =
+    typeof transferData.amount.to === "string"
+      ? Number.parseFloat(transferData.amount.to)
+      : transferData.amount.to;
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <View className="flex-1">
+    <SafeAreaView className="flex-1">
+      <View className="flex-1 bg-white">
         {/* Header */}
-        <View className="flex-row items-center px-5 py-4 border-b border-gray-200 bg-white">
-          <TouchableOpacity 
-            onPress={() => router.back()}
-            className="p-2 -ml-2"
-            activeOpacity={0.8}
-          >
+        <View
+          className="flex-row justify-between items-center px-6 py-4 border-b"
+          style={{ borderColor: theme.border }}
+        >
+          <TouchableOpacity onPress={() => router.back()}>
             <ChevronLeft size={24} color={theme.icon} />
           </TouchableOpacity>
-          <Text className="text-xl font-semibold text-gray-900 mx-auto">
+          <Text className="text-xl flex-1 text-center flex-shrink font-semibold text-black">
             Transfer Details
           </Text>
-          <View className="w-8" /> {/* Balance the header */}
+          <View className="w-6" />
         </View>
 
-        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 24 }}>
-          {/* Success Banner */}
-          <View className="bg-white rounded-xl mx-5 mt-5 p-6 items-center shadow-sm">
-            <View className="w-20 h-20 rounded-full bg-green-50 items-center justify-center mb-4">
-              <CheckCircle size={36} color="#10B981" fill="#10B981" />
+        <ScrollView className="flex-1 p-5">
+          {/* Transfer Status */}
+          <View className="bg-blue-50 rounded-xl p-6 items-center flex-col justify-between  mb-5 shadow-sm shadow-blue-500/10">
+            <View className="w-16 h-16 rounded-full bg-blue-500 items-center justify-center mb-4">
+              <Text className="text-white text-2xl font-bold">✓</Text>
             </View>
-            <Text className="text-xl font-bold text-gray-900 mb-1">
-              Transfer Successful
+            <Text
+              className="text-lg text-center font-semibold mb-2"
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              Transfer Completed
             </Text>
-            <Text className="text-gray-500 text-center mb-4">
-              Your money has been transferred successfully
-            </Text>
-            <Text className="text-3xl font-bold text-gray-900">
-              ${transferData.amount.from.toFixed(2)}
+
+            <Text className="text-sm text-gray-500 text-center">
+              Your money has been sent successfully
             </Text>
           </View>
-
-          {/* Transfer Summary */}
-          <View className="bg-white rounded-xl mx-5 mt-4 p-5 shadow-sm">
-            <Text className="text-lg font-semibold text-gray-900 mb-4">
-              Transaction Summary
-            </Text>
-
-            {/* From/To Accounts */}
-            <View className="flex-row justify-between mb-6">
-              <View className="items-center">
-                <View className="w-14 h-14 rounded-full bg-blue-50 items-center justify-center mb-2">
-                  {React.createElement(accountIcons[transferData.account.from as keyof typeof accountIcons].icon, {
-                    size: 20,
-                    color: accountIcons[transferData.account.from as keyof typeof accountIcons].color
-                  })}
-                </View>
-                <Text className="text-sm text-gray-500">From</Text>
-                <Text className="font-medium text-gray-900 capitalize">
-                  {transferData.account.from}
-                </Text>
-              </View>
-
-              <View className="justify-center px-2">
-                <View className="bg-gray-100 p-2 rounded-full">
-                  <ArrowRight size={16} color="#6B7280" />
-                </View>
-              </View>
-
-              <View className="items-center">
-                <View className="w-14 h-14 rounded-full bg-green-50 items-center justify-center mb-2">
-                  {React.createElement(accountIcons[transferData.account.to as keyof typeof accountIcons].icon, {
-                    size: 20,
-                    color: accountIcons[transferData.account.to as keyof typeof accountIcons].color
-                  })}
-                </View>
-                <Text className="text-sm text-gray-500">To</Text>
-                <Text className="font-medium text-gray-900 capitalize">
-                  {transferData.account.to}
-                </Text>
-              </View>
+          {/* Transfer Details Card */}
+          <View className="bg-blue-50 rounded-xl p-5 mb-5 shadow-sm shadow-blue-500/10">
+            {/* Transfer ID */}
+            <View className="flex-row justify-between items-center py-3 border-b border-blue-100">
+              <Text className="text-sm text-gray-500 font-medium">
+                Transfer ID
+              </Text>
+              <Text
+                ellipsizeMode="tail"
+                className="text-sm text-black font-semibold flex-1 text-right flex-shrink"
+              >
+                #{transferData.id}
+              </Text>
             </View>
 
-            {/* Details Grid */}
-            <View className="space-y-4">
-              <View className="flex-row justify-between">
-                <View className="flex-row items-center">
-                  <CalendarDays size={16} color="#6B7280" className="mr-2" />
-                  <Text className="text-gray-500">Date</Text>
-                </View>
-                <Text className="font-medium text-gray-900">
-                  {formattedDate}
-                </Text>
-              </View>
-
-              <View className="flex-row justify-between">
-                <View className="flex-row items-center">
-                  <Clock size={16} color="#6B7280" className="mr-2" />
-                  <Text className="text-gray-500">Time</Text>
-                </View>
-                <Text className="font-medium text-gray-900">
-                  {formattedTime}
-                </Text>
-              </View>
-
-              <View className="flex-row justify-between">
-                <Text className="text-gray-500">Transaction ID</Text>
-                <Text className="font-medium text-gray-900">
-                  #{transferData.id}
-                </Text>
-              </View>
-
-              {transferData.note && (
-                <View className="flex-row justify-between">
-                  <Text className="text-gray-500">Note</Text>
-                  <Text className="font-medium text-gray-900 text-right max-w-[60%]">
-                    {transferData.note}
-                  </Text>
-                </View>
-              )}
+            {/* Type */}
+            <View className="flex-row justify-between items-center py-3 border-b border-blue-100">
+              <Text className="text-sm text-gray-500 font-medium">Type</Text>
+              <Text className="text-sm text-black font-semibold flex-1 text-right flex-shrink">
+                {transferData.type}
+              </Text>
             </View>
+
+            {/* From Account */}
+            <View className="flex-row justify-between items-center py-3 border-b border-blue-100">
+              <Text className="text-sm text-gray-500 font-medium">
+                From Account
+              </Text>
+              <Text className="text-sm text-black font-semibold flex-1 text-right flex-shrink">
+                {transferData.account.from}
+              </Text>
+            </View>
+
+            {/* To Account */}
+            <View className="flex-row justify-between items-center py-3 border-b border-blue-100">
+              <Text className="text-sm text-gray-500 font-medium">
+                To Account
+              </Text>
+              <Text className="text-sm text-black font-semibold flex-1 text-right flex-shrink">
+                {transferData.account.to}
+              </Text>
+            </View>
+
+            {/* Amount Sent */}
+            <View className="flex-row justify-between items-center py-3 border-b border-blue-100">
+              <Text className="text-sm text-gray-500 font-medium">
+                Amount Sent
+              </Text>
+              <Text className="text-base text-blue-500 font-bold flex-1 text-right flex-shrink">
+                ${amountFrom}
+              </Text>
+            </View>
+
+            {/* Amount Received */}
+            <View className="flex-row justify-between items-center py-3 border-b border-blue-100">
+              <Text className="text-sm text-gray-500 font-medium">
+                Amount Received
+              </Text>
+              <Text className="text-base text-blue-500 font-bold flex-1 text-right flex-shrink">
+                ${amountTo}
+              </Text>
+            </View>
+
+            {/* Date */}
+            <View className="flex-row justify-between items-center py-3 border-b border-blue-100">
+              <Text className="text-sm text-gray-500 font-medium">Date</Text>
+              <Text className="text-sm text-black font-semibold flex-1 text-right flex-shrink">
+                {transferData.date}
+              </Text>
+            </View>
+
+            {/* Time */}
+            <View className="flex-row justify-between items-center py-3 border-b border-blue-100">
+              <Text className="text-sm text-gray-500 font-medium">Time</Text>
+              <Text className="text-sm text-black font-semibold flex-1 text-right flex-shrink">
+                {new Date(transferData.time_added).toLocaleTimeString()}
+              </Text>
+            </View>
+
+            {/* Note */}
+            {transferData.note && (
+              <View className="flex-row justify-between items-center py-3">
+                <Text className="text-sm text-gray-500 font-medium">Note</Text>
+                <Text className="text-sm text-black font-semibold flex-1 text-right flex-shrink">
+                  {transferData.note}
+                </Text>
+              </View>
+            )}
           </View>
 
-          {/* Receipt Actions */}
-          <View className="mx-5 mt-4 space-y-3">
-            <TouchableOpacity 
-              className="bg-blue-600 rounded-lg py-4 items-center active:bg-blue-700"
-              activeOpacity={0.9}
-              onPress={() => router.back()}
-            >
-              <Text className="text-white font-semibold">Done</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              className="border border-blue-600 rounded-lg py-4 items-center active:bg-blue-50"
-              activeOpacity={0.8}
-            >
-              <Text className="text-blue-600 font-semibold">Download Receipt</Text>
+          {/* Action Buttons */}
+          <View className="gap-3">
+            <TouchableOpacity className="bg-blue-500 rounded-lg py-4 items-center">
+              <Text className="text-white text-base font-semibold">DONE</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
