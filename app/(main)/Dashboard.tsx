@@ -554,6 +554,11 @@ export default function DashboardScreen() {
             <Text className="text-lg font-bold text-gray-900">
               Recent {activeTab === "expense" ? "Expenses" : "Income"}
             </Text>
+
+            {/* see more  */}
+            <TouchableOpacity onPress={() =>  router.push("/components/TransactionsScreen")}>
+            <Text className="text-blue-500">See More</Text>
+          </TouchableOpacity>
           </View>
 
           <View className="gap-3">

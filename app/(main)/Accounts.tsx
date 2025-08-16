@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { MoreHorizontal, X } from "lucide-react-native";
+import { MoreHorizontal, X, Plus } from "lucide-react-native";
 import AddAccount from "../account-details/add-account";
 import { fetchAccounts, addAccount, Account } from "~/lib/accounts";
 import { supabase } from "~/lib/supabase";
@@ -38,7 +38,6 @@ const Accounts = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddAccount, setShowAddAccount] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadAccounts = async () => {
@@ -112,20 +111,20 @@ const Accounts = () => {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-slate-900 items-center justify-center">
-        <ActivityIndicator size="large" color="#10b981" />
+      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center">
+        <ActivityIndicator size="large" color="#3b82f6" />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
+    <SafeAreaView className="flex-1 py-safe">
       {error && (
-        <View className="bg-red-500/20 border border-red-500 p-3 rounded-lg mx-6 mt-4">
-          <Text className="text-red-500">{error}</Text>
+        <View className="bg-red-50 border border-red-200 p-4 rounded-lg mx-6 mt-4">
+          <Text className="text-red-600">{error}</Text>
           <TouchableOpacity
             onPress={() => setError(null)}
-            className="absolute top-2 right-2"
+            className="absolute top-3 right-3"
           >
             <X size={16} color="#ef4444" />
           </TouchableOpacity>
@@ -133,51 +132,35 @@ const Accounts = () => {
       )}
 
       {/* Header */}
-      <View className="flex-row justify-between items-center px-6 pt-12 pb-5">
-        <Text className="text-white text-2xl font-bold">Accounts</Text>
-        <View className="relative">
-          <TouchableOpacity
-            className="bg-slate-800 w-10 h-10 rounded-full justify-center items-center"
-            onPress={() => setShowMenu(!showMenu)}
-          >
-            <MoreHorizontal size={20} color="#ffffff" />
-          </TouchableOpacity>
-
-          {showMenu && (
-            <View className="absolute right-0 top-12 bg-slate-800 rounded-lg border border-slate-700 z-10 w-48 shadow-lg">
-              <TouchableOpacity
-                className="px-4 py-3 border-b border-slate-700"
-                onPress={() => {
-                  setShowMenu(false);
-                  setShowAddAccount(true);
-                }}
-              >
-                <Text className="text-white">Add Account</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
+      <View className="flex-row justify-between items-center p-6">
+        <Text className="text-gray-900 text-2xl font-bold">Accounts</Text>
+        <TouchableOpacity
+          className="bg-blue-600 p-3 rounded-full shadow"
+          onPress={() => setShowAddAccount(true)}
+        >
+          <Plus size={20} color="white" />
+        </TouchableOpacity>
       </View>
 
       {/* Summary Cards */}
-      <View className="flex-row px-6 mb-5 gap-3">
-        <View className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700">
-          <Text className="text-slate-400 text-sm mb-1">Assets</Text>
-          <Text className="text-emerald-500 text-xl font-bold">
+      <View className="flex-row px-6 mb-6 gap-4">
+        <View className="flex-1 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+          <Text className="text-gray-600 text-sm mb-1">Assets</Text>
+          <Text className="text-green-600 text-xl font-bold">
             ${assets.toFixed(2)}
           </Text>
         </View>
-        <View className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700">
-          <Text className="text-slate-400 text-sm mb-1">Liabilities</Text>
-          <Text className="text-rose-500 text-xl font-bold">
+        <View className="flex-1 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+          <Text className="text-gray-600 text-sm mb-1">Liabilities</Text>
+          <Text className="text-red-600 text-xl font-bold">
             ${liabilities.toFixed(2)}
           </Text>
         </View>
-        <View className="flex-1 bg-slate-800 p-4 rounded-xl border border-slate-700">
-          <Text className="text-slate-400 text-sm mb-1">Total</Text>
+        <View className="flex-1 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+          <Text className="text-gray-600 text-sm mb-1">Total</Text>
           <Text
             className={`text-xl font-bold ${
-              total >= 0 ? "text-emerald-500" : "text-rose-500"
+              total >= 0 ? "text-green-600" : "text-red-600"
             }`}
           >
             ${total.toFixed(2)}
@@ -186,38 +169,38 @@ const Accounts = () => {
       </View>
 
       {/* Accounts List */}
-      <ScrollView className="flex-1 px-6 pb-20">
+      <ScrollView className="flex-1 px-6 pb-6">
         {accountGroups
           .filter((group) =>
             accounts.some((account) => account.group_name === group.name)
           )
           .map((group) => (
             <View key={group.id} className="mb-6">
-              <Text className="text-white font-bold mb-3">{group.name}</Text>
-              <View className="gap-2">
+              <Text className="font-bold text-lg text-gray-900 mb-3">
+                {group.name}
+              </Text>
+              <View className="gap-3">
                 {accounts
                   .filter((account) => account.group_name === group.name)
                   .map((account) => (
                     <TouchableOpacity
                       key={account.id}
-                      className="flex-row bg-slate-800 p-4 rounded-xl border border-slate-700 items-center"
+                      className="flex-row justify-between bg-white p-5 rounded-xl border border-gray-100 shadow-sm"
                       onPress={() => handleAccountPress(account.id)}
                     >
                       <View className="flex-1">
-                        <Text className="text-white font-medium">
+                        <Text className="font-semibold text-gray-900 text-lg">
                           {account.name}
                         </Text>
                         {account.description && (
-                          <Text className="text-slate-500 text-xs mt-1">
+                          <Text className="text-gray-500 text-sm mt-1">
                             {account.description}
                           </Text>
                         )}
                       </View>
                       <Text
-                        className={`font-bold ${
-                          account.amount >= 0
-                            ? "text-emerald-500"
-                            : "text-rose-500"
+                        className={`font-bold text-lg ${
+                          account.amount >= 0 ? "text-green-600" : "text-red-600"
                         }`}
                       >
                         ${account.amount?.toFixed(2) || "0.00"}

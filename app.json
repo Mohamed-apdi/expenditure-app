@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "Household Expenditure",
-    "slug": "household-expenditure",
+    "name": "Money Manager",
+    "slug": "money-manager",
     "owner": "mohamed_99",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "household-expenditure",
+    "scheme": "money-manager",
     "platforms": ["ios", "android", "web"],
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,

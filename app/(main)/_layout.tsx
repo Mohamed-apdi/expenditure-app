@@ -6,6 +6,8 @@ import {
   Layers,
   User,
   Wallet,
+  FileChartColumn,
+  CircleDollarSign,
 } from "lucide-react-native";
 import { useColorScheme } from "~/lib/useColorScheme";
 
@@ -35,23 +37,23 @@ export default function MainLayout() {
           tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
         }}
       />
+      
+      <Tabs.Screen
+        name="BudgetScreen"
+        options={{
+          title: "Budget",
+          tabBarIcon: ({ color, size }) => <CircleDollarSign color={color} size={size} />,
+        }}
+      />
 
-      <Tabs.Screen
-        name="ExpenseListScreen"
+       <Tabs.Screen
+        name="ReportsScreen"
         options={{
-          title: "Expenses",
-          tabBarIcon: ({ color, size }) => <Layers color={color} size={size} />,
+          title: "Report",
+          tabBarIcon: ({ color, size }) => <FileChartColumn color={color} size={size} />,
         }}
       />
-      <Tabs.Screen
-        name="AdvancedAnalytics"
-        options={{
-          title: "analytics",
-          tabBarIcon: ({ color, size }) => (
-            <PieChart color={color} size={size} />
-          ),
-        }}
-      />
+      
       <Tabs.Screen
         name="Accounts"
         options={{

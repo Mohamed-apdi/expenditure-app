@@ -9,7 +9,7 @@ import {
   SafeAreaView,
   FlatList,
 } from "react-native";
-import { X, ChevronDown, Check } from "lucide-react-native";
+import { X, ChevronDown, Check, DollarSign } from "lucide-react-native";
 
 type AccountGroup = {
   id: string;
@@ -74,69 +74,55 @@ const AddAccount = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide">
-      <SafeAreaView className="flex-1 bg-slate-900">
-        <View className="flex-row justify-between items-center px-6 py-4 border-b border-slate-700">
-          <Text className="text-white text-xl font-bold">Add Account</Text>
+    <Modal visible={visible} animationType="fade">
+      <SafeAreaView className="flex-1 bg-gray-50">
+        <View className="flex-row justify-between items-center p-6 border-b border-gray-100">
+          <Text className="text-gray-900 text-xl font-bold">Add Account</Text>
           <TouchableOpacity onPress={onClose}>
-            <X size={24} color="#64748b" />
+            <X size={24} color="#6b7280" />
           </TouchableOpacity>
         </View>
 
         <ScrollView className="flex-1 px-6 pt-6">
           {/* Group Input */}
           <View className="mb-5">
-            <Text className="text-slate-400 text-sm font-semibold mb-2">
-              Group
-            </Text>
+            <Text className="text-gray-700 mb-2 font-medium">Group</Text>
             <TouchableOpacity
-              className="flex-row justify-between items-center bg-slate-800 rounded-xl border border-slate-700 px-4 py-4"
+              className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row justify-between items-center"
               onPress={() => setShowGroupModal(true)}
             >
-              <Text
-                className={`${
-                  newAccount.group_name ? "text-white" : "text-slate-500"
-                }`}
-              >
+              <Text className={newAccount.group_name ? "text-gray-900" : "text-gray-400"}>
                 {newAccount.group_name || "Select group"}
               </Text>
-              <ChevronDown size={20} color="#64748b" />
+              <ChevronDown size={18} color="#6b7280" />
             </TouchableOpacity>
           </View>
 
           {/* Type Input */}
           <View className="mb-5">
-            <Text className="text-slate-400 text-sm font-semibold mb-2">
-              Type
-            </Text>
+            <Text className="text-gray-700 mb-2 font-medium">Type</Text>
             <TouchableOpacity
-              className="flex-row justify-between items-center bg-slate-800 rounded-xl border border-slate-700 px-4 py-4"
+              className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row justify-between items-center"
               onPress={() => setShowTypeModal(true)}
             >
-              <Text
-                className={`${
-                  newAccount.type ? "text-white" : "text-slate-500"
-                }`}
-              >
+              <Text className={newAccount.type ? "text-gray-900" : "text-gray-400"}>
                 {newAccount.type
                   ? newAccount.type === "asset"
                     ? "Asset"
                     : "Liability"
                   : "Select type"}
               </Text>
-              <ChevronDown size={20} color="#64748b" />
+              <ChevronDown size={18} color="#6b7280" />
             </TouchableOpacity>
           </View>
 
           {/* Name Input */}
           <View className="mb-5">
-            <Text className="text-slate-400 text-sm font-semibold mb-2">
-              Name
-            </Text>
+            <Text className="text-gray-700 mb-2 font-medium">Name</Text>
             <TextInput
-              className="bg-slate-800 rounded-xl border border-slate-700 px-4 py-4 text-white"
+              className="border border-gray-200 rounded-xl p-4 bg-gray-50"
               placeholder="Account name"
-              placeholderTextColor="#64748b"
+              placeholderTextColor="#9CA3AF"
               value={newAccount.name}
               onChangeText={(text) =>
                 setNewAccount({ ...newAccount, name: text })
@@ -146,15 +132,15 @@ const AddAccount = ({
 
           {/* Amount Input */}
           <View className="mb-5">
-            <Text className="text-slate-400 text-sm font-semibold mb-2">
-              Amount
-            </Text>
-            <View className="flex-row items-center bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-              <Text className="text-white pl-4">$</Text>
+            <Text className="text-gray-700 mb-2 font-medium">Amount</Text>
+            <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50">
+              <View className="px-4">
+                <DollarSign size={18} color="#6b7280" />
+              </View>
               <TextInput
-                className="flex-1 py-4 px-4 text-white"
+                className="flex-1 p-4"
                 placeholder="0.00"
-                placeholderTextColor="#64748b"
+                placeholderTextColor="#9CA3AF"
                 keyboardType="numeric"
                 value={
                   newAccount.amount !== undefined && !isNaN(newAccount.amount)
@@ -186,13 +172,11 @@ const AddAccount = ({
 
           {/* Description Input */}
           <View className="mb-5">
-            <Text className="text-slate-400 text-sm font-semibold mb-2">
-              Description
-            </Text>
+            <Text className="text-gray-700 mb-2 font-medium">Description</Text>
             <TextInput
-              className="bg-slate-800 rounded-xl border border-slate-700 px-4 py-4 text-white"
+              className="border border-gray-200 rounded-xl p-4 bg-gray-50"
               placeholder="Optional description"
-              placeholderTextColor="#64748b"
+              placeholderTextColor="#9CA3AF"
               value={newAccount.description}
               onChangeText={(text) =>
                 setNewAccount({ ...newAccount, description: text })
@@ -202,10 +186,10 @@ const AddAccount = ({
 
           {/* Save Button */}
           <TouchableOpacity
-            className="bg-emerald-500 py-4 rounded-xl items-center mt-6 mb-8"
+            className="bg-blue-600 p-4 rounded-xl items-center mt-6 mb-8"
             onPress={handleAddAccount}
           >
-            <Text className="text-white font-bold">Save</Text>
+            <Text className="text-white font-medium text-lg">Save Account</Text>
           </TouchableOpacity>
         </ScrollView>
 
@@ -216,27 +200,27 @@ const AddAccount = ({
           animationType="fade"
           onRequestClose={() => setShowGroupModal(false)}
         >
-          <View className="flex-1 bg-black/50 justify-center px-6">
-            <View className="bg-slate-800 rounded-xl border border-slate-700 max-h-[80%]">
-              <View className="p-4 border-b border-slate-700">
-                <Text className="text-white font-bold">Select Group</Text>
+          <View className="flex-1 bg-black/50 justify-center p-4">
+            <View className="bg-white rounded-2xl max-h-[80%]">
+              <View className="p-6 border-b border-gray-100">
+                <Text className="text-gray-900 font-bold text-lg">Select Group</Text>
               </View>
               <FlatList
                 data={accountGroups}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                   <TouchableOpacity
-                    className={`px-4 py-3 flex-row justify-between items-center ${
-                      newAccount.group_name === item.name ? "bg-slate-700" : ""
+                    className={`px-6 py-4 flex-row justify-between items-center ${
+                      newAccount.group_name === item.name ? "bg-blue-50" : ""
                     }`}
                     onPress={() => {
                       setNewAccount({ ...newAccount, group_name: item.name });
                       setShowGroupModal(false);
                     }}
                   >
-                    <Text className="text-white">{item.name}</Text>
+                    <Text className="text-gray-900">{item.name}</Text>
                     {newAccount.group_name === item.name && (
-                      <Check size={20} color="#10b981" />
+                      <Check size={20} color="#3b82f6" />
                     )}
                   </TouchableOpacity>
                 )}
@@ -253,18 +237,18 @@ const AddAccount = ({
           animationType="fade"
           onRequestClose={() => setShowTypeModal(false)}
         >
-          <View className="flex-1 bg-black/50 justify-center px-6">
-            <View className="bg-slate-800 rounded-xl border border-slate-700 max-h-[80%]">
-              <View className="p-4 border-b border-slate-700">
-                <Text className="text-white font-bold">Select Type</Text>
+          <View className="flex-1 bg-black/50 justify-center p-4">
+            <View className="bg-white rounded-2xl max-h-[80%]">
+              <View className="p-6 border-b border-gray-100">
+                <Text className="text-gray-900 font-bold text-lg">Select Type</Text>
               </View>
               <FlatList
                 data={accountTypes}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                   <TouchableOpacity
-                    className={`px-4 py-3 flex-row justify-between items-center ${
-                      newAccount.type === item.id ? "bg-slate-700" : ""
+                    className={`px-6 py-4 flex-row justify-between items-center ${
+                      newAccount.type === item.id ? "bg-blue-50" : ""
                     }`}
                     onPress={() => {
                       setNewAccount({
@@ -274,9 +258,9 @@ const AddAccount = ({
                       setShowTypeModal(false);
                     }}
                   >
-                    <Text className="text-white">{item.name}</Text>
+                    <Text className="text-gray-900">{item.name}</Text>
                     {newAccount.type === item.id && (
-                      <Check size={20} color="#10b981" />
+                      <Check size={20} color="#3b82f6" />
                     )}
                   </TouchableOpacity>
                 )}

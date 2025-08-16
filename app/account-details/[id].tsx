@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
+import { ChevronLeft, Plus } from "lucide-react-native";
 import { supabase } from "~/lib/supabase";
 import { format } from "date-fns";
 
@@ -62,8 +62,8 @@ const AccountDetails = () => {
 
   if (loading || !account) {
     return (
-      <SafeAreaView className="flex-1 bg-slate-900 items-center justify-center">
-        <ActivityIndicator size="large" color="#10b981" />
+      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center">
+        <ActivityIndicator size="large" color="#3b82f6" />
       </SafeAreaView>
     );
   }
@@ -83,56 +83,103 @@ const AccountDetails = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
+    <SafeAreaView className="flex-1 bg-gray-50">
       {/* Header */}
-      <View className="flex-row items-center px-6 pt-12 pb-5 border-b border-slate-700">
-        <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={24} color="#ffffff" />
+      <View className="flex-row items-center justify-between p-6 border-b border-gray-100">
+        <TouchableOpacity 
+          onPress={() => router.back()}
+          className="p-2"
+        >
+          <ChevronLeft size={24} color="#6b7280" />
         </TouchableOpacity>
-        <Text className="text-white text-2xl font-bold ml-4">
+        <Text className="text-gray-900 text-2xl font-bold">
           {account.name}
         </Text>
+        <TouchableOpacity className="p-2">
+          <Plus size={24} color="#3b82f6" />
+        </TouchableOpacity>
       </View>
 
-      {/* Statement Period */}
-      <View className="px-6 py-4 border-b border-slate-700">
-        <Text className="text-slate-400 text-sm">Current Balance</Text>
+      {/* Current Balance */}
+      <View className="bg-white p-6 border-b border-gray-100">
+        <Text className="text-gray-600 text-sm mb-1">Current Balance</Text>
         <Text
-          className={`text-xl font-bold ${
-            account.amount >= 0 ? "text-emerald-500" : "text-rose-500"
+          className={`text-2xl font-bold ${
+            account.amount >= 0 ? "text-green-600" : "text-red-600"
           }`}
         >
           ${account.amount.toFixed(2)}
         </Text>
       </View>
 
-      {/* Summary Table */}
-      <View className="px-6 py-4 border-b border-slate-700">
-        <View className="flex-row justify-between mb-2">
-          <Text className="text-slate-400 flex-1">Deposit</Text>
-          <Text className="text-slate-400 flex-1">Withdrawal</Text>
-          <Text className="text-slate-400 flex-1">Total</Text>
-          <Text className="text-slate-400 flex-1">Balance</Text>
-        </View>
+      {/* Summary Cards - Single Row */}
+      <View className="p-6 bg-white border-b border-gray-100">
         <View className="flex-row justify-between">
-          <Text className="text-emerald-500 flex-1">
-            ${summary.deposit.toFixed(2)}
-          </Text>
-          <Text className="text-rose-500 flex-1">
-            ${summary.withdrawal.toFixed(2)}
-          </Text>
-          <Text
-            className={`flex-1 ${
-              summary.total >= 0 ? "text-emerald-500" : "text-rose-500"
-            }`}
-          >
-            ${summary.total.toFixed(2)}
-          </Text>
-          <Text className="text-white flex-1">
-            ${summary.balance.toFixed(2)}
-          </Text>
+          <View className="items-center">
+            <Text className="text-gray-600 text-sm mb-1">Deposit</Text>
+            <Text className="text-green-600 font-bold">
+              ${summary.deposit.toFixed(2)}
+            </Text>
+          </View>
+          <View className="items-center">
+            <Text className="text-gray-600 text-sm mb-1">Withdrawal</Text>
+            <Text className="text-red-600 font-bold">
+              ${summary.withdrawal.toFixed(2)}
+            </Text>
+          </View>
+          <View className="items-center">
+            <Text className="text-gray-600 text-sm mb-1">Total</Text>
+            <Text className={`font-bold ${
+              summary.total >= 0 ? "text-green-600" : "text-red-600"
+            }`}>
+              ${summary.total.toFixed(2)}
+            </Text>
+          </View>
+          <View className="items-center">
+            <Text className="text-gray-600 text-sm mb-1">Balance</Text>
+            <Text className="text-gray-900 font-bold">
+              ${summary.balance.toFixed(2)}
+            </Text>
+          </View>
         </View>
       </View>
+
+      {/* Recent Transactions Header */}
+      <View className="p-6 bg-white border-b border-gray-100">
+        <Text className="text-gray-900 font-bold text-lg">Recent Transactions</Text>
+      </View>
+
+      {/* Transactions List */}
+      <ScrollView className="flex-1 px-6">
+        {transactions.length === 0 ? (
+          <View className="py-8 items-center">
+            <Text className="text-gray-500">No transactions yet</Text>
+          </View>
+        ) : (
+          transactions.map((transaction) => (
+            <TouchableOpacity
+              key={transaction.id}
+              className="flex-row justify-between items-center py-4 border-b border-gray-100"
+            >
+              <View className="flex-1">
+                <Text className="font-medium text-gray-900">
+                  {transaction.description}
+                </Text>
+                <Text className="text-gray-500 text-sm mt-1">
+                  {format(new Date(transaction.date), "MMM d, yyyy")}
+                </Text>
+              </View>
+              <Text
+                className={`font-bold ${
+                  transaction.type === "income" ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                {transaction.type === "income" ? "+" : "-"}${Math.abs(transaction.amount).toFixed(2)}
+              </Text>
+            </TouchableOpacity>
+          ))
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 };

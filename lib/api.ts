@@ -2,34 +2,6 @@ import { getItemAsync } from "expo-secure-store";
 
 export const API_URL = "https://expenditure-api-ez17.onrender.com";
 
-export async function predictExpenditure(inputData: Record<string, any>) {
-  const token = await getItemAsync("token");
-  if (!token) throw new Error("No token found");
-
-  const response = await fetch(`${API_URL}/predict`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(inputData),
-  });
-
-  const contentType = response.headers.get("content-type");
-
-  if (!response.ok) {
-    if (contentType?.includes("application/json")) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || "Prediction failed");
-    } else {
-      const text = await response.text(); // <-- fallback
-      throw new Error(`Server error: ${text}`);
-    }
-  }
-
-  const data = await response.json();
-  return data;
-}
 
 // Expense Analytics API
 export async function fetchExpenseOverview(period: string) {
@@ -90,61 +62,6 @@ export async function fetchExpenseTrends(period: string) {
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.detail || "Failed to fetch expense trends");
-  }
-
-  return await response.json();
-}
-
-// Prediction Analytics API
-export async function fetchPredictionOverview() {
-  const token = await getItemAsync("token");
-  if (!token) throw new Error("No token found");
-
-  const response = await fetch(`${API_URL}/analytics/prediction-overview`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Failed to fetch prediction overview");
-  }
-
-  return await response.json();
-}
-
-export async function fetchPredictionCategories() {
-  const token = await getItemAsync("token");
-  if (!token) throw new Error("No token found");
-
-  const response = await fetch(`${API_URL}/analytics/prediction-categories`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Failed to fetch prediction categories");
-  }
-
-  return await response.json();
-}
-
-export async function fetchPredictionTrends() {
-  const token = await getItemAsync("token");
-  if (!token) throw new Error("No token found");
-
-  const response = await fetch(`${API_URL}/analytics/prediction-trends`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || "Failed to fetch prediction trends");
   }
 
   return await response.json();
