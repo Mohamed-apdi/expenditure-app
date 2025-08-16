@@ -619,31 +619,6 @@ export default function DashboardScreen() {
           </View>
         </View>
       </ScrollView>
-
-      {/* FAB */}
-      <TouchableOpacity
-        activeOpacity={0.8}
-        style={{
-          position: "absolute",
-          bottom: 4,
-          right: 180,
-          width: 56,
-          height: 56,
-          backgroundColor: "#3b82f6",
-          borderRadius: 28,
-          alignItems: "center",
-          justifyContent: "center",
-          shadowColor: "#3b82f6",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 8,
-          elevation: 8,
-        }}
-        className="z-50"
-        onPress={() => router.push("/(expense)/AddExpense")}
-      >
-        <Plus size={28} color="#fff" />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }

@@ -222,10 +222,10 @@ export default function BudgetScreen() {
                 <View className="flex-row justify-between items-center mb-4">
                   <Text className="font-bold text-xl">Monthly Budget</Text>
                   <TouchableOpacity
-                    className="bg-blue-500 p-3 rounded-full"
+                    className="bg-blue-500 rounded-lg py-3 px-3 items-center"
                     onPress={openAddModal}
                   >
-                    <Plus size={20} color="white" />
+                    <Text className="text-white">Add Budgets</Text>
                   </TouchableOpacity>
                 </View>
 
