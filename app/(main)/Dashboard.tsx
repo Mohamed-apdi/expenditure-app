@@ -75,7 +75,7 @@ type Transaction = {
   description: string;
   created_at: string;
   payment_method: string;
-  entry_type: "Income" | "Expense" | "Lent" | "Debt/Loan" | "Saving";
+  entry_type: "Income" | "Expense";
 };
 
 type QuickAction = {
@@ -104,9 +104,6 @@ export default function DashboardScreen() {
   // Category totals
   const [totalIncome, setTotalIncome] = useState(0);
   const [totalExpense, setTotalExpense] = useState(0);
-  const [totalLent, setTotalLent] = useState(0);
-  const [totalDebtLoan, setTotalDebtLoan] = useState(0);
-  const [totalSaving, setTotalSaving] = useState(0);
 
   const fetchData = async () => {
     try {
@@ -162,10 +159,6 @@ export default function DashboardScreen() {
 
       let incomeTotal = 0;
       let expenseTotal = 0;
-      let lentTotal = 0;
-      let debtLoanTotal = 0;
-      let savingTotal = 0;
-
       allTransactions?.forEach((t) => {
         const amount = t.amount || 0;
         switch (t.entry_type) {
@@ -175,24 +168,11 @@ export default function DashboardScreen() {
           case "Expense":
             expenseTotal += amount;
             break;
-          case "Lent":
-            lentTotal += amount;
-            break;
-          case "Debt/Loan":
-            debtLoanTotal += amount;
-            break;
-          case "Saving":
-            savingTotal += amount;
-            break;
         }
       });
 
       setTotalIncome(incomeTotal);
       setTotalExpense(expenseTotal);
-      setTotalLent(lentTotal);
-      setTotalDebtLoan(debtLoanTotal);
-      setTotalSaving(savingTotal);
-
       // Recent transactions - include entry_type
       const { data: transactionsData } = await supabase
         .from("expenses")
@@ -404,7 +384,7 @@ export default function DashboardScreen() {
               Available Balance
             </Text>
             <Text className="text-2xl text-white font-extrabold">
-              £ {(totalIncome - totalExpense).toFixed(2)}
+              $ {(totalIncome - totalExpense).toFixed(2)}
             </Text>
           </View>
 
@@ -499,7 +479,7 @@ export default function DashboardScreen() {
                 <Text
                   style={{ fontSize: 18, fontWeight: "bold", color: "#1e293b" }}
                 >
-                  £{totalExpense.toFixed(2)}
+                  ${totalExpense.toFixed(2)}
                 </Text>
               </View>
 
@@ -525,7 +505,7 @@ export default function DashboardScreen() {
                 <Text
                   style={{ fontSize: 18, fontWeight: "bold", color: "#1e293b" }}
                 >
-                  £{totalIncome.toFixed(2)}
+                  ${totalIncome.toFixed(2)}
                 </Text>
               </View>
             </View>
@@ -549,16 +529,18 @@ export default function DashboardScreen() {
         </View>
 
         {/* Recent Transactions */}
-        <View className="px-4 mb-5">
+        <View className="flex-1 px-6 mb-5">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-lg font-bold text-gray-900">
               Recent {activeTab === "expense" ? "Expenses" : "Income"}
             </Text>
 
             {/* see more  */}
-            <TouchableOpacity onPress={() =>  router.push("/components/TransactionsScreen")}>
-            <Text className="text-blue-500">See More</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push("/components/TransactionsScreen")}
+            >
+              <Text className="text-blue-500">See More</Text>
+            </TouchableOpacity>
           </View>
 
           <View className="gap-3">
@@ -573,40 +555,54 @@ export default function DashboardScreen() {
                   >
                     <View className="flex-row items-center p-4 bg-white rounded-xl gap-3">
                       <View
-                        className="w-11 h-11 rounded-xl items-center justify-center"
+                        className="w-11 h-11 rounded-xl  items-center justify-center"
                         style={{ backgroundColor: `${color}20` }}
                       >
                         <IconComponent size={20} color={color} />
                       </View>
                       <View className="flex-1 flex-row justify-between items-center">
-                        <View>
-                          <Text className="text-base font-semibold text-gray-900">
-                            {t.category}
-                          </Text>
-                          {t.description && (
-                            <Text className="text-xs text-gray-500">
-                              {t.description}
+                        <View className="flex-1 flex-row items-center">
+                          <View style={{ flex: 1, paddingRight: 8 }}>
+                            <Text
+                              className="text-base font-semibold text-gray-900"
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                            >
+                              {t.category}
                             </Text>
-                          )}
-                        </View>
-                        <View className="items-end">
-                          <Text
-                            className="text-base font-bold"
-                            style={{
-                              color:
-                                t.entry_type === "Expense"
-                                  ? "#DC2626"
-                                  : "#16A34A",
-                            }}
+                            {t.description && (
+                              <Text
+                                className="text-xs text-gray-500"
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                              >
+                                {t.description}
+                              </Text>
+                            )}
+                          </View>
+                          <View
+                            style={{ flexShrink: 1, alignItems: "flex-end" }}
                           >
-                            {t.entry_type === "Expense" ? "-" : "+"}£
-                            {Math.abs(t.amount).toFixed(2)}
-                          </Text>
-                          <Text className="text-xs text-gray-500">
-                            {formatDistanceToNow(new Date(t.created_at), {
-                              addSuffix: true,
-                            })}
-                          </Text>
+                            <Text
+                              className="text-base font-bold"
+                              style={{
+                                color:
+                                  t.entry_type === "Expense"
+                                    ? "#DC2626"
+                                    : "#16A34A",
+                              }}
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
+                            >
+                              {t.entry_type === "Expense" ? "-" : "+"}$
+                              {Math.abs(t.amount).toFixed(2)}
+                            </Text>
+                            <Text className="text-xs text-gray-500">
+                              {formatDistanceToNow(new Date(t.created_at), {
+                                addSuffix: true,
+                              })}
+                            </Text>
+                          </View>
                         </View>
                       </View>
                     </View>
