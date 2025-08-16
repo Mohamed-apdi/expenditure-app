@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "expo-router";
 import {
   View,
@@ -9,57 +9,39 @@ import {
   TextInput,
   ScrollView,
   Alert,
-  FlatList,
+  Modal,
+  Platform,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { Calendar, ChevronDown, Wallet, ArrowRight, Wallet2 } from "lucide-react-native";
 
-// Main Transfer Screen Component
 export default function TransferScreen() {
   const router = useRouter();
   const [fromAccount, setFromAccount] = useState("somnet");
   const [toAccount, setToAccount] = useState("hormuud");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [showKeypad, setShowKeypad] = useState(false);
-
-  const keypadNumbers = [
-    ["7", "8", "9"],
-    ["4", "5", "6"],
-    ["1", "2", "3"],
-    [".", "0", "⌫"],
-  ];
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const accounts = {
-    somnet: { balance: 160, icon: "💳" },
-    hormuud: { balance: 540, icon: "💰" },
+    somnet: { balance: 160, icon: Wallet, color: "#3B82F6" },
+    hormuud: { balance: 540, icon: Wallet2, color: "#10B981" },
   };
 
-  const handleKeypadPress = (key: string) => {
-    if (key === "⌫") {
-      setAmount((prev) => prev.slice(0, -1));
-    } else if (key === "." && amount.includes(".")) {
-      return;
-    } else {
-      setAmount((prev) => prev + key);
-    }
-  };
-
-  // In TransferScreen.tsx, modify the handleTransfer function:
   const handleTransfer = () => {
     if (!amount || Number.parseFloat(amount) <= 0) {
       Alert.alert("Error", "Please enter a valid amount");
       return;
     }
 
-    if (
-      Number.parseFloat(amount) >
-      accounts[fromAccount as keyof typeof accounts].balance
-    ) {
+    if (Number.parseFloat(amount) > accounts[fromAccount as keyof typeof accounts].balance) {
       Alert.alert("Error", "Insufficient balance");
       return;
     }
 
     const transferData = {
-      id: "1", // Use a fixed ID that matches your mock data
+      id: "1",
       type: "Transfer",
       account: {
         from: fromAccount,
@@ -67,9 +49,9 @@ export default function TransferScreen() {
       },
       amount: {
         from: Number.parseFloat(amount),
-        to: Number.parseFloat(amount), // Adjust if there are fees
+        to: Number.parseFloat(amount),
       },
-      date: new Date().toISOString().split("T")[0],
+      date: date.toISOString().split("T")[0],
       time_added: new Date().toISOString(),
       note: note,
     };
@@ -84,7 +66,7 @@ export default function TransferScreen() {
           onPress: () => {
             router.push({
               pathname: "/(transfer)/TransferDetailsScreen",
-              params: transferData, // Pass all data as params
+              params: transferData,
             });
           },
         },
@@ -102,244 +84,216 @@ export default function TransferScreen() {
     });
   };
 
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+    }
+    if (selectedDate) {
+      setDate(selectedDate);
+    }
+  };
+
   return (
-    <View className="flex-1 bg-white">
-      <ScrollView className="flex-1 p-5">
+    <View className="flex-1 bg-gray-50">
+      <ScrollView 
+        className="flex-1 p-4" 
+        contentContainerStyle={{ paddingBottom: 20 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Transfer Header */}
+        <View className="mb-6">
+          <Text className="text-3xl font-bold text-gray-900">Transfer Money</Text>
+          <Text className="text-gray-500 mt-1">Move money between your accounts</Text>
+        </View>
+
         {/* From Account Card */}
-        <View className="mb-5">
-          <Text className="text-sm font-semibold text-gray-500 mb-2">From</Text>
+        <View className="mb-3">
+          <Text className="text-sm font-medium text-gray-500 mb-2">From</Text>
           <TouchableOpacity
-            className="bg-blue-50 rounded-xl p-4 flex-row items-center justify-between shadow-sm shadow-blue-500/10"
+            className="bg-white rounded-xl p-4 flex-row items-center justify-between shadow-sm border border-gray-100 active:bg-gray-50"
             onPress={() => selectAccount("from")}
+            activeOpacity={0.8}
           >
-            <View className="flex-row items-center flex-1">
-              <View className="w-12 h-12 rounded-full bg-blue-500 items-center justify-center mr-4">
-                <Text className="text-xl">
-                  {accounts[fromAccount as keyof typeof accounts]?.icon || "💳"}
-                </Text>
+            <View className="flex-row items-center">
+              <View 
+                className="w-12 h-12 rounded-full items-center justify-center mr-3"
+                style={{ backgroundColor: `${accounts[fromAccount as keyof typeof accounts]?.color}20` }}
+              >
+                {React.createElement(accounts[fromAccount as keyof typeof accounts].icon, {
+                  size: 20,
+                  color: accounts[fromAccount as keyof typeof accounts].color
+                })}
               </View>
-              <View className="flex-1">
-                <Text className="text-base font-semibold text-black mb-1">
+              <View>
+                <Text className="text-base font-semibold text-gray-900 capitalize">
                   {fromAccount}
                 </Text>
                 <Text className="text-sm text-gray-500">
-                  Balance: $
-                  {accounts[fromAccount as keyof typeof accounts]?.balance || 0}
+                  Balance: ${accounts[fromAccount as keyof typeof accounts]?.balance.toFixed(2)}
                 </Text>
               </View>
             </View>
-            <Text className="text-blue-500 text-xs font-semibold">Select</Text>
+            <ChevronDown size={18} color="#6b7280" />
           </TouchableOpacity>
         </View>
 
+        {/* Transfer Arrow */}
+        <View className="items-center py-1">
+          <View className="bg-blue-50 p-2 rounded-full border border-blue-100">
+            <ArrowRight size={20} color="#3B82F6" />
+          </View>
+        </View>
+
         {/* To Account Card */}
-        <View className="mb-5">
-          <Text className="text-sm font-semibold text-gray-500 mb-2">To</Text>
+        <View className="mb-6">
+          <Text className="text-sm font-medium text-gray-500 mb-2">To</Text>
           <TouchableOpacity
-            className="bg-blue-50 rounded-xl p-4 flex-row items-center justify-between shadow-sm shadow-blue-500/10"
+            className="bg-white rounded-xl p-4 flex-row items-center justify-between shadow-sm border border-gray-100 active:bg-gray-50"
             onPress={() => selectAccount("to")}
+            activeOpacity={0.8}
           >
-            <View className="flex-row items-center flex-1">
-              <View className="w-12 h-12 rounded-full bg-blue-500 items-center justify-center mr-4">
-                <Text className="text-xl">
-                  {accounts[toAccount as keyof typeof accounts]?.icon || "💰"}
-                </Text>
+            <View className="flex-row items-center">
+              <View 
+                className="w-12 h-12 rounded-full items-center justify-center mr-3"
+                style={{ backgroundColor: `${accounts[toAccount as keyof typeof accounts]?.color}20` }}
+              >
+                {React.createElement(accounts[toAccount as keyof typeof accounts].icon, {
+                  size: 20,
+                  color: accounts[toAccount as keyof typeof accounts].color
+                })}
               </View>
-              <View className="flex-1">
-                <Text className="text-base font-semibold text-black mb-1">
+              <View>
+                <Text className="text-base font-semibold text-gray-900 capitalize">
                   {toAccount}
                 </Text>
                 <Text className="text-sm text-gray-500">
-                  Balance: $
-                  {accounts[toAccount as keyof typeof accounts]?.balance || 0}
+                  Balance: ${accounts[toAccount as keyof typeof accounts]?.balance.toFixed(2)}
                 </Text>
               </View>
             </View>
-            <Text className="text-blue-500 text-xs font-semibold">Select</Text>
+            <ChevronDown size={18} color="#6b7280" />
           </TouchableOpacity>
         </View>
 
         {/* Amount Input */}
-        <View className="mb-5">
-          <Text className="text-sm font-semibold text-gray-500 mb-2">
-            Amount
-          </Text>
-          <TouchableOpacity
-            className="bg-blue-50 rounded-xl p-6 flex-row items-center justify-center shadow-sm shadow-blue-500/10"
-            onPress={() => setShowKeypad(!showKeypad)}
-          >
-            <Text className="text-2xl font-semibold text-blue-500 mr-2">$</Text>
-            <Text className="text-3xl font-bold text-black">
-              {amount || "0"}
-            </Text>
-          </TouchableOpacity>
+        <View className="mb-6">
+          <Text className="text-sm font-medium text-gray-500 mb-2">Amount</Text>
+          <View className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <View className="flex-row items-center">
+              <Text className="text-lg font-semibold text-blue-500 mr-2">$</Text>
+              <TextInput
+                className="flex-1 text-2xl font-bold text-gray-900"
+                placeholder="0.00"
+                placeholderTextColor="#9CA3AF"
+                value={amount}
+                onChangeText={(text) => setAmount(text.replace(/[^0-9.]/g, ""))}
+                keyboardType="decimal-pad"
+                autoFocus
+                returnKeyType="done"
+              />
+            </View>
+            {amount && (
+              <Text className="text-xs text-gray-400 mt-1">
+                Available: ${accounts[fromAccount as keyof typeof accounts]?.balance.toFixed(2)}
+              </Text>
+            )}
+          </View>
         </View>
 
-        {/* Numeric Keypad */}
-        {showKeypad && (
-          <View className="bg-blue-50 rounded-xl p-4 mb-5">
-            {keypadNumbers.map((row, rowIndex) => (
-              <View key={rowIndex} className="flex-row justify-between mb-3">
-                {row.map((key, keyIndex) => (
-                  <TouchableOpacity
-                    key={keyIndex}
-                    className="w-20 h-12 rounded-lg bg-white items-center justify-center shadow-sm shadow-blue-500/10"
-                    onPress={() => handleKeypadPress(key)}
-                  >
-                    <Text className="text-xl font-semibold text-blue-500">
-                      {key}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+        {/* Date Picker */}
+        <View className="mb-6">
+          <Text className="text-sm font-medium text-gray-500 mb-2">Transfer Date</Text>
+          <TouchableOpacity
+            className="bg-white rounded-xl p-4 flex-row items-center justify-between shadow-sm border border-gray-100 active:bg-gray-50"
+            onPress={() => setShowDatePicker(true)}
+            activeOpacity={0.8}
+          >
+            <View className="flex-row items-center">
+              <View className="w-10 h-10 rounded-lg bg-blue-50 items-center justify-center mr-3">
+                <Calendar size={18} color="#3B82F6" />
               </View>
-            ))}
-          </View>
-        )}
+              <View>
+                <Text className="text-base text-gray-900 font-medium">
+                  {formatDate(date)}
+                </Text>
+                <Text className="text-xs text-gray-400 mt-1">
+                  {date.toLocaleDateString('en-US', { weekday: 'long' })}
+                </Text>
+              </View>
+            </View>
+            <ChevronDown size={18} color="#6b7280" />
+          </TouchableOpacity>
+
+          {showDatePicker && (
+            <Modal
+              transparent={true}
+              animationType="slide"
+              visible={showDatePicker}
+              onRequestClose={() => setShowDatePicker(false)}
+            >
+              <View className="flex-1 justify-end bg-black/30">
+                <View className="bg-white rounded-t-3xl p-5 pt-3 pb-6">
+                  {/* Date Picker */}
+                  <DateTimePicker
+                    value={date}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "spinner" : "calendar"}
+                    onChange={onDateChange}
+                    maximumDate={new Date()}
+                    minimumDate={new Date(2020, 0, 1)}
+                    themeVariant="light"
+                    accentColor="#3B82F6"
+                    textColor="#000000"
+                    style={{
+                      backgroundColor: "white",
+                      ...(Platform.OS === "android" && { 
+                        width: '100%',
+                        height: 180 
+                      })
+                    }}
+                  />
+                </View>
+              </View>
+            </Modal>
+          )}
+        </View>
 
         {/* Note Input */}
-        <View className="mb-5">
-          <Text className="text-sm font-semibold text-gray-500 mb-2">
+        <View className="mb-6">
+          <Text className="text-sm font-medium text-gray-500 mb-2">
             Note (Optional)
           </Text>
           <TextInput
-            className="bg-blue-50 rounded-lg p-4 text-base text-black h-20 text-align-top"
-            placeholder="Enter a note..."
-            placeholderTextColor="#555555"
+            className="bg-white rounded-xl p-4 text-base text-gray-900 h-24 text-align-top shadow-sm border border-gray-100"
+            placeholder="Add a note..."
+            placeholderTextColor="#9CA3AF"
             value={note}
             onChangeText={setNote}
             multiline
+            blurOnSubmit
+            returnKeyType="done"
           />
-        </View>
-
-        {/* Date Button */}
-        <View className="mb-5">
-          <Text className="text-sm font-semibold text-gray-500 mb-2">Date</Text>
-          <TouchableOpacity className="bg-blue-50 rounded-lg p-4 items-center">
-            <Text className="text-base font-semibold text-blue-500">Today</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
 
       {/* Transfer Button */}
-      <View className="p-5 bg-white">
+      <View className="p-4 bg-white border-t border-gray-200">
         <TouchableOpacity
-          className={`rounded-lg py-4 items-center ${amount ? "bg-blue-500" : "bg-blue-200"}`}
+          className={`rounded-xl py-4 items-center justify-center ${amount ? "bg-blue-600" : "bg-gray-300"}`}
           onPress={handleTransfer}
           disabled={!amount}
+          activeOpacity={0.9}
         >
-          <Text className="text-white text-base font-semibold">Send Money</Text>
+          <Text className="text-white text-lg font-semibold">Transfer Now</Text>
         </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
-
-// Transfer History Screen Component
-export function TransferHistoryScreen() {
-  const router = useRouter();
-
-  const transferHistory = [
-    {
-      id: "1",
-      type: "Transfer",
-      from: "somnet",
-      to: "hormuud",
-      amount: 50,
-      date: "2025-08-15",
-      time: "19:22",
-      status: "completed",
-      note: "Rent",
-    },
-    {
-      id: "2",
-      type: "Transfer",
-      from: "hormuud",
-      to: "somnet",
-      amount: 25,
-      date: "2025-08-14",
-      time: "14:30",
-      status: "completed",
-      note: "Lunch money",
-    },
-    {
-      id: "3",
-      type: "Transfer",
-      from: "somnet",
-      to: "hormuud",
-      amount: 100,
-      date: "2025-08-13",
-      time: "09:15",
-      status: "pending",
-      note: "Utilities",
-    },
-  ];
-
-  const renderTransferItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      className="bg-blue-50 rounded-xl p-4 mb-3 flex-row items-center shadow-sm shadow-blue-500/10"
-      onPress={() => router.push(`/(transfer)/TransferDetailsScreen${item.id}`)}
-    >
-      <View className="w-12 h-12 rounded-full bg-blue-500 items-center justify-center mr-4">
-        <Text className="text-xl">💸</Text>
-      </View>
-
-      <View className="flex-1">
-        <Text className="text-base font-semibold text-black mb-1">
-          {item.from} → {item.to}
-        </Text>
-        <Text className="text-sm text-gray-500">
-          {item.date} • {item.time}
-        </Text>
-        {item.note && (
-          <Text className="text-xs text-gray-500 italic">{item.note}</Text>
-        )}
-      </View>
-
-      <View className="items-end">
-        <Text className="text-base font-bold text-blue-500 mb-1">
-          ${item.amount}
-        </Text>
-        <View
-          className={`px-2 py-1 rounded-full ${
-            item.status === "completed" ? "bg-blue-50" : "bg-yellow-100"
-          }`}
-        >
-          <Text
-            className={`text-xs font-semibold ${
-              item.status === "completed" ? "text-blue-500" : "text-yellow-800"
-            }`}
-          >
-            {item.status}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
-  return (
-    <View className="flex-1 bg-white">
-      <View className="flex-row items-center justify-between px-5 py-4 bg-blue-50">
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text className="text-2xl text-blue-500 font-semibold">←</Text>
-        </TouchableOpacity>
-        <Text className="text-lg font-semibold text-black">
-          Transfer History
-        </Text>
-        <View className="w-6" />
-      </View>
-
-      <View className="flex-1 p-5">
-        <Text className="text-base font-semibold text-black mb-4">
-          Recent Transfers
-        </Text>
-
-        <FlatList
-          data={transferHistory}
-          renderItem={renderTransferItem}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
       </View>
     </View>
   );
