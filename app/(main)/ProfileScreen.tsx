@@ -38,6 +38,14 @@ import { deleteItemAsync } from "expo-secure-store";
 import { supabase } from "~/lib/supabase";
 import { UserProfile } from "~/types/userTypes";
 import { useTheme } from "~/lib/theme";
+import { 
+  fetchProfile, 
+  updateProfile, 
+  updateProfileName, 
+  updateProfilePhone, 
+  updateProfileEmail,
+  type Profile 
+} from "~/lib/profiles";
 
 type PasswordData = {
   currentPassword: string;
@@ -78,28 +86,25 @@ export default function ProfileScreen() {
         } = await supabase.auth.getUser();
 
         if (user) {
-          // Fetch profile data from profiles table
-          const { data: profileData, error } = await supabase
-            .from("profiles")
-            .select("full_name, phone, image_url, created_at")
-            .eq("id", user.id)
-            .single();
+          // Fetch profile data using the service
+          const profileData = await fetchProfile(user.id);
 
-          if (error) throw error;
-
-          setUserProfile({
-            fullName: profileData?.full_name || "",
-            email: user.email || "",
-            phone: profileData?.phone || "",
-            image_url: profileData?.image_url || "",
-            totalPredictions: 0,
-            avgAccuracy: 0,
-            joinDate: profileData?.created_at || new Date().toISOString(),
-            lastSignIn: user.last_sign_in_at || new Date().toISOString(),
-          });
+          if (profileData) {
+            setUserProfile({
+              fullName: profileData.full_name || "",
+              email: user.email || "",
+              phone: profileData.phone || "",
+              image_url: profileData.image_url || "",
+              totalPredictions: 0,
+              avgAccuracy: 0,
+              joinDate: profileData.created_at || new Date().toISOString(),
+              lastSignIn: user.last_sign_in_at || new Date().toISOString(),
+            });
+          }
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
+        Alert.alert("Error", "Failed to fetch profile data");
       } finally {
         setLoading(false);
       }
@@ -107,6 +112,94 @@ export default function ProfileScreen() {
 
     fetchUserProfile();
   }, []);
+
+  const handleUpdateProfile = async (updates: Partial<Profile>) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        Alert.alert("Error", "User not authenticated");
+        return;
+      }
+
+      const updatedProfile = await updateProfile(user.id, updates);
+      
+      // Update local state
+      setUserProfile(prev => ({
+        ...prev,
+        fullName: updatedProfile.full_name || prev.fullName,
+        phone: updatedProfile.phone || prev.phone,
+        image_url: updatedProfile.image_url || prev.image_url,
+      }));
+
+      Alert.alert("Success", "Profile updated successfully");
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      Alert.alert("Error", "Failed to update profile");
+    }
+  };
+
+  const handleUpdateName = async (newName: string) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        Alert.alert("Error", "User not authenticated");
+        return;
+      }
+
+      await updateProfileName(user.id, newName);
+      setUserProfile(prev => ({ ...prev, fullName: newName }));
+      Alert.alert("Success", "Name updated successfully");
+    } catch (error) {
+      console.error("Error updating name:", error);
+      Alert.alert("Error", "Failed to update name");
+    }
+  };
+
+  const handleUpdatePhone = async (newPhone: string) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        Alert.alert("Error", "User not authenticated");
+        return;
+      }
+
+      await updateProfilePhone(user.id, newPhone);
+      setUserProfile(prev => ({ ...prev, phone: newPhone }));
+      Alert.alert("Success", "Phone updated successfully");
+    } catch (error) {
+      console.error("Error updating phone:", error);
+      Alert.alert("Error", "Failed to update phone");
+    }
+  };
+
+  const handleUpdateEmail = async (newEmail: string) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        Alert.alert("Error", "User not authenticated");
+        return;
+      }
+
+      await updateProfileEmail(user.id, newEmail);
+      setUserProfile(prev => ({ ...prev, email: newEmail }));
+      Alert.alert("Success", "Email updated successfully");
+    } catch (error) {
+      console.error("Error updating email:", error);
+      Alert.alert("Error", "Failed to update email");
+    }
+  };
 
   const formatLastSignIn = (dateString?: string) => {
     if (!dateString) return "Recently";
