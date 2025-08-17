@@ -68,12 +68,19 @@ export default function MonthYearScroller({
 
     // Fetch data for the selected month
     const loadMonthData = async () => {
-      const data = await fetchMonthData(monthIndex, year);
-      setMonthData(data);
-      onMonthChange(monthIndex, year);
+      try {
+        const data = await fetchMonthData(monthIndex, year);
+        setMonthData(data);
+        onMonthChange(monthIndex, year);
+      } catch (error) {
+        console.error("Error loading month data:", error);
+      }
     };
 
-    loadMonthData();
+    // Only load data if we have valid month/year values
+    if (monthIndex >= 0 && year > 0) {
+      loadMonthData();
+    }
   }, [selected, fetchMonthData, onMonthChange]);
 
   return (

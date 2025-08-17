@@ -14,6 +14,7 @@ import {
 import { useColorScheme } from "~/lib/useColorScheme";
 import { useTheme } from "~/lib/theme";
 import { WalletDropdown } from "./WalletDropdown";
+import { useAccount } from "~/lib/AccountContext";
 
 interface DashboardHeaderProps {
   userName: string;
@@ -38,6 +39,7 @@ export default function DashboardHeader({
 }: DashboardHeaderProps) {
   const rotateAnimation = useRef(new Animated.Value(0)).current;
   const scaleAnimation = useRef(new Animated.Value(1)).current;
+  const { selectedAccount } = useAccount();
 
   const { isDarkColorScheme, toggleColorScheme } = useColorScheme();
 
@@ -164,7 +166,7 @@ export default function DashboardHeader({
                 backgroundColor: theme.background,
                 borderRadius: 12,
                 borderWidth: 1,
-                borderColor: theme.border, // darker border
+                borderColor: theme.border,
                 opacity: dropdownOpacity,
                 transform: [{ translateY: dropdownTranslateY }],
                 shadowColor: "#000",
@@ -266,6 +268,9 @@ export default function DashboardHeader({
 
         {/*  dropdown */}
         <WalletDropdown />
+        
+      
+        
         <View className="flex-row items-center justify-between px-4 py-3">
           {/* Calendar */}
           <TouchableOpacity className="mx-3" onPress={onCalendarPress}>
