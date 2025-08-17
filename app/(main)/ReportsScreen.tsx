@@ -1,10 +1,19 @@
 // screens/ReportsScreen.tsx
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Dimensions } from 'react-native';
 import { Calendar, BarChart2, PieChart, Filter, Plus, X, Edit2, Trash2, Download } from 'lucide-react-native';
 import { DatePickerModal } from 'react-native-paper-dates';
 import { BarChart, PieChart as ChartKitPieChart } from 'react-native-chart-kit';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { supabase } from '~/lib/supabase';
+import { 
+  fetchExpenses, 
+  updateExpense, 
+  deleteExpense,
+  getExpensesByCategory,
+  getMonthlySummary,
+  type Expense 
+} from '~/lib/expenses';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -15,11 +24,14 @@ export default function ReportsScreen() {
   });
   const [visible, setVisible] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [currentTransaction, setCurrentTransaction] = useState(null);
+  const [currentTransaction, setCurrentTransaction] = useState<Expense | null>(null);
   const [newDescription, setNewDescription] = useState('');
   const [newAmount, setNewAmount] = useState('');
   const [newCategory, setNewCategory] = useState('Food');
   const [dateFilter, setDateFilter] = useState('month'); // 'today', 'week', 'month', 'custom'
+  const [transactions, setTransactions] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const getCategoryColor = (category: string): string => {
     const colors = {
@@ -33,53 +45,34 @@ export default function ReportsScreen() {
     return colors[category] || '#64748b';
   };
 
-  // Mock data
-  const [transactions, setTransactions] = useState([
-    {
-      id: '1',
-      description: 'Grocery Store',
-      amount: -45.32,
-      category: 'Food',
-      date: new Date().toISOString(),
-    },
-    {
-      id: '2',
-      description: 'Salary Deposit',
-      amount: 2500.00,
-      category: 'Income',
-      date: new Date().toISOString(),
-    },
-    {
-      id: '3',
-      description: 'Gas Station',
-      amount: -35.00,
-      category: 'Transport',
-      date: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(),
-    },
-    {
-      id: '4',
-      description: 'Netflix',
-      amount: -14.99,
-      category: 'Entertainment',
-      date: new Date(new Date().setDate(new Date().getDate() - 1)).toISOString(),
-    },
-    {
-      id: '5',
-      description: 'Electric Bill',
-      amount: -85.00,
-      category: 'Utilities',
-      date: new Date(new Date().setDate(new Date().getDate() - 5)).toISOString(),
-    },
-    {
-      id: '6',
-      description: 'Dinner Out',
-      amount: -65.50,
-      category: 'Food',
-      date: new Date(new Date().setDate(new Date().getDate() - 10)).toISOString(),
-    },
-  ]);
-
   const categories = ['Food', 'Transport', 'Entertainment', 'Utilities', 'Income', 'Other'];
+
+  // Fetch transactions from database
+  const fetchTransactionsData = async () => {
+    try {
+      setLoading(true);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      setUserId(user.id);
+      const transactionsData = await fetchExpenses(user.id);
+      setTransactions(transactionsData);
+    } catch (error) {
+      console.error("Error fetching transactions:", error);
+      Alert.alert("Error", "Failed to fetch transactions");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTransactionsData();
+  }, []);
 
   // Filter transactions based on selected date range
   const filteredTransactions = transactions.filter(t => {
@@ -91,7 +84,7 @@ export default function ReportsScreen() {
 
   // Process data for charts using filtered transactions
   const expenseData = filteredTransactions
-    .filter(t => t.amount < 0)
+    .filter(t => t.entry_type === 'Expense')
     .reduce((acc, curr) => {
       const existing = acc.find(item => item.category === curr.category);
       if (existing) {
@@ -104,22 +97,33 @@ export default function ReportsScreen() {
         });
       }
       return acc;
-    }, []);
+    }, [] as { category: string; amount: number; color: string }[]);
 
-  const monthlyData = Array.from({ length: 6 }, (_, i) => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - (5 - i));
-    const monthTransactions = filteredTransactions.filter(
-      t => new Date(t.date).getMonth() === date.getMonth()
-    );
-    const total = monthTransactions.reduce((sum, t) => sum + (t.amount < 0 ? Math.abs(t.amount) : 0), 0);
-    return {
-      value: total,
-      label: date.toLocaleString('default', { month: 'short' }),
-      frontColor: '#3b82f6',
-      gradientColor: '#93c5fd',
-    };
-  });
+  const incomeData = filteredTransactions
+    .filter(t => t.entry_type === 'Income')
+    .reduce((acc, curr) => {
+      const existing = acc.find(item => item.category === curr.category);
+      if (existing) {
+        existing.amount += curr.amount;
+      } else {
+        acc.push({
+          category: curr.category,
+          amount: curr.amount,
+          color: getCategoryColor(curr.category),
+        });
+      }
+      return acc;
+    }, [] as { category: string; amount: number; color: string }[]);
+
+  const totalExpenses = filteredTransactions
+    .filter(t => t.entry_type === 'Expense')
+    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+  const totalIncome = filteredTransactions
+    .filter(t => t.entry_type === 'Income')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const netAmount = totalIncome - totalExpenses;
 
   const onDismiss = useCallback(() => setVisible(false), []);
   const onConfirm = useCallback(({ startDate, endDate }) => {
@@ -162,57 +166,59 @@ export default function ReportsScreen() {
     setIsModalVisible(true);
   };
 
-  const openEditModal = (transaction) => {
+  const openEditModal = (transaction: Expense) => {
     setCurrentTransaction(transaction);
-    setNewDescription(transaction.description);
+    setNewDescription(transaction.description || '');
     setNewAmount(Math.abs(transaction.amount).toString());
     setNewCategory(transaction.category);
     setIsModalVisible(true);
   };
 
-  const handleSave = () => {
-    if (!newDescription || !newAmount) {
-      Alert.alert('Error', 'Please fill in all required fields');
+  const handleSaveTransaction = async () => {
+    if (!currentTransaction || !newDescription || !newAmount) {
+      Alert.alert("Error", "Please fill in all fields");
       return;
     }
 
-    const amount = parseFloat(newAmount) || 0;
-    const isExpense = newCategory !== 'Income';
-    const transactionData = {
-      description: newDescription,
-      amount: isExpense ? -amount : amount,
-      category: newCategory,
-      date: new Date().toISOString(),
-    };
+    try {
+      const updatedTransaction = await updateExpense(currentTransaction.id, {
+        description: newDescription,
+        amount: parseFloat(newAmount) * (currentTransaction.entry_type === 'Expense' ? -1 : 1),
+        category: newCategory,
+      });
 
-    if (currentTransaction) {
-      setTransactions(transactions.map(t => 
-        t.id === currentTransaction.id 
-          ? { ...t, ...transactionData } 
-          : t
+      setTransactions(prev => prev.map(t => 
+        t.id === currentTransaction.id ? updatedTransaction : t
       ));
-    } else {
-      const newTransaction = {
-        id: Date.now().toString(),
-        ...transactionData,
-      };
-      setTransactions([...transactions, newTransaction]);
+      
+      setIsModalVisible(false);
+      Alert.alert("Success", "Transaction updated successfully");
+    } catch (error) {
+      console.error("Error updating transaction:", error);
+      Alert.alert("Error", "Failed to update transaction");
     }
-
-    setIsModalVisible(false);
   };
 
-  const handleDelete = (id) => {
+  const handleDeleteTransaction = async (transactionId: string) => {
     Alert.alert(
-      'Delete Transaction',
-      'Are you sure you want to delete this transaction?',
+      "Delete Transaction",
+      "Are you sure you want to delete this transaction?",
       [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: () => setTransactions(transactions.filter(t => t.id !== id))
-        }
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteExpense(transactionId);
+              setTransactions(prev => prev.filter(t => t.id !== transactionId));
+              Alert.alert("Success", "Transaction deleted successfully");
+            } catch (error) {
+              console.error("Error deleting transaction:", error);
+              Alert.alert("Error", "Failed to delete transaction");
+            }
+          },
+        },
       ]
     );
   };
@@ -437,7 +443,7 @@ export default function ReportsScreen() {
                         className="ml-2"
                         onPress={(e) => {
                           e.stopPropagation();
-                          handleDelete(item.id);
+                          handleDeleteTransaction(item.id);
                         }}
                       >
                         <Trash2 size={16} color="#ef4444" />
@@ -508,7 +514,7 @@ export default function ReportsScreen() {
 
               <TouchableOpacity
                 className="bg-blue-500 py-3 rounded-lg items-center"
-                onPress={handleSave}
+                onPress={handleSaveTransaction}
               >
                 <Text className="text-white font-medium">
                   {currentTransaction ? 'Update Transaction' : 'Add Transaction'}

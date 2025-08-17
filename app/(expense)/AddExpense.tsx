@@ -59,7 +59,10 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { supabase } from "~/lib/supabase";
 import { NAV_THEME, useTheme } from "~/lib/theme";
-import { fetchAccounts } from "~/lib/accounts";
+import { fetchAccounts, updateAccountBalance } from "~/lib/accounts";
+import { addExpense } from "~/lib/expenses";
+import { addTransaction } from "~/lib/transactions";
+import { addTransfer } from "~/lib/transfers";
 import type { Account } from "~/lib/accounts";
 import TransferScreen from "../components/TransferScreen";
 
@@ -188,12 +191,30 @@ export default function AddExpenseScreen() {
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
+  
+  // Transfer-specific state
+  const [fromAccount, setFromAccount] = useState<Account | null>(null);
+  const [toAccount, setToAccount] = useState<Account | null>(null);
+  const [transferAmount, setTransferAmount] = useState("");
+  const [showAccountSelectionModal, setShowAccountSelectionModal] = useState(false);
+  const [accountSelectionType, setAccountSelectionType] = useState<'from' | 'to'>('from');
 
   useEffect(() => {
     const loadAccounts = async () => {
       setLoadingAccounts(true);
       try {
-        const accountsData = await fetchAccounts();
+        // Get the current user first
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+          console.error("User not authenticated");
+          return;
+        }
+
+        const accountsData = await fetchAccounts(user.id);
         setAccounts(accountsData);
         if (accountsData.length > 0) {
           setSelectedAccount(accountsData[0]);
@@ -252,34 +273,41 @@ export default function AddExpenseScreen() {
         }
       }
 
-      // Start a transaction
-      const { error: expenseError } = await supabase.from("expenses").insert({
+      // Add expense using the service
+      await addExpense({
         user_id: user.id,
-        entry_type: entryType,
+        entry_type: entryType as 'Income' | 'Expense',
         amount: amountNum,
-        category: selectedCategory?.name || null,
+        category: selectedCategory?.name || '',
         description: description.trim(),
         payment_method: paymentMethod,
         is_recurring: isRecurring,
-        recurrence_interval: isRecurring ? recurringFrequency : null,
+        recurrence_interval: isRecurring ? recurringFrequency : undefined,
         date: date.toISOString().split("T")[0],
         account_id: selectedAccount.id,
+        is_essential: true,
       });
 
-      if (expenseError) throw expenseError;
+      // Add transaction using the service
+      await addTransaction({
+        user_id: user.id,
+        account_id: selectedAccount.id,
+        amount: amountNum,
+        description: description.trim(),
+        date: date.toISOString().split("T")[0],
+        category: selectedCategory?.name || '',
+        is_recurring: isRecurring,
+        recurrence_interval: isRecurring ? recurringFrequency : undefined,
+        type: entryType === 'Income' ? 'income' : 'expense',
+      });
 
-      // Update account balance
+      // Update account balance using the service
       const newBalance =
         entryType === "Expense"
           ? selectedAccount.amount - amountNum
           : selectedAccount.amount + amountNum;
 
-      const { error: accountError } = await supabase
-        .from("accounts")
-        .update({ amount: newBalance })
-        .eq("id", selectedAccount.id);
-
-      if (accountError) throw accountError;
+      await updateAccountBalance(selectedAccount.id, newBalance);
 
       Alert.alert(
         "Success!",
@@ -294,6 +322,100 @@ export default function AddExpenseScreen() {
     } catch (error) {
       console.error(error);
       Alert.alert("Error", "Something went wrong. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleTransfer = async () => {
+    if (!transferAmount || Number.parseFloat(transferAmount) <= 0) {
+      Alert.alert("Error", "Please enter a valid transfer amount");
+      return;
+    }
+
+    if (!fromAccount || !toAccount) {
+      Alert.alert("Select Accounts", "Please select both from and to accounts");
+      return;
+    }
+
+    if (fromAccount.id === toAccount.id) {
+      Alert.alert("Error", "Cannot transfer to the same account");
+      return;
+    }
+
+    const amountNum = Number.parseFloat(transferAmount);
+    if (amountNum > fromAccount.amount) {
+      Alert.alert("Insufficient Funds", "Insufficient balance in the from account");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Please log in first");
+
+      // Add transfer record
+      await addTransfer({
+        user_id: user.id,
+        from_account_id: fromAccount.id,
+        to_account_id: toAccount.id,
+        amount: amountNum,
+        description: `Transfer from ${fromAccount.name} to ${toAccount.name}`,
+        date: date.toISOString().split("T")[0],
+      });
+
+      // Add EXPENSE transaction for the FROM account (outgoing transfer)
+      await addTransaction({
+        user_id: user.id,
+        account_id: fromAccount.id,
+        amount: amountNum,
+        description: `Transfer to ${toAccount.name}`,
+        date: date.toISOString().split("T")[0],
+        category: 'Transfer',
+        is_recurring: false,
+        type: 'expense', // This will increase expenses for Account 1
+      });
+
+      // Add INCOME transaction for the TO account (incoming transfer)
+      await addTransaction({
+        user_id: user.id,
+        account_id: toAccount.id,
+        amount: amountNum,
+        description: `Transfer from ${fromAccount.name}`,
+        date: date.toISOString().split("T")[0],
+        category: 'Transfer',
+        is_recurring: false,
+        type: 'income', // This will increase income for Account 2
+      });
+
+      // Update account balances using the service
+      const fromAccountNewBalance = fromAccount.amount - amountNum;
+      const toAccountNewBalance = toAccount.amount + amountNum;
+
+      await Promise.all([
+        updateAccountBalance(fromAccount.id, fromAccountNewBalance),
+        updateAccountBalance(toAccount.id, toAccountNewBalance),
+      ]);
+
+      // Refresh real-time balances after transfer
+      // await refreshBalances();
+
+      Alert.alert(
+        "Transfer Successful!",
+        `$${amountNum} transferred from ${fromAccount.name} to ${toAccount.name}`,
+        [
+          {
+            text: "Ok",
+            onPress: () => router.push("/(main)/Dashboard"),
+          },
+        ]
+      );
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Transfer failed. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -772,7 +894,7 @@ export default function AddExpenseScreen() {
                               color: theme.textSecondary,
                             }}
                           >
-                            {selectedAccount.group_name} • £
+                            {selectedAccount.account_type} {/* Changed from group_name to account_type */}
                             {selectedAccount.amount.toFixed(2)}
                           </Text>
                         )}
@@ -849,7 +971,7 @@ export default function AddExpenseScreen() {
                                   color: theme.textSecondary,
                                 }}
                               >
-                                {account.group_name}
+                                {account.account_type}
                               </Text>
                             </View>
                             <Text
@@ -1420,7 +1542,87 @@ export default function AddExpenseScreen() {
           )}
 
           {entryType === "Transfer" && (
-            <TransferScreen/>
+            <View className="space-y-4">
+              {/* Transfer Amount */}
+              <View>
+                <Text className="text-sm font-medium text-gray-700 mb-2">
+                  Transfer Amount
+                </Text>
+                <TextInput
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg"
+                  placeholder="0.00"
+                  value={transferAmount}
+                  onChangeText={setTransferAmount}
+                  keyboardType="numeric"
+                  style={{ color: theme.text }}
+                />
+              </View>
+
+              {/* From Account */}
+              <View>
+                <Text className="text-sm font-medium text-gray-700 mb-2">
+                  From Account
+                </Text>
+                <TouchableOpacity
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg flex-row justify-between items-center"
+                  onPress={() => {
+                    // Show account selection modal for from account
+                    setShowAccountSelectionModal(true);
+                    setAccountSelectionType('from');
+                  }}
+                >
+                  <Text className="text-lg" style={{ color: theme.text }}>
+                    {fromAccount ? fromAccount.name : "Select Account"}
+                  </Text>
+                  <ChevronDown size={20} color={theme.iconMuted} />
+                </TouchableOpacity>
+                {fromAccount && (
+                  <Text className="text-sm text-gray-500 mt-1">
+                    Balance: ${fromAccount.amount.toFixed(2)}
+                  </Text>
+                )}
+              </View>
+
+              {/* To Account */}
+              <View>
+                <Text className="text-sm font-medium text-gray-700 mb-2">
+                  To Account
+                </Text>
+                <TouchableOpacity
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg flex-row justify-between items-center"
+                  onPress={() => {
+                    // Show account selection modal for to account
+                    setShowAccountSelectionModal(true);
+                    setAccountSelectionType('to');
+                  }}
+                >
+                  <Text className="text-lg" style={{ color: theme.text }}>
+                    {toAccount ? toAccount.name : "Select Account"}
+                  </Text>
+                  <ChevronDown size={20} color={theme.iconMuted} />
+                </TouchableOpacity>
+                {toAccount && (
+                  <Text className="text-sm text-gray-500 mt-1">
+                    Balance: ${toAccount.amount.toFixed(2)}
+                  </Text>
+                )}
+              </View>
+
+              {/* Transfer Button */}
+              <TouchableOpacity
+                className={`w-full py-4 rounded-lg ${
+                  fromAccount && toAccount && transferAmount && Number.parseFloat(transferAmount) > 0
+                    ? 'bg-blue-600'
+                    : 'bg-gray-300'
+                }`}
+                onPress={handleTransfer}
+                disabled={!fromAccount || !toAccount || !transferAmount || Number.parseFloat(transferAmount) <= 0 || isSubmitting}
+              >
+                <Text className="text-white text-center font-semibold text-lg">
+                  {isSubmitting ? "Processing..." : "Transfer"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           {/* Category Selection Modal */}
@@ -1510,6 +1712,70 @@ export default function AddExpenseScreen() {
                         </TouchableOpacity>
                       );
                     })}
+                  </View>
+                </ScrollView>
+              </View>
+            </View>
+          </Modal>
+
+          {/* Account Selection Modal for Transfers */}
+          <Modal
+            visible={showAccountSelectionModal}
+            animationType="fade"
+            transparent={true}
+            onRequestClose={() => setShowAccountSelectionModal(false)}
+          >
+            <View className="flex-1 justify-center items-center bg-black/50 p-4">
+              <View className="bg-white rounded-2xl p-6 w-full max-w-md">
+                <View className="flex-row justify-between items-center mb-6">
+                  <Text className="font-bold text-xl text-gray-900">
+                    Select {accountSelectionType === 'from' ? 'From' : 'To'} Account
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowAccountSelectionModal(false)}>
+                    <X size={24} color="#6b7280" />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView className="max-h-[400px]">
+                  <View className="space-y-3">
+                    {accounts.map((account) => (
+                      <TouchableOpacity
+                        key={account.id}
+                        className={`p-4 rounded-lg border ${
+                          (accountSelectionType === 'from' && fromAccount?.id === account.id) ||
+                          (accountSelectionType === 'to' && toAccount?.id === account.id)
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200'
+                        }`}
+                        onPress={() => {
+                          if (accountSelectionType === 'from') {
+                            setFromAccount(account);
+                          } else {
+                            setToAccount(account);
+                          }
+                          setShowAccountSelectionModal(false);
+                        }}
+                      >
+                        <View className="flex-row items-center justify-between">
+                          <View className="flex-row items-center">
+                            <View className="p-2 rounded-full bg-gray-100 mr-3">
+                              <Wallet size={20} color="#3B82F6" />
+                            </View>
+                            <View>
+                              <Text className="text-lg font-medium text-gray-900">
+                                {account.name}
+                              </Text>
+                              <Text className="text-sm text-gray-500">
+                                {account.account_type} {/* Changed from group_name to account_type */}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text className="text-lg font-semibold text-gray-900">
+                            ${account.amount.toFixed(2)}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
                   </View>
                 </ScrollView>
               </View>
