@@ -9,6 +9,9 @@ import {
   SafeAreaView,
   StatusBar,
   TextInput,
+  Image,
+  ImageBackground,
+  FlatList,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "~/lib/supabase";
@@ -67,6 +70,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { useTheme } from "~/lib/theme";
 import DashboardHeader from "~/components/(Dashboard)/DashboardHeader";
+import MonthYearScroller from "~/components/(Dashboard)/MonthYearScroll";
 
 type Transaction = {
   id: string;
@@ -97,7 +101,16 @@ export default function DashboardScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [searchValue, setSearchValue] = useState("");
-  const [activeTab, setActiveTab] = useState<"expense" | "income">("expense");
+  const [selectedMonth, setSelectedMonth] = useState<{
+    month: number;
+    year: number;
+  }>({
+    month: new Date().getMonth(),
+    year: new Date().getFullYear(),
+  });
+  const [filteredTransactions, setFilteredTransactions] = useState<
+    Transaction[]
+  >([]);
 
   const theme = useTheme();
 
@@ -173,6 +186,7 @@ export default function DashboardScreen() {
 
       setTotalIncome(incomeTotal);
       setTotalExpense(expenseTotal);
+
       // Recent transactions - include entry_type
       const { data: transactionsData } = await supabase
         .from("expenses")
@@ -181,7 +195,7 @@ export default function DashboardScreen() {
         )
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(8);
 
       setTransactions(transactionsData || []);
     } catch (error) {
@@ -190,6 +204,64 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  // Update the fetchMonthData function to also fetch transactions for the month
+  const fetchMonthData = async (month: number, year: number) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return { income: 0, expense: 0, balance: 0 };
+
+      // Get first and last day of selected month
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
+
+      // Fetch transactions for selected month
+      const { data: monthTransactions } = await supabase
+        .from("expenses")
+        .select(
+          "amount, entry_type, id, category, description, created_at, payment_method"
+        )
+        .eq("user_id", user.id)
+        .gte("created_at", startDate.toISOString())
+        .lte("created_at", endDate.toISOString())
+        .order("created_at", { ascending: false });
+
+      let monthIncome = 0;
+      let monthExpense = 0;
+      const monthTransactionsList: Transaction[] = [];
+
+      monthTransactions?.forEach((t) => {
+        const amount = t.amount || 0;
+        if (t.entry_type === "Income") {
+          monthIncome += amount;
+        } else {
+          monthExpense += amount;
+        }
+        monthTransactionsList.push(t as Transaction);
+      });
+
+      // Update the filtered transactions for the selected month
+      setFilteredTransactions(monthTransactionsList);
+
+      return {
+        income: monthIncome,
+        expense: monthExpense,
+        balance: monthIncome - monthExpense,
+      };
+    } catch (error) {
+      console.error("Error fetching month data:", error);
+      return { income: 0, expense: 0, balance: 0 };
+    }
+  };
+
+  // Update the handleMonthChange function
+  const handleMonthChange = async (month: number, year: number) => {
+    setSelectedMonth({ month, year });
+    // The fetchMonthData will now update the filteredTransactions
   };
 
   useEffect(() => {
@@ -337,288 +409,122 @@ export default function DashboardScreen() {
     );
   }
 
-  // Filter transactions based on active tab
-  const filteredTransactions = transactions.filter(
-    (t) => t.entry_type === (activeTab === "expense" ? "Expense" : "Income")
-  );
-
   return (
-    <SafeAreaView className="flex-1 py-safe">
-      <StatusBar barStyle="dark-content" />
-      <ScrollView
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#2D6CF6"
+    <SafeAreaView className="flex-1 pt-safe bg-[#3b82f6] relative">
+      <StatusBar barStyle="light-content" backgroundColor="#3b82f6" />
+      {/* Header */}
+      <DashboardHeader
+        userName={userProfile.fullName}
+        userEmail={userProfile.email}
+        userImageUrl={userProfile.image_url}
+        onLogoutPress={() => {
+          supabase.auth.signOut();
+          router.replace("/login");
+        }}
+        onSettingsPress={() => router.push("/(main)/ProfileScreen")}
+      />
+      <View className="">
+        <View style={{ marginBottom: 20 }}>
+          <MonthYearScroller
+            onMonthChange={handleMonthChange}
+            fetchMonthData={fetchMonthData}
           />
-        }
-      >
-        {/* Header */}
-        <DashboardHeader
-          userName={userProfile.fullName}
-          userEmail={userProfile.email}
-          userImageUrl={userProfile.image_url}
-          onLogoutPress={() => {
-            supabase.auth.signOut();
-            router.replace("/login");
-          }}
-          onSettingsPress={() => router.push("/(main)/ProfileScreen")}
-        />
-
-        <View style={{ padding: 16 }}>
-          <View
-            style={{
-              padding: 24,
-              marginBottom: 20,
-              backgroundColor: "#3b82f6",
-              borderRadius: 16,
-              shadowColor: "#3b82f6",
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.1,
-              shadowRadius: 8,
-              elevation: 4,
-            }}
-          >
-            <Text className="text-sm text-white/90 mb-1" numberOfLines={1}>
-              Available Balance
-            </Text>
-            <Text className="text-2xl text-white font-extrabold">
-              $ {(totalIncome - totalExpense).toFixed(2)}
-            </Text>
-          </View>
-
-          {/* Totals Container */}
-          <View
-            style={{
-              padding: 20,
-              marginBottom: 20,
-              backgroundColor: "#ffffff",
-              borderRadius: 16,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.05,
-              shadowRadius: 8,
-              elevation: 2,
-            }}
-          >
-            {/* Toggle Buttons */}
-            <View
-              style={{
-                flexDirection: "row",
-                marginBottom: 24,
-                padding: 4,
-                backgroundColor: "#f1f5f9",
-                borderRadius: 12,
-              }}
-            >
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  borderRadius: 8,
-                  backgroundColor:
-                    activeTab === "expense" ? "#3b82f6" : "transparent",
-                }}
-                onPress={() => setActiveTab("expense")}
-              >
-                <Text
-                  style={{
-                    textAlign: "center",
-                    fontWeight: "600",
-                    color: activeTab === "expense" ? "#ffffff" : "#64748b",
-                  }}
-                >
-                  Expense
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  borderRadius: 8,
-                  backgroundColor:
-                    activeTab === "income" ? "#3b82f6" : "transparent",
-                }}
-                onPress={() => setActiveTab("income")}
-              >
-                <Text
-                  style={{
-                    textAlign: "center",
-                    fontWeight: "600",
-                    color: activeTab === "income" ? "#ffffff" : "#64748b",
-                  }}
-                >
-                  Income
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View
-              style={{ flexDirection: "row", justifyContent: "space-between" }}
-            >
-              <View style={{ flex: 1, alignItems: "center" }}>
-                <View
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 24,
-                    backgroundColor: "#fee2e2",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: 8,
-                  }}
-                >
-                  <TrendingDown size={24} color="#dc2626" />
-                </View>
-                <Text
-                  style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}
-                >
-                  Spent
-                </Text>
-                <Text
-                  style={{ fontSize: 18, fontWeight: "bold", color: "#1e293b" }}
-                >
-                  ${totalExpense.toFixed(2)}
-                </Text>
-              </View>
-
-              <View style={{ flex: 1, alignItems: "center" }}>
-                <View
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 24,
-                    backgroundColor: "#dcfce7",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: 8,
-                  }}
-                >
-                  <TrendingUp size={24} color="#16a34a" />
-                </View>
-                <Text
-                  style={{ fontSize: 12, color: "#64748b", marginBottom: 4 }}
-                >
-                  Earned
-                </Text>
-                <Text
-                  style={{ fontSize: 18, fontWeight: "bold", color: "#1e293b" }}
-                >
-                  ${totalIncome.toFixed(2)}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Search */}
-          <View className="flex-row justify-center items-center bg-blue-100 pl-7 rounded-full mb-2">
-            <Search
-              size={22}
-              color="#2563eb"
-              className="absolute left-3 top-3"
-            />
-            <TextInput
-              value={searchValue}
-              onChangeText={setSearchValue}
-              placeholder="Search"
-              placeholderTextColor="#000000"
-              className="rounded-xl text-xl w-full pl-2 outline-none"
-            />
-          </View>
         </View>
+      </View>
 
-        {/* Recent Transactions */}
-        <View className="flex-1 px-6 mb-5">
+      {/* Recent Transactions */}
+      <View className="flex-1 bg-white rounded-t-3xl">
+        <View className="px-5 pt-6 pb-2 flex-1">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-lg font-bold text-gray-900">
-              Recent {activeTab === "expense" ? "Expenses" : "Income"}
+              Recent Transactions
             </Text>
-
-            {/* see more  */}
-            <TouchableOpacity
-              onPress={() => router.push("/components/TransactionsScreen")}
-            >
-              <Text className="text-blue-500">See More</Text>
-            </TouchableOpacity>
+            <View className="flex-row gap-2">
+              <TouchableOpacity
+                onPress={() => router.push("/components/TransactionsScreen")}
+              >
+                <Text className="text-blue-500">See More</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <View className="gap-3">
-            {filteredTransactions.length > 0 ? (
-              filteredTransactions.map((t) => {
-                const IconComponent = getCategoryIcon(t.category);
-                const color = getCategoryColor(t.category);
-                return (
-                  <TouchableOpacity
-                    key={t.id}
-                    onPress={() => router.push(`/expense-detail/${t.id}`)}
-                  >
-                    <View className="flex-row items-center p-4 bg-white rounded-xl gap-3">
-                      <View
-                        className="w-11 h-11 rounded-xl  items-center justify-center"
-                        style={{ backgroundColor: `${color}20` }}
-                      >
-                        <IconComponent size={20} color={color} />
-                      </View>
-                      <View className="flex-1 flex-row justify-between items-center">
-                        <View className="flex-1 flex-row items-center">
-                          <View style={{ flex: 1, paddingRight: 8 }}>
-                            <Text
-                              className="text-base font-semibold text-gray-900"
-                              numberOfLines={1}
-                              ellipsizeMode="tail"
-                            >
-                              {t.category}
-                            </Text>
-                            {t.description && (
-                              <Text
-                                className="text-xs text-gray-500"
-                                numberOfLines={1}
-                                ellipsizeMode="tail"
-                              >
-                                {t.description}
-                              </Text>
-                            )}
-                          </View>
-                          <View
-                            style={{ flexShrink: 1, alignItems: "flex-end" }}
+          <FlatList
+            data={filteredTransactions}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item: t }) => {
+              const IconComponent = getCategoryIcon(t.category);
+              const color = getCategoryColor(t.category);
+
+              return (
+                <TouchableOpacity
+                  key={t.id}
+                  onPress={() => router.push(`/expense-detail/${t.id}`)}
+                >
+                  <View className="flex-row items-center p-4 bg-gray-50 rounded-xl gap-3 mb-2">
+                    <View
+                      className="w-11 h-11 rounded-xl items-center justify-center"
+                      style={{ backgroundColor: `${color}20` }}
+                    >
+                      <IconComponent size={20} color={color} />
+                    </View>
+                    <View className="flex-1 flex-row justify-between items-center">
+                      <View className="flex-1 flex-row items-center">
+                        <View style={{ flex: 1, paddingRight: 8 }}>
+                          <Text
+                            className="text-base font-semibold text-gray-900"
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
                           >
+                            {t.category}
+                          </Text>
+                          {t.description && (
                             <Text
-                              className="text-base font-bold"
-                              style={{
-                                color:
-                                  t.entry_type === "Expense"
-                                    ? "#DC2626"
-                                    : "#16A34A",
-                              }}
+                              className="text-xs text-gray-500"
                               numberOfLines={1}
                               ellipsizeMode="tail"
                             >
-                              {t.entry_type === "Expense" ? "-" : "+"}$
-                              {Math.abs(t.amount).toFixed(2)}
+                              {t.description}
                             </Text>
-                            <Text className="text-xs text-gray-500">
-                              {formatDistanceToNow(new Date(t.created_at), {
-                                addSuffix: true,
-                              })}
-                            </Text>
-                          </View>
+                          )}
+                        </View>
+                        <View style={{ flexShrink: 1, alignItems: "flex-end" }}>
+                          <Text
+                            className="text-base font-bold"
+                            style={{
+                              color:
+                                t.entry_type === "Expense"
+                                  ? "#DC2626"
+                                  : "#16A34A",
+                            }}
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
+                            {t.entry_type === "Expense" ? "-" : "+"}$
+                            {Math.abs(t.amount).toFixed(2)}
+                          </Text>
+                          <Text className="text-xs text-gray-500">
+                            {formatDistanceToNow(new Date(t.created_at), {
+                              addSuffix: true,
+                            })}
+                          </Text>
                         </View>
                       </View>
                     </View>
-                  </TouchableOpacity>
-                );
-              })
-            ) : (
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+            ListEmptyComponent={
               <View className="p-4 bg-white rounded-xl items-center justify-center">
                 <Text className="text-sm text-gray-500">
-                  No {activeTab === "expense" ? "expenses" : "income"} yet
+                  No transactions for this month
                 </Text>
               </View>
-            )}
-          </View>
+            }
+            showsVerticalScrollIndicator={false}
+          />
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }

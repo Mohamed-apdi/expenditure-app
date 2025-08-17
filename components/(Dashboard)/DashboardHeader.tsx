@@ -7,9 +7,13 @@ import {
   LogOut,
   Sun,
   Moon,
+  Bell,
+  Calendar,
+  Search,
 } from "lucide-react-native";
 import { useColorScheme } from "~/lib/useColorScheme";
 import { useTheme } from "~/lib/theme";
+import { WalletDropdown } from "./WalletDropdown";
 
 interface DashboardHeaderProps {
   userName: string;
@@ -17,6 +21,9 @@ interface DashboardHeaderProps {
   userImageUrl?: string;
   onSettingsPress?: () => void;
   onLogoutPress?: () => void;
+  onNotificationPress?: () => void;
+  onCalendarPress?: () => void;
+  onSearchPress?: () => void;
 }
 
 export default function DashboardHeader({
@@ -25,6 +32,9 @@ export default function DashboardHeader({
   userImageUrl,
   onSettingsPress,
   onLogoutPress,
+  onNotificationPress,
+  onCalendarPress,
+  onSearchPress,
 }: DashboardHeaderProps) {
   const rotateAnimation = useRef(new Animated.Value(0)).current;
   const scaleAnimation = useRef(new Animated.Value(1)).current;
@@ -102,7 +112,7 @@ export default function DashboardHeader({
   ];
 
   return (
-    <View className="relative z-50 bg-[#F6F8FD]">
+    <View className="relative z-50">
       {/* Full-screen overlay that closes dropdown when clicked */}
       {isDropdownOpen && (
         <TouchableOpacity
@@ -121,29 +131,15 @@ export default function DashboardHeader({
 
       <View
         className="flex-row justify-between items-center px-6 py-5 "
-        style={{ zIndex: 50, backgroundColor: theme.background }}
+        style={{ zIndex: 50 }}
       >
-        {/* Greeting Section */}
-        <View className="flex-1">
-          <Text
-            className="text-2xl font-bold tracking-tight"
-            style={{ color: theme.text }}
-          >
-            Good Morning, {firstName}!
-          </Text>
-          <Text className="text-sm text-slate-400 mt-1 font-normal">
-            Here's your spending overview
-          </Text>
-        </View>
         {/* Actions Section */}
-        <View className="flex-row items-center gap-4 ">
+        <View className="flex-row items-center justify-center gap-4 ">
           {/* Profile Dropdown */}
           <View className="relative">
             <Animated.View style={{ transform: [{ scale: scaleAnimation }] }}>
               <TouchableOpacity
-                className={`flex-row items-center p-1 rounded-2xl gap-2 ${
-                  isDropdownOpen ? "bg-slate-700" : "bg-slate-800"
-                }`}
+                className={`flex-row items-center p-1 rounded-2xl gap-2`}
                 onPress={toggleDropdown}
                 activeOpacity={0.8}
               >
@@ -153,7 +149,7 @@ export default function DashboardHeader({
                       userImageUrl ||
                       `https://ui-avatars.com/api/?name=${encodeURIComponent(userName || "User")}`,
                   }}
-                  className="w-10 h-10 rounded-full border-2 border-slate-700"
+                  className="w-10 h-10 rounded-full border-2 border-[#3b82f6]"
                 />
               </TouchableOpacity>
             </Animated.View>
@@ -163,10 +159,9 @@ export default function DashboardHeader({
               style={{
                 position: "absolute",
                 top: 50,
-                right: 0,
+                left: 0,
                 minWidth: 240,
                 backgroundColor: theme.background,
-                //backgroundColor: "#1e293b",
                 borderRadius: 12,
                 borderWidth: 1,
                 borderColor: theme.border, // darker border
@@ -256,6 +251,31 @@ export default function DashboardHeader({
               </View>
             </Animated.View>
           </View>
+          {/* Notification Icon with red dot */}
+          <TouchableOpacity
+            className="mx-3"
+            onPress={onNotificationPress}
+            activeOpacity={0.7}
+          >
+            <View>
+              <Bell size={22} color={theme.icon} />
+              <View className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full" />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/*  dropdown */}
+        <WalletDropdown />
+        <View className="flex-row items-center justify-between px-4 py-3">
+          {/* Calendar */}
+          <TouchableOpacity className="mx-3" onPress={onCalendarPress}>
+            <Calendar size={22} color={theme.icon} />
+          </TouchableOpacity>
+
+          {/* Search */}
+          <TouchableOpacity className="ml-3" onPress={onSearchPress}>
+            <Search size={22} color={theme.icon} />
+          </TouchableOpacity>
         </View>
       </View>
     </View>
