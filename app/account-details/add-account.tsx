@@ -91,7 +91,11 @@ const AddAccount = ({
               className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row justify-between items-center"
               onPress={() => setShowGroupModal(true)}
             >
-              <Text className={newAccount.group_name ? "text-gray-900" : "text-gray-400"}>
+              <Text
+                className={
+                  newAccount.group_name ? "text-gray-900" : "text-gray-400"
+                }
+              >
                 {newAccount.group_name || "Select group"}
               </Text>
               <ChevronDown size={18} color="#6b7280" />
@@ -105,7 +109,9 @@ const AddAccount = ({
               className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row justify-between items-center"
               onPress={() => setShowTypeModal(true)}
             >
-              <Text className={newAccount.type ? "text-gray-900" : "text-gray-400"}>
+              <Text
+                className={newAccount.type ? "text-gray-900" : "text-gray-400"}
+              >
                 {newAccount.type
                   ? newAccount.type === "asset"
                     ? "Asset"
@@ -203,7 +209,9 @@ const AddAccount = ({
           <View className="flex-1 bg-black/50 justify-center p-4">
             <View className="bg-white rounded-2xl max-h-[80%]">
               <View className="p-6 border-b border-gray-100">
-                <Text className="text-gray-900 font-bold text-lg">Select Group</Text>
+                <Text className="text-gray-900 font-bold text-lg">
+                  Select Group
+                </Text>
               </View>
               <FlatList
                 data={accountGroups}
@@ -240,7 +248,9 @@ const AddAccount = ({
           <View className="flex-1 bg-black/50 justify-center p-4">
             <View className="bg-white rounded-2xl max-h-[80%]">
               <View className="p-6 border-b border-gray-100">
-                <Text className="text-gray-900 font-bold text-lg">Select Type</Text>
+                <Text className="text-gray-900 font-bold text-lg">
+                  Select Type
+                </Text>
               </View>
               <FlatList
                 data={accountTypes}

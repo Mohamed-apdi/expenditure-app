@@ -1,33 +1,45 @@
-import { View, Text, TouchableOpacity, ScrollView, Animated, Easing } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Animated,
+  Easing,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Home, Users, TrendingUp, ArrowRight } from "lucide-react-native";
+import {
+  CreditCard,
+  TrendingUp,
+  ArrowRight,
+  BarChart2,
+} from "lucide-react-native";
 import { useEffect, useRef } from "react";
 
 const categories = [
   {
-    id: "essentials",
-    title: "Essentials",
-    description: "Food, rent, and basic necessities",
-    icon: Home,
+    id: "accounts",
+    title: "Accounts",
+    description: "Cash, bank, cards, and savings balances",
+    icon: CreditCard,
     color: "#10b981",
-    fields: ["exp_food", "exp_nfnd", "exp_rent", "pce"],
+    fields: ["Cash", "Bank", "Cards", "Savings"],
   },
   {
     id: "household",
-    title: "Household Profile",
-    description: "Family size, region, and utilities",
-    icon: Users,
+    title: "Expenses",
+    description: "Daily spending, bills, and recurring payments",
+    icon: TrendingUp,
     color: "#3b82f6",
-    fields: ["hhsize", "region_n", "hh_water_type", "hh_electricity"],
+    fields: ["Food", "Rent", "Bills", "Subscriptions"],
   },
   {
     id: "advanced",
-    title: "Advanced Metrics",
-    description: "Living conditions and economic factors",
-    icon: TrendingUp,
+    title: "Insights",
+    description: "Budgets, goals, and financial reports",
+    icon: BarChart2,
     color: "#8b5cf6",
-    fields: ["liv4_*", "shock10_*", "nfe16_*", "foodsec7_07"],
+    fields: ["Budgets", "Goals", "Reports", "Trends"],
   },
 ];
 
@@ -42,14 +54,14 @@ const FloatingParticle = ({ style }: any) => {
           toValue: 1,
           duration: 3000 + Math.random() * 2000,
           easing: Easing.linear,
-          useNativeDriver: true
+          useNativeDriver: true,
         }),
         Animated.timing(anim, {
           toValue: 0,
           duration: 3000 + Math.random() * 2000,
           easing: Easing.linear,
-          useNativeDriver: true
-        })
+          useNativeDriver: true,
+        }),
       ])
     );
     animation.start();
@@ -58,12 +70,12 @@ const FloatingParticle = ({ style }: any) => {
 
   const translateY = anim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, -15]
+    outputRange: [0, -15],
   });
 
   const opacity = anim.interpolate({
     inputRange: [0, 0.5, 1],
-    outputRange: [0.2, 0.8, 0.2]
+    outputRange: [0.2, 0.8, 0.2],
   });
 
   return (
@@ -73,8 +85,8 @@ const FloatingParticle = ({ style }: any) => {
         {
           transform: [{ translateY }],
           opacity,
-          position: 'absolute'
-        }
+          position: "absolute",
+        },
       ]}
     />
   );
@@ -83,7 +95,9 @@ const FloatingParticle = ({ style }: any) => {
 export default function InputCategoriesScreen() {
   const router = useRouter();
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const categoryAnimations = useRef(categories.map(() => new Animated.Value(0))).current;
+  const categoryAnimations = useRef(
+    categories.map(() => new Animated.Value(0))
+  ).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
   const progressWidth = useRef(new Animated.Value(0)).current;
   const screenTransition = useRef(new Animated.Value(0)).current;
@@ -93,7 +107,7 @@ export default function InputCategoriesScreen() {
     id: i,
     size: 2 + Math.random() * 3,
     left: Math.random() * 100,
-    top: 10 + Math.random() * 80
+    top: 10 + Math.random() * 80,
   }));
 
   useEffect(() => {
@@ -105,14 +119,17 @@ export default function InputCategoriesScreen() {
     }).start();
 
     // Staggered category animations
-    Animated.stagger(150, categoryAnimations.map(anim => 
-      Animated.spring(anim, {
-        toValue: 1,
-        friction: 7,
-        tension: 40,
-        useNativeDriver: true,
-      })
-    )).start();
+    Animated.stagger(
+      150,
+      categoryAnimations.map((anim) =>
+        Animated.spring(anim, {
+          toValue: 1,
+          friction: 7,
+          tension: 40,
+          useNativeDriver: true,
+        })
+      )
+    ).start();
 
     // Progress width animation (non-native)
     Animated.timing(progressWidth, {
@@ -140,54 +157,59 @@ export default function InputCategoriesScreen() {
   };
 
   const handleNavigate = () => {
-  // Start screen transition animation
-  Animated.timing(screenTransition, {
-    toValue: 1,
-    duration: 400,
-    easing: Easing.inOut(Easing.quad),
-    useNativeDriver: true,
-  }).start(() => {
-    // Navigate after animation completes
-    router.push("/AuthGateScreen");
+    // Start screen transition animation
+    Animated.timing(screenTransition, {
+      toValue: 1,
+      duration: 400,
+      easing: Easing.inOut(Easing.quad),
+      useNativeDriver: true,
+    }).start(() => {
+      // Navigate after animation completes
+      router.push("/AuthGateScreen");
+    });
+  };
+
+  const screenInterpolate = screenTransition.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.9],
   });
-};
 
-const screenInterpolate = screenTransition.interpolate({
-  inputRange: [0, 1],
-  outputRange: [1, 0.9]
-});
-
-const screenOpacity = screenTransition.interpolate({
-  inputRange: [0, 1],
-  outputRange: [1, 0]
-});
-
+  const screenOpacity = screenTransition.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0],
+  });
 
   return (
     <SafeAreaView className="flex-1 bg-slate-900">
-       {/* Floating particles background */}
-      {particles.map(particle => (
+      {/* Floating particles background */}
+      {particles.map((particle) => (
         <FloatingParticle
           key={particle.id}
           style={{
             width: particle.size,
             height: particle.size,
             borderRadius: particle.size / 2,
-            backgroundColor: '#10b981',
+            backgroundColor: "#10b981",
             left: `${particle.left}%`,
-            top: `${particle.top}%`
+            top: `${particle.top}%`,
           }}
         />
       ))}
-      <Animated.View style={{ opacity: fadeAnim,
-        transform: [
-      { scale: screenInterpolate },
-      { translateY: screenTransition.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, 20]
-      })}
-    ]
-       }} className="flex-1">
+      <Animated.View
+        style={{
+          opacity: fadeAnim,
+          transform: [
+            { scale: screenInterpolate },
+            {
+              translateY: screenTransition.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 20],
+              }),
+            },
+          ],
+        }}
+        className="flex-1"
+      >
         <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
           {/* Progress Indicator */}
           <View className="flex-row items-center justify-center gap-1.5 pt-10 px-6">
@@ -196,34 +218,39 @@ const screenOpacity = screenTransition.interpolate({
             <View className="w-2 h-2 bg-white/30 rounded-full" />
           </View>
 
+          {/* Title and Tagline */}
           <View className="px-6 py-5">
-            <Animated.Text 
+            <Animated.Text
               style={{
                 opacity: fadeAnim,
-                transform: [{
-                  translateY: fadeAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [10, 0]
-                  })
-                }]
+                transform: [
+                  {
+                    translateY: fadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [10, 0],
+                    }),
+                  },
+                ],
               }}
               className="text-white text-2xl font-bold mb-2"
             >
-              Input Categories
+              Account Setup
             </Animated.Text>
-            <Animated.Text 
+            <Animated.Text
               style={{
                 opacity: fadeAnim,
-                transform: [{
-                  translateY: fadeAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [10, 0]
-                  })
-                }]
+                transform: [
+                  {
+                    translateY: fadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [10, 0],
+                    }),
+                  },
+                ],
               }}
               className="text-slate-400 text-base leading-6"
             >
-              We'll collect information in these categories to make accurate predictions
+              Choose what you want to manage — accounts, expenses, and more
             </Animated.Text>
           </View>
 
@@ -233,61 +260,79 @@ const screenOpacity = screenTransition.interpolate({
                 key={category.id}
                 style={{
                   opacity: categoryAnimations[index],
-                  transform: [{
-                    translateY: categoryAnimations[index].interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [30, 0]
-                    })
-                  }]
+                  transform: [
+                    {
+                      translateY: categoryAnimations[index].interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [30, 0],
+                      }),
+                    },
+                  ],
                 }}
                 className="bg-slate-800 rounded-xl p-5 border border-slate-700 flex-row items-start relative"
               >
                 <Animated.View
-                  style={[{
-                    transform: [{
-                      scale: categoryAnimations[index]
-                    }],
-                    backgroundColor: `${category.color}20`,
-                  }]}
+                  style={[
+                    {
+                      transform: [
+                        {
+                          scale: categoryAnimations[index],
+                        },
+                      ],
+                      backgroundColor: `${category.color}20`,
+                    },
+                  ]}
                   className="w-14 h-14 rounded-lg justify-center items-center mr-4"
                 >
                   <category.icon size={28} color={category.color} />
                 </Animated.View>
 
                 <View className="flex-1">
-                  <Text className="text-white text-lg font-bold mb-1">{category.title}</Text>
-                  <Text className="text-slate-400 text-sm mb-3 leading-5">{category.description}</Text>
+                  <Text className="text-white text-lg font-bold mb-1">
+                    {category.title}
+                  </Text>
+                  <Text className="text-slate-400 text-sm mb-3 leading-5">
+                    {category.description}
+                  </Text>
 
                   <View>
-                    <Text className="text-slate-500 text-xs font-medium mb-1">Includes:</Text>
+                    <Text className="text-slate-500 text-xs font-medium mb-1">
+                      Includes:
+                    </Text>
                     <View className="flex-row flex-wrap gap-1.5">
                       {category.fields.slice(0, 3).map((field, idx) => (
-                        <Animated.View 
+                        <Animated.View
                           key={idx}
                           style={{
                             opacity: categoryAnimations[index],
-                            transform: [{
-                              scale: categoryAnimations[index].interpolate({
-                                inputRange: [0, 1],
-                                outputRange: [0.5, 1]
-                              })
-                            }]
+                            transform: [
+                              {
+                                scale: categoryAnimations[index].interpolate({
+                                  inputRange: [0, 1],
+                                  outputRange: [0.5, 1],
+                                }),
+                              },
+                            ],
                           }}
                           className="bg-slate-700 px-2 py-1 rounded"
                         >
-                          <Text className="text-slate-200 text-xs font-medium">{field}</Text>
+                          <Text className="text-slate-200 text-xs font-medium">
+                            {field}
+                          </Text>
                         </Animated.View>
                       ))}
                       {category.fields.length > 3 && (
                         <Animated.View
                           style={{
                             opacity: categoryAnimations[index],
-                            transform: [{
-                              scale: categoryAnimations[index].interpolate({
-                                inputRange: [0, 1],
-                                outputRange: [0.5, 1]
-                              })
-                            }]
+                            transform: [
+                              {
+                                scale: categoryAnimations[index].interpolate({
+                                  inputRange: [0, 1],
+                                  outputRange: [0.5, 1],
+                                }),
+                              },
+                            ],
                           }}
                           className="bg-slate-700 px-2 py-1 rounded"
                         >
@@ -300,18 +345,22 @@ const screenOpacity = screenTransition.interpolate({
                   </View>
                 </View>
 
-                <Animated.View 
+                <Animated.View
                   style={{
-                    transform: [{
-                      scale: categoryAnimations[index].interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [0, 1]
-                      })
-                    }]
+                    transform: [
+                      {
+                        scale: categoryAnimations[index].interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [0, 1],
+                        }),
+                      },
+                    ],
                   }}
                   className="absolute top-4 right-4 w-6 h-6 bg-emerald-500 rounded-full justify-center items-center"
                 >
-                  <Text className="text-white text-xs font-bold">{index + 1}</Text>
+                  <Text className="text-white text-xs font-bold">
+                    {index + 1}
+                  </Text>
                 </Animated.View>
               </Animated.View>
             ))}
@@ -324,7 +373,9 @@ const screenOpacity = screenTransition.interpolate({
               onPressOut={handleButtonPressOut}
               onPress={handleNavigate}
             >
-              <Text className="text-white text-base font-bold mr-2">Continue</Text>
+              <Text className="text-white text-base font-bold mr-2">
+                Continue
+              </Text>
               <ArrowRight size={20} color="#ffffff" />
             </TouchableOpacity>
           </Animated.View>

@@ -37,7 +37,7 @@ export function WalletDropdown() {
         <Text className="text-xl font-bold text-white pr-2">
           {selectedAccount?.name || "Hormuud"}
         </Text>
-        <ChevronDown size={16} color={theme.icon} className="ml-1" />
+        <ChevronDown size={16} color="#fff" className="ml-1" />
       </TouchableOpacity>
 
       {/* Dropdown list */}

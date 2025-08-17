@@ -13,10 +13,10 @@ import { Appearance, Platform, View } from "react-native";
 import { NAV_THEME } from "~/lib/constants";
 import { useColorScheme } from "~/lib/useColorScheme";
 import { PortalHost } from "@rn-primitives/portal";
-import { ThemeToggle } from "~/components/ThemeToggle";
 import { setAndroidNavigationBar } from "~/lib/android-navigation-bar";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import Toast from "react-native-toast-message";
+import { LanguageProvider } from "~/lib/LanguageProvider";
 const LIGHT_THEME: Theme = {
   ...DefaultTheme,
   colors: NAV_THEME.light,
@@ -42,23 +42,25 @@ export default function RootLayout() {
   const { isDarkColorScheme } = useColorScheme();
 
   return (
-    <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
-      <BottomSheetModalProvider>
-        <StatusBar style={isDarkColorScheme ? "light" : "dark"} />
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(onboarding)" />
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(main)" />
-          <Stack.Screen name="(predict)" />
-          <Stack.Screen name="(expense)" />
-          <Stack.Screen name="(analytics)" />
-          <Stack.Screen name="(profile)" />
-        </Stack>
-        <Toast />
-        <PortalHost />
-      </BottomSheetModalProvider>
-    </ThemeProvider>
+    <LanguageProvider>
+      <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
+        <BottomSheetModalProvider>
+          <StatusBar style={isDarkColorScheme ? "light" : "dark"} />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(onboarding)" />
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(main)" />
+            <Stack.Screen name="(predict)" />
+            <Stack.Screen name="(expense)" />
+            <Stack.Screen name="(analytics)" />
+            <Stack.Screen name="(profile)" />
+          </Stack>
+          <Toast />
+          <PortalHost />
+        </BottomSheetModalProvider>
+      </ThemeProvider>
+    </LanguageProvider>
   );
 }
 

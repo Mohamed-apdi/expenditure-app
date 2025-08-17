@@ -314,7 +314,10 @@ export default function UpdateProfileScreen() {
           style={{ borderBottomColor: theme.border }}
         >
           {/* Header */}
-          <View className="flex-row justify-between items-center px-6 py-4 border-b border-slate-700">
+          <View
+            className="flex-row justify-between items-center px-6 py-4 border-b "
+            style={{ borderColor: theme.border }}
+          >
             <TouchableOpacity className="p-2" onPress={handleCancel}>
               <X size={24} color={theme.icon} />
             </TouchableOpacity>
@@ -322,7 +325,7 @@ export default function UpdateProfileScreen() {
               Update Profile
             </Text>
             <TouchableOpacity
-              className={`py-2 px-4 rounded-lg ${!hasChanges || loading ? "bg-slate-700" : "bg-emerald-500"}`}
+              className={`py-2 px-4 rounded-lg ${!hasChanges || loading ? "bg-slate-700" : "bg-[#3b82f6]"}`}
               onPress={handleSave}
               disabled={!hasChanges || loading}
             >
@@ -390,10 +393,10 @@ export default function UpdateProfileScreen() {
                   Full Name
                 </Text>
                 <View
-                  className="flex-row items-center rounded-xl border px-4"
+                  className="flex-row items-center rounded-xl border-b px-4"
                   style={{
                     backgroundColor: theme.inputBackground,
-                    borderColor: theme.inputBorder,
+                    borderColor: theme.border,
                   }}
                 >
                   <User
@@ -429,10 +432,10 @@ export default function UpdateProfileScreen() {
                   Email Address
                 </Text>
                 <View
-                  className="flex-row items-center rounded-xl border px-4"
+                  className="flex-row items-center rounded-xl border-b px-4"
                   style={{
                     backgroundColor: theme.inputBackground,
-                    borderColor: theme.inputBorder,
+                    borderColor: theme.border,
                   }}
                 >
                   <Mail
@@ -464,10 +467,10 @@ export default function UpdateProfileScreen() {
                   Phone Number
                 </Text>
                 <View
-                  className="flex-row items-center rounded-xl border px-4"
+                  className="flex-row items-center rounded-xl border-b px-4"
                   style={{
                     backgroundColor: theme.inputBackground,
-                    borderColor: theme.inputBorder,
+                    borderColor: theme.border,
                   }}
                 >
                   <Phone

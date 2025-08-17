@@ -282,7 +282,7 @@ export default function ProfileScreen() {
                   "https://ui-avatars.com/api/?name=" +
                     encodeURIComponent(userProfile.fullName || "User"),
               }}
-              className="w-32 h-32 rounded-full border-4 border-emerald-500"
+              className="w-32 h-32 rounded-full border-4"
               style={{
                 borderColor: theme.border,
               }}
@@ -319,7 +319,7 @@ export default function ProfileScreen() {
                 ? "Loading..."
                 : userProfile.fullName || "No name provided"}
             </Text>
-            <Text className="text-emerald-500 text-base mb-2">
+            <Text className="text-[#3b82f6] text-base mb-2">
               {loading ? "Loading..." : userProfile.email}
             </Text>
             <View className="flex-row items-center">
@@ -329,94 +329,6 @@ export default function ProfileScreen() {
               </Text>
             </View>
           </View>
-        </View>
-
-        {/* Stats Cards */}
-        <View className="flex-row px-6 mb-8 gap-3">
-          <View
-            className="flex-1  rounded-xl p-4 items-center border "
-            style={{
-              backgroundColor: theme.cardBackground,
-              borderColor: theme.border,
-            }}
-          >
-            <Calendar size={20} color="#10b981" />
-            <Text
-              className=" text-xl font-bold mt-2 mb-1"
-              style={{
-                color: theme.text,
-              }}
-            >
-              {userProfile.totalPredictions}
-            </Text>
-            <Text
-              className="text-xs"
-              style={{
-                color: theme.textSecondary,
-              }}
-            >
-              Predictions
-            </Text>
-          </View>
-          <View
-            className="flex-1  rounded-xl p-4 items-center border "
-            style={{
-              backgroundColor: theme.cardBackground,
-              borderColor: theme.border,
-            }}
-          >
-            <Target size={20} color="#3b82f6" />
-            <Text
-              className="text-xs"
-              style={{
-                color: theme.text,
-              }}
-              className="text-xl font-bold mt-2 mb-1"
-            >
-              {userProfile.avgAccuracy}%
-            </Text>
-            <Text
-              className="text-xs"
-              style={{
-                color: theme.textSecondary,
-              }}
-              className=" text-xs"
-            >
-              Expense Accuracy
-            </Text>
-          </View>
-
-          {/*<View
-            className="flex-1  rounded-xl p-4 items-center border "
-            style={{
-              backgroundColor: theme.cardBackground,
-              borderColor: theme.border,
-            }}
-          >
-            <UserCheck size={20} color="#8b5cf6" />
-            <Text
-              className="text-xs"
-              style={{
-                color: theme.text,
-              }}
-              className="text-xl font-bold mt-2 mb-1"
-            >
-              {Math.floor(
-                (new Date().getTime() -
-                  new Date(userProfile.joinDate).getTime()) /
-                  (1000 * 60 * 60 * 24)
-              )}
-            </Text>
-            <Text
-              className="text-xs"
-              style={{
-                color: theme.textSecondary,
-              }}
-              className="text-xs"
-            >
-              Days Active
-            </Text>
-          </View>*/}
         </View>
 
         {/* Contact Information */}
@@ -431,13 +343,7 @@ export default function ProfileScreen() {
             Contact Information
           </Text>
 
-          <View
-            className=" rounded-xl border  overflow-hidden"
-            style={{
-              backgroundColor: theme.cardBackground,
-              borderColor: theme.border,
-            }}
-          >
+          <View>
             {/* Full Name */}
             <View className="flex-row items-center p-4">
               <User size={20} color="#64748b" />
@@ -454,24 +360,10 @@ export default function ProfileScreen() {
                     : userProfile.fullName || "No name provided"}
                 </Text>
               </View>
-              <TouchableOpacity
-                className="p-2"
-                onPress={() =>
-                  router.push({
-                    pathname: "../(profile)/UpdateProfileScreen" as any,
-                    params: {
-                      userProfile: JSON.stringify(userProfile),
-                      focusField: "fullName",
-                    },
-                  })
-                }
-              >
-                <Edit3 size={16} color={theme.icon} />
-              </TouchableOpacity>
             </View>
 
             {/* Divider */}
-            <View className="h-px bg-slate-700 ml-14" />
+            <View className="h-px bg-[#3b82f6] " />
 
             {/* Phone Number */}
             <View className="flex-row items-center p-4">
@@ -491,24 +383,10 @@ export default function ProfileScreen() {
                     : userProfile.phone || "No phone provided"}
                 </Text>
               </View>
-              <TouchableOpacity
-                className="p-2"
-                onPress={() =>
-                  router.push({
-                    pathname: "../(profile)/UpdateProfileScreen" as any,
-                    params: {
-                      userProfile: JSON.stringify(userProfile),
-                      focusField: "phone",
-                    },
-                  })
-                }
-              >
-                <Edit3 size={16} color={theme.icon} />
-              </TouchableOpacity>
             </View>
 
             {/* Divider */}
-            <View className="h-px bg-slate-700 ml-14" />
+            <View className="h-px bg-[#3b82f6] " />
 
             {/* Email */}
             <View className="flex-row items-center p-4">
@@ -543,18 +421,17 @@ export default function ProfileScreen() {
 
           {/* Change Password */}
           <TouchableOpacity
-            className="flex-row items-center  rounded-xl p-4 mb-3 border "
+            className="flex-row items-center  rounded-xl p-4 mb-3  "
             onPress={() => setShowChangePassword(true)}
             style={{
               backgroundColor: theme.cardBackground,
-              borderColor: theme.border,
             }}
           >
             <View
               className="w-10 h-10 rounded-full  justify-center items-center mr-4"
               style={{ backgroundColor: theme.cardBackground }}
             >
-              <Key size={20} color="#10b981" />
+              <Key size={20} color={theme.icon} />
             </View>
             <View className="flex-1">
               <Text
@@ -567,7 +444,7 @@ export default function ProfileScreen() {
                 Update your account password
               </Text>
             </View>
-            <ChevronRight size={20} color="#64748b" />
+            <ChevronRight size={20} color={theme.icon} />
           </TouchableOpacity>
         </View>
 
@@ -622,17 +499,19 @@ export default function ProfileScreen() {
                   Current Password
                 </Text>
                 <View
-                  className="flex-row items-center  rounded-xl border  px-4"
+                  className="flex-row items-center  rounded-xl   px-4"
                   style={{
                     backgroundColor: theme.cardBackground,
-                    borderColor: theme.border,
                   }}
                 >
                   <Lock size={20} color="#64748b" className="mr-3" />
                   <TextInput
-                    className="flex-1 py-4 text-white text-base"
+                    className="flex-1 py-4  text-base"
+                    style={{
+                      color: theme.textSecondary,
+                    }}
                     placeholder="Enter current password"
-                    placeholderTextColor="#64748b"
+                    placeholderTextColor={theme.textSecondary}
                     value={passwordData.currentPassword}
                     onChangeText={(value) =>
                       setPasswordData((prev) => ({
@@ -668,16 +547,19 @@ export default function ProfileScreen() {
                   New Password
                 </Text>
                 <View
-                  className="flex-row items-center  rounded-xl border  px-4"
+                  className="flex-row items-center  rounded-xl   px-4"
                   style={{
                     backgroundColor: theme.cardBackground,
-                    borderColor: theme.border,
                   }}
                 >
+                  <Lock size={20} color="#64748b" className="mr-3" />
                   <TextInput
-                    className="flex-1 py-4 text-white text-base"
+                    className="flex-1 py-4  text-base"
+                    style={{
+                      color: theme.textSecondary,
+                    }}
                     placeholder="Enter new password"
-                    placeholderTextColor="#64748b"
+                    placeholderTextColor={theme.textSecondary}
                     value={passwordData.newPassword}
                     onChangeText={(value) =>
                       setPasswordData((prev) => ({
@@ -710,17 +592,19 @@ export default function ProfileScreen() {
                   Confirm New Password
                 </Text>
                 <View
-                  className="flex-row items-center  rounded-xl border  px-4"
+                  className="flex-row items-center  rounded-xl   px-4"
                   style={{
                     backgroundColor: theme.cardBackground,
-                    borderColor: theme.border,
                   }}
                 >
                   <Lock size={20} color="#64748b" className="mr-3" />
                   <TextInput
-                    className="flex-1 py-4 text-white text-base"
+                    className="flex-1 py-4  text-base"
+                    style={{
+                      color: theme.textSecondary,
+                    }}
                     placeholder="Confirm new password"
-                    placeholderTextColor="#64748b"
+                    placeholderTextColor={theme.textSecondary}
                     value={passwordData.confirmPassword}
                     onChangeText={(value) =>
                       setPasswordData((prev) => ({
@@ -749,10 +633,9 @@ export default function ProfileScreen() {
 
               {/* Password Requirements */}
               <View
-                className=" rounded-lg p-4 border  mb-6"
+                className=" rounded-lg p-4   mb-6"
                 style={{
                   backgroundColor: theme.cardBackground,
-                  borderColor: theme.border,
                 }}
               >
                 <Text
@@ -769,7 +652,7 @@ export default function ProfileScreen() {
                     size={14}
                     color={
                       passwordData.newPassword.length >= 8
-                        ? "#10b981"
+                        ? "#3b82f6"
                         : "#ef4444"
                     }
                   />
@@ -788,7 +671,7 @@ export default function ProfileScreen() {
                     size={14}
                     color={
                       /[A-Z]/.test(passwordData.newPassword)
-                        ? "#10b981"
+                        ? "#3b82f6"
                         : "#ef4444"
                     }
                   />
@@ -807,7 +690,7 @@ export default function ProfileScreen() {
                     size={14}
                     color={
                       /[0-9]/.test(passwordData.newPassword)
-                        ? "#10b981"
+                        ? "#3b82f6"
                         : "#ef4444"
                     }
                   />
@@ -824,7 +707,7 @@ export default function ProfileScreen() {
 
               {/* Submit Button */}
               <TouchableOpacity
-                className="bg-emerald-500 py-4 rounded-xl items-center"
+                className="bg-[#3b82f6] py-4 rounded-xl items-center"
                 onPress={handleChangePassword}
                 disabled={loading}
               >
