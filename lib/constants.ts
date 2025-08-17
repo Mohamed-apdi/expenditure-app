@@ -27,7 +27,7 @@ export const NAV_THEME = {
     dangerText: "#ffffff",
 
     // Icons
-    icon: "#334155",
+    icon: "#ffffff",
     iconMuted: "#94a3b8",
 
     // Status indicators
@@ -35,6 +35,8 @@ export const NAV_THEME = {
     stepActive: "#0891b2",
   },
   dark: {
+    icon: "#3b82f6",
+
     // Main backgrounds
     background: "#0f172a",
     cardBackground: "#1e293b",
