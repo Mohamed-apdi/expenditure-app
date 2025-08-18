@@ -17,6 +17,7 @@ import { setAndroidNavigationBar } from "~/lib/android-navigation-bar";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import Toast from "react-native-toast-message";
 import { AccountProvider } from "~/lib/AccountContext";
+import { LanguageProvider } from "~/lib/LanguageProvider";
 
 const LIGHT_THEME: Theme = {
   ...DefaultTheme,
@@ -43,25 +44,27 @@ export default function RootLayout() {
   const { isDarkColorScheme } = useColorScheme();
 
   return (
-    <AccountProvider>
-      <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
-        <BottomSheetModalProvider>
-          <StatusBar style={isDarkColorScheme ? "light" : "dark"} />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(onboarding)" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(main)" />
-            <Stack.Screen name="(predict)" />
-            <Stack.Screen name="(expense)" />
-            <Stack.Screen name="(analytics)" />
-            <Stack.Screen name="(profile)" />
-          </Stack>
-          <Toast />
-          <PortalHost />
-        </BottomSheetModalProvider>
-      </ThemeProvider>
-    </AccountProvider>
+    <LanguageProvider>
+      <AccountProvider>
+        <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
+          <BottomSheetModalProvider>
+            <StatusBar style={isDarkColorScheme ? "light" : "dark"} />
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(onboarding)" />
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(main)" />
+              <Stack.Screen name="(predict)" />
+              <Stack.Screen name="(expense)" />
+              <Stack.Screen name="(analytics)" />
+              <Stack.Screen name="(profile)" />
+            </Stack>
+            <Toast />
+            <PortalHost />
+          </BottomSheetModalProvider>
+        </ThemeProvider>
+      </AccountProvider>
+    </LanguageProvider>
   );
 }
 

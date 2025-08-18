@@ -16,6 +16,7 @@ import { useColorScheme } from "~/lib/useColorScheme";
 import { useTheme } from "~/lib/theme";
 import { WalletDropdown } from "./WalletDropdown";
 import { useAccount } from "~/lib/AccountContext";
+import { useLanguage } from "~/lib/LanguageProvider";
 
 interface DashboardHeaderProps {
   userName: string;
