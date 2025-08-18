@@ -20,10 +20,11 @@ type AddAccountProps = {
   visible: boolean;
   onClose: () => void;
   onAddAccount: (account: {
-    account_type: string; // Changed from group_name
+    group_name: string;
     name: string;
     amount: number;
     description?: string;
+    type?: "asset" | "liability";
   }) => void;
   accountGroups: AccountGroup[];
 };
@@ -35,15 +36,19 @@ const AddAccount = ({
   accountGroups,
 }: AddAccountProps) => {
   const [showGroupModal, setShowGroupModal] = useState(false);
-  // Removed showTypeModal state
+  const [showTypeModal, setShowTypeModal] = useState(false);
   const [newAccount, setNewAccount] = useState({
-    account_type: "", // Changed from group_name
+    group_name: "",
     name: "",
     amount: 0,
     description: "",
+    type: undefined as "asset" | "liability" | undefined,
   });
 
-  // Removed accountTypes array
+  const accountTypes = [
+    { id: "asset", name: "Asset" },
+    { id: "liability", name: "Liability" },
+  ];
 
   const handleAddAccount = () => {
     if (!newAccount.account_type || !newAccount.name) {
@@ -53,19 +58,19 @@ const AddAccount = ({
     }
 
     onAddAccount({
-      account_type: newAccount.account_type, // Changed from group_name
+      group_name: newAccount.group_name,
       name: newAccount.name,
       amount: newAccount.amount || 0,
       description: newAccount.description,
-      // Removed type field
+      type: newAccount.type,
     });
 
     setNewAccount({
-      account_type: "", // Changed from group_name
+      group_name: "",
       name: "",
       amount: 0,
       description: "",
-      // Removed type field
+      type: undefined,
     });
   };
 
@@ -82,7 +87,7 @@ const AddAccount = ({
         <ScrollView className="flex-1 px-6 pt-6">
           {/* Group Input */}
           <View className="mb-5">
-            <Text className="text-gray-700 mb-2 font-medium">Account Type</Text>
+            <Text className="text-gray-700 mb-2 font-medium">Group</Text>
             <TouchableOpacity
               className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row justify-between items-center"
               onPress={() => setShowGroupModal(true)}
@@ -195,10 +200,10 @@ const AddAccount = ({
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     className={`px-6 py-4 flex-row justify-between items-center ${
-                      newAccount.account_type === item.name ? "bg-blue-50" : ""
+                      newAccount.group_name === item.name ? "bg-blue-50" : ""
                     }`}
                     onPress={() => {
-                      setNewAccount({ ...newAccount, account_type: item.name });
+                      setNewAccount({ ...newAccount, group_name: item.name });
                       setShowGroupModal(false);
                     }}
                   >

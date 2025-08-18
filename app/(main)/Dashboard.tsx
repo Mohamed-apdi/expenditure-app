@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ScrollView,
   Text,
@@ -15,18 +15,6 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "~/lib/supabase";
-import { 
-  getFinancialSummary, 
-  getExpensesByCategory, 
-  getRecentTransactions,
-  getAccountBalances,
-  type FinancialSummary,
-  type CategorySummary
-} from "~/lib/analytics";
-import { fetchExpenses } from "~/lib/expenses";
-import { fetchTransactions } from "~/lib/transactions";
-import { fetchProfile } from "~/lib/profiles";
-import { useAccount } from "~/lib/AccountContext";
 import {
   PieChart,
   TrendingUp,
@@ -87,12 +75,11 @@ import MonthYearScroller from "~/components/(Dashboard)/MonthYearScroll";
 type Transaction = {
   id: string;
   amount: number;
-  category?: string;
-  description?: string;
+  category: string;
+  description: string;
   created_at: string;
-  date: string;
-  type: 'expense' | 'income' | 'transfer';
-  account_id: string;
+  payment_method: string;
+  entry_type: "Income" | "Expense";
 };
 
 type QuickAction = {
@@ -112,10 +99,7 @@ export default function DashboardScreen() {
   });
   const [todaySpending, setTodaySpending] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [financialSummary, setFinancialSummary] = useState<FinancialSummary | null>(null);
-  const [categorySummary, setCategorySummary] = useState<CategorySummary[]>([]);
-  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
-  const [accountBalances, setAccountBalances] = useState<{ name: string; balance: number; type: string }[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<{
@@ -137,161 +121,84 @@ export default function DashboardScreen() {
 
   const fetchData = async () => {
     try {
-      // Prevent multiple simultaneous calls
-      if (loading) {
-        console.log("Dashboard - Already loading, skipping fetchData call");
-        return;
-      }
-      
-      console.log("Dashboard - Starting fetchData...");
       setLoading(true);
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (!user) {
-        console.log("User not authenticated yet, skipping data fetch");
-        setLoading(false);
-        return;
+        throw new Error("User not authenticated");
       }
 
-      console.log("Dashboard - User authenticated, fetching data for user:", user.id);
-
       // Profile
-      const profileData = await fetchProfile(user.id);
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("full_name, phone, image_url, created_at")
+        .eq("id", user.id)
+        .single();
+
       setUserProfile({
         fullName: profileData?.full_name || "",
         email: user.email || "",
         image_url: profileData?.image_url || "",
       });
 
-      // Refresh account balances to ensure real-time display
-      console.log("Dashboard - Refreshing account balances...");
-      await refreshBalances();
-      console.log("Dashboard - Account balances refreshed");
+      // Today's spending (expenses only)
+      const today = new Date();
+      const startOfToday = new Date(today.setHours(0, 0, 0, 0)).toISOString();
+      const endOfToday = new Date(
+        today.setHours(23, 59, 59, 999)
+      ).toISOString();
 
-      // If no account is selected, show all data
-      if (!selectedAccount) {
-        console.log("Dashboard - No account selected, showing all data");
-        // Financial Summary
-        const summary = await getFinancialSummary(user.id);
-        console.log("Dashboard - Financial summary:", summary);
-        setFinancialSummary(summary);
-        setTotalIncome(summary.totalIncome);
-        setTotalExpense(summary.totalExpenses);
+      const { data: todaySpendingData } = await supabase
+        .from("expenses")
+        .select("amount")
+        .eq("user_id", user.id)
+        .eq("entry_type", "Expense")
+        .gte("date", startOfToday)
+        .lte("date", endOfToday);
 
-        // Today's spending (expenses only)
-        const today = new Date();
-        const startOfToday = new Date(today.setHours(0, 0, 0, 0)).toISOString().split('T')[0];
-        const endOfToday = new Date(today.setHours(23, 59, 59, 999)).toISOString().split('T')[0];
+      const todayTotal =
+        todaySpendingData?.reduce(
+          (sum, item) => sum + (item?.amount || 0),
+          0
+        ) || 0;
+      setTodaySpending(todayTotal);
 
-        // Get all transactions and filter for today's expenses
-        const allTransactions = await fetchTransactions(user.id);
-        console.log("Dashboard - All transactions fetched:", allTransactions.length);
-        const todayExpenses = allTransactions.filter(t => 
-          t.type === 'expense' && 
-          t.date >= startOfToday && 
-          t.date <= endOfToday
-        );
+      // Totals by entry_type
+      const { data: allTransactions } = await supabase
+        .from("expenses")
+        .select("amount, entry_type")
+        .eq("user_id", user.id);
 
-        const todayTotal = todayExpenses.reduce((sum, item) => sum + (item?.amount || 0), 0);
-        setTodaySpending(todayTotal);
-        console.log("Dashboard - Today's spending:", todayTotal);
+      let incomeTotal = 0;
+      let expenseTotal = 0;
+      allTransactions?.forEach((t) => {
+        const amount = t.amount || 0;
+        switch (t.entry_type) {
+          case "Income":
+            incomeTotal += amount;
+            break;
+          case "Expense":
+            expenseTotal += amount;
+            break;
+        }
+      });
 
-        // Category Summary - use transactions
-        const categoryData = await getExpensesByCategory(user.id);
-        setCategorySummary(categoryData);
+      setTotalIncome(incomeTotal);
+      setTotalExpense(expenseTotal);
 
-        // Account Balances
-        const balances = await getAccountBalances(user.id);
-        setAccountBalances(balances);
+      // Recent transactions - include entry_type
+      const { data: transactionsData } = await supabase
+        .from("expenses")
+        .select(
+          "id, amount, category, description, created_at, payment_method, entry_type"
+        )
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(8);
 
-        // Recent transactions - use transactions table
-        const recent = allTransactions
-          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-          .slice(0, 8);
-        setRecentTransactions(recent);
-        console.log("Dashboard - Recent transactions set:", recent.length);
-      } else {
-        console.log("Dashboard - Account selected, filtering data for:", selectedAccount.name);
-        // Filter data for selected account
-        const accountId = selectedAccount.id;
-        
-        // Get transactions for selected account
-        const accountTransactions = await fetchTransactions(user.id);
-        const accountTransactionsFiltered = accountTransactions.filter(t => t.account_id === accountId);
-        console.log("Dashboard - Filtered transactions for account:", accountTransactionsFiltered.length);
-
-        // Calculate totals for selected account
-        const accountIncome = accountTransactionsFiltered
-          .filter(t => t.type === 'income')
-          .reduce((sum, item) => sum + (item?.amount || 0), 0);
-        
-        const accountExpensesTotal = accountTransactionsFiltered
-          .filter(t => t.type === 'expense')
-          .reduce((sum, item) => sum + (item?.amount || 0), 0);
-
-        console.log("Dashboard - Account income:", accountIncome, "expenses:", accountExpensesTotal);
-
-        // Set financial summary for selected account
-        setFinancialSummary({
-          totalIncome: accountIncome,
-          totalExpenses: accountExpensesTotal,
-          netIncome: accountIncome - accountExpensesTotal,
-          totalBalance: selectedAccount.amount
-        });
-
-        setTotalIncome(accountIncome);
-        setTotalExpense(accountExpensesTotal);
-
-        // Today's spending for selected account
-        const today = new Date();
-        const startOfToday = new Date(today.setHours(0, 0, 0, 0)).toISOString().split('T')[0];
-        const endOfToday = new Date(today.setHours(23, 59, 59, 999)).toISOString().split('T')[0];
-
-        const todayExpenses = accountTransactionsFiltered.filter(t => 
-          t.type === 'expense' && 
-          t.date >= startOfToday && 
-          t.date <= endOfToday
-        );
-
-        const todayTotal = todayExpenses.reduce((sum, item) => sum + (item?.amount || 0), 0);
-        setTodaySpending(todayTotal);
-        console.log("Dashboard - Today's spending for account:", todayTotal);
-
-        // Category summary for selected account
-        const categoryMap = new Map<string, number>();
-        accountTransactionsFiltered
-          .filter(t => t.type === 'expense')
-          .forEach(t => {
-            const current = categoryMap.get(t.category || '') || 0;
-            categoryMap.set(t.category || '', current + t.amount);
-          });
-
-        const accountCategorySummary: CategorySummary[] = Array.from(categoryMap.entries()).map(([category, amount]) => ({
-          category,
-          amount,
-          percentage: (amount / accountExpensesTotal) * 100
-        }));
-
-        setCategorySummary(accountCategorySummary);
-
-        // Account balances (show only selected account)
-        setAccountBalances([{
-          name: selectedAccount.name,
-          balance: selectedAccount.amount,
-          type: selectedAccount.account_type // Changed from group_name to account_type
-        }]);
-
-        // Recent transactions for selected account
-        const recent = accountTransactionsFiltered
-          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-          .slice(0, 8);
-        setRecentTransactions(recent);
-        console.log("Dashboard - Recent transactions for account set:", recent.length);
-      }
-      
-      console.log("Dashboard - fetchData completed successfully");
+      setTransactions(transactionsData || []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -300,23 +207,9 @@ export default function DashboardScreen() {
     }
   };
 
-  // Update the handleMonthChange function
-  const handleMonthChange = React.useCallback(async (month: number, year: number) => {
-    if (!loading) {
-      setSelectedMonth({ month, year });
-      // The fetchMonthData will now update the filteredTransactions
-    }
-  }, [loading]);
-
-  // Memoize fetchMonthData to prevent infinite loops
-  const fetchMonthData = React.useCallback(async (month: number, year: number) => {
+  // Update the fetchMonthData function to also fetch transactions for the month
+  const fetchMonthData = async (month: number, year: number) => {
     try {
-      // Prevent multiple simultaneous calls
-      if (loading) {
-        console.log("Dashboard - Already loading month data, skipping call");
-        return { income: 0, expense: 0, balance: 0 };
-      }
-
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -324,29 +217,19 @@ export default function DashboardScreen() {
       if (!user) return { income: 0, expense: 0, balance: 0 };
 
       // Get first and last day of selected month
-      const startDate = new Date(year, month, 1).toISOString().split('T')[0];
-      const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0];
+      const startDate = new Date(year, month, 1);
+      const endDate = new Date(year, month + 1, 0);
 
       // Fetch transactions for selected month
-      let monthTransactions;
-      if (selectedAccount) {
-        // Filter by selected account
-        monthTransactions = await fetchTransactions(user.id);
-        monthTransactions = monthTransactions.filter(t => 
-          t.account_id === selectedAccount.id &&
-          t.date >= startDate &&
-          t.date <= endDate
-        );
-        console.log("Dashboard - Fetching month data for account:", selectedAccount.name);
-      } else {
-        // Fetch all transactions
-        monthTransactions = await fetchTransactions(user.id);
-        monthTransactions = monthTransactions.filter(t => 
-          t.date >= startDate &&
-          t.date <= endDate
-        );
-        console.log("Dashboard - Fetching month data for all accounts");
-      }
+      const { data: monthTransactions } = await supabase
+        .from("expenses")
+        .select(
+          "amount, entry_type, id, category, description, created_at, payment_method"
+        )
+        .eq("user_id", user.id)
+        .gte("created_at", startDate.toISOString())
+        .lte("created_at", endDate.toISOString())
+        .order("created_at", { ascending: false });
 
       let monthIncome = 0;
       let monthExpense = 0;
@@ -354,9 +237,9 @@ export default function DashboardScreen() {
 
       monthTransactions?.forEach((t) => {
         const amount = t.amount || 0;
-        if (t.type === "income") {
+        if (t.entry_type === "Income") {
           monthIncome += amount;
-        } else if (t.type === "expense") {
+        } else {
           monthExpense += amount;
         }
         monthTransactionsList.push(t as Transaction);
@@ -384,14 +267,17 @@ export default function DashboardScreen() {
       console.error("Error fetching month data:", error);
       return { income: 0, expense: 0, balance: 0 };
     }
-  }, [selectedAccount?.id, loading]);
+  };
 
   // Refetch data when selected account changes
   useEffect(() => {
     if (selectedAccount && !loading && !refreshing) {
-      console.log("Dashboard - selectedAccount changed to:", selectedAccount.name);
+      console.log(
+        "Dashboard - selectedAccount changed to:",
+        selectedAccount.name
+      );
       fetchData();
-      
+
       // Also refresh the MonthYearScroller data for the current month
       const current = new Date();
       const currentMonth = current.getMonth();
@@ -404,9 +290,13 @@ export default function DashboardScreen() {
     // Initial load - fetch data immediately when component mounts
     const checkAuthAndFetch = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (user) {
-          console.log("Dashboard - Initial load, user authenticated, fetching data...");
+          console.log(
+            "Dashboard - Initial load, user authenticated, fetching data..."
+          );
           fetchData(); // Accounts are already loaded by AccountContext
         }
       } catch (error) {
@@ -423,7 +313,10 @@ export default function DashboardScreen() {
   // Additional effect to handle when selectedAccount becomes available
   useEffect(() => {
     if (selectedAccount && !financialSummary && !loading && !refreshing) {
-      console.log("Dashboard - selectedAccount available, fetching data for:", selectedAccount.name);
+      console.log(
+        "Dashboard - selectedAccount available, fetching data for:",
+        selectedAccount.name
+      );
       fetchData();
     }
   }, [selectedAccount, financialSummary, loading, refreshing]);
@@ -431,7 +324,9 @@ export default function DashboardScreen() {
   // Refresh MonthYearScroller when accounts change (e.g., new account added)
   useEffect(() => {
     if (accounts.length > 0 && selectedAccount && !loading && !refreshing) {
-      console.log("Dashboard - Accounts updated, refreshing MonthYearScroller...");
+      console.log(
+        "Dashboard - Accounts updated, refreshing MonthYearScroller..."
+      );
       const current = new Date();
       const currentMonth = current.getMonth();
       const currentYear = current.getFullYear();
@@ -439,12 +334,10 @@ export default function DashboardScreen() {
     }
   }, [accounts.length, selectedAccount, loading, refreshing]);
 
-  const onRefresh = React.useCallback(() => {
-    if (!loading && !refreshing) {
-      setRefreshing(true);
-      fetchData();
-    }
-  }, []); // Remove selectedAccount dependency to prevent infinite loop
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
+  };
 
   const getCategoryIcon = (category: string) => {
     const icons: Record<string, React.ElementType> = {
@@ -561,13 +454,13 @@ export default function DashboardScreen() {
     },
   ];
 
-  // if (loading && !refreshing) {
-  //   return (
-  //     <View className="flex-1 bg-[#F6F8FD] justify-center items-center">
-  //       <ActivityIndicator size="large" color="#2D6CF6" />
-  //     </View>
-  //   );
-  // }
+  if (loading && !refreshing) {
+    return (
+      <View className="flex-1 bg-[#F6F8FD] justify-center items-center">
+        <ActivityIndicator size="large" color="#2D6CF6" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 pt-safe bg-[#3b82f6] relative">
@@ -612,8 +505,8 @@ export default function DashboardScreen() {
             data={filteredTransactions}
             keyExtractor={(item) => item.id}
             renderItem={({ item: t }) => {
-              const IconComponent = getCategoryIcon(t.category || '');
-              const color = getCategoryColor(t.category || '');
+              const IconComponent = getCategoryIcon(t.category);
+              const color = getCategoryColor(t.category);
 
               return (
                 <TouchableOpacity
@@ -652,14 +545,14 @@ export default function DashboardScreen() {
                             className="text-base font-bold"
                             style={{
                               color:
-                                t.type === "expense"
+                                t.entry_type === "Expense"
                                   ? "#DC2626"
                                   : "#16A34A",
                             }}
                             numberOfLines={1}
                             ellipsizeMode="tail"
                           >
-                            {t.type === "expense" ? "-" : "+"}$
+                            {t.entry_type === "Expense" ? "-" : "+"}$
                             {Math.abs(t.amount).toFixed(2)}
                           </Text>
                           <Text className="text-xs text-gray-500">

@@ -1,5 +1,5 @@
 // screens/BudgetScreen.tsx
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -11,22 +11,26 @@ import {
   PanResponder,
   RefreshControl,
 } from "react-native";
-import { Plus, ChevronRight, X, Edit2, Trash2, ChevronDown } from "lucide-react-native";
+import { Plus, ChevronRight, X, Edit2, Trash2 } from "lucide-react-native";
 import { CircularProgress } from "react-native-circular-progress";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SubscriptionsScreen from "../components/SubscriptionsScreen";
 import SavingsScreen from "../components/SavingsScreen";
 import { supabase } from "~/lib/supabase";
-import { 
-  fetchBudgets, 
+import {
+  fetchBudgets,
   fetchBudgetsWithAccounts,
-  addBudget, 
-  updateBudget, 
+  addBudget,
+  updateBudget,
   deleteBudget,
-  type Budget 
+  type Budget,
 } from "~/lib/budgets";
 import { fetchAccounts, type Account } from "~/lib/accounts";
-import { getExpensesByCategory, getBudgetProgress, type BudgetProgress } from "~/lib/analytics";
+import {
+  getExpensesByCategory,
+  getBudgetProgress,
+  type BudgetProgress,
+} from "~/lib/analytics";
 
 // Use the exact same expense categories as AddExpense
 const expenseCategories = [
@@ -65,7 +69,7 @@ export default function BudgetScreen() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
-  
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -98,8 +102,34 @@ export default function BudgetScreen() {
     })
   ).current;
 
+  // Budget tab data and functions
+  const [budgets, setBudgets] = useState([
+    { id: "1", category: "Food", allocated: 500, spent: 420, color: "#f59e0b" },
+    {
+      id: "2",
+      category: "Transport",
+      allocated: 200,
+      spent: 150,
+      color: "#3b82f6",
+    },
+    {
+      id: "3",
+      category: "Entertainment",
+      allocated: 100,
+      spent: 85,
+      color: "#8b5cf6",
+    },
+    {
+      id: "4",
+      category: "Utilities",
+      allocated: 300,
+      spent: 280,
+      color: "#10b981",
+    },
+  ]);
+
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [currentBudget, setCurrentBudget] = useState<Budget | null>(null);
+  const [currentBudget, setCurrentBudget] = useState(null);
   const [newCategory, setNewCategory] = useState("");
   const [newAllocated, setNewAllocated] = useState("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
@@ -117,19 +147,19 @@ export default function BudgetScreen() {
       }
 
       setUserId(user.id);
-      
+
       // Fetch budgets with accounts and budget progress in parallel
       const [budgetsData, accountsData, progressData] = await Promise.all([
         fetchBudgetsWithAccounts(user.id),
         fetchAccounts(user.id),
-        getBudgetProgress(user.id)
+        getBudgetProgress(user.id),
       ]);
-      
-      setBudgets(budgetsData.map(b => b as Budget));
+
+      setBudgets(budgetsData.map((b) => b as Budget));
       setBudgetsWithAccounts(budgetsData);
       setBudgetProgress(progressData);
       setAccounts(accountsData);
-      
+
       // Set default selected account if available
       if (accountsData.length > 0) {
         setSelectedAccount(accountsData[0]);
@@ -154,32 +184,24 @@ export default function BudgetScreen() {
   }, []);
 
   const openAddModal = () => {
-    if (accounts.length === 0) {
-      Alert.alert("No Accounts", "Please create an account first before setting up budgets.");
-      return;
-    }
     setCurrentBudget(null);
     setNewCategory("");
     setNewAllocated("");
-    setSelectedAccount(accounts[0]); // Set default account
+    setNewSpent("");
     setIsModalVisible(true);
   };
 
-  const openEditModal = (budget: any) => {
+  const openEditModal = (budget) => {
     setCurrentBudget(budget);
     setNewCategory(budget.category);
-    setNewAllocated(budget.amount.toString());
-    
-    // Find and set the account for this budget
-    const budgetAccount = budget.account || accounts.find(acc => acc.id === budget.account_id);
-    setSelectedAccount(budgetAccount || null);
-    
+    setNewAllocated(budget.allocated.toString());
+    setNewSpent(budget.spent.toString());
     setIsModalVisible(true);
   };
 
-  const handleSaveBudget = async () => {
-    if (!newCategory.trim() || !newAllocated.trim()) {
-      Alert.alert("Missing Info", "Please fill in category and allocated amount");
+  const handleSave = () => {
+    if (!newCategory || !newAllocated) {
+      Alert.alert("Error", "Please fill in all required fields");
       return;
     }
 
@@ -201,7 +223,9 @@ export default function BudgetScreen() {
           amount: parseFloat(newAllocated),
           account_id: selectedAccount.id,
         });
-        setBudgets(prev => prev.map(b => b.id === currentBudget.id ? updatedBudget : b));
+        setBudgets((prev) =>
+          prev.map((b) => (b.id === currentBudget.id ? updatedBudget : b))
+        );
         Alert.alert("Success", "Budget updated successfully");
       } else {
         // Add new budget
@@ -211,10 +235,10 @@ export default function BudgetScreen() {
           category: newCategory,
           amount: parseFloat(newAllocated),
           period: "monthly",
-          start_date: new Date().toISOString().split('T')[0],
+          start_date: new Date().toISOString().split("T")[0],
           is_active: true,
         });
-        setBudgets(prev => [...prev, newBudget]);
+        setBudgets((prev) => [...prev, newBudget]);
         Alert.alert("Success", "Budget added successfully");
       }
       setIsModalVisible(false);
@@ -226,7 +250,7 @@ export default function BudgetScreen() {
     }
   };
 
-  const handleDeleteBudget = async (budgetId: string) => {
+  const handleDelete = (id) => {
     Alert.alert(
       "Delete Budget",
       "Are you sure you want to delete this budget?",
@@ -238,7 +262,7 @@ export default function BudgetScreen() {
           onPress: async () => {
             try {
               await deleteBudget(budgetId);
-              setBudgets(prev => prev.filter(b => b.id !== budgetId));
+              setBudgets((prev) => prev.filter((b) => b.id !== budgetId));
               Alert.alert("Success", "Budget deleted successfully");
               // Refresh data to get updated budget progress
               fetchData();
@@ -252,7 +276,7 @@ export default function BudgetScreen() {
     );
   };
 
-  const getProgressColor = (percentage: number) => {
+  const getProgressColor = (percentage) => {
     if (percentage > 100) return "#ef4444";
     if (percentage > 75) return "#f59e0b";
     return "#10b981";
@@ -260,13 +284,15 @@ export default function BudgetScreen() {
 
   // Get budget progress for a specific category
   const getCategoryProgress = (category: string) => {
-    return budgetProgress.find(progress => progress.category === category) || {
-      category,
-      budgeted: 0,
-      spent: 0,
-      remaining: 0,
-      percentage: 0
-    };
+    return (
+      budgetProgress.find((progress) => progress.category === category) || {
+        category,
+        budgeted: 0,
+        spent: 0,
+        remaining: 0,
+        percentage: 0,
+      }
+    );
   };
 
   // Subscriptions tab content
@@ -313,7 +339,7 @@ export default function BudgetScreen() {
         </View>
 
         {/* Tab Content */}
-        <ScrollView 
+        <ScrollView
           className="flex-1"
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -332,11 +358,7 @@ export default function BudgetScreen() {
                   </TouchableOpacity>
                 </View>
 
-                {loading ? (
-                  <View className="py-8 items-center">
-                    <Text className="text-gray-500">Loading budgets...</Text>
-                  </View>
-                ) : budgets.length === 0 ? (
+                {budgets.length === 0 ? (
                   <View className="py-8 items-center">
                     <Text className="text-gray-500">No budgets set up yet</Text>
                   </View>
@@ -365,18 +387,12 @@ export default function BudgetScreen() {
                                 <Edit2 size={16} color="#6b7280" />
                               </TouchableOpacity>
                               <TouchableOpacity
-                                onPress={() => handleDeleteBudget(budget.id)}
+                                onPress={() => handleDelete(budget.id)}
                               >
                                 <Trash2 size={16} color="#ef4444" />
                               </TouchableOpacity>
                             </View>
                           </View>
-
-                          {budget.account && (
-                            <Text className="text-xs text-gray-500 mb-2">
-                              {budget.account.name}
-                            </Text>
-                          )}
 
                           <View className="items-center my-2">
                             <CircularProgress
@@ -402,7 +418,7 @@ export default function BudgetScreen() {
                                 Spent
                               </Text>
                               <Text className="text-xs font-medium">
-                                ${spent.toFixed(2)}
+                                ${budget.spent.toFixed(2)}
                               </Text>
                             </View>
                             <View className="flex-row justify-between">
@@ -410,7 +426,7 @@ export default function BudgetScreen() {
                                 Budget
                               </Text>
                               <Text className="text-xs font-medium">
-                                ${budget.amount.toFixed(2)}
+                                ${budget.allocated.toFixed(2)}
                               </Text>
                             </View>
                             <View className="flex-row justify-between">
@@ -466,12 +482,14 @@ export default function BudgetScreen() {
                   className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
                   onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
                 >
-                  <Text className={newCategory ? "text-gray-900" : "text-gray-500"}>
+                  <Text
+                    className={newCategory ? "text-gray-900" : "text-gray-500"}
+                  >
                     {newCategory || "Select a category"}
                   </Text>
                   <ChevronDown size={16} color="#6b7280" />
                 </TouchableOpacity>
-                
+
                 {showCategoryDropdown && (
                   <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
                     <ScrollView>
@@ -500,12 +518,18 @@ export default function BudgetScreen() {
                   className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
                   onPress={() => setShowAccountDropdown(!showAccountDropdown)}
                 >
-                  <Text className={selectedAccount ? "text-gray-900" : "text-gray-500"}>
-                    {selectedAccount ? selectedAccount.name : "Select an account"}
+                  <Text
+                    className={
+                      selectedAccount ? "text-gray-900" : "text-gray-500"
+                    }
+                  >
+                    {selectedAccount
+                      ? selectedAccount.name
+                      : "Select an account"}
                   </Text>
                   <ChevronDown size={16} color="#6b7280" />
                 </TouchableOpacity>
-                
+
                 {showAccountDropdown && (
                   <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
                     <ScrollView>
@@ -513,7 +537,9 @@ export default function BudgetScreen() {
                         <TouchableOpacity
                           key={account.id}
                           className={`p-3 border-b border-gray-200 ${
-                            selectedAccount?.id === account.id ? "bg-blue-50" : ""
+                            selectedAccount?.id === account.id
+                              ? "bg-blue-50"
+                              : ""
                           }`}
                           onPress={() => {
                             setSelectedAccount(account);
@@ -521,7 +547,9 @@ export default function BudgetScreen() {
                           }}
                         >
                           <Text className="font-medium">{account.name}</Text>
-                          <Text className="text-sm text-gray-500">{account.account_type}</Text>
+                          <Text className="text-sm text-gray-500">
+                            {account.account_type}
+                          </Text>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
@@ -540,9 +568,20 @@ export default function BudgetScreen() {
                 />
               </View>
 
+              <View className="mb-6">
+                <Text className="text-gray-700 mb-1">Amount Spent ($)</Text>
+                <TextInput
+                  className="border border-gray-300 rounded-lg p-3"
+                  placeholder="Enter amount spent"
+                  keyboardType="numeric"
+                  value={newSpent}
+                  onChangeText={setNewSpent}
+                />
+              </View>
+
               <TouchableOpacity
                 className="bg-blue-500 py-3 rounded-lg items-center"
-                onPress={handleSaveBudget}
+                onPress={handleSave}
               >
                 <Text className="text-white font-medium">
                   {currentBudget ? "Update Budget" : "Add Budget"}

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { TouchableOpacity, Text, View, FlatList } from "react-native";
 import { ChevronDown, Loader } from "lucide-react-native";
 import { useTheme } from "~/lib/theme";
-import { useAccount } from "~/lib/AccountContext";
 
 export function WalletDropdown() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -110,16 +109,18 @@ export function WalletDropdown() {
 
       {/* Dropdown list */}
       {isDropdownOpen && (
-        <View className="absolute top-10 left-3 right-3 bg-white rounded-lg shadow-lg z-50 max-h-60 w-32">
+        <View className="absolute top-10 left-3 right-3 bg-white rounded-lg shadow-lg z-50 max-h-60">
           <FlatList
             data={accounts}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <TouchableOpacity
-                className="px-4 py-3 "
-                onPress={() => handleAccountSelection(item)}
+                className="px-4 py-3 border-b border-gray-100"
+                onPress={() => {
+                  setSelectedAccount(item);
+                  setIsDropdownOpen(false);
+                }}
                 activeOpacity={0.7}
-                disabled={isSelecting}
               >
                 <View className="flex justify-between items-center">
                   <View className="flex-row items-center justify-between w-full">

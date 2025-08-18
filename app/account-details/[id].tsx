@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ChevronLeft, Pen } from "lucide-react-native";
+import { ChevronLeft, Plus } from "lucide-react-native";
 import { supabase } from "~/lib/supabase";
 import { format } from "date-fns";
 
@@ -29,6 +29,7 @@ const AccountDetails = () => {
   const [account, setAccount] = useState<{
     name: string;
     amount: number;
+    type?: "asset" | "liability";
   } | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,7 +47,7 @@ const AccountDetails = () => {
       // Fetch account details
       const { data: accountData, error: accountError } = await supabase
         .from("accounts")
-        .select("name, amount")
+        .select("name, amount, type")
         .eq("id", id)
         .single();
 
@@ -54,7 +55,6 @@ const AccountDetails = () => {
       setAccount(accountData);
     } catch (error) {
       console.error("Failed to load account data:", error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
     } finally {
       setLoading(false);
     }
@@ -83,7 +83,7 @@ const AccountDetails = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50 p-safe">
+    <SafeAreaView className="flex-1 bg-gray-50">
       {/* Header */}
       <View className="flex-row items-center justify-between p-6 border-b border-gray-100">
         <TouchableOpacity 
@@ -95,11 +95,8 @@ const AccountDetails = () => {
         <Text className="text-gray-900 text-2xl font-bold">
           {account.name}
         </Text>
-        <TouchableOpacity
-          className="bg-blue-500 rounded-lg py-3 px-3 items-center"
-          onPress={() => router.push(`/account-details/edit/${id}`)}
-        >
-          <Text className="text-white">Edit Acount</Text>
+        <TouchableOpacity className="p-2">
+          <Plus size={24} color="#3b82f6" />
         </TouchableOpacity>
       </View>
 

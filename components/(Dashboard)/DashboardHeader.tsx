@@ -41,7 +41,6 @@ export default function DashboardHeader({
 }: DashboardHeaderProps) {
   const rotateAnimation = useRef(new Animated.Value(0)).current;
   const scaleAnimation = useRef(new Animated.Value(1)).current;
-  const { selectedAccount } = useAccount();
 
   const { isDarkColorScheme, toggleColorScheme } = useColorScheme();
 
@@ -169,7 +168,7 @@ export default function DashboardHeader({
                 backgroundColor: theme.background,
                 borderRadius: 12,
                 borderWidth: 1,
-                borderColor: theme.border,
+                borderColor: theme.border, // darker border
                 opacity: dropdownOpacity,
                 transform: [{ translateY: dropdownTranslateY }],
                 shadowColor: "#000",
