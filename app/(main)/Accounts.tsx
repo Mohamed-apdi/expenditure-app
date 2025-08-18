@@ -9,9 +9,10 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { MoreHorizontal, X, Plus } from "lucide-react-native";
-import AddAccount from "../account-details/add-account";
-import { fetchAccounts, addAccount, Account } from "~/lib/accounts";
+import { fetchAccounts, createAccount, Account } from "~/lib/accounts";
 import { supabase } from "~/lib/supabase";
+import AddAccount from "../account-details/add-account";
+import { useAccount } from "~/lib/AccountContext";
 
 interface AccountGroup {
   id: string;
@@ -35,6 +36,7 @@ const accountGroups: AccountGroup[] = [
 
 const Accounts = () => {
   const router = useRouter();
+  const { refreshAccounts: refreshContextAccounts } = useAccount();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddAccount, setShowAddAccount] = useState(false);
@@ -44,7 +46,18 @@ const Accounts = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchAccounts();
+      
+      // Get the current user first
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        throw new Error("You must be logged in to view accounts");
+      }
+
+      const data = await fetchAccounts(user.id);
       setAccounts(data);
     } catch (error) {
       console.error("Failed to load accounts:", error);
@@ -60,16 +73,8 @@ const Accounts = () => {
     loadAccounts();
   }, []);
 
-  // Calculate totals
-  const assets = accounts
-    .filter((a) => a.type === "asset")
-    .reduce((sum, a) => sum + (a.amount || 0), 0);
-
-  const liabilities = accounts
-    .filter((a) => a.type === "liability")
-    .reduce((sum, a) => sum + (a.amount || 0), 0);
-
-  const total = assets - liabilities;
+  // Calculate totals - now just sum all account amounts since we don't have type field
+  const total = accounts.reduce((sum, a) => sum + (a.amount || 0), 0);
 
   const handleAddAccount = async (
     newAccount: Omit<Account, "id" | "user_id" | "created_at" | "updated_at">
@@ -91,8 +96,35 @@ const Accounts = () => {
         user_id: user.id,
       };
 
-      const createdAccount = await addAccount(accountWithUser);
+      const createdAccount = await createAccount(accountWithUser);
       setAccounts((prev) => [...prev, createdAccount]);
+      
+      // If account has an initial amount, create a transaction as income
+      if (newAccount.amount && newAccount.amount > 0) {
+        try {
+          const { addTransaction } = await import("~/lib/transactions");
+          
+          await addTransaction({
+            user_id: user.id,
+            account_id: createdAccount.id,
+            amount: newAccount.amount,
+            description: `Initial balance for ${newAccount.name}`,
+            date: new Date().toISOString().split('T')[0],
+            category: "Job Salary", // Use existing income category
+            type: "income",
+            is_recurring: false,
+          });
+          
+          console.log("Created initial balance transaction for account:", createdAccount.name);
+        } catch (transactionError) {
+          console.error("Failed to create initial balance transaction:", transactionError);
+          // Don't fail the account creation if transaction creation fails
+        }
+      }
+      
+      // Refresh accounts in context to update MonthYearScroller
+      await refreshContextAccounts();
+      
       setShowAddAccount(false);
     } catch (error) {
       console.error("Failed to add account:", error);
@@ -145,24 +177,8 @@ const Accounts = () => {
       {/* Summary Cards */}
       <View className="flex-row px-6 mb-6 gap-4">
         <View className="flex-1 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-          <Text className="text-gray-600 text-sm mb-1">Assets</Text>
-          <Text className="text-green-600 text-xl font-bold">
-            ${assets.toFixed(2)}
-          </Text>
-        </View>
-        <View className="flex-1 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-          <Text className="text-gray-600 text-sm mb-1">Liabilities</Text>
-          <Text className="text-red-600 text-xl font-bold">
-            ${liabilities.toFixed(2)}
-          </Text>
-        </View>
-        <View className="flex-1 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
           <Text className="text-gray-600 text-sm mb-1">Total</Text>
-          <Text
-            className={`text-xl font-bold ${
-              total >= 0 ? "text-green-600" : "text-red-600"
-            }`}
-          >
+          <Text className="text-green-600 text-xl font-bold">
             ${total.toFixed(2)}
           </Text>
         </View>
@@ -172,7 +188,7 @@ const Accounts = () => {
       <ScrollView className="flex-1 px-6 pb-6">
         {accountGroups
           .filter((group) =>
-            accounts.some((account) => account.group_name === group.name)
+            accounts.some((account) => account.account_type === group.name) // Changed from group_name to account_type
           )
           .map((group) => (
             <View key={group.id} className="mb-6">
@@ -181,7 +197,7 @@ const Accounts = () => {
               </Text>
               <View className="gap-3">
                 {accounts
-                  .filter((account) => account.group_name === group.name)
+                  .filter((account) => account.account_type === group.name) // Changed from group_name to account_type
                   .map((account) => (
                     <TouchableOpacity
                       key={account.id}

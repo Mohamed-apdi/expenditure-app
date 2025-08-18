@@ -16,7 +16,8 @@ import { PortalHost } from "@rn-primitives/portal";
 import { setAndroidNavigationBar } from "~/lib/android-navigation-bar";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import Toast from "react-native-toast-message";
-import { LanguageProvider } from "~/lib/LanguageProvider";
+import { AccountProvider } from "~/lib/AccountContext";
+
 const LIGHT_THEME: Theme = {
   ...DefaultTheme,
   colors: NAV_THEME.light,
@@ -42,7 +43,7 @@ export default function RootLayout() {
   const { isDarkColorScheme } = useColorScheme();
 
   return (
-    <LanguageProvider>
+    <AccountProvider>
       <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
         <BottomSheetModalProvider>
           <StatusBar style={isDarkColorScheme ? "light" : "dark"} />
@@ -60,7 +61,7 @@ export default function RootLayout() {
           <PortalHost />
         </BottomSheetModalProvider>
       </ThemeProvider>
-    </LanguageProvider>
+    </AccountProvider>
   );
 }
 

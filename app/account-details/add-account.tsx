@@ -20,11 +20,10 @@ type AddAccountProps = {
   visible: boolean;
   onClose: () => void;
   onAddAccount: (account: {
-    group_name: string;
+    account_type: string; // Changed from group_name
     name: string;
     amount: number;
     description?: string;
-    type?: "asset" | "liability";
   }) => void;
   accountGroups: AccountGroup[];
 };
@@ -36,40 +35,37 @@ const AddAccount = ({
   accountGroups,
 }: AddAccountProps) => {
   const [showGroupModal, setShowGroupModal] = useState(false);
-  const [showTypeModal, setShowTypeModal] = useState(false);
+  // Removed showTypeModal state
   const [newAccount, setNewAccount] = useState({
-    group_name: "",
+    account_type: "", // Changed from group_name
     name: "",
     amount: 0,
     description: "",
-    type: undefined as "asset" | "liability" | undefined,
   });
 
-  const accountTypes = [
-    { id: "asset", name: "Asset" },
-    { id: "liability", name: "Liability" },
-  ];
+  // Removed accountTypes array
 
   const handleAddAccount = () => {
-    if (!newAccount.group_name || !newAccount.name) {
+    if (!newAccount.account_type || !newAccount.name) {
+      // Changed from group_name
       // Add validation/error handling
       return;
     }
 
     onAddAccount({
-      group_name: newAccount.group_name,
+      account_type: newAccount.account_type, // Changed from group_name
       name: newAccount.name,
       amount: newAccount.amount || 0,
       description: newAccount.description,
-      type: newAccount.type,
+      // Removed type field
     });
 
     setNewAccount({
-      group_name: "",
+      account_type: "", // Changed from group_name
       name: "",
       amount: 0,
       description: "",
-      type: undefined,
+      // Removed type field
     });
   };
 
@@ -86,37 +82,17 @@ const AddAccount = ({
         <ScrollView className="flex-1 px-6 pt-6">
           {/* Group Input */}
           <View className="mb-5">
-            <Text className="text-gray-700 mb-2 font-medium">Group</Text>
+            <Text className="text-gray-700 mb-2 font-medium">Account Type</Text>
             <TouchableOpacity
               className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row justify-between items-center"
               onPress={() => setShowGroupModal(true)}
             >
               <Text
                 className={
-                  newAccount.group_name ? "text-gray-900" : "text-gray-400"
+                  newAccount.account_type ? "text-gray-900" : "text-gray-400"
                 }
               >
-                {newAccount.group_name || "Select group"}
-              </Text>
-              <ChevronDown size={18} color="#6b7280" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Type Input */}
-          <View className="mb-5">
-            <Text className="text-gray-700 mb-2 font-medium">Type</Text>
-            <TouchableOpacity
-              className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row justify-between items-center"
-              onPress={() => setShowTypeModal(true)}
-            >
-              <Text
-                className={newAccount.type ? "text-gray-900" : "text-gray-400"}
-              >
-                {newAccount.type
-                  ? newAccount.type === "asset"
-                    ? "Asset"
-                    : "Liability"
-                  : "Select type"}
+                {newAccount.account_type || "Select group"}
               </Text>
               <ChevronDown size={18} color="#6b7280" />
             </TouchableOpacity>
@@ -219,57 +195,15 @@ const AddAccount = ({
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     className={`px-6 py-4 flex-row justify-between items-center ${
-                      newAccount.group_name === item.name ? "bg-blue-50" : ""
+                      newAccount.account_type === item.name ? "bg-blue-50" : ""
                     }`}
                     onPress={() => {
-                      setNewAccount({ ...newAccount, group_name: item.name });
+                      setNewAccount({ ...newAccount, account_type: item.name });
                       setShowGroupModal(false);
                     }}
                   >
                     <Text className="text-gray-900">{item.name}</Text>
-                    {newAccount.group_name === item.name && (
-                      <Check size={20} color="#3b82f6" />
-                    )}
-                  </TouchableOpacity>
-                )}
-                className="max-h-96"
-              />
-            </View>
-          </View>
-        </Modal>
-
-        {/* Type Selection Modal */}
-        <Modal
-          visible={showTypeModal}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowTypeModal(false)}
-        >
-          <View className="flex-1 bg-black/50 justify-center p-4">
-            <View className="bg-white rounded-2xl max-h-[80%]">
-              <View className="p-6 border-b border-gray-100">
-                <Text className="text-gray-900 font-bold text-lg">
-                  Select Type
-                </Text>
-              </View>
-              <FlatList
-                data={accountTypes}
-                keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    className={`px-6 py-4 flex-row justify-between items-center ${
-                      newAccount.type === item.id ? "bg-blue-50" : ""
-                    }`}
-                    onPress={() => {
-                      setNewAccount({
-                        ...newAccount,
-                        type: item.id as "asset" | "liability",
-                      });
-                      setShowTypeModal(false);
-                    }}
-                  >
-                    <Text className="text-gray-900">{item.name}</Text>
-                    {newAccount.type === item.id && (
+                    {newAccount.account_type === item.name && (
                       <Check size={20} color="#3b82f6" />
                     )}
                   </TouchableOpacity>
