@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
   PanResponder,
+  RefreshControl,
 } from "react-native";
 import { Plus, ChevronRight, X, Edit2, Trash2, ChevronDown } from "lucide-react-native";
 import { CircularProgress } from "react-native-circular-progress";
@@ -22,17 +23,44 @@ import {
   addBudget, 
   updateBudget, 
   deleteBudget,
-  getBudgetProgress,
   type Budget 
 } from "~/lib/budgets";
 import { fetchAccounts, type Account } from "~/lib/accounts";
-import { getExpensesByCategory } from "~/lib/analytics";
+import { getExpensesByCategory, getBudgetProgress, type BudgetProgress } from "~/lib/analytics";
+
+// Use the exact same expense categories as AddExpense
+const expenseCategories = [
+  "Food & Drinks",
+  "Home & Rent",
+  "Travel",
+  "Bills",
+  "Fun",
+  "Health",
+  "Shopping",
+  "Learning",
+  "Personal Care",
+  "Insurance",
+  "Loans",
+  "Gifts",
+  "Donations",
+  "Vacation",
+  "Pets",
+  "Children",
+  "Subscriptions",
+  "Gym & Sports",
+  "Electronics",
+  "Furniture",
+  "Repairs",
+  "Taxes",
+];
 
 export default function BudgetScreen() {
   const [activeTab, setActiveTab] = useState("Budget");
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetsWithAccounts, setBudgetsWithAccounts] = useState<any[]>([]);
+  const [budgetProgress, setBudgetProgress] = useState<BudgetProgress[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
@@ -74,17 +102,7 @@ export default function BudgetScreen() {
   const [currentBudget, setCurrentBudget] = useState<Budget | null>(null);
   const [newCategory, setNewCategory] = useState("");
   const [newAllocated, setNewAllocated] = useState("");
-
-  const categories = [
-    "Food",
-    "Transport",
-    "Housing",
-    "Utilities",
-    "Entertainment",
-    "Health",
-    "Shopping",
-    "Other",
-  ];
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
   // Fetch budgets and accounts from database
   const fetchData = async () => {
@@ -100,15 +118,16 @@ export default function BudgetScreen() {
 
       setUserId(user.id);
       
-      // Fetch budgets with accounts and expenses in parallel
-      const [budgetsData, accountsData, expensesData] = await Promise.all([
+      // Fetch budgets with accounts and budget progress in parallel
+      const [budgetsData, accountsData, progressData] = await Promise.all([
         fetchBudgetsWithAccounts(user.id),
         fetchAccounts(user.id),
-        getExpensesByCategory(user.id)
+        getBudgetProgress(user.id)
       ]);
       
       setBudgets(budgetsData.map(b => b as Budget));
       setBudgetsWithAccounts(budgetsData);
+      setBudgetProgress(progressData);
       setAccounts(accountsData);
       
       // Set default selected account if available
@@ -121,6 +140,13 @@ export default function BudgetScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Refresh data with pull-to-refresh
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -192,6 +218,8 @@ export default function BudgetScreen() {
         Alert.alert("Success", "Budget added successfully");
       }
       setIsModalVisible(false);
+      // Refresh data to get updated budget progress
+      fetchData();
     } catch (error) {
       console.error("Error saving budget:", error);
       Alert.alert("Error", "Failed to save budget");
@@ -212,6 +240,8 @@ export default function BudgetScreen() {
               await deleteBudget(budgetId);
               setBudgets(prev => prev.filter(b => b.id !== budgetId));
               Alert.alert("Success", "Budget deleted successfully");
+              // Refresh data to get updated budget progress
+              fetchData();
             } catch (error) {
               console.error("Error deleting budget:", error);
               Alert.alert("Error", "Failed to delete budget");
@@ -226,6 +256,17 @@ export default function BudgetScreen() {
     if (percentage > 100) return "#ef4444";
     if (percentage > 75) return "#f59e0b";
     return "#10b981";
+  };
+
+  // Get budget progress for a specific category
+  const getCategoryProgress = (category: string) => {
+    return budgetProgress.find(progress => progress.category === category) || {
+      category,
+      budgeted: 0,
+      spent: 0,
+      remaining: 0,
+      percentage: 0
+    };
   };
 
   // Subscriptions tab content
@@ -272,7 +313,12 @@ export default function BudgetScreen() {
         </View>
 
         {/* Tab Content */}
-        <ScrollView className="flex-1">
+        <ScrollView 
+          className="flex-1"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
           {activeTab === "Budget" && (
             <View className="p-4">
               <View className="mb-6 bg-white  rounded-xl">
@@ -297,10 +343,11 @@ export default function BudgetScreen() {
                 ) : (
                   <View className="flex-row flex-wrap justify-between">
                     {budgetsWithAccounts.map((budget) => {
-                      // Calculate spent amount from expenses for this category and account
-                      const spent = 0; // TODO: Calculate from expenses data
-                      const percentage = spent > 0 ? (spent / budget.amount) * 100 : 0;
-                      const remaining = budget.amount - spent;
+                      // Get budget progress for this category
+                      const progress = getCategoryProgress(budget.category);
+                      const spent = progress.spent;
+                      const percentage = progress.percentage;
+                      const remaining = progress.remaining;
 
                       return (
                         <View
@@ -415,12 +462,36 @@ export default function BudgetScreen() {
 
               <View className="mb-4">
                 <Text className="text-gray-700 mb-1">Category</Text>
-                <TextInput
-                  className="border border-gray-300 rounded-lg p-3"
-                  placeholder="Enter category"
-                  value={newCategory}
-                  onChangeText={setNewCategory}
-                />
+                <TouchableOpacity
+                  className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
+                  onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                >
+                  <Text className={newCategory ? "text-gray-900" : "text-gray-500"}>
+                    {newCategory || "Select a category"}
+                  </Text>
+                  <ChevronDown size={16} color="#6b7280" />
+                </TouchableOpacity>
+                
+                {showCategoryDropdown && (
+                  <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
+                    <ScrollView>
+                      {expenseCategories.map((category) => (
+                        <TouchableOpacity
+                          key={category}
+                          className={`p-3 border-b border-gray-200 ${
+                            newCategory === category ? "bg-blue-50" : ""
+                          }`}
+                          onPress={() => {
+                            setNewCategory(category);
+                            setShowCategoryDropdown(false);
+                          }}
+                        >
+                          <Text className="font-medium">{category}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
               </View>
 
               <View className="mb-4">
@@ -450,7 +521,7 @@ export default function BudgetScreen() {
                           }}
                         >
                           <Text className="font-medium">{account.name}</Text>
-                          <Text className="text-sm text-gray-500">{account.group_name}</Text>
+                          <Text className="text-sm text-gray-500">{account.account_type}</Text>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>

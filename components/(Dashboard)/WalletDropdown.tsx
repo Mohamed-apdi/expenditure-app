@@ -1,26 +1,47 @@
 import { useState, useEffect } from "react";
 import { TouchableOpacity, Text, View, FlatList } from "react-native";
-import { ChevronDown, RefreshCw, DollarSign } from "lucide-react-native";
+import { ChevronDown, Loader } from "lucide-react-native";
 import { useTheme } from "~/lib/theme";
 import { useAccount } from "~/lib/AccountContext";
 
 export function WalletDropdown() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSelecting, setIsSelecting] = useState(false);
-  const [isRefreshingBalances, setIsRefreshingBalances] = useState(false);
-  const { selectedAccount, setSelectedAccount, accounts, loading, refreshAccounts, refreshBalances } = useAccount();
+  const { selectedAccount, setSelectedAccount, accounts, loading, refreshAccounts } = useAccount();
   const theme = useTheme();
 
   // Debug logging
   console.log("WalletDropdown - loading:", loading, "accounts:", accounts.length, "selectedAccount:", selectedAccount?.name);
 
-  // Immediate refresh if accounts are missing
+  // Auto-refresh accounts when component mounts or when accounts are empty
   useEffect(() => {
-    if (accounts.length === 0 && !loading) {
-      console.log("WalletDropdown - No accounts detected, triggering immediate refresh");
+    // Always try to refresh accounts when component mounts
+    if (accounts.length === 0) {
+      console.log("WalletDropdown - Component mounted, refreshing accounts");
       refreshAccounts();
     }
+  }, []); // Only run once when component mounts
+
+  // Auto-refresh accounts when accounts array is empty and not loading
+  useEffect(() => {
+    if (accounts.length === 0 && !loading) {
+      console.log("WalletDropdown - Auto-refreshing accounts");
+      refreshAccounts();
+      
+      // Set up a timer to keep trying if accounts are still empty
+      const timer = setTimeout(() => {
+        if (accounts.length === 0 && !loading) {
+          console.log("WalletDropdown - Retrying account refresh after delay");
+          refreshAccounts();
+        }
+      }, 2000); // Wait 2 seconds before retrying
+      
+      return () => clearTimeout(timer);
+    }
   }, [accounts.length, loading, refreshAccounts]);
+
+  // Remove the immediate refresh logic that was causing issues
+  // Accounts are now auto-loaded by AccountContext
 
   const handleAccountSelection = async (account: any) => {
     try {
@@ -34,51 +55,25 @@ export function WalletDropdown() {
     }
   };
 
-  const handleRefreshBalances = async () => {
-    try {
-      setIsRefreshingBalances(true);
-      await refreshBalances();
-    } catch (error) {
-      console.error("Error refreshing balances:", error);
-    } finally {
-      setIsRefreshingBalances(false);
-    }
-  };
+
 
   // Show loading state while accounts are being fetched
   if (loading) {
     return (
       <View className="flex-row items-center mx-3">
-        <RefreshCw size={20} color="white" className="animate-spin mr-2" />
-        <Text className="text-xl font-bold text-white pr-2">Loading...</Text>
+        <Loader size={20} color="white" className="animate-spin" />
       </View>
     );
   }
 
-  // Show "No Accounts" only when we're sure there are no accounts
-  // and we're not in a loading state
-  if (accounts.length === 0 && !loading) {
-    console.log("WalletDropdown - No accounts found, showing 'No Accounts' message");
-    return (
-      <TouchableOpacity 
-        className="flex-row items-center mx-3"
-        onPress={refreshAccounts}
-        activeOpacity={0.7}
-      >
-        <RefreshCw size={20} color="white" className="mr-2" />
-        <Text className="text-xl font-bold text-white pr-2">No Accounts</Text>
-        <Text className="text-sm text-white opacity-70">(Tap to refresh)</Text>
-      </TouchableOpacity>
-    );
-  }
+ 
 
   // If we have accounts but no selected account, show the first account
   const displayAccount = selectedAccount || accounts[0];
   if (!displayAccount) {
     return (
       <View className="flex-row items-center mx-3">
-        <RefreshCw size={20} color="white" className="animate-spin mr-2" />
-        <Text className="text-xl font-bold text-white pr-2">Loading...</Text>
+        <Loader size={20} color="white" className="animate-spin" />
       </View>
     );
   }
@@ -94,24 +89,14 @@ export function WalletDropdown() {
           disabled={isSelecting}
         >
           <Text className="text-xl font-bold text-white pr-2">
-            {isSelecting ? "Updating..." : (displayAccount?.name || "Select Account")}
+            {isSelecting ? (
+              <Loader size={20} color="white" className="animate-spin" />
+            ) : (displayAccount?.name || "Select Account")}
           </Text>
           <ChevronDown size={16} color={theme.icon} className="ml-1" />
         </TouchableOpacity>
         
-        {/* Balance refresh button */}
-        <TouchableOpacity
-          className="ml-3 p-1"
-          onPress={handleRefreshBalances}
-          disabled={isRefreshingBalances}
-          activeOpacity={0.7}
-        >
-          <RefreshCw 
-            size={16} 
-            color="white" 
-            className={isRefreshingBalances ? "animate-spin" : ""} 
-          />
-        </TouchableOpacity>
+
       </View>
 
       

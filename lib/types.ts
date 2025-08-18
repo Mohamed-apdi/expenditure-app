@@ -132,3 +132,45 @@ export type TransferWithAccounts = Transfer & {
   from_account?: Account;
   to_account?: Account;
 };
+
+export type Subscription = {
+  id: string;
+  user_id: string;
+  account_id: string;
+  name: string;
+  amount: number;
+  category: string;
+  billing_cycle: 'weekly' | 'monthly' | 'yearly';
+  next_payment_date: string;
+  is_active: boolean;
+  icon: string;
+  icon_color: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SubscriptionWithAccount = Subscription & {
+  account?: Account;
+};
+
+export type Goal = {
+  id: string;
+  user_id: string;
+  account_id: string;
+  name: string;
+  target_amount: number;
+  current_amount: number;
+  category: string;
+  target_date: string;
+  is_active: boolean;
+  icon: string;
+  icon_color: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GoalWithAccount = Goal & {
+  account?: Account;
+};

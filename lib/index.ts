@@ -4,6 +4,8 @@ export * from './expenses';
 export * from './budgets';
 export * from './transactions';
 export * from './transfers';
+export * from './subscriptions';
+export * from './goals';
 export * from './profiles';
 export * from './analytics';
 

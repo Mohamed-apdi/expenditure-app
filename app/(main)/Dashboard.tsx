@@ -104,7 +104,7 @@ type QuickAction = {
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { selectedAccount, refreshBalances } = useAccount();
+  const { selectedAccount, refreshBalances, accounts } = useAccount(); // Remove initializeAccounts since it's auto-loaded
   const [userProfile, setUserProfile] = useState({
     fullName: "",
     email: "",
@@ -365,10 +365,20 @@ export default function DashboardScreen() {
       // Update the filtered transactions for the selected month
       setFilteredTransactions(monthTransactionsList);
 
+      // Calculate balance based on whether an account is selected
+      let balance;
+      if (selectedAccount) {
+        // For selected account, show the actual account balance
+        balance = selectedAccount.amount || 0;
+      } else {
+        // For all accounts, show the monthly transaction balance
+        balance = monthIncome - monthExpense;
+      }
+
       return {
         income: monthIncome,
         expense: monthExpense,
-        balance: monthIncome - monthExpense,
+        balance: balance,
       };
     } catch (error) {
       console.error("Error fetching month data:", error);
@@ -381,6 +391,12 @@ export default function DashboardScreen() {
     if (selectedAccount && !loading && !refreshing) {
       console.log("Dashboard - selectedAccount changed to:", selectedAccount.name);
       fetchData();
+      
+      // Also refresh the MonthYearScroller data for the current month
+      const current = new Date();
+      const currentMonth = current.getMonth();
+      const currentYear = current.getFullYear();
+      fetchMonthData(currentMonth, currentYear);
     }
   }, [selectedAccount?.id]); // Only depend on selectedAccount.id, not the entire object
 
@@ -391,18 +407,14 @@ export default function DashboardScreen() {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           console.log("Dashboard - Initial load, user authenticated, fetching data...");
-          fetchData();
+          fetchData(); // Accounts are already loaded by AccountContext
         }
       } catch (error) {
         console.error("Error in initial auth check:", error);
       }
     };
-    
     checkAuthAndFetch();
-    
-    // Cleanup function to prevent memory leaks
     return () => {
-      // Cancel any pending operations if needed
       setLoading(false);
       setRefreshing(false);
     };
@@ -415,6 +427,17 @@ export default function DashboardScreen() {
       fetchData();
     }
   }, [selectedAccount, financialSummary, loading, refreshing]);
+
+  // Refresh MonthYearScroller when accounts change (e.g., new account added)
+  useEffect(() => {
+    if (accounts.length > 0 && selectedAccount && !loading && !refreshing) {
+      console.log("Dashboard - Accounts updated, refreshing MonthYearScroller...");
+      const current = new Date();
+      const currentMonth = current.getMonth();
+      const currentYear = current.getFullYear();
+      fetchMonthData(currentMonth, currentYear);
+    }
+  }, [accounts.length, selectedAccount, loading, refreshing]);
 
   const onRefresh = React.useCallback(() => {
     if (!loading && !refreshing) {
