@@ -12,6 +12,7 @@ import { MoreHorizontal, X, Plus } from "lucide-react-native";
 import { fetchAccounts, createAccount, Account } from "~/lib/accounts";
 import { supabase } from "~/lib/supabase";
 import AddAccount from "../account-details/add-account";
+import { useAccount } from "~/lib/AccountContext";
 
 interface AccountGroup {
   id: string;
@@ -35,6 +36,7 @@ const accountGroups: AccountGroup[] = [
 
 const Accounts = () => {
   const router = useRouter();
+  const { refreshAccounts: refreshContextAccounts } = useAccount();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddAccount, setShowAddAccount] = useState(false);
@@ -96,6 +98,33 @@ const Accounts = () => {
 
       const createdAccount = await createAccount(accountWithUser);
       setAccounts((prev) => [...prev, createdAccount]);
+      
+      // If account has an initial amount, create a transaction as income
+      if (newAccount.amount && newAccount.amount > 0) {
+        try {
+          const { addTransaction } = await import("~/lib/transactions");
+          
+          await addTransaction({
+            user_id: user.id,
+            account_id: createdAccount.id,
+            amount: newAccount.amount,
+            description: `Initial balance for ${newAccount.name}`,
+            date: new Date().toISOString().split('T')[0],
+            category: "Job Salary", // Use existing income category
+            type: "income",
+            is_recurring: false,
+          });
+          
+          console.log("Created initial balance transaction for account:", createdAccount.name);
+        } catch (transactionError) {
+          console.error("Failed to create initial balance transaction:", transactionError);
+          // Don't fail the account creation if transaction creation fails
+        }
+      }
+      
+      // Refresh accounts in context to update MonthYearScroller
+      await refreshContextAccounts();
+      
       setShowAddAccount(false);
     } catch (error) {
       console.error("Failed to add account:", error);

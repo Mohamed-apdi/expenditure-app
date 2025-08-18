@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -63,6 +63,7 @@ import { fetchAccounts, updateAccountBalance } from "~/lib/accounts";
 import { addExpense } from "~/lib/expenses";
 import { addTransaction } from "~/lib/transactions";
 import { addTransfer } from "~/lib/transfers";
+import { addSubscription } from "~/lib/subscriptions";
 import type { Account } from "~/lib/accounts";
 import TransferScreen from "../components/TransferScreen";
 
@@ -175,7 +176,6 @@ export default function AddExpenseScreen() {
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
     null
   );
-
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(
@@ -236,19 +236,43 @@ export default function AddExpenseScreen() {
   };
 
   const handleSaveExpense = async () => {
+    // Basic validation
     if (!amount || !description.trim()) {
       Alert.alert("Missing Info", "Please fill in the amount and description");
-      return;
-    }
-
-    if (!selectedCategory) {
-      Alert.alert("Choose Category", "Please select a category");
       return;
     }
 
     if (!selectedAccount) {
       Alert.alert("Select Account", "Please select an account");
       return;
+    }
+
+    // Type-specific validation
+    if (entryType === "Income" && !selectedCategory) {
+      Alert.alert("Choose Category", "Please select a category for income");
+      return;
+    }
+
+    if (entryType === "Expense") {
+      if (!selectedCategory) {
+        Alert.alert("Choose Category", "Please select a category for expense");
+        return;
+      }
+      if (!paymentMethod) {
+        Alert.alert("Payment Method", "Please select a payment method for expense");
+        return;
+      }
+    }
+
+    if (entryType === "Transfer") {
+      if (!fromAccount || !toAccount) {
+        Alert.alert("Select Accounts", "Please select both from and to accounts for transfer");
+        return;
+      }
+      if (fromAccount.id === toAccount.id) {
+        Alert.alert("Invalid Transfer", "From and to accounts must be different");
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -308,6 +332,51 @@ export default function AddExpenseScreen() {
           : selectedAccount.amount + amountNum;
 
       await updateAccountBalance(selectedAccount.id, newBalance);
+
+      // Auto-create subscription if this is a recurring expense
+      if (entryType === "Expense" && isRecurring && selectedCategory) {
+        try {
+          // Calculate next payment date based on recurrence interval
+          let nextPaymentDate = new Date();
+          switch (recurringFrequency) {
+            case "weekly":
+              nextPaymentDate.setDate(nextPaymentDate.getDate() + 7);
+              break;
+            case "monthly":
+              nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+              break;
+            case "yearly":
+              nextPaymentDate.setFullYear(nextPaymentDate.getFullYear() + 1);
+              break;
+            default:
+              nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+          }
+
+          // Map recurrence interval to billing cycle
+          const billingCycle = recurringFrequency === "weekly" ? "weekly" : 
+                              recurringFrequency === "yearly" ? "yearly" : "monthly";
+
+          // Create subscription
+          await addSubscription({
+            user_id: user.id,
+            account_id: selectedAccount.id,
+            name: description.trim() || selectedCategory.name,
+            amount: amountNum,
+            category: selectedCategory.name,
+            billing_cycle: billingCycle,
+            next_payment_date: nextPaymentDate.toISOString().split('T')[0],
+            is_active: true,
+            icon: "subscriptions", // Default icon for auto-created subscriptions
+            icon_color: selectedCategory.color,
+            description: `Auto-created from recurring ${entryType.toLowerCase()}`,
+          });
+
+          console.log("Auto-created subscription for recurring expense");
+        } catch (subscriptionError) {
+          console.error("Error auto-creating subscription:", subscriptionError);
+          // Don't fail the main operation if subscription creation fails
+        }
+      }
 
       Alert.alert(
         "Success!",
@@ -437,14 +506,34 @@ export default function AddExpenseScreen() {
     }
   };
 
-  const isFormValid =
-    amount &&
-    selectedCategory &&
-    description.trim() &&
-    selectedAccount &&
-    !isSubmitting;
+  const isFormValid = useCallback(() => {
+    // Basic validation - all transaction types need these
+    if (!amount || !description.trim() || !selectedAccount || isSubmitting) {
+      return false;
+    }
 
-  const categories = entryType === "Expense" ? expenseCategories : incomeCategories;
+    // Different validation based on transaction type
+    switch (entryType) {
+      case "Income":
+        // Income needs: amount, description, category, account
+        return !!selectedCategory;
+        
+      case "Expense":
+        // Expense needs: amount, description, category, account, payment method
+        return !!selectedCategory && !!paymentMethod;
+        
+      case "Transfer":
+        // Transfer needs: amount, description, from account, to account
+        return !!fromAccount && !!toAccount && fromAccount.id !== toAccount.id;
+        
+      default:
+        return false;
+    }
+  }, [amount, description, selectedAccount, isSubmitting, entryType, selectedCategory, paymentMethod, fromAccount, toAccount]);
+
+  const categories = entryType === "Expense" ? expenseCategories : 
+                    entryType === "Income" ? incomeCategories : 
+                    []; // Transfers don't need categories
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
@@ -482,15 +571,15 @@ export default function AddExpenseScreen() {
               paddingVertical: 8,
               paddingHorizontal: 16,
               borderRadius: 8,
-              backgroundColor: isFormValid ? theme.primary : theme.stepInactive,
+              backgroundColor: isFormValid() ? theme.primary : theme.stepInactive,
             }}
             onPress={handleSaveExpense}
-            disabled={!isFormValid}
+            disabled={!isFormValid()}
           >
             <Text
               style={{
                 fontWeight: "600",
-                color: isFormValid ? theme.primaryText : theme.textMuted,
+                color: isFormValid() ? theme.primaryText : theme.textMuted,
               }}
             >
               {isSubmitting ? "Saving..." : "Save"}
@@ -585,21 +674,305 @@ export default function AddExpenseScreen() {
               </View>
             </View>
 
-            {/* Updated Category Section with Dropdown */}
-            <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: "700",
-                  marginBottom: 16,
-                  color: theme.text,
-                  fontFamily: "Work Sans",
-                }}
-              >
-                Choose Category
-              </Text>
+            {/* Updated Category Section with Dropdown - Only for Income and Expenses */}
+            {(entryType === "Expense") && (
+              <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "700",
+                    marginBottom: 16,
+                    color: theme.text,
+                    fontFamily: "Work Sans",
+                  }}
+                >
+                  Choose Category
+                </Text>
               
-              <View>
+                <View>
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: 16,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      backgroundColor: theme.inputBackground,
+                    }}
+                    onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      {selectedCategory ? (
+                        <>
+                          <View
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 20,
+                              justifyContent: "center",
+                              alignItems: "center",
+                              backgroundColor: `${selectedCategory.color}20`,
+                              marginRight: 16,
+                            }}
+                          >
+                            <selectedCategory.icon size={20} color={selectedCategory.color} />
+                          </View>
+                          <Text
+                            style={{
+                              fontSize: 16,
+                              fontWeight: "600",
+                              color: theme.text,
+                            }}
+                          >
+                            {selectedCategory.name}
+                          </Text>
+                        </>
+                      ) : (
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            color: theme.placeholder,
+                          }}
+                        >
+                          Select a category
+                        </Text>
+                      )}
+                    </View>
+                    <ChevronDown
+                      size={16}
+                      color={theme.iconMuted}
+                      style={{
+                        transform: [
+                          { rotate: showCategoryDropdown ? "180deg" : "0deg" },
+                        ],
+                      }}
+                    />
+                  </TouchableOpacity>
+
+                  {showCategoryDropdown && (
+                    <View
+                      style={{
+                        marginTop: 8,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        backgroundColor: theme.inputBackground,
+                        maxHeight: 300,
+                      }}
+                    >
+                      <ScrollView>
+                        {categories.map((category) => {
+                          const IconComponent = category.icon;
+                          return (
+                            <TouchableOpacity
+                              key={category.id}
+                              style={{
+                                padding: 16,
+                                borderBottomWidth: 1,
+                                borderBottomColor: theme.border,
+                                flexDirection: "row",
+                                alignItems: "center",
+                                backgroundColor:
+                                  selectedCategory?.id === category.id
+                                    ? `${category.color}10`
+                                    : undefined,
+                              }}
+                              onPress={() => {
+                                setSelectedCategory(category);
+                                setShowCategoryDropdown(false);
+                              }}
+                            >
+                              <View
+                                style={{
+                                  width: 40,
+                                  height: 40,
+                                  borderRadius: 20,
+                                  justifyContent: "center",
+                                  alignItems: "center",
+                                  backgroundColor: `${category.color}20`,
+                                  marginRight: 16,
+                                }}
+                              >
+                                <IconComponent size={20} color={category.color} />
+                              </View>
+                              <Text
+                                style={{
+                                  fontSize: 16,
+                                  fontWeight: "600",
+                                  color: theme.text,
+                                }}
+                              >
+                                {category.name}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {(entryType === "Income") && (
+              <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "700",
+                    marginBottom: 16,
+                    color: theme.text,
+                    fontFamily: "Work Sans",
+                  }}
+                >
+                  Choose Category
+                </Text>
+              
+                <View>
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: 16,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      backgroundColor: theme.inputBackground,
+                    }}
+                    onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                  >
+                    <View style={{ flexDirection: "row", alignItems: "center" }}>
+                      {selectedCategory ? (
+                        <>
+                          <View
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 20,
+                              justifyContent: "center",
+                              alignItems: "center",
+                              backgroundColor: `${selectedCategory.color}20`,
+                              marginRight: 16,
+                            }}
+                          >
+                            <selectedCategory.icon size={20} color={selectedCategory.color} />
+                          </View>
+                          <Text
+                            style={{
+                              fontSize: 16,
+                              fontWeight: "600",
+                              color: theme.text,
+                            }}
+                          >
+                            {selectedCategory.name}
+                          </Text>
+                        </>
+                      ) : (
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            color: theme.placeholder,
+                          }}
+                        >
+                          Select a category
+                        </Text>
+                      )}
+                    </View>
+                    <ChevronDown
+                      size={16}
+                      color={theme.iconMuted}
+                      style={{
+                        transform: [
+                          { rotate: showCategoryDropdown ? "180deg" : "0deg" },
+                        ],
+                      }}
+                    />
+                  </TouchableOpacity>
+
+                  {showCategoryDropdown && (
+                    <View
+                      style={{
+                        marginTop: 8,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        backgroundColor: theme.inputBackground,
+                        maxHeight: 300,
+                      }}
+                    >
+                      <ScrollView>
+                        {categories.map((category) => {
+                          const IconComponent = category.icon;
+                          return (
+                            <TouchableOpacity
+                              key={category.id}
+                              style={{
+                                padding: 16,
+                                borderBottomWidth: 1,
+                                borderBottomColor: theme.border,
+                                flexDirection: "row",
+                                alignItems: "center",
+                                backgroundColor:
+                                selectedCategory?.id === category.id
+                                    ? `${category.color}10`
+                                    : undefined,
+                              }}
+                              onPress={() => {
+                                setSelectedCategory(category);
+                                setShowCategoryDropdown(false);
+                              }}
+                            >
+                              <View
+                                style={{
+                                  width: 40,
+                                  height: 40,
+                                  borderRadius: 20,
+                                  justifyContent: "center",
+                                  alignItems: "center",
+                                  backgroundColor: `${category.color}20`,
+                                  marginRight: 16,
+                                }}
+                              >
+                                <IconComponent size={20} color={category.color} />
+                              </View>
+                              <Text
+                                style={{
+                                  fontSize: 16,
+                                  fontWeight: "600",
+                                  color: theme.text,
+                                }}
+                              >
+                                {category.name}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
+
+
+            {/* Payment Method Section - Only for Expenses */}
+            {entryType === "Expense" && (
+              <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "700",
+                    marginBottom: 16,
+                    color: theme.text,
+                    fontFamily: "Work Sans",
+                  }}
+                >
+                  Payment Method
+                </Text>
+                
                 <TouchableOpacity
                   style={{
                     flexDirection: "row",
@@ -611,10 +984,10 @@ export default function AddExpenseScreen() {
                     borderColor: theme.border,
                     backgroundColor: theme.inputBackground,
                   }}
-                  onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                  onPress={() => setShowPaymentMethodModal(true)}
                 >
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    {selectedCategory ? (
+                    {paymentMethod ? (
                       <>
                         <View
                           style={{
@@ -623,11 +996,14 @@ export default function AddExpenseScreen() {
                             borderRadius: 20,
                             justifyContent: "center",
                             alignItems: "center",
-                            backgroundColor: `${selectedCategory.color}20`,
+                            backgroundColor: `${paymentMethods.find(m => m.id === paymentMethod)?.color}20`,
                             marginRight: 16,
                           }}
                         >
-                          <selectedCategory.icon size={20} color={selectedCategory.color} />
+                          {React.createElement(paymentMethods.find(m => m.id === paymentMethod)?.icon, {
+                            size: 20,
+                            color: paymentMethods.find(m => m.id === paymentMethod)?.color
+                          })}
                         </View>
                         <Text
                           style={{
@@ -636,7 +1012,7 @@ export default function AddExpenseScreen() {
                             color: theme.text,
                           }}
                         >
-                          {selectedCategory.name}
+                          {paymentMethods.find(m => m.id === paymentMethod)?.name}
                         </Text>
                       </>
                     ) : (
@@ -646,159 +1022,17 @@ export default function AddExpenseScreen() {
                           color: theme.placeholder,
                         }}
                       >
-                        Select a category
+                        Select payment method
                       </Text>
                     )}
                   </View>
                   <ChevronDown
                     size={16}
                     color={theme.iconMuted}
-                    style={{
-                      transform: [
-                        { rotate: showCategoryDropdown ? "180deg" : "0deg" },
-                      ],
-                    }}
                   />
                 </TouchableOpacity>
-
-                {showCategoryDropdown && (
-                  <View
-                    style={{
-                      marginTop: 8,
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      borderColor: theme.border,
-                      backgroundColor: theme.inputBackground,
-                      maxHeight: 300,
-                    }}
-                  >
-                    <ScrollView>
-                      {categories.map((category) => {
-                        const IconComponent = category.icon;
-                        return (
-                          <TouchableOpacity
-                            key={category.id}
-                            style={{
-                              padding: 16,
-                              borderBottomWidth: 1,
-                              borderBottomColor: theme.border,
-                              flexDirection: "row",
-                              alignItems: "center",
-                              backgroundColor:
-                                selectedCategory?.id === category.id
-                                  ? `${category.color}10`
-                                  : undefined,
-                            }}
-                            onPress={() => {
-                              setSelectedCategory(category);
-                              setShowCategoryDropdown(false);
-                            }}
-                          >
-                            <View
-                              style={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: 20,
-                                justifyContent: "center",
-                                alignItems: "center",
-                                backgroundColor: `${category.color}20`,
-                                marginRight: 16,
-                              }}
-                            >
-                              <IconComponent size={20} color={category.color} />
-                            </View>
-                            <Text
-                              style={{
-                                fontSize: 16,
-                                fontWeight: "600",
-                                color: theme.text,
-                              }}
-                            >
-                              {category.name}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
-                  </View>
-                )}
               </View>
-            </View>
-
-
-            {/* Payment Method Section */}
-            <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: "700",
-                  marginBottom: 16,
-                  color: theme.text,
-                  fontFamily: "Work Sans",
-                }}
-              >
-                Payment Method
-              </Text>
-              
-              <TouchableOpacity
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: 16,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                  backgroundColor: theme.inputBackground,
-                }}
-                onPress={() => setShowPaymentMethodModal(true)}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  {paymentMethod ? (
-                    <>
-                      <View
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 20,
-                          justifyContent: "center",
-                          alignItems: "center",
-                          backgroundColor: `${paymentMethods.find(m => m.id === paymentMethod)?.color}20`,
-                          marginRight: 16,
-                        }}
-                      >
-                        {React.createElement(paymentMethods.find(m => m.id === paymentMethod)?.icon, {
-                          size: 20,
-                          color: paymentMethods.find(m => m.id === paymentMethod)?.color
-                        })}
-                      </View>
-                      <Text
-                        style={{
-                          fontSize: 16,
-                          fontWeight: "600",
-                          color: theme.text,
-                        }}
-                      >
-                        {paymentMethods.find(m => m.id === paymentMethod)?.name}
-                      </Text>
-                    </>
-                  ) : (
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        color: theme.placeholder,
-                      }}
-                    >
-                      Select payment method
-                    </Text>
-                  )}
-                </View>
-                <ChevronDown
-                  size={16}
-                  color={theme.iconMuted}
-                />
-              </TouchableOpacity>
-            </View>
+            )}
 
             {/* Rest of the code remains exactly the same */}
             <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
@@ -1391,7 +1625,7 @@ export default function AddExpenseScreen() {
                               color: theme.textSecondary,
                             }}
                           >
-                            {selectedAccount.group_name} • £
+                            {selectedAccount.account_type} {/* Changed from group_name to account_type */}
                             {selectedAccount.amount.toFixed(2)}
                           </Text>
                         )}
@@ -1468,7 +1702,7 @@ export default function AddExpenseScreen() {
                                   color: theme.textSecondary,
                                 }}
                               >
-                                {account.group_name}
+                                {account.account_type}
                               </Text>
                             </View>
                             <Text
@@ -1487,6 +1721,39 @@ export default function AddExpenseScreen() {
                   )}
                 </View>
               )}
+            </View>
+
+            {/* Description Field - Required for Income */}
+            <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: "700",
+                  marginBottom: 16,
+                  color: theme.text,
+                  fontFamily: "Work Sans",
+                }}
+              >
+                What's this for?
+              </Text>
+              <TextInput
+                style={{
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  padding: 16,
+                  fontSize: 16,
+                  minHeight: 80,
+                  backgroundColor: theme.inputBackground,
+                  color: theme.text,
+                  textAlignVertical: "top",
+                }}
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Add a note about this income..."
+                placeholderTextColor={theme.placeholder}
+                multiline
+              />
             </View>
 
             {/* Date Selection */}

@@ -269,11 +269,36 @@ export default function SignupScreen() {
       }
 
       if (data.user) {
-        Toast.show({
-          type: "success",
-          text1: "Account created!",
-          text2: "Please check your email to verify your account",
-        });
+        // Create default account for new user
+        try {
+          const { createAccount } = await import("~/lib/accounts");
+          
+          const defaultAccount = await createAccount({
+            user_id: data.user.id,
+            account_type: "Accounts",
+            name: "Account 1",
+            amount: 0,
+            description: "Default account",
+            is_default: true,
+            currency: "USD"
+          });
+          
+          console.log("Successfully created default account for new user:", defaultAccount.name);
+          
+          Toast.show({
+            type: "success",
+            text1: "Account created!",
+            text2: "Default account 'Account 1' has been created for you",
+          });
+        } catch (accountError) {
+          console.error("Error creating default account:", accountError);
+          // Still show success for user creation, but warn about account
+          Toast.show({
+            type: "success",
+            text1: "Account created!",
+            text2: "Please check your email to verify your account",
+          });
+        }
 
         router.push("/(auth)/login");
       }
@@ -416,6 +441,38 @@ export default function SignupScreen() {
 
             if (sessionData.session?.access_token) {
               await setItemAsync("token", sessionData.session.access_token);
+              
+              // Create default account for social login user
+              try {
+                const { createAccount } = await import("~/lib/accounts");
+                const { data: { user } } = await supabase.auth.getUser();
+                
+                if (user) {
+                  // Check if user already has accounts
+                  const { data: existingAccounts } = await supabase
+                    .from("accounts")
+                    .select("id")
+                    .eq("user_id", user.id);
+                  
+                  if (!existingAccounts || existingAccounts.length === 0) {
+                    const defaultAccount = await createAccount({
+                      user_id: user.id,
+                      account_type: "Accounts",
+                      name: "Account 1",
+                      amount: 0,
+                      description: "Default account",
+                      is_default: true,
+                      currency: "USD"
+                    });
+                    
+                    console.log("Successfully created default account for social user:", defaultAccount.name);
+                  }
+                }
+              } catch (accountError) {
+                console.error("Error creating default account for social user:", accountError);
+                // Continue with navigation even if account creation fails
+              }
+              
               router.push("../(main)/Dashboard" as any);
             }
           }

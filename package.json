@@ -58,6 +58,7 @@
     "react-native-chart-kit": "^6.12.0",
     "react-native-circular-progress": "^1.4.1",
     "react-native-gifted-charts": "^1.4.63",
+    "react-native-html-to-pdf": "^0.12.0",
     "react-native-keyboard-aware-scroll-view": "^0.9.5",
     "react-native-paper-dates": "^0.22.49",
     "react-native-picker-select": "^9.3.1",

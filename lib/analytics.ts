@@ -37,7 +37,7 @@ export const getFinancialSummary = async (userId: string): Promise<FinancialSumm
     // Get accounts summary
     const { data: accounts } = await supabase
       .from('accounts')
-      .select('amount, type')
+      .select('amount')
       .eq('user_id', userId);
 
     // Get transactions summary (using transactions table instead of expenses)
@@ -51,13 +51,9 @@ export const getFinancialSummary = async (userId: string): Promise<FinancialSumm
     let totalIncome = 0;
     let totalExpenses = 0;
 
-    // Calculate account totals
+    // Calculate account totals - since we removed asset/liability types, treat all as assets
     accounts?.forEach(account => {
-      if (account.type === 'asset') {
-        totalAssets += Number(account.amount);
-      } else if (account.type === 'liability') {
-        totalLiabilities += Number(account.amount);
-      }
+      totalAssets += Number(account.amount);
     });
 
     // Calculate transaction totals (using transactions table)
@@ -70,12 +66,12 @@ export const getFinancialSummary = async (userId: string): Promise<FinancialSumm
       // Note: transfers don't affect total income/expenses as they move money between accounts
     });
 
-    const netWorth = totalAssets - totalLiabilities;
+    const netWorth = totalAssets; // All accounts are now treated as assets
     const balance = totalIncome - totalExpenses;
 
     return {
       totalAssets,
-      totalLiabilities,
+      totalLiabilities: 0, // No more liabilities
       netWorth,
       totalIncome,
       totalExpenses,
@@ -212,11 +208,11 @@ export const getBudgetProgress = async (userId: string): Promise<BudgetProgress[
   }
 };
 
-export const getAccountBalances = async (userId: string): Promise<{ name: string; balance: number; type: string }[]> => {
+export const getAccountBalances = async (userId: string): Promise<{ name: string; balance: number; account_type: string }[]> => {
   try {
     const { data: accounts } = await supabase
       .from('accounts')
-      .select('name, amount, type')
+      .select('name, amount, account_type')
       .eq('user_id', userId)
       .order('amount', { ascending: false });
 
@@ -225,7 +221,7 @@ export const getAccountBalances = async (userId: string): Promise<{ name: string
     return accounts.map(account => ({
       name: account.name,
       balance: Number(account.amount),
-      type: account.type || 'asset'
+      account_type: account.account_type || 'Accounts'
     }));
   } catch (error) {
     console.error('Error getting account balances:', error);
