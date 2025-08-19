@@ -1,5 +1,11 @@
 import { supabase } from "./supabase";
 import { PersonalLoan, LoanRepayment } from "./types";
+import {
+  addTransaction,
+  deleteTransaction,
+  updateTransaction,
+  getTransactionsByAccount,
+} from "./transactions";
 
 // Helper function to update account balance
 async function updateAccountBalance(accountId: string, amountChange: number) {
@@ -89,6 +95,24 @@ export async function createLoan(
       if (balanceChange !== 0) {
         await updateAccountBalance(loan.account_id, balanceChange);
       }
+
+      // Create corresponding transaction record
+      const transactionType = loan.type === "loan_taken" ? "income" : "expense";
+      const transactionDescription =
+        loan.type === "loan_taken"
+          ? `Loan taken from ${loan.party_name}`
+          : `Loan given to ${loan.party_name}`;
+
+      await addTransaction({
+        user_id: loan.user_id,
+        account_id: loan.account_id,
+        amount: loan.principal_amount,
+        description: transactionDescription,
+        date: new Date().toISOString().split("T")[0], // Today's date
+        category: "Loans", // Loan category
+        is_recurring: false,
+        type: transactionType,
+      });
     }
 
     return data;
@@ -152,6 +176,53 @@ export async function updateLoan(
       await updateAccountBalance(updates.account_id, newBalanceChange);
     }
 
+    // Update the corresponding transaction
+    if (currentLoan.account_id) {
+      try {
+        const transactions = await getTransactionsByAccount(
+          currentLoan.user_id,
+          currentLoan.account_id
+        );
+
+        // Find the transaction that matches this loan
+        const expectedDescription =
+          currentLoan.type === "loan_taken"
+            ? `Loan taken from ${currentLoan.party_name}`
+            : `Loan given to ${currentLoan.party_name}`;
+
+        const loanTransaction = transactions.find(
+          (transaction) =>
+            transaction.description === expectedDescription &&
+            transaction.amount === currentLoan.principal_amount &&
+            transaction.category === "Loans"
+        );
+
+        if (loanTransaction) {
+          // Update the transaction with new loan details
+          const updatedLoan = data; // The updated loan data
+          const newTransactionType =
+            updatedLoan.type === "loan_taken" ? "income" : "expense";
+          const newTransactionDescription =
+            updatedLoan.type === "loan_taken"
+              ? `Loan taken from ${updatedLoan.party_name}`
+              : `Loan given to ${updatedLoan.party_name}`;
+
+          await updateTransaction(loanTransaction.id, {
+            account_id: updatedLoan.account_id,
+            amount: updatedLoan.principal_amount,
+            description: newTransactionDescription,
+            type: newTransactionType,
+          });
+        }
+      } catch (transactionError) {
+        console.warn(
+          "Could not find or update loan transaction:",
+          transactionError
+        );
+        // Don't fail the loan update if transaction update fails
+      }
+    }
+
     return data;
   } catch (error) {
     console.error("Error updating loan:", error);
@@ -165,6 +236,65 @@ export async function deleteLoan(loanId: string): Promise<void> {
     // Get the loan to calculate balance changes
     const loan = await getLoanById(loanId);
     if (!loan) throw new Error("Loan not found");
+
+    // Find and delete the corresponding transaction
+    if (loan.account_id) {
+      try {
+        console.log(
+          `Searching for transaction to delete for loan: ${loan.id}, party: ${loan.party_name}, amount: ${loan.principal_amount}`
+        );
+
+        const transactions = await getTransactionsByAccount(
+          loan.user_id,
+          loan.account_id
+        );
+
+        // Find the transaction that matches this loan
+        const expectedDescription =
+          loan.type === "loan_taken"
+            ? `Loan taken from ${loan.party_name}`
+            : `Loan given to ${loan.party_name}`;
+
+        console.log(
+          `Looking for transaction with description: "${expectedDescription}", amount: ${loan.principal_amount}, category: "Loans"`
+        );
+
+        const loanTransaction = transactions.find(
+          (transaction) =>
+            transaction.description === expectedDescription &&
+            transaction.amount === loan.principal_amount &&
+            transaction.category === "Loans"
+        );
+
+        if (loanTransaction) {
+          console.log(
+            `Found matching transaction with ID: ${loanTransaction.id}. Deleting...`
+          );
+          await deleteTransaction(loanTransaction.id);
+          console.log(
+            `Successfully deleted transaction: ${loanTransaction.id}`
+          );
+        } else {
+          console.warn(
+            `No matching transaction found for loan ${loan.id}. Available transactions:`,
+            transactions
+              .filter((t) => t.category === "Loans")
+              .map((t) => ({
+                id: t.id,
+                description: t.description,
+                amount: t.amount,
+                category: t.category,
+              }))
+          );
+        }
+      } catch (transactionError) {
+        console.error(
+          "Error finding or deleting loan transaction:",
+          transactionError
+        );
+        // Don't fail the loan deletion if transaction deletion fails
+      }
+    }
 
     // Delete the loan
     const { error } = await supabase
@@ -257,6 +387,24 @@ export async function createRepayment(
       if (balanceChange !== 0) {
         await updateAccountBalance(loan.account_id, balanceChange);
       }
+
+      // Create transaction for the repayment
+      const transactionType = loan.type === "loan_taken" ? "expense" : "income";
+      const transactionDescription =
+        loan.type === "loan_taken"
+          ? `Loan repayment to ${loan.party_name}`
+          : `Loan repayment received from ${loan.party_name}`;
+
+      await addTransaction({
+        user_id: loan.user_id,
+        account_id: loan.account_id,
+        amount: repayment.amount,
+        description: transactionDescription,
+        date: repayment.payment_date,
+        category: "Loan Repayments",
+        is_recurring: false,
+        type: transactionType,
+      });
     }
 
     // Update the remaining amount on the loan
@@ -304,8 +452,40 @@ export async function deleteRepayment(repaymentId: string): Promise<void> {
 
     if (deleteError) throw deleteError;
 
-    // Reverse the account balance change
+    // Find and delete the corresponding repayment transaction
     if (loan.account_id) {
+      try {
+        const transactions = await getTransactionsByAccount(
+          loan.user_id,
+          loan.account_id
+        );
+
+        // Find the transaction that matches this repayment
+        const expectedDescription =
+          loan.type === "loan_taken"
+            ? `Loan repayment to ${loan.party_name}`
+            : `Loan repayment received from ${loan.party_name}`;
+
+        const repaymentTransaction = transactions.find(
+          (transaction) =>
+            transaction.description === expectedDescription &&
+            transaction.amount === repayment.amount &&
+            transaction.category === "Loan Repayments" &&
+            transaction.date === repayment.payment_date
+        );
+
+        if (repaymentTransaction) {
+          await deleteTransaction(repaymentTransaction.id);
+        }
+      } catch (transactionError) {
+        console.warn(
+          "Could not find or delete repayment transaction:",
+          transactionError
+        );
+        // Don't fail the repayment deletion if transaction deletion fails
+      }
+
+      // Reverse the account balance change
       let balanceChange = 0;
       if (loan.type === "loan_taken") {
         // When deleting a repayment for a taken loan, money comes back INTO the account
