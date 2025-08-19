@@ -1,7 +1,22 @@
-import { View, Text, TouchableOpacity, Dimensions, Animated, Easing } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Dimensions,
+  Animated,
+  Easing,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
-import { PieChart, Users, TrendingUp, Shield, Zap, ArrowRight } from "lucide-react-native";
+import {
+  PieChart,
+  Users,
+  TrendingUp,
+  Shield,
+  Zap,
+  ArrowRight,
+  DollarSign,
+} from "lucide-react-native";
 import { useEffect, useRef } from "react";
 
 const { width, height } = Dimensions.get("window");
@@ -17,14 +32,14 @@ const FloatingParticle = ({ style }: any) => {
           toValue: 1,
           duration: 3000 + Math.random() * 2000,
           easing: Easing.linear,
-          useNativeDriver: true
+          useNativeDriver: true,
         }),
         Animated.timing(anim, {
           toValue: 0,
           duration: 3000 + Math.random() * 2000,
           easing: Easing.linear,
-          useNativeDriver: true
-        })
+          useNativeDriver: true,
+        }),
       ])
     );
     animation.start();
@@ -33,12 +48,12 @@ const FloatingParticle = ({ style }: any) => {
 
   const translateY = anim.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, -15]
+    outputRange: [0, -15],
   });
 
   const opacity = anim.interpolate({
     inputRange: [0, 0.5, 1],
-    outputRange: [0.2, 0.8, 0.2]
+    outputRange: [0.2, 0.8, 0.2],
   });
 
   return (
@@ -48,8 +63,8 @@ const FloatingParticle = ({ style }: any) => {
         {
           transform: [{ translateY }],
           opacity,
-          position: 'absolute'
-        }
+          position: "absolute",
+        },
       ]}
     />
   );
@@ -69,7 +84,7 @@ export default function WelcomeScreen() {
     id: i,
     size: 2 + Math.random() * 3,
     left: Math.random() * 100,
-    top: 10 + Math.random() * 80
+    top: 10 + Math.random() * 80,
   }));
 
   useEffect(() => {
@@ -109,7 +124,7 @@ export default function WelcomeScreen() {
           duration: 1500,
           easing: Easing.inOut(Easing.quad),
           useNativeDriver: true,
-        })
+        }),
       ])
     ).start();
   }, []);
@@ -132,59 +147,65 @@ export default function WelcomeScreen() {
 
   const rotateInterpolate = iconRotate.interpolate({
     inputRange: [0, 1],
-    outputRange: ['-15deg', '15deg']
+    outputRange: ["-15deg", "15deg"],
   });
 
   const handleNavigate = () => {
-  // Start screen transition animation
-  Animated.timing(screenTransition, {
-    toValue: 1,
-    duration: 400,
-    easing: Easing.inOut(Easing.quad),
-    useNativeDriver: true,
-  }).start(() => {
-    // Navigate after animation completes
-    router.push("/inputCategoriesScreen");
+    // Start screen transition animation
+    Animated.timing(screenTransition, {
+      toValue: 1,
+      duration: 400,
+      easing: Easing.inOut(Easing.quad),
+      useNativeDriver: true,
+    }).start(() => {
+      // Navigate after animation completes
+      router.push("/inputCategoriesScreen");
+    });
+  };
+
+  const screenInterpolate = screenTransition.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.9],
   });
-};
 
-const screenInterpolate = screenTransition.interpolate({
-  inputRange: [0, 1],
-  outputRange: [1, 0.9]
-});
-
-const screenOpacity = screenTransition.interpolate({
-  inputRange: [0, 1],
-  outputRange: [1, 0]
-});
+  const screenOpacity = screenTransition.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0],
+  });
 
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView className="flex-1 bg-slate-900">
         {/* Floating particles background */}
-      {particles.map(particle => (
-        <FloatingParticle
-          key={particle.id}
+        {particles.map((particle) => (
+          <FloatingParticle
+            key={particle.id}
+            style={{
+              width: particle.size,
+              height: particle.size,
+              borderRadius: particle.size / 2,
+              backgroundColor: "#10b981",
+              left: `${particle.left}%`,
+              top: `${particle.top}%`,
+            }}
+          />
+        ))}
+        <Animated.View
           style={{
-            width: particle.size,
-            height: particle.size,
-            borderRadius: particle.size / 2,
-            backgroundColor: '#10b981',
-            left: `${particle.left}%`,
-            top: `${particle.top}%`
+            opacity: fadeAnim,
+            transform: [
+              { scale: screenInterpolate },
+              {
+                translateY: screenTransition.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 20],
+                }),
+              },
+            ],
           }}
-        />
-      ))}
-        <Animated.View style={{ opacity: fadeAnim,
-          transform: [
-          { scale: screenInterpolate },
-          { translateY: screenTransition.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, 20]
-          })}
-        ]
-         }} className="flex-1 px-6 justify-between py-10">
+          className="flex-1 px-6 justify-between py-10"
+        >
           {/* Progress Indicator */}
           <View className="flex-row items-center justify-center gap-1.5">
             <View className="w-6 h-2 bg-emerald-400 rounded-full" />
@@ -194,33 +215,35 @@ const screenOpacity = screenTransition.interpolate({
 
           {/* Hero Illustration */}
           <View className="items-center mt-10">
-            <Animated.View 
+            <Animated.View
               style={{
                 transform: [{ scale: scaleAnim }],
-                opacity: fadeAnim
+                opacity: fadeAnim,
               }}
               className="w-48 h-48 bg-slate-800 rounded-full justify-center items-center border-2 border-emerald-500/50 relative shadow-xl shadow-emerald-500/20"
             >
-              <Animated.View style={{ transform: [{ rotate: rotateInterpolate }] }}>
+              <Animated.View
+                style={{ transform: [{ rotate: rotateInterpolate }] }}
+              >
                 <PieChart size={80} color="#10b981" strokeWidth={1.8} />
               </Animated.View>
-              <Animated.View 
+              <Animated.View
                 style={{
                   transform: [{ scale: scaleAnim }],
-                  opacity: fadeAnim
+                  opacity: fadeAnim,
                 }}
-                className="absolute bottom-5 right-5 bg-slate-700 rounded-xl p-2 shadow-md shadow-black/30"
+                className="absolute bottom-[-20px] right-5 bg-emerald-400 rounded-xl p-2 shadow-md shadow-black/30"
               >
-                <Users size={40} color="#64748b" />
+                <DollarSign size={40} color="#fff" />
               </Animated.View>
             </Animated.View>
           </View>
 
           {/* Title and Tagline */}
-          <Animated.View 
+          <Animated.View
             style={{
               transform: [{ translateY: slideUpAnim }],
-              opacity: fadeAnim
+              opacity: fadeAnim,
             }}
             className="items-center px-5"
           >
@@ -236,29 +259,29 @@ const screenOpacity = screenTransition.interpolate({
           </Animated.View>
 
           {/* Features */}
-          <Animated.View 
+          <Animated.View
             style={{
               opacity: fadeAnim,
-              transform: [{ translateY: slideUpAnim }]
+              transform: [{ translateY: slideUpAnim }],
             }}
             className="flex-row justify-around px-5"
           >
             <View className="items-center flex-1">
               <TrendingUp size={26} color="#10b981" />
               <Text className="text-slate-200 text-sm mt-2 text-center font-medium">
-                Smart Predictions
+                Expense Tracking
               </Text>
             </View>
             <View className="items-center flex-1">
               <Shield size={26} color="#10b981" />
               <Text className="text-slate-200 text-sm mt-2 text-center font-medium">
-                Secure & Private
+                Account Security
               </Text>
             </View>
             <View className="items-center flex-1">
               <Zap size={26} color="#10b981" />
               <Text className="text-slate-200 text-sm mt-2 text-center font-medium">
-                Real-time Insights
+                Instant Insights
               </Text>
             </View>
           </Animated.View>
@@ -267,7 +290,7 @@ const screenOpacity = screenTransition.interpolate({
           <Animated.View
             style={{
               transform: [{ scale: buttonScale }],
-              opacity: fadeAnim
+              opacity: fadeAnim,
             }}
           >
             <TouchableOpacity
@@ -276,7 +299,9 @@ const screenOpacity = screenTransition.interpolate({
               onPressOut={handleButtonPressOut}
               onPress={handleNavigate}
             >
-              <Text className="text-white text-lg font-bold mr-2">Get Started</Text>
+              <Text className="text-white text-lg font-bold mr-2">
+                Start Managing
+              </Text>
               <ArrowRight size={20} color="#ffffff" />
             </TouchableOpacity>
           </Animated.View>

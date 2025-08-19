@@ -13,14 +13,14 @@ import { Appearance, Platform, View } from "react-native";
 import { NAV_THEME } from "~/lib/constants";
 import { useColorScheme } from "~/lib/useColorScheme";
 import { PortalHost } from "@rn-primitives/portal";
-import { ThemeToggle } from "~/components/ThemeToggle";
 import { setAndroidNavigationBar } from "~/lib/android-navigation-bar";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import Toast from "react-native-toast-message";
 import { AccountProvider } from "~/lib/AccountContext";
-import * as Notifications from 'expo-notifications';
+import * as Notifications from "expo-notifications";
 import notificationService from "~/lib/notificationService";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { LanguageProvider } from "~/lib/LanguageProvider";
 
 const LIGHT_THEME: Theme = {
   ...DefaultTheme,
@@ -72,13 +72,14 @@ export default function RootLayout() {
         }
 
         // Set up notification response listener globally
-        const subscription = Notifications.addNotificationResponseReceivedListener(
-          notificationService.handleNotificationResponse
-        );
+        const subscription =
+          Notifications.addNotificationResponseReceivedListener(
+            notificationService.handleNotificationResponse
+          );
 
         return () => subscription.remove();
       } catch (error) {
-        console.error('Failed to initialize global notifications:', error);
+        console.error("Failed to initialize global notifications:", error);
       }
     };
 
@@ -87,25 +88,27 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AccountProvider>
-        <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
-          <BottomSheetModalProvider>
-            <StatusBar style={isDarkColorScheme ? "light" : "dark"} />
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="(onboarding)" />
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(main)" />
-              <Stack.Screen name="(predict)" />
-              <Stack.Screen name="(expense)" />
-              <Stack.Screen name="(analytics)" />
-              <Stack.Screen name="(profile)" />
-            </Stack>
-            <Toast />
-            <PortalHost />
-          </BottomSheetModalProvider>
-        </ThemeProvider>
-      </AccountProvider>
+      <LanguageProvider>
+        <AccountProvider>
+          <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
+            <BottomSheetModalProvider>
+              <StatusBar style={isDarkColorScheme ? "light" : "dark"} />
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="(onboarding)" />
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(main)" />
+                <Stack.Screen name="(predict)" />
+                <Stack.Screen name="(expense)" />
+                <Stack.Screen name="(analytics)" />
+                <Stack.Screen name="(profile)" />
+              </Stack>
+              <Toast />
+              <PortalHost />
+            </BottomSheetModalProvider>
+          </ThemeProvider>
+        </AccountProvider>
+      </LanguageProvider>
     </QueryClientProvider>
   );
 }
