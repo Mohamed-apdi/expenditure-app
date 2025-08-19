@@ -24,13 +24,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { supabase } from "~/lib/supabase";
-import { 
-  fetchSubscriptionsWithAccounts, 
-  addSubscription, 
-  updateSubscription, 
+import {
+  fetchSubscriptionsWithAccounts,
+  addSubscription,
+  updateSubscription,
   deleteSubscription,
   toggleSubscriptionStatus,
-  type Subscription 
+  type Subscription,
 } from "~/lib/subscriptions";
 import { fetchAccounts, type Account } from "~/lib/accounts";
 
@@ -108,7 +108,8 @@ const getDefaultIcon = (serviceName: string): ServiceIcon => {
   if (name.includes("spotify") || name.includes("apple music")) return "music";
   if (name.includes("adobe") || name.includes("microsoft")) return "software";
   if (name.includes("dropbox") || name.includes("google")) return "cloud";
-  if (name.includes("subscription") || name.includes("recurring")) return "subscriptions";
+  if (name.includes("subscription") || name.includes("recurring"))
+    return "subscriptions";
   return "other";
 };
 
@@ -135,7 +136,7 @@ export default function SubscriptionsScreen() {
   const [formData, setFormData] = useState({
     name: "",
     amount: "",
-    billing_cycle: "monthly" as 'weekly' | 'monthly' | 'yearly',
+    billing_cycle: "monthly" as "weekly" | "monthly" | "yearly",
     next_payment_date: new Date(),
     is_active: true,
     icon: "other" as ServiceIcon,
@@ -150,25 +151,25 @@ export default function SubscriptionsScreen() {
   const checkAndCutSubscriptionFees = async () => {
     try {
       if (!userId || isCheckingFees) return;
-      
+
       setIsCheckingFees(true);
 
       const today = new Date();
-      const todayString = today.toISOString().split('T')[0];
+      const todayString = today.toISOString().split("T")[0];
 
       // Get all active subscriptions
-      const activeSubscriptions = subscriptions.filter(sub => sub.is_active);
-      
+      const activeSubscriptions = subscriptions.filter((sub) => sub.is_active);
+
       for (const subscription of activeSubscriptions) {
         const nextPaymentDate = new Date(subscription.next_payment_date);
-        const nextPaymentString = nextPaymentDate.toISOString().split('T')[0];
-        
+        const nextPaymentString = nextPaymentDate.toISOString().split("T")[0];
+
         // Check if payment is due today or overdue
         if (nextPaymentString <= todayString) {
           try {
             // Import transaction service
             const { addTransaction } = await import("~/lib/transactions");
-            
+
             // Create expense transaction for subscription fee
             await addTransaction({
               user_id: userId,
@@ -182,34 +183,52 @@ export default function SubscriptionsScreen() {
               recurrence_interval: subscription.billing_cycle,
             });
 
-            console.log(`Created subscription fee transaction for: ${subscription.name}`);
+            console.log(
+              `Created subscription fee transaction for: ${subscription.name}`
+            );
 
             // Calculate next payment date based on billing cycle
             let nextPayment: Date;
             switch (subscription.billing_cycle) {
-              case 'weekly':
-                nextPayment = new Date(nextPaymentDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+              case "weekly":
+                nextPayment = new Date(
+                  nextPaymentDate.getTime() + 7 * 24 * 60 * 60 * 1000
+                );
                 break;
-              case 'monthly':
-                nextPayment = new Date(nextPaymentDate.getFullYear(), nextPaymentDate.getMonth() + 1, nextPaymentDate.getDate());
+              case "monthly":
+                nextPayment = new Date(
+                  nextPaymentDate.getFullYear(),
+                  nextPaymentDate.getMonth() + 1,
+                  nextPaymentDate.getDate()
+                );
                 break;
-              case 'yearly':
-                nextPayment = new Date(nextPaymentDate.getFullYear() + 1, nextPaymentDate.getMonth(), nextPaymentDate.getDate());
+              case "yearly":
+                nextPayment = new Date(
+                  nextPaymentDate.getFullYear() + 1,
+                  nextPaymentDate.getMonth(),
+                  nextPaymentDate.getDate()
+                );
                 break;
               default:
-                nextPayment = new Date(nextPaymentDate.getTime() + 30 * 24 * 60 * 60 * 1000); // Default to monthly
+                nextPayment = new Date(
+                  nextPaymentDate.getTime() + 30 * 24 * 60 * 60 * 1000
+                ); // Default to monthly
             }
 
             // Update subscription with new next payment date
             await updateSubscription(subscription.id, {
               ...subscription,
-              next_payment_date: nextPayment.toISOString().split('T')[0],
+              next_payment_date: nextPayment.toISOString().split("T")[0],
             });
 
-            console.log(`Updated next payment date for: ${subscription.name} to ${nextPayment.toISOString().split('T')[0]}`);
-
+            console.log(
+              `Updated next payment date for: ${subscription.name} to ${nextPayment.toISOString().split("T")[0]}`
+            );
           } catch (error) {
-            console.error(`Error processing subscription fee for ${subscription.name}:`, error);
+            console.error(
+              `Error processing subscription fee for ${subscription.name}:`,
+              error
+            );
           }
         }
       }
@@ -237,16 +256,16 @@ export default function SubscriptionsScreen() {
       }
 
       setUserId(user.id);
-      
+
       // Fetch subscriptions with accounts and accounts in parallel
       const [subscriptionsData, accountsData] = await Promise.all([
         fetchSubscriptionsWithAccounts(user.id),
-        fetchAccounts(user.id)
+        fetchAccounts(user.id),
       ]);
-      
+
       setSubscriptions(subscriptionsData);
       setAccounts(accountsData);
-      
+
       // Set default selected account if available
       if (accountsData.length > 0) {
         setSelectedAccount(accountsData[0]);
@@ -275,7 +294,7 @@ export default function SubscriptionsScreen() {
       await checkAndCutSubscriptionFees();
       // Refresh data after processing fees
       await fetchData();
-      
+
       // Show success message
       setShowFeeSuccessMessage(true);
       setTimeout(() => setShowFeeSuccessMessage(false), 3000);
@@ -293,7 +312,7 @@ export default function SubscriptionsScreen() {
       const timer = setTimeout(() => {
         checkAndCutSubscriptionFees();
       }, 1000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [userId]); // Only depend on userId, not subscriptions
@@ -311,7 +330,10 @@ export default function SubscriptionsScreen() {
 
   const openAddModal = () => {
     if (accounts.length === 0) {
-      Alert.alert("No Accounts", "Please create an account first before setting up subscriptions.");
+      Alert.alert(
+        "No Accounts",
+        "Please create an account first before setting up subscriptions."
+      );
       return;
     }
     setCurrentSubscription(null);
@@ -344,11 +366,13 @@ export default function SubscriptionsScreen() {
       category: subscription.category,
       description: subscription.description || "",
     });
-    
+
     // Find and set the account for this subscription
-    const subscriptionAccount = subscription.account || accounts.find(acc => acc.id === subscription.account_id);
+    const subscriptionAccount =
+      subscription.account ||
+      accounts.find((acc) => acc.id === subscription.account_id);
     setSelectedAccount(subscriptionAccount || null);
-    
+
     setIsEditMode(true);
     setIsModalVisible(true);
   };
@@ -360,7 +384,10 @@ export default function SubscriptionsScreen() {
     }
 
     if (!selectedAccount) {
-      Alert.alert("Select Account", "Please select an account for this subscription");
+      Alert.alert(
+        "Select Account",
+        "Please select an account for this subscription"
+      );
       return;
     }
 
@@ -378,7 +405,9 @@ export default function SubscriptionsScreen() {
         amount,
         category: formData.category || "Subscriptions",
         billing_cycle: formData.billing_cycle,
-        next_payment_date: formData.next_payment_date.toISOString().split('T')[0],
+        next_payment_date: formData.next_payment_date
+          .toISOString()
+          .split("T")[0],
         is_active: formData.is_active,
         icon: formData.icon,
         icon_color: formData.icon_color,
@@ -484,7 +513,9 @@ export default function SubscriptionsScreen() {
       >
         {/* Header */}
         <View className="flex-row justify-between items-center p-6">
-          <Text className="text-gray-900 text-2xl font-bold">Subscriptions</Text>
+          <Text className="text-gray-900 text-2xl font-bold">
+            Subscriptions
+          </Text>
           <View className="flex-row gap-2">
             <TouchableOpacity
               className="bg-green-500 rounded-lg py-3 px-3 items-center"
@@ -520,14 +551,18 @@ export default function SubscriptionsScreen() {
           <View className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
             <View className="flex-row justify-between items-center">
               <View>
-                <Text className="text-gray-600 text-sm mb-1">Total Monthly Cost</Text>
+                <Text className="text-gray-600 text-sm mb-1">
+                  Total Monthly Cost
+                </Text>
                 <Text className="text-blue-600 text-xl font-bold">
                   ${totalMonthlyCost.toFixed(2)}
                 </Text>
               </View>
               {isCheckingFees && (
                 <View className="bg-green-100 px-3 py-1 rounded-full">
-                  <Text className="text-green-700 text-xs">Checking Fees...</Text>
+                  <Text className="text-green-700 text-xs">
+                    Checking Fees...
+                  </Text>
                 </View>
               )}
             </View>
@@ -561,7 +596,10 @@ export default function SubscriptionsScreen() {
                         style={{ backgroundColor: subscription.icon_color }}
                       >
                         <Image
-                          source={serviceIcons[subscription.icon] || serviceIcons.other}
+                          source={
+                            serviceIcons[subscription.icon] ||
+                            serviceIcons.other
+                          }
                           className="w-6 h-6"
                         />
                       </View>
@@ -572,7 +610,11 @@ export default function SubscriptionsScreen() {
                         <View className="flex-row items-center mt-1">
                           <Clock size={14} color="#6b7280" />
                           <Text className="text-gray-500 text-sm ml-2">
-                            {subscription.billing_cycle.charAt(0).toUpperCase() + subscription.billing_cycle.slice(1)} • Next: {formatDate(subscription.next_payment_date)}
+                            {subscription.billing_cycle
+                              .charAt(0)
+                              .toUpperCase() +
+                              subscription.billing_cycle.slice(1)}{" "}
+                            • Next: {formatDate(subscription.next_payment_date)}
                           </Text>
                         </View>
                         {subscription.account && (
@@ -594,7 +636,10 @@ export default function SubscriptionsScreen() {
                       <Switch
                         value={subscription.is_active}
                         onValueChange={() =>
-                          toggleSubscription(subscription.id, subscription.is_active)
+                          toggleSubscription(
+                            subscription.id,
+                            subscription.is_active
+                          )
                         }
                         trackColor={{ false: "#767577", true: "#3b82f6" }}
                         thumbColor="#f4f3f4"
@@ -634,7 +679,10 @@ export default function SubscriptionsScreen() {
                         style={{ backgroundColor: subscription.icon_color }}
                       >
                         <Image
-                          source={serviceIcons[subscription.icon] || serviceIcons.other}
+                          source={
+                            serviceIcons[subscription.icon] ||
+                            serviceIcons.other
+                          }
                           className="w-6 h-6"
                         />
                       </View>
@@ -645,7 +693,11 @@ export default function SubscriptionsScreen() {
                         <View className="flex-row items-center mt-1">
                           <Clock size={14} color="#6b7280" />
                           <Text className="text-gray-500 text-sm ml-2">
-                            {subscription.billing_cycle.charAt(0).toUpperCase() + subscription.billing_cycle.slice(1)} • Paused
+                            {subscription.billing_cycle
+                              .charAt(0)
+                              .toUpperCase() +
+                              subscription.billing_cycle.slice(1)}{" "}
+                            • Paused
                           </Text>
                         </View>
                         {subscription.account && (
@@ -662,7 +714,10 @@ export default function SubscriptionsScreen() {
                       <Switch
                         value={subscription.is_active}
                         onValueChange={() =>
-                          toggleSubscription(subscription.id, subscription.is_active)
+                          toggleSubscription(
+                            subscription.id,
+                            subscription.is_active
+                          )
                         }
                         trackColor={{ false: "#767577", true: "#3b82f6" }}
                         thumbColor="#f4f3f4"
@@ -760,12 +815,16 @@ export default function SubscriptionsScreen() {
                   className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
                   onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
                 >
-                  <Text className={formData.category ? "text-gray-900" : "text-gray-500"}>
+                  <Text
+                    className={
+                      formData.category ? "text-gray-900" : "text-gray-500"
+                    }
+                  >
                     {formData.category || "Select a category"}
                   </Text>
                   <ChevronDown size={16} color="#6b7280" />
                 </TouchableOpacity>
-                
+
                 {showCategoryDropdown && (
                   <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
                     <ScrollView>
@@ -794,12 +853,18 @@ export default function SubscriptionsScreen() {
                   className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
                   onPress={() => setShowAccountDropdown(!showAccountDropdown)}
                 >
-                  <Text className={selectedAccount ? "text-gray-900" : "text-gray-500"}>
-                    {selectedAccount ? selectedAccount.name : "Select an account"}
+                  <Text
+                    className={
+                      selectedAccount ? "text-gray-900" : "text-gray-500"
+                    }
+                  >
+                    {selectedAccount
+                      ? selectedAccount.name
+                      : "Select an account"}
                   </Text>
                   <ChevronDown size={16} color="#6b7280" />
                 </TouchableOpacity>
-                
+
                 {showAccountDropdown && (
                   <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
                     <ScrollView>
@@ -807,7 +872,9 @@ export default function SubscriptionsScreen() {
                         <TouchableOpacity
                           key={account.id}
                           className={`p-3 border-b border-gray-200 ${
-                            selectedAccount?.id === account.id ? "bg-blue-50" : ""
+                            selectedAccount?.id === account.id
+                              ? "bg-blue-50"
+                              : ""
                           }`}
                           onPress={() => {
                             setSelectedAccount(account);
@@ -815,7 +882,9 @@ export default function SubscriptionsScreen() {
                           }}
                         >
                           <Text className="font-medium">{account.name}</Text>
-                          <Text className="text-sm text-gray-500">{account.account_type}</Text>
+                          <Text className="text-sm text-gray-500">
+                            {account.account_type}
+                          </Text>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
@@ -850,7 +919,15 @@ export default function SubscriptionsScreen() {
                     <TouchableOpacity
                       key={cycle}
                       className={`px-4 py-2 rounded-lg ${formData.billing_cycle === cycle ? "bg-blue-600" : "bg-gray-200"}`}
-                      onPress={() => setFormData({ ...formData, billing_cycle: cycle as 'weekly' | 'monthly' | 'yearly' })}
+                      onPress={() =>
+                        setFormData({
+                          ...formData,
+                          billing_cycle: cycle as
+                            | "weekly"
+                            | "monthly"
+                            | "yearly",
+                        })
+                      }
                     >
                       <Text
                         className={
@@ -882,7 +959,9 @@ export default function SubscriptionsScreen() {
               </View>
 
               <View>
-                <Text className="text-gray-700 mb-2 font-medium">Description</Text>
+                <Text className="text-gray-700 mb-2 font-medium">
+                  Description
+                </Text>
                 <TextInput
                   className="border border-gray-200 rounded-xl p-4 bg-gray-50"
                   placeholder="Optional description"

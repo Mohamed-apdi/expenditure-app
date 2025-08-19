@@ -11,22 +11,35 @@ import {
   PanResponder,
   RefreshControl,
 } from "react-native";
-import { Plus, ChevronRight, X, Edit2, Trash2, ChevronDown } from "lucide-react-native";
+import {
+  Plus,
+  ChevronRight,
+  X,
+  Edit2,
+  Trash2,
+  ChevronDown,
+} from "lucide-react-native";
 import { CircularProgress } from "react-native-circular-progress";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SubscriptionsScreen from "../components/SubscriptionsScreen";
 import SavingsScreen from "../components/SavingsScreen";
 import { supabase } from "~/lib/supabase";
-import { 
-  fetchBudgets, 
+import {
+  fetchBudgets,
   fetchBudgetsWithAccounts,
-  addBudget, 
-  updateBudget, 
+  addBudget,
+  updateBudget,
   deleteBudget,
-  type Budget 
+  type Budget,
 } from "~/lib/budgets";
 import { fetchAccounts, type Account } from "~/lib/accounts";
-import { getExpensesByCategory, getBudgetProgress, type BudgetProgress } from "~/lib/analytics";
+import {
+  getExpensesByCategory,
+  getBudgetProgress,
+  type BudgetProgress,
+} from "~/lib/analytics";
+import Investments from "../components/Investments";
+import Debt_Loan from "../components/Debt_Loan";
 
 // Use the exact same expense categories as AddExpense
 const expenseCategories = [
@@ -65,13 +78,35 @@ export default function BudgetScreen() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
-  
+
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: (evt, gestureState) => {
+        // Only respond to horizontal gestures on the tab area
+        return (
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) &&
+          Math.abs(gestureState.dx) > 10
+        );
+      },
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Only respond to horizontal gestures
+        return (
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) &&
+          Math.abs(gestureState.dx) > 10
+        );
+      },
+      onPanResponderGrant: () => {
+        // Reset any gesture state if needed
+      },
+      onPanResponderMove: () => {
+        // Allow the gesture to continue
+      },
       onPanResponderRelease: (evt, gestureState) => {
         // Check if the swipe is horizontal and significant enough
-        if (Math.abs(gestureState.dx) > 50) {
+        if (
+          Math.abs(gestureState.dx) > 50 &&
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy)
+        ) {
           if (gestureState.dx > 0) {
             // Swipe right - go to previous tab
             switch (activeTab) {
@@ -80,6 +115,12 @@ export default function BudgetScreen() {
                 break;
               case "Goals":
                 setActiveTab("Subscriptions");
+                break;
+              case "Investments":
+                setActiveTab("Goals");
+                break;
+              case "Debt/Loan":
+                setActiveTab("Investments");
                 break;
             }
           } else {
@@ -91,9 +132,18 @@ export default function BudgetScreen() {
               case "Subscriptions":
                 setActiveTab("Goals");
                 break;
+              case "Goals":
+                setActiveTab("Investments");
+                break;
+              case "Investments":
+                setActiveTab("Debt/Loan");
+                break;
             }
           }
         }
+      },
+      onPanResponderTerminate: () => {
+        // Handle termination if needed
       },
     })
   ).current;
@@ -117,19 +167,19 @@ export default function BudgetScreen() {
       }
 
       setUserId(user.id);
-      
+
       // Fetch budgets with accounts and budget progress in parallel
       const [budgetsData, accountsData, progressData] = await Promise.all([
         fetchBudgetsWithAccounts(user.id),
         fetchAccounts(user.id),
-        getBudgetProgress(user.id)
+        getBudgetProgress(user.id),
       ]);
-      
-      setBudgets(budgetsData.map(b => b as Budget));
+
+      setBudgets(budgetsData.map((b) => b as Budget));
       setBudgetsWithAccounts(budgetsData);
       setBudgetProgress(progressData);
       setAccounts(accountsData);
-      
+
       // Set default selected account if available
       if (accountsData.length > 0) {
         setSelectedAccount(accountsData[0]);
@@ -155,7 +205,10 @@ export default function BudgetScreen() {
 
   const openAddModal = () => {
     if (accounts.length === 0) {
-      Alert.alert("No Accounts", "Please create an account first before setting up budgets.");
+      Alert.alert(
+        "No Accounts",
+        "Please create an account first before setting up budgets."
+      );
       return;
     }
     setCurrentBudget(null);
@@ -169,17 +222,21 @@ export default function BudgetScreen() {
     setCurrentBudget(budget);
     setNewCategory(budget.category);
     setNewAllocated(budget.amount.toString());
-    
+
     // Find and set the account for this budget
-    const budgetAccount = budget.account || accounts.find(acc => acc.id === budget.account_id);
+    const budgetAccount =
+      budget.account || accounts.find((acc) => acc.id === budget.account_id);
     setSelectedAccount(budgetAccount || null);
-    
+
     setIsModalVisible(true);
   };
 
   const handleSaveBudget = async () => {
     if (!newCategory.trim() || !newAllocated.trim()) {
-      Alert.alert("Missing Info", "Please fill in category and allocated amount");
+      Alert.alert(
+        "Missing Info",
+        "Please fill in category and allocated amount"
+      );
       return;
     }
 
@@ -201,7 +258,9 @@ export default function BudgetScreen() {
           amount: parseFloat(newAllocated),
           account_id: selectedAccount.id,
         });
-        setBudgets(prev => prev.map(b => b.id === currentBudget.id ? updatedBudget : b));
+        setBudgets((prev) =>
+          prev.map((b) => (b.id === currentBudget.id ? updatedBudget : b))
+        );
         Alert.alert("Success", "Budget updated successfully");
       } else {
         // Add new budget
@@ -211,10 +270,10 @@ export default function BudgetScreen() {
           category: newCategory,
           amount: parseFloat(newAllocated),
           period: "monthly",
-          start_date: new Date().toISOString().split('T')[0],
+          start_date: new Date().toISOString().split("T")[0],
           is_active: true,
         });
-        setBudgets(prev => [...prev, newBudget]);
+        setBudgets((prev) => [...prev, newBudget]);
         Alert.alert("Success", "Budget added successfully");
       }
       setIsModalVisible(false);
@@ -238,7 +297,7 @@ export default function BudgetScreen() {
           onPress: async () => {
             try {
               await deleteBudget(budgetId);
-              setBudgets(prev => prev.filter(b => b.id !== budgetId));
+              setBudgets((prev) => prev.filter((b) => b.id !== budgetId));
               Alert.alert("Success", "Budget deleted successfully");
               // Refresh data to get updated budget progress
               fetchData();
@@ -260,13 +319,15 @@ export default function BudgetScreen() {
 
   // Get budget progress for a specific category
   const getCategoryProgress = (category: string) => {
-    return budgetProgress.find(progress => progress.category === category) || {
-      category,
-      budgeted: 0,
-      spent: 0,
-      remaining: 0,
-      percentage: 0
-    };
+    return (
+      budgetProgress.find((progress) => progress.category === category) || {
+        category,
+        budgeted: 0,
+        spent: 0,
+        remaining: 0,
+        percentage: 0,
+      }
+    );
   };
 
   // Subscriptions tab content
@@ -275,13 +336,22 @@ export default function BudgetScreen() {
   // Goals tab content
   const GoalsTab = () => <SavingsScreen />;
 
+  // Investments tab content
+  const InvestmentsTab = () => <Investments />;
+
+  // Debt/Loan tab content
+  const DebtLoanTab = () => <Debt_Loan />;
+
   return (
-    <SafeAreaView className="flex-1 py-safe">
-      <View className="flex-1" {...panResponder.panHandlers}>
-        {/* Tabs */}
-        <View className="flex-row border-b border-gray-200 bg-white">
+    <SafeAreaView className="flex-1 pt-safe">
+      <View className="flex-1">
+        {/* Tabs with PanResponder */}
+        <View
+          className="flex-row justify-around px-safe border-b border-gray-200 bg-white"
+          {...panResponder.panHandlers}
+        >
           <TouchableOpacity
-            className={`flex-1 py-4 items-center ${activeTab === "Budget" ? "border-b-2 border-blue-500" : ""}`}
+            className={` py-4 items-center ${activeTab === "Budget" ? "border-b-2 border-blue-500" : ""}`}
             onPress={() => setActiveTab("Budget")}
           >
             <Text
@@ -291,7 +361,7 @@ export default function BudgetScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className={`flex-1 py-4 items-center ${activeTab === "Subscriptions" ? "border-b-2 border-blue-500" : ""}`}
+            className={` py-4 items-center ${activeTab === "Subscriptions" ? "border-b-2 border-blue-500" : ""}`}
             onPress={() => setActiveTab("Subscriptions")}
           >
             <Text
@@ -301,7 +371,7 @@ export default function BudgetScreen() {
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className={`flex-1 py-4 items-center ${activeTab === "Goals" ? "border-b-2 border-blue-500" : ""}`}
+            className={` py-4 items-center ${activeTab === "Goals" ? "border-b-2 border-blue-500" : ""}`}
             onPress={() => setActiveTab("Goals")}
           >
             <Text
@@ -310,10 +380,30 @@ export default function BudgetScreen() {
               Goals
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            className={` py-4 items-center ${activeTab === "Investments" ? "border-b-2 border-blue-500" : ""}`}
+            onPress={() => setActiveTab("Investments")}
+          >
+            <Text
+              className={`font-medium ${activeTab === "Investments" ? "text-blue-500" : "text-gray-500"}`}
+            >
+              Investments
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className={` py-4 items-center ${activeTab === "Debt/Loan" ? "border-b-2 border-blue-500" : ""}`}
+            onPress={() => setActiveTab("Debt/Loan")}
+          >
+            <Text
+              className={`font-medium ${activeTab === "Debt/Loan" ? "text-blue-500" : "text-gray-500"}`}
+            >
+              Debt/Loan
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Tab Content */}
-        <ScrollView 
+        <ScrollView
           className="flex-1"
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -440,6 +530,8 @@ export default function BudgetScreen() {
 
           {activeTab === "Subscriptions" && <SubscriptionsTab />}
           {activeTab === "Goals" && <GoalsTab />}
+          {activeTab === "Investments" && <InvestmentsTab />}
+          {activeTab === "Debt/Loan" && <DebtLoanTab />}
         </ScrollView>
 
         {/* Add/Edit Budget Modal */}
@@ -466,12 +558,14 @@ export default function BudgetScreen() {
                   className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
                   onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
                 >
-                  <Text className={newCategory ? "text-gray-900" : "text-gray-500"}>
+                  <Text
+                    className={newCategory ? "text-gray-900" : "text-gray-500"}
+                  >
                     {newCategory || "Select a category"}
                   </Text>
                   <ChevronDown size={16} color="#6b7280" />
                 </TouchableOpacity>
-                
+
                 {showCategoryDropdown && (
                   <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
                     <ScrollView>
@@ -500,12 +594,18 @@ export default function BudgetScreen() {
                   className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
                   onPress={() => setShowAccountDropdown(!showAccountDropdown)}
                 >
-                  <Text className={selectedAccount ? "text-gray-900" : "text-gray-500"}>
-                    {selectedAccount ? selectedAccount.name : "Select an account"}
+                  <Text
+                    className={
+                      selectedAccount ? "text-gray-900" : "text-gray-500"
+                    }
+                  >
+                    {selectedAccount
+                      ? selectedAccount.name
+                      : "Select an account"}
                   </Text>
                   <ChevronDown size={16} color="#6b7280" />
                 </TouchableOpacity>
-                
+
                 {showAccountDropdown && (
                   <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
                     <ScrollView>
@@ -513,7 +613,9 @@ export default function BudgetScreen() {
                         <TouchableOpacity
                           key={account.id}
                           className={`p-3 border-b border-gray-200 ${
-                            selectedAccount?.id === account.id ? "bg-blue-50" : ""
+                            selectedAccount?.id === account.id
+                              ? "bg-blue-50"
+                              : ""
                           }`}
                           onPress={() => {
                             setSelectedAccount(account);
@@ -521,7 +623,9 @@ export default function BudgetScreen() {
                           }}
                         >
                           <Text className="font-medium">{account.name}</Text>
-                          <Text className="text-sm text-gray-500">{account.account_type}</Text>
+                          <Text className="text-sm text-gray-500">
+                            {account.account_type}
+                          </Text>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>

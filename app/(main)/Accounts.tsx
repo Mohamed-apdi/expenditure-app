@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { fetchAccounts, createAccount, Account } from "~/lib/accounts";
 import { supabase } from "~/lib/supabase";
 import AddAccount from "../account-details/add-account";
 import { useAccount } from "~/lib/AccountContext";
+import { useFocusEffect } from "@react-navigation/native";
 
 interface AccountGroup {
   id: string;
@@ -46,7 +47,7 @@ const Accounts = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       // Get the current user first
       const {
         data: { user },
@@ -69,9 +70,11 @@ const Accounts = () => {
     }
   };
 
-  useEffect(() => {
-    loadAccounts();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadAccounts();
+    }, [])
+  );
 
   // Calculate totals - now just sum all account amounts since we don't have type field
   const total = accounts.reduce((sum, a) => sum + (a.amount || 0), 0);
@@ -98,33 +101,39 @@ const Accounts = () => {
 
       const createdAccount = await createAccount(accountWithUser);
       setAccounts((prev) => [...prev, createdAccount]);
-      
+
       // If account has an initial amount, create a transaction as income
       if (newAccount.amount && newAccount.amount > 0) {
         try {
           const { addTransaction } = await import("~/lib/transactions");
-          
+
           await addTransaction({
             user_id: user.id,
             account_id: createdAccount.id,
             amount: newAccount.amount,
             description: `Initial balance for ${newAccount.name}`,
-            date: new Date().toISOString().split('T')[0],
+            date: new Date().toISOString().split("T")[0],
             category: "Job Salary", // Use existing income category
             type: "income",
             is_recurring: false,
           });
-          
-          console.log("Created initial balance transaction for account:", createdAccount.name);
+
+          console.log(
+            "Created initial balance transaction for account:",
+            createdAccount.name
+          );
         } catch (transactionError) {
-          console.error("Failed to create initial balance transaction:", transactionError);
+          console.error(
+            "Failed to create initial balance transaction:",
+            transactionError
+          );
           // Don't fail the account creation if transaction creation fails
         }
       }
-      
+
       // Refresh accounts in context to update MonthYearScroller
       await refreshContextAccounts();
-      
+
       setShowAddAccount(false);
     } catch (error) {
       console.error("Failed to add account:", error);
@@ -187,8 +196,9 @@ const Accounts = () => {
       {/* Accounts List */}
       <ScrollView className="flex-1 px-6 pb-6">
         {accountGroups
-          .filter((group) =>
-            accounts.some((account) => account.account_type === group.name) // Changed from group_name to account_type
+          .filter(
+            (group) =>
+              accounts.some((account) => account.account_type === group.name) // Changed from group_name to account_type
           )
           .map((group) => (
             <View key={group.id} className="mb-6">

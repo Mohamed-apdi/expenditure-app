@@ -45,7 +45,7 @@ export type Budget = {
   account_id: string;
   category: string;
   amount: number;
-  period: 'weekly' | 'monthly' | 'yearly';
+  period: "weekly" | "monthly" | "yearly";
   start_date: string;
   end_date?: string;
   is_active: boolean;
@@ -67,7 +67,7 @@ export type Expense = {
   created_at: string;
   updated_at: string;
   receipt_url?: string;
-  entry_type: 'Income' | 'Expense';
+  entry_type: "Income" | "Expense";
   account_id?: string;
 };
 
@@ -92,7 +92,7 @@ export type Transaction = {
   category?: string;
   is_recurring: boolean;
   recurrence_interval?: string;
-  type: 'expense' | 'income' | 'transfer';
+  type: "expense" | "income" | "transfer";
   created_at: string;
   updated_at: string;
 };
@@ -140,7 +140,7 @@ export type Subscription = {
   name: string;
   amount: number;
   category: string;
-  billing_cycle: 'weekly' | 'monthly' | 'yearly';
+  billing_cycle: "weekly" | "monthly" | "yearly";
   next_payment_date: string;
   is_active: boolean;
   icon: string;
@@ -173,4 +173,27 @@ export type Goal = {
 
 export type GoalWithAccount = Goal & {
   account?: Account;
+};
+
+export type LoanRepayment = {
+  id: string;
+  loan_id: string;
+  amount: number;
+  payment_date: string;
+  created_at: string;
+};
+
+export type PersonalLoan = {
+  id: string;
+  user_id: string;
+  account_id?: string;
+  type: "loan_given" | "loan_taken";
+  party_name: string;
+  principal_amount: number;
+  remaining_amount: number;
+  interest_rate?: number;
+  due_date?: string;
+  status: "active" | "partial" | "settled";
+  created_at: string;
+  updated_at: string;
 };
