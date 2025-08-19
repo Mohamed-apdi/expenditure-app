@@ -154,7 +154,7 @@ export default function DashboardHeader({
                       userImageUrl ||
                       `https://ui-avatars.com/api/?name=${encodeURIComponent(userName || "User")}`,
                   }}
-                  className="w-10 h-10 rounded-full border-2 border-[#3b82f6]"
+                  className="w-10 h-10 rounded-full border-2 border-white"
                 />
               </TouchableOpacity>
             </Animated.View>
