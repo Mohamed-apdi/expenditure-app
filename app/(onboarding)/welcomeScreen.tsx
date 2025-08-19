@@ -251,10 +251,10 @@ export default function WelcomeScreen() {
               Qoondeeye
             </Text>
             <Text className="text-emerald-400 text-lg text-center font-semibold mb-3">
-              Track accounts, expenses, and transfers with ease
+              Take control of your financial future with smart money management
             </Text>
             <Text className="text-slate-400 text-base text-center leading-6">
-              Manage balances across cash, bank, cards, and savings in one place
+              Track expenses, manage budgets, and achieve your financial goals
             </Text>
           </Animated.View>
 

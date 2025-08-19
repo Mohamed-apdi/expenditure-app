@@ -27,6 +27,7 @@ import { fetchExpenses } from "~/lib/expenses";
 import { fetchTransactions } from "~/lib/transactions";
 import { fetchProfile } from "~/lib/profiles";
 import { useAccount } from "~/lib/AccountContext";
+
 import {
   PieChart,
   TrendingUp,
@@ -78,11 +79,14 @@ import {
   User,
   TrendingDown,
   TrendingUpDown,
+  DollarSign,
+  Award,
 } from "lucide-react-native";
 import { formatDistanceToNow } from "date-fns";
 import { useTheme } from "~/lib/theme";
 import DashboardHeader from "~/components/(Dashboard)/DashboardHeader";
 import MonthYearScroller from "~/components/(Dashboard)/MonthYearScroll";
+import NotificationPermissionRequest from "~/components/NotificationPermissionRequest";
 
 type Transaction = {
   id: string;
@@ -479,6 +483,12 @@ export default function DashboardScreen() {
             "Dashboard - Initial load, user authenticated, fetching data..."
           );
           fetchData(); // Accounts are already loaded by AccountContext
+          
+          // Also load initial month data
+          const current = new Date();
+          const currentMonth = current.getMonth();
+          const currentYear = current.getFullYear();
+          fetchMonthData(currentMonth, currentYear);
         }
       } catch (error) {
         console.error("Error in initial auth check:", error);
@@ -525,46 +535,46 @@ export default function DashboardScreen() {
   const getCategoryIcon = (category: string) => {
     const icons: Record<string, React.ElementType> = {
       // Expense categories
-      Food: Utensils,
-      Rent: Home,
-      Transport: Bus,
-      Utilities: Zap,
-      Entertainment: Ticket,
-      Healthcare: HeartPulse,
-      Shopping: ShoppingBag,
-      Education: GraduationCap,
-      Other: MoreHorizontal,
-      PersonalCare: Smile,
-      Insurance: Shield,
-      Debt: CreditCard,
-      Gifts: Gift,
-      Charity: HandHeart,
-      Travel: Luggage,
-      Pets: PawPrint,
-      Kids: Baby,
-      Subscriptions: Repeat,
-      Fitness: Dumbbell,
-      Electronics: Smartphone,
-      Furniture: Sofa,
-      Repairs: Wrench,
-      Taxes: Receipt,
+      "Food & Drinks": Utensils,
+      "Home & Rent": Home,
+      "Travel": Bus,
+      "Bills": Zap,
+      "Fun": Film,
+      "Health": HeartPulse,
+      "Shopping": ShoppingBag,
+      "Learning": GraduationCap,
+      "Personal Care": Smile,
+      "Insurance": Shield,
+      "Loans": CreditCard,
+      "Gifts": Gift,
+      "Donations": HandHeart,
+      "Vacation": Luggage,
+      "Pets": PawPrint,
+      "Children": Baby,
+      "Subscriptions": Repeat,
+      "Gym & Sports": Dumbbell,
+      "Electronics": Smartphone,
+      "Furniture": Sofa,
+      "Repairs": Wrench,
+      "Taxes": Receipt,
 
       // Income categories
-      Salary: Landmark,
-      Bonus: Gem,
-      PartTime: Clock,
-      Business: Briefcase,
-      Investments: LineChart,
-      Interest: Percent,
-      Rental: Key,
-      Sales: Tag,
-      Gambling: Dice5,
-      Awards: Trophy,
-      Refunds: RefreshCw,
-      Freelance: Laptop,
-      Royalties: Copyright,
-      Grants: HandCoins,
-      Pension: User,
+      "Job Salary": DollarSign,
+      "Bonus": Zap,
+      "Part-time Work": Clock,
+      "Business": Briefcase,
+      "Investments": TrendingUp,
+      "Bank Interest": Percent,
+      "Rent Income": Home,
+      "Sales": ShoppingBag,
+      "Gambling": Dice5,
+      "Awards": Award,
+      "Refunds": RefreshCw,
+      "Freelance": Laptop,
+      "Royalties": Book,
+      "Grants": HandCoins,
+      "Gifts Received": Gift,
+      "Pension": User,
     };
     return icons[category] || MoreHorizontal;
   };
@@ -572,46 +582,46 @@ export default function DashboardScreen() {
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
       // Expense colors
-      Food: "#10b981",
-      Rent: "#f59e0b",
-      Transport: "#3b82f6",
-      Utilities: "#f59e0b",
-      Entertainment: "#8b5cf6",
-      Healthcare: "#ef4444",
-      Shopping: "#06b6d4",
-      Education: "#84cc16",
-      Other: "#64748b",
-      PersonalCare: "#ec4899",
-      Insurance: "#14b8a6",
-      Debt: "#f97316",
-      Gifts: "#8b5cf6",
-      Charity: "#ef4444",
-      Travel: "#3b82f6",
-      Pets: "#f59e0b",
-      Kids: "#ec4899",
-      Subscriptions: "#8b5cf6",
-      Fitness: "#10b981",
-      Electronics: "#64748b",
-      Furniture: "#f59e0b",
-      Repairs: "#3b82f6",
-      Taxes: "#ef4444",
+      "Food & Drinks": "#059669",
+      "Home & Rent": "#0891b2",
+      "Travel": "#3b82f6",
+      "Bills": "#f97316",
+      "Fun": "#8b5cf6",
+      "Health": "#dc2626",
+      "Shopping": "#06b6d4",
+      "Learning": "#84cc16",
+      "Personal Care": "#ec4899",
+      "Insurance": "#14b8a6",
+      "Loans": "#f97316",
+      "Gifts": "#8b5cf6",
+      "Donations": "#ef4444",
+      "Vacation": "#3b82f6",
+      "Pets": "#f59e0b",
+      "Children": "#ec4899",
+      "Subscriptions": "#8b5cf6",
+      "Gym & Sports": "#059669",
+      "Electronics": "#64748b",
+      "Furniture": "#f59e0b",
+      "Repairs": "#3b82f6",
+      "Taxes": "#ef4444",
 
       // Income colors
-      Salary: "#10b981",
-      Bonus: "#3b82f6",
-      PartTime: "#f59e0b",
-      Business: "#8b5cf6",
-      Investments: "#ef4444",
-      Interest: "#06b6d4",
-      Rental: "#84cc16",
-      Sales: "#64748b",
-      Gambling: "#f43f5e",
-      Awards: "#8b5cf6",
-      Refunds: "#3b82f6",
-      Freelance: "#f59e0b",
-      Royalties: "#84cc16",
-      Grants: "#10b981",
-      Pension: "#64748b",
+      "Job Salary": "#059669",
+      "Bonus": "#3b82f6",
+      "Part-time Work": "#f97316",
+      "Business": "#8b5cf6",
+      "Investments": "#ef4444",
+      "Bank Interest": "#06b6d4",
+      "Rent Income": "#84cc16",
+      "Sales": "#64748b",
+      "Gambling": "#f43f5e",
+      "Awards": "#8b5cf6",
+      "Refunds": "#3b82f6",
+      "Freelance": "#f97316",
+      "Royalties": "#84cc16",
+      "Grants": "#059669",
+      "Gifts Received": "#8b5cf6",
+      "Pension": "#64748b",
     };
     return colors[category] || "#64748b";
   };
@@ -658,6 +668,7 @@ export default function DashboardScreen() {
           router.replace("/login");
         }}
         onSettingsPress={() => router.push("/(main)/ProfileScreen")}
+        onNotificationPress={() => router.push("/(main)/notifications")}
       />
       <View className="">
         <View style={{ marginBottom: 20 }}>
@@ -667,6 +678,9 @@ export default function DashboardScreen() {
           />
         </View>
       </View>
+
+      {/* Notification Permission Request */}
+      <NotificationPermissionRequest />
 
       {/* Recent Transactions */}
       <View className="flex-1 bg-white rounded-t-3xl">
@@ -694,7 +708,7 @@ export default function DashboardScreen() {
               return (
                 <TouchableOpacity
                   key={t.id}
-                  onPress={() => router.push(`/expense-detail/${t.id}`)}
+                  onPress={() => router.push(`/transaction-detail/${t.id}`)}
                 >
                   <View className="flex-row items-center p-4 bg-gray-50 rounded-xl gap-3 mb-2">
                     <View

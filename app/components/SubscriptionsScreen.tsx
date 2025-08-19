@@ -20,8 +20,6 @@ import {
   Trash2,
   DollarSign,
   ChevronDown,
-  Bell,
-  BellOff,
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -37,6 +35,7 @@ import {
 } from "~/lib/subscriptions";
 import { fetchAccounts, type Account } from "~/lib/accounts";
 import notificationService from "~/lib/notificationService";
+import ExpoGoWarning from "~/components/ExpoGoWarning";
 
 // Use the exact same expense categories as BudgetScreen and AddExpense
 const expenseCategories = [
@@ -127,9 +126,7 @@ export default function SubscriptionsScreen() {
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [isCheckingFees, setIsCheckingFees] = useState(false);
-  const [showFeeSuccessMessage, setShowFeeSuccessMessage] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isIconModalVisible, setIsIconModalVisible] = useState(false);
@@ -152,31 +149,7 @@ export default function SubscriptionsScreen() {
 
   const billingCycles = ["weekly", "monthly", "yearly"];
 
-  // Function to check due subscriptions and send notifications
-  const checkDueSubscriptionsAndNotify = async () => {
-    try {
-      if (!userId || isCheckingFees) return;
 
-      setIsCheckingFees(true);
-      
-      // Use the notification service to check and send notifications
-      await notificationService.checkDueSubscriptionsAndNotify();
-      
-      console.log("Subscription notifications checked and sent");
-      setShowFeeSuccessMessage(true);
-      
-      // Hide the success message after 3 seconds
-      setTimeout(() => {
-        setShowFeeSuccessMessage(false);
-      }, 3000);
-      
-    } catch (error) {
-      console.error("Error checking subscription notifications:", error);
-      Alert.alert("Error", "Failed to check subscription notifications");
-    } finally {
-      setIsCheckingFees(false);
-    }
-  };
 
   // Fetch subscriptions and accounts from database
   const fetchData = async () => {
@@ -206,9 +179,10 @@ export default function SubscriptionsScreen() {
         setSelectedAccount(accountsData[0]);
       }
 
-      // Schedule notifications for upcoming subscriptions
+      // Schedule notifications for upcoming subscriptions and budget checks
       if (user) {
         await notificationService.scheduleAllUpcomingNotifications();
+        await notificationService.scheduleBudgetCheckNotifications();
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -236,15 +210,8 @@ export default function SubscriptionsScreen() {
       try {
         // Register background tasks and setup notifications
         await notificationService.registerBackgroundTask();
-        setNotificationsEnabled(true);
-        
-        // Check for due subscriptions immediately
-        if (userId) {
-          await checkDueSubscriptionsAndNotify();
-        }
       } catch (error) {
         console.error("Failed to initialize notifications:", error);
-        setNotificationsEnabled(false);
       }
     };
 
@@ -255,11 +222,27 @@ export default function SubscriptionsScreen() {
 
   // Set up notification response listener
   useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener(
-      notificationService.handleNotificationResponse
-    );
+    const setupNotifications = async () => {
+      try {
+        // Check if we're in Expo Go (where notifications are limited)
+        const { isExpoGo } = await import('~/lib/expoGoUtils');
+        
+        if (isExpoGo) {
+          console.warn('Push notifications are limited in Expo Go with SDK 53. Use development build for full functionality.');
+          return;
+        }
 
-    return () => subscription.remove();
+        const subscription = Notifications.addNotificationResponseReceivedListener(
+          notificationService.handleNotificationResponse
+        );
+
+        return () => subscription.remove();
+      } catch (error) {
+        console.error('Failed to setup notification listener:', error);
+      }
+    };
+
+    setupNotifications();
   }, []);
 
   const toggleSubscription = async (id: string, currentStatus: boolean) => {
@@ -480,16 +463,10 @@ export default function SubscriptionsScreen() {
           </View>
         </View>
 
-        {/* Success Message */}
-        {showFeeSuccessMessage && (
-          <View className="px-6 mb-4">
-            <View className="bg-green-50 border border-green-200 p-3 rounded-lg">
-              <Text className="text-green-700 text-center">
-                🔔 Subscription notifications checked and sent successfully!
-              </Text>
-            </View>
-          </View>
-        )}
+        {/* Expo Go Warning */}
+        <ExpoGoWarning />
+
+
 
         {/* Summary Card */}
         <View className="px-6 mb-6">
@@ -503,41 +480,10 @@ export default function SubscriptionsScreen() {
                   ${totalMonthlyCost.toFixed(2)}
                 </Text>
               </View>
-              {isCheckingFees && (
-                <View className="bg-green-100 px-3 py-1 rounded-full">
-                  <Text className="text-green-700 text-xs">
-                    Checking Due...
-                  </Text>
-                </View>
-              )}
+
             </View>
             
-            {/* Notification Status and Controls */}
-            <View className="border-t border-gray-100 pt-3">
-              <View className="flex-row justify-between items-center">
-                <View className="flex-row items-center">
-                  {notificationsEnabled ? (
-                    <Bell size={16} color="#10b981" />
-                  ) : (
-                    <BellOff size={16} color="#ef4444" />
-                  )}
-                  <Text className="text-gray-600 text-sm ml-2">
-                    {notificationsEnabled 
-                      ? "Smart notifications enabled" 
-                      : "Notifications disabled"}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  className="bg-blue-100 px-3 py-1 rounded-full"
-                  onPress={checkDueSubscriptionsAndNotify}
-                  disabled={isCheckingFees}
-                >
-                  <Text className="text-blue-700 text-xs font-medium">
-                    Check Now
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+
           </View>
         </View>
 

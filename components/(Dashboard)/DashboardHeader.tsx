@@ -10,12 +10,16 @@ import {
   Bell,
   Calendar,
   Search,
+  RefreshCw,
+  RefreshCcw,
   Globe,
 } from "lucide-react-native";
 import { useColorScheme } from "~/lib/useColorScheme";
 import { useTheme } from "~/lib/theme";
 import { WalletDropdown } from "./WalletDropdown";
 import { useAccount } from "~/lib/AccountContext";
+import { useNotifications } from "~/lib/useNotifications";
+import { useRouter } from "expo-router";
 import { useLanguage } from "~/lib/LanguageProvider";
 
 interface DashboardHeaderProps {
@@ -27,6 +31,7 @@ interface DashboardHeaderProps {
   onNotificationPress?: () => void;
   onCalendarPress?: () => void;
   onSearchPress?: () => void;
+  onRefreshPress?: () => void;
 }
 
 export default function DashboardHeader({
@@ -38,11 +43,13 @@ export default function DashboardHeader({
   onNotificationPress,
   onCalendarPress,
   onSearchPress,
+  onRefreshPress,
 }: DashboardHeaderProps) {
   const rotateAnimation = useRef(new Animated.Value(0)).current;
   const scaleAnimation = useRef(new Animated.Value(1)).current;
   const { selectedAccount } = useAccount();
-
+  const { unreadCount } = useNotifications();
+  const router = useRouter();
   const { isDarkColorScheme, toggleColorScheme } = useColorScheme();
 
   const theme = useTheme();
@@ -51,7 +58,6 @@ export default function DashboardHeader({
   const dropdownAnimation = useRef(new Animated.Value(0)).current;
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const firstName = userName?.split(" ")[0] || "User";
 
   const toggleDropdown = () => {
@@ -135,16 +141,16 @@ export default function DashboardHeader({
       )}
 
       <View
-        className="flex-row justify-between items-center px-6 py-5 "
+        className="flex-row justify-between items-center px-6 py-5"
         style={{ zIndex: 50 }}
       >
-        {/* Actions Section */}
-        <View className="flex-row items-center justify-center gap-4 ">
+        {/* Left Section - Profile and Actions */}
+        <View className="flex-row items-center gap-4">
           {/* Profile Dropdown */}
           <View className="relative">
             <Animated.View style={{ transform: [{ scale: scaleAnimation }] }}>
               <TouchableOpacity
-                className={`flex-row items-center p-1 rounded-2xl gap-2`}
+                className="flex-row items-center p-1 rounded-2xl gap-2"
                 onPress={toggleDropdown}
                 activeOpacity={0.8}
               >
@@ -194,13 +200,13 @@ export default function DashboardHeader({
                   />
                   <View className="flex-1">
                     <Text
-                      className="text-sm font-semibold "
+                      className="text-sm font-semibold"
                       style={{ color: theme.text }}
                     >
                       {userName}
                     </Text>
                     <Text
-                      className="text-xs  mt-0.5"
+                      className="text-xs mt-0.5"
                       style={{ color: theme.text }}
                     >
                       {userEmail}
@@ -210,6 +216,8 @@ export default function DashboardHeader({
 
                 {/* Separator */}
                 <View className="h-px bg-slate-200 my-1" />
+                
+                {/* Dark Mode Toggle */}
                 <TouchableOpacity
                   onPress={toggleColorScheme}
                   activeOpacity={0.7}
@@ -221,7 +229,7 @@ export default function DashboardHeader({
                     <Moon size={18} color="#D2CFDA" />
                   )}
                   <Text
-                    className="text-sm font-medium "
+                    className="text-sm font-medium"
                     style={{ color: theme.text }}
                   >
                     {isDarkColorScheme ? t.lightMode : t.darkMode}
@@ -240,6 +248,7 @@ export default function DashboardHeader({
                     {t.languages} ({language.toUpperCase()})
                   </Text>
                 </TouchableOpacity>
+                
                 {/* Menu Items */}
                 {menuItems.map((item, index) => (
                   <TouchableOpacity
@@ -269,31 +278,61 @@ export default function DashboardHeader({
               </View>
             </Animated.View>
           </View>
-          {/* Notification Icon with red dot */}
+
+          {/* Notification Icon with dynamic badge */}
           <TouchableOpacity
             className="mx-3"
             onPress={onNotificationPress}
             activeOpacity={0.7}
           >
-            <View>
-              <Bell size={22} color="#fff" />
-              <View className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full" />
+            <View style={{ position: 'relative' }}>
+              <Bell size={22} color={theme.icon} />
+              {unreadCount > 0 && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -6,
+                    right: -6,
+                    backgroundColor: '#ef4444',
+                    borderRadius: 10,
+                    minWidth: 20,
+                    height: 20,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    paddingHorizontal: 4,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: 'white',
+                      fontSize: 11,
+                      fontWeight: '600',
+                      lineHeight: 16,
+                    }}
+                  >
+                    {unreadCount > 99 ? '99+' : unreadCount.toString()}
+                  </Text>
+                </View>
+              )}
             </View>
           </TouchableOpacity>
         </View>
 
-        {/*  dropdown */}
-        <WalletDropdown />
+        {/* Center Section - Wallet Dropdown */}
+        <View className="flex-1 items-center">
+          <WalletDropdown />
+        </View>
 
-        <View className="flex-row items-center justify-between px-4 py-3">
+        {/* Right Section - Calendar and Search */}
+        <View className="flex-row items-center gap-4">
           {/* Calendar */}
-          <TouchableOpacity className="mx-3" onPress={onCalendarPress}>
-            <Calendar size={22} color="#fff" />
+          <TouchableOpacity onPress={onCalendarPress}>
+            <RefreshCcw size={22} color={theme.icon} />
           </TouchableOpacity>
 
           {/* Search */}
-          <TouchableOpacity className="ml-3" onPress={onSearchPress}>
-            <Search size={22} color="#fff" />
+          <TouchableOpacity onPress={() => router.push("/components/TransactionsScreen")}>
+            <Search size={22} color={theme.icon} />
           </TouchableOpacity>
         </View>
       </View>

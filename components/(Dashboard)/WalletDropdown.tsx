@@ -102,39 +102,31 @@ export function WalletDropdown() {
       
       {/* Dropdown list */}
       {isDropdownOpen && (
-        <View className="absolute top-10 left-3 right-3 bg-white rounded-lg shadow-lg z-50 max-h-60 w-32">
+        <View className="absolute top-10 left-3 right-3 bg-white rounded-lg shadow-lg z-50 max-h-60 w-48">
           <FlatList
             data={accounts}
             keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={true}
+            nestedScrollEnabled={true}
             renderItem={({ item }) => (
               <TouchableOpacity
-                className="px-4 py-3 "
+                className="px-4 py-3 border-b border-gray-100"
                 onPress={() => handleAccountSelection(item)}
                 activeOpacity={0.7}
                 disabled={isSelecting}
               >
-                <View className="flex justify-between items-center">
-                  <View className="flex-row items-center justify-between w-full">
-                    <Text className="text-base font-medium text-gray-800">
-                      {item.name}
-                    </Text>
-                    {item.is_default && (
-                      <View className="w-2 h-2 bg-blue-500 rounded-full ml-2" />
-                    )}
-                  </View>
-                  <View className="flex-col items-end">
-                    <Text className="text-base font-semibold text-gray-900">
-                      ${item.amount?.toFixed(2) || "0.00"}
-                    </Text>
-                    <Text className="text-xs text-gray-500">
-                      {item.account_type} {/* Changed from group_name to account_type */}
-                    </Text>
-                  </View>
+                <View className="flex-row items-center justify-between w-full">
+                  <Text className="text-base font-medium text-gray-800 flex-1 mr-2">
+                    {item.name}
+                  </Text>
+                  <Text className="text-base font-semibold text-gray-900">
+                    ${item.amount?.toFixed(2) || "0.00"}
+                  </Text>
                 </View>
               </TouchableOpacity>
             )}
-            ItemSeparatorComponent={() => (
-              <View className="border-b border-gray-100" />
+            ListFooterComponent={() => (
+              <View className="h-2" />
             )}
           />
         </View>

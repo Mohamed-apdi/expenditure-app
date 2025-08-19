@@ -415,101 +415,7 @@ export default function ProfileScreen() {
             <Text className="text-emerald-500 text-base mb-2">
               {loading ? "Loading..." : userProfile.email}
             </Text>
-            <View className="flex-row items-center">
-              <Clock size={14} color="#64748b" />
-              <Text className="text-slate-500 text-sm ml-1.5">
-                Last sign in: {formatLastSignIn(userProfile.lastSignIn)}
-              </Text>
-            </View>
           </View>
-        </View>
-
-        {/* Stats Cards */}
-        <View className="flex-row px-6 mb-8 gap-3">
-          <View
-            className="flex-1  rounded-xl p-4 items-center border "
-            style={{
-              backgroundColor: theme.cardBackground,
-              borderColor: theme.border,
-            }}
-          >
-            <Calendar size={20} color="#10b981" />
-            <Text
-              className=" text-xl font-bold mt-2 mb-1"
-              style={{
-                color: theme.text,
-              }}
-            >
-              {userProfile.totalPredictions}
-            </Text>
-            <Text
-              className="text-xs"
-              style={{
-                color: theme.textSecondary,
-              }}
-            >
-              Predictions
-            </Text>
-          </View>
-          <View
-            className="flex-1  rounded-xl p-4 items-center border "
-            style={{
-              backgroundColor: theme.cardBackground,
-              borderColor: theme.border,
-            }}
-          >
-            <Target size={20} color="#3b82f6" />
-            <Text
-              className="text-xs"
-              style={{
-                color: theme.text,
-              }}
-              className="text-xl font-bold mt-2 mb-1"
-            >
-              {userProfile.avgAccuracy}%
-            </Text>
-            <Text
-              className="text-xs"
-              style={{
-                color: theme.textSecondary,
-              }}
-              className=" text-xs"
-            >
-              Expense Accuracy
-            </Text>
-          </View>
-
-          {/*<View
-            className="flex-1  rounded-xl p-4 items-center border "
-            style={{
-              backgroundColor: theme.cardBackground,
-              borderColor: theme.border,
-            }}
-          >
-            <UserCheck size={20} color="#8b5cf6" />
-            <Text
-              className="text-xs"
-              style={{
-                color: theme.text,
-              }}
-              className="text-xl font-bold mt-2 mb-1"
-            >
-              {Math.floor(
-                (new Date().getTime() -
-                  new Date(userProfile.joinDate).getTime()) /
-                  (1000 * 60 * 60 * 24)
-              )}
-            </Text>
-            <Text
-              className="text-xs"
-              style={{
-                color: theme.textSecondary,
-              }}
-              className="text-xs"
-            >
-              Days Active
-            </Text>
-          </View>*/}
         </View>
 
         {/* Contact Information */}
@@ -547,20 +453,6 @@ export default function ProfileScreen() {
                     : userProfile.fullName || "No name provided"}
                 </Text>
               </View>
-              <TouchableOpacity
-                className="p-2"
-                onPress={() =>
-                  router.push({
-                    pathname: "../(profile)/UpdateProfileScreen" as any,
-                    params: {
-                      userProfile: JSON.stringify(userProfile),
-                      focusField: "fullName",
-                    },
-                  })
-                }
-              >
-                <Edit3 size={16} color={theme.icon} />
-              </TouchableOpacity>
             </View>
 
             {/* Divider */}
@@ -584,20 +476,6 @@ export default function ProfileScreen() {
                     : userProfile.phone || "No phone provided"}
                 </Text>
               </View>
-              <TouchableOpacity
-                className="p-2"
-                onPress={() =>
-                  router.push({
-                    pathname: "../(profile)/UpdateProfileScreen" as any,
-                    params: {
-                      userProfile: JSON.stringify(userProfile),
-                      focusField: "phone",
-                    },
-                  })
-                }
-              >
-                <Edit3 size={16} color={theme.icon} />
-              </TouchableOpacity>
             </View>
 
             {/* Divider */}

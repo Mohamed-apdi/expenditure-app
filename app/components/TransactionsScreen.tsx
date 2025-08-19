@@ -160,7 +160,7 @@ export default function TransactionsScreen() {
           
           {/* Filter Buttons */}
           <View className="flex-row space-x-2">
-            {['all', 'income', 'expense', 'transfer'].map((filter) => (
+            {['all', 'income', 'expense', 'transfer', 'loan'].map((filter) => (
               <TouchableOpacity
                 key={filter}
                 className={`px-3 py-1 rounded-full ${activeFilter === filter ? 'bg-blue-500' : 'bg-gray-200'}`}
@@ -184,7 +184,7 @@ export default function TransactionsScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity 
               className="bg-white p-4 border-b border-gray-100"
-              onPress={() => router.push(`/expense-detail/${item.id}`)}
+              onPress={() => router.push(`/transaction-detail/${item.id}`)}
             >
               <View className="flex-row justify-between items-center">
                 <View className="flex-1">
@@ -231,12 +231,12 @@ export default function TransactionsScreen() {
         />
 
         {/* Add Transaction Button */}
-        <TouchableOpacity
+        {/* <TouchableOpacity
           className="absolute bottom-6 right-6 bg-blue-500 w-14 h-14 rounded-full justify-center items-center shadow-lg"
           onPress={() => router.push('/(expense)/AddExpense')}
         >
           <Plus size={24} color="white" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     </SafeAreaView>
   );

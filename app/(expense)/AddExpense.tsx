@@ -410,6 +410,8 @@ export default function AddExpenseScreen() {
         }
       }
 
+
+
       Alert.alert(
         "Success!",
         `Your ${entryType.toLowerCase()} has been saved!`,
@@ -506,6 +508,8 @@ export default function AddExpenseScreen() {
 
       // Refresh real-time balances after transfer
       // await refreshBalances();
+
+
 
       Alert.alert(
         "Transfer Successful!",

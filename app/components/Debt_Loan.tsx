@@ -445,7 +445,7 @@ const Debt_Loan = () => {
     return type === "loan_given" ? "#3b82f6" : "#ef4444"; // Blue for given, Red for taken
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrencyText = (amount: number) => {
     return `$${amount.toFixed(2)}`;
   };
 
@@ -544,7 +544,7 @@ const Debt_Loan = () => {
               <View className="flex-1 items-center">
                 <Text className="text-gray-500 text-sm">Total Loans Given</Text>
                 <Text className="font-bold text-lg text-blue-600">
-                  {formatCurrency(
+                  {formatCurrencyText(
                     loans
                       .filter((loan) => loan.type === "loan_given")
                       .reduce((sum, loan) => sum + loan.remaining_amount, 0)
@@ -554,7 +554,7 @@ const Debt_Loan = () => {
               <View className="flex-1 items-center">
                 <Text className="text-gray-500 text-sm">Total Debt</Text>
                 <Text className="font-bold text-lg text-red-600">
-                  {formatCurrency(
+                  {formatCurrencyText(
                     loans
                       .filter((loan) => loan.type === "loan_taken")
                       .reduce((sum, loan) => sum + loan.remaining_amount, 0)
@@ -588,7 +588,7 @@ const Debt_Loan = () => {
                       Money In Accounts
                     </Text>
                     <Text className="font-bold text-sm text-green-600">
-                      {formatCurrency(
+                      {formatCurrencyText(
                         accounts.reduce(
                           (sum, acc) => sum + (acc.amount || 0),
                           0
@@ -613,7 +613,7 @@ const Debt_Loan = () => {
                           : "text-red-600"
                       }`}
                     >
-                      {formatCurrency(
+                      {formatCurrencyText(
                         loans.reduce((sum, loan) => {
                           if (loan.type === "loan_taken") {
                             return sum + loan.remaining_amount; // Money in from debt
@@ -683,7 +683,7 @@ const Debt_Loan = () => {
                             </Text>
                             <Text className="text-gray-400 text-xs">
                               Balance:{" "}
-                              {formatCurrency(
+                              {formatCurrencyText(
                                 accounts.find(
                                   (acc) => acc.id === loan.account_id
                                 )?.amount || 0
@@ -727,7 +727,7 @@ const Debt_Loan = () => {
                             Principal
                           </Text>
                           <Text className="font-medium">
-                            {formatCurrency(loan.principal_amount)}
+                            {formatCurrencyText(loan.principal_amount)}
                           </Text>
                         </View>
                         <View className="flex-row justify-between mb-1">
@@ -735,7 +735,7 @@ const Debt_Loan = () => {
                             Remaining
                           </Text>
                           <Text className="font-medium">
-                            {formatCurrency(loan.remaining_amount)}
+                            {formatCurrencyText(loan.remaining_amount)}
                           </Text>
                         </View>
                         {loan.interest_rate && (
@@ -766,7 +766,7 @@ const Debt_Loan = () => {
                             className="font-bold text-lg ml-1"
                             style={{ color: getTypeColor(loan.type) }}
                           >
-                            {formatCurrency(loan.remaining_amount)}
+                            {formatCurrencyText(loan.remaining_amount)}
                           </Text>
                         </View>
                         <Text
@@ -1354,7 +1354,7 @@ const Debt_Loan = () => {
                     <View className="flex-row justify-between items-center mb-2">
                       <Text className="text-gray-600">Remaining Amount:</Text>
                       <Text className="font-bold text-lg">
-                        {formatCurrency(selectedLoan?.remaining_amount || 0)}
+                        {formatCurrencyText(selectedLoan?.remaining_amount || 0)}
                       </Text>
                     </View>
                     <View className="flex-row justify-between items-center">
@@ -1385,7 +1385,7 @@ const Debt_Loan = () => {
                         <Text className="text-gray-700 mb-1">Amount ($)</Text>
                         <TextInput
                           className="border border-gray-300 rounded-lg p-3"
-                          placeholder={`Max: ${formatCurrency(selectedLoan?.remaining_amount || 0)}`}
+                          placeholder={`Max: ${formatCurrencyText(selectedLoan?.remaining_amount || 0)}`}
                           value={repaymentData.amount}
                           onChangeText={(text) =>
                             setRepaymentData({ ...repaymentData, amount: text })
@@ -1465,7 +1465,7 @@ const Debt_Loan = () => {
                       <View className="flex-row justify-between items-center mb-2">
                         <Text className="text-gray-600">Total Repaid:</Text>
                         <Text className="font-bold text-lg text-green-600">
-                          {formatCurrency(
+                          {formatCurrencyText(
                             selectedLoan.principal_amount -
                               selectedLoan.remaining_amount
                           )}
@@ -1474,7 +1474,7 @@ const Debt_Loan = () => {
                       <View className="flex-row justify-between items-center mb-2">
                         <Text className="text-gray-600">Principal Amount:</Text>
                         <Text className="font-medium">
-                          {formatCurrency(selectedLoan.principal_amount)}
+                          {formatCurrencyText(selectedLoan.principal_amount)}
                         </Text>
                       </View>
                       <View className="flex-row justify-between items-center">
@@ -1488,7 +1488,7 @@ const Debt_Loan = () => {
                               : "text-red-600"
                           }`}
                         >
-                          {formatCurrency(selectedLoan.remaining_amount)}
+                          {formatCurrencyText(selectedLoan.remaining_amount)}
                         </Text>
                       </View>
                     </View>
@@ -1506,7 +1506,7 @@ const Debt_Loan = () => {
                       >
                         <View>
                           <Text className="font-medium">
-                            {formatCurrency(repayment.amount)}
+                            {formatCurrencyText(repayment.amount)}
                           </Text>
                           <Text className="text-sm text-gray-500">
                             {formatDate(repayment.payment_date)}
