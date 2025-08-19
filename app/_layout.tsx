@@ -19,6 +19,7 @@ import Toast from "react-native-toast-message";
 import { AccountProvider } from "~/lib/AccountContext";
 import * as Notifications from "expo-notifications";
 import notificationService from "~/lib/notificationService";
+import { LanguageProvider } from "~/lib/LanguageProvider";
 
 const LIGHT_THEME: Theme = {
   ...DefaultTheme,
