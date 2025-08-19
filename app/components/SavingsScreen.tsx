@@ -26,17 +26,17 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { supabase } from "~/lib/supabase";
-import { 
-  fetchGoalsWithAccounts, 
-  addGoal, 
-  updateGoal, 
+import {
+  fetchGoalsWithAccounts,
+  addGoal,
+  updateGoal,
   deleteGoal,
   toggleGoalStatus,
   addAmountToGoal,
   withdrawAmountFromGoal,
   calculateGoalProgress,
   getTotalSavings,
-  type Goal 
+  type Goal,
 } from "~/lib/goals";
 import { fetchAccounts, type Account } from "~/lib/accounts";
 
@@ -143,19 +143,20 @@ export default function SavingsScreen() {
       }
 
       setUserId(user.id);
-      
+
       // Fetch goals with accounts, accounts, goal progress, and total savings in parallel
-      const [goalsData, accountsData, progressData, totalData] = await Promise.all([
-        fetchGoalsWithAccounts(user.id),
-        fetchAccounts(user.id),
-        calculateGoalProgress(user.id),
-        getTotalSavings(user.id)
-      ]);
-      
+      const [goalsData, accountsData, progressData, totalData] =
+        await Promise.all([
+          fetchGoalsWithAccounts(user.id),
+          fetchAccounts(user.id),
+          calculateGoalProgress(user.id),
+          getTotalSavings(user.id),
+        ]);
+
       setGoals(goalsData);
       setAccounts(accountsData);
       setTotalSavings(totalData);
-      
+
       // Set default selected account if available
       if (accountsData.length > 0) {
         setSelectedAccount(accountsData[0]);
@@ -192,7 +193,10 @@ export default function SavingsScreen() {
 
   const openAddModal = () => {
     if (accounts.length === 0) {
-      Alert.alert("No Accounts", "Please create an account first before setting up savings goals.");
+      Alert.alert(
+        "No Accounts",
+        "Please create an account first before setting up savings goals."
+      );
       return;
     }
     setCurrentGoal(null);
@@ -225,11 +229,12 @@ export default function SavingsScreen() {
       icon_color: goal.icon_color,
       description: goal.description || "",
     });
-    
+
     // Find and set the account for this goal
-    const goalAccount = goal.account || accounts.find(acc => acc.id === goal.account_id);
+    const goalAccount =
+      goal.account || accounts.find((acc) => acc.id === goal.account_id);
     setSelectedAccount(goalAccount || null);
-    
+
     setIsEditMode(true);
     setIsModalVisible(true);
   };
@@ -248,7 +253,12 @@ export default function SavingsScreen() {
   };
 
   const handleSave = async () => {
-    if (!formData.name || !formData.target_amount || !formData.target_date || !formData.category) {
+    if (
+      !formData.name ||
+      !formData.target_amount ||
+      !formData.target_date ||
+      !formData.category
+    ) {
       Alert.alert("Error", "Please fill in all required fields");
       return;
     }
@@ -266,7 +276,7 @@ export default function SavingsScreen() {
     try {
       const targetAmount = parseFloat(formData.target_amount) || 0;
       const currentAmount = parseFloat(formData.current_amount) || 0;
-      
+
       const goalData = {
         user_id: userId,
         account_id: selectedAccount.id,
@@ -306,13 +316,19 @@ export default function SavingsScreen() {
 
     try {
       const amount = parseFloat(amountModalData.amount);
-      
+
       if (amountModalData.type === "add") {
         await addAmountToGoal(currentGoal.id, amount);
-        Alert.alert("Success", `$${amount.toFixed(2)} added to goal successfully`);
+        Alert.alert(
+          "Success",
+          `$${amount.toFixed(2)} added to goal successfully`
+        );
       } else {
         await withdrawAmountFromGoal(currentGoal.id, amount);
-        Alert.alert("Success", `$${amount.toFixed(2)} withdrawn from goal successfully`);
+        Alert.alert(
+          "Success",
+          `$${amount.toFixed(2)} withdrawn from goal successfully`
+        );
       }
 
       setIsAddAmountModalVisible(false);
@@ -326,28 +342,24 @@ export default function SavingsScreen() {
   };
 
   const handleDelete = async (id: string) => {
-    Alert.alert(
-      "Delete Goal",
-      "Are you sure you want to delete this goal?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteGoal(id);
-              Alert.alert("Success", "Goal deleted successfully");
-              // Refresh data to get updated goals
-              fetchData();
-            } catch (error) {
-              console.error("Error deleting goal:", error);
-              Alert.alert("Error", "Failed to delete goal");
-            }
-          },
+    Alert.alert("Delete Goal", "Are you sure you want to delete this goal?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteGoal(id);
+            Alert.alert("Success", "Goal deleted successfully");
+            // Refresh data to get updated goals
+            fetchData();
+          } catch (error) {
+            console.error("Error deleting goal:", error);
+            Alert.alert("Error", "Failed to delete goal");
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const formatDate = (dateString: string) => {
@@ -369,7 +381,10 @@ export default function SavingsScreen() {
     setShowDatePicker(false);
     if (selectedDate) {
       setSelectedDate(selectedDate);
-      setFormData({ ...formData, target_date: selectedDate.toISOString().split('T')[0] });
+      setFormData({
+        ...formData,
+        target_date: selectedDate.toISOString().split("T")[0],
+      });
     }
   };
 
@@ -386,7 +401,7 @@ export default function SavingsScreen() {
 
   return (
     <View>
-      <ScrollView 
+      <ScrollView
         className="flex-1 p-4"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -395,9 +410,11 @@ export default function SavingsScreen() {
         {/* Total Savings Summary */}
         <View className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 rounded-2xl mb-6">
           <Text className="text-black text-lg font-medium">Total Savings</Text>
-          <Text className="text-black text-3xl font-bold">${totalSavings.toFixed(2)}</Text>
+          <Text className="text-black text-3xl font-bold">
+            ${totalSavings.toFixed(2)}
+          </Text>
           <Text className="text-blue-400 text-sm">
-            Across {goals.filter(g => g.is_active).length} active goals
+            Across {goals.filter((g) => g.is_active).length} active goals
           </Text>
         </View>
 
@@ -432,9 +449,16 @@ export default function SavingsScreen() {
             goals
               .filter((goal) => goal.is_active)
               .map((goal) => {
-                const progress = calculateProgress(goal.current_amount, goal.target_amount);
-                const daysLeft = Math.ceil((new Date(goal.target_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                
+                const progress = calculateProgress(
+                  goal.current_amount,
+                  goal.target_amount
+                );
+                const daysLeft = Math.ceil(
+                  (new Date(goal.target_date).getTime() -
+                    new Date().getTime()) /
+                    (1000 * 60 * 60 * 24)
+                );
+
                 return (
                   <Pressable
                     key={goal.id}
@@ -447,7 +471,10 @@ export default function SavingsScreen() {
                           className="p-2 rounded-full mr-3"
                           style={{ backgroundColor: goal.icon_color }}
                         >
-                          {React.createElement(goalIcons[goal.icon] || goalIcons.other, { size: 24, color: goal.icon_color })}
+                          {React.createElement(
+                            goalIcons[goal.icon] || goalIcons.other,
+                            { size: 24, color: goal.icon_color }
+                          )}
                         </View>
                         <View className="flex-1">
                           <Text className="font-semibold text-gray-900 text-lg">
@@ -460,7 +487,9 @@ export default function SavingsScreen() {
                       </View>
                       <Switch
                         value={goal.is_active}
-                        onValueChange={() => handleToggleGoalStatus(goal.id, goal.is_active)}
+                        onValueChange={() =>
+                          handleToggleGoalStatus(goal.id, goal.is_active)
+                        }
                         trackColor={{ false: "#767577", true: "#3b82f6" }}
                         thumbColor="#f4f3f4"
                       />
@@ -470,18 +499,19 @@ export default function SavingsScreen() {
                     <View className="mb-3">
                       <View className="flex-row justify-between items-center mb-2">
                         <Text className="text-gray-600 text-sm">
-                          ${goal.current_amount.toFixed(2)} of ${goal.target_amount.toFixed(2)}
+                          ${goal.current_amount.toFixed(2)} of $
+                          {goal.target_amount.toFixed(2)}
                         </Text>
                         <Text className="text-gray-600 text-sm font-medium">
                           {Math.round(progress)}%
                         </Text>
                       </View>
                       <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <View 
+                        <View
                           className="h-2 rounded-full"
-                          style={{ 
+                          style={{
                             width: `${progress}%`,
-                            backgroundColor: getProgressColor(progress)
+                            backgroundColor: getProgressColor(progress),
                           }}
                         />
                       </View>
@@ -498,7 +528,7 @@ export default function SavingsScreen() {
                       <View className="flex-row items-center">
                         <Clock size={14} color="#6b7280" />
                         <Text className="text-gray-500 text-sm ml-2">
-                          {daysLeft > 0 ? `${daysLeft} days left` : 'Overdue'}
+                          {daysLeft > 0 ? `${daysLeft} days left` : "Overdue"}
                         </Text>
                       </View>
                     </View>
@@ -515,7 +545,9 @@ export default function SavingsScreen() {
                         className="flex-1 bg-green-500 py-2 rounded-lg items-center"
                         onPress={() => openAddAmountModal(goal, "add")}
                       >
-                        <Text className="text-white font-medium">Add Money</Text>
+                        <Text className="text-white font-medium">
+                          Add Money
+                        </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         className="flex-1 bg-orange-500 py-2 rounded-lg items-center"
@@ -537,9 +569,7 @@ export default function SavingsScreen() {
           </Text>
           {goals.filter((goal) => !goal.is_active).length === 0 ? (
             <View className="py-4 items-center">
-              <Text className="text-gray-500 text-lg">
-                No inactive goals
-              </Text>
+              <Text className="text-gray-500 text-lg">No inactive goals</Text>
             </View>
           ) : (
             goals
@@ -556,7 +586,10 @@ export default function SavingsScreen() {
                         className="p-2 rounded-full mr-3"
                         style={{ backgroundColor: goal.icon_color }}
                       >
-                        {React.createElement(goalIcons[goal.icon] || goalIcons.other, { size: 24, color: goal.icon_color })}
+                        {React.createElement(
+                          goalIcons[goal.icon] || goalIcons.other,
+                          { size: 24, color: goal.icon_color }
+                        )}
                       </View>
                       <View className="flex-1">
                         <Text className="font-semibold text-gray-900 text-lg">
@@ -569,7 +602,9 @@ export default function SavingsScreen() {
                     </View>
                     <Switch
                       value={goal.is_active}
-                      onValueChange={() => handleToggleGoalStatus(goal.id, goal.is_active)}
+                      onValueChange={() =>
+                        handleToggleGoalStatus(goal.id, goal.is_active)
+                      }
                       trackColor={{ false: "#767577", true: "#3b82f6" }}
                       thumbColor="#f4f3f4"
                     />
@@ -622,13 +657,18 @@ export default function SavingsScreen() {
                         className="rounded-full mr-3"
                         style={{ backgroundColor: formData.icon_color }}
                       >
-                        {React.createElement(goalIcons[formData.icon], { size: 24, color: formData.icon_color })}
+                        {React.createElement(goalIcons[formData.icon], {
+                          size: 24,
+                          color: formData.icon_color,
+                        })}
                       </View>
                       <Text className="text-gray-900">Change Icon</Text>
                     </TouchableOpacity>
                   </View>
                   <View className="flex-1">
-                    <Text className="text-gray-700 mb-2 font-medium">Color</Text>
+                    <Text className="text-gray-700 mb-2 font-medium">
+                      Color
+                    </Text>
                     <TouchableOpacity
                       className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row items-center"
                       onPress={() => setIsColorModalVisible(true)}
@@ -657,17 +697,25 @@ export default function SavingsScreen() {
                 </View>
 
                 <View>
-                  <Text className="text-gray-700 mb-2 font-medium">Category</Text>
+                  <Text className="text-gray-700 mb-2 font-medium">
+                    Category
+                  </Text>
                   <TouchableOpacity
                     className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
-                    onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                    onPress={() =>
+                      setShowCategoryDropdown(!showCategoryDropdown)
+                    }
                   >
-                    <Text className={formData.category ? "text-gray-900" : "text-gray-500"}>
+                    <Text
+                      className={
+                        formData.category ? "text-gray-900" : "text-gray-500"
+                      }
+                    >
                       {formData.category || "Select a category"}
                     </Text>
                     <ChevronDown size={16} color="#6b7280" />
                   </TouchableOpacity>
-                  
+
                   {showCategoryDropdown && (
                     <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
                       <ScrollView>
@@ -677,10 +725,10 @@ export default function SavingsScreen() {
                             className={`p-3 border-b border-gray-200 ${
                               formData.category === category ? "bg-blue-50" : ""
                             }`}
-                                                       onPress={() => {
-                             setFormData({ ...formData, category });
-                             setShowCategoryDropdown(false);
-                           }}
+                            onPress={() => {
+                              setFormData({ ...formData, category });
+                              setShowCategoryDropdown(false);
+                            }}
                           >
                             <Text className="font-medium">{category}</Text>
                           </TouchableOpacity>
@@ -691,17 +739,25 @@ export default function SavingsScreen() {
                 </View>
 
                 <View>
-                  <Text className="text-gray-700 mb-2 font-medium">Account</Text>
+                  <Text className="text-gray-700 mb-2 font-medium">
+                    Account
+                  </Text>
                   <TouchableOpacity
                     className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
                     onPress={() => setShowAccountDropdown(!showAccountDropdown)}
                   >
-                    <Text className={selectedAccount ? "text-gray-900" : "text-gray-500"}>
-                      {selectedAccount ? selectedAccount.name : "Select an account"}
+                    <Text
+                      className={
+                        selectedAccount ? "text-gray-900" : "text-gray-500"
+                      }
+                    >
+                      {selectedAccount
+                        ? selectedAccount.name
+                        : "Select an account"}
                     </Text>
                     <ChevronDown size={16} color="#6b7280" />
                   </TouchableOpacity>
-                  
+
                   {showAccountDropdown && (
                     <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
                       <ScrollView>
@@ -709,7 +765,9 @@ export default function SavingsScreen() {
                           <TouchableOpacity
                             key={account.id}
                             className={`p-3 border-b border-gray-200 ${
-                              selectedAccount?.id === account.id ? "bg-blue-50" : ""
+                              selectedAccount?.id === account.id
+                                ? "bg-blue-50"
+                                : ""
                             }`}
                             onPress={() => {
                               setSelectedAccount(account);
@@ -717,7 +775,9 @@ export default function SavingsScreen() {
                             }}
                           >
                             <Text className="font-medium">{account.name}</Text>
-                            <Text className="text-sm text-gray-500">{account.account_type}</Text>
+                            <Text className="text-sm text-gray-500">
+                              {account.account_type}
+                            </Text>
                           </TouchableOpacity>
                         ))}
                       </ScrollView>
@@ -726,7 +786,9 @@ export default function SavingsScreen() {
                 </View>
 
                 <View>
-                  <Text className="text-gray-700 mb-2 font-medium">Target Amount ($)</Text>
+                  <Text className="text-gray-700 mb-2 font-medium">
+                    Target Amount ($)
+                  </Text>
                   <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50">
                     <View className="px-4">
                       <DollarSign size={18} color="#6b7280" />
@@ -745,7 +807,9 @@ export default function SavingsScreen() {
 
                 {isEditMode && (
                   <View>
-                    <Text className="text-gray-700 mb-2 font-medium">Current Amount ($)</Text>
+                    <Text className="text-gray-700 mb-2 font-medium">
+                      Current Amount ($)
+                    </Text>
                     <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50">
                       <View className="px-4">
                         <DollarSign size={18} color="#6b7280" />
@@ -771,15 +835,23 @@ export default function SavingsScreen() {
                     className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row items-center justify-between"
                     onPress={() => setShowDatePicker(true)}
                   >
-                    <Text className={formData.target_date ? "text-gray-900" : "text-gray-500"}>
-                      {formData.target_date ? formatDate(formData.target_date) : "Select target date"}
+                    <Text
+                      className={
+                        formData.target_date ? "text-gray-900" : "text-gray-500"
+                      }
+                    >
+                      {formData.target_date
+                        ? formatDate(formData.target_date)
+                        : "Select target date"}
                     </Text>
                     <Calendar size={20} color="#6b7280" />
                   </TouchableOpacity>
                 </View>
 
                 <View>
-                  <Text className="text-gray-700 mb-2 font-medium">Description</Text>
+                  <Text className="text-gray-700 mb-2 font-medium">
+                    Description
+                  </Text>
                   <TextInput
                     className="border border-gray-200 rounded-xl p-4 bg-gray-50"
                     placeholder="Optional description"
@@ -830,14 +902,18 @@ export default function SavingsScreen() {
               <Text className="font-bold text-xl text-gray-900">
                 Add Money to Goal
               </Text>
-              <TouchableOpacity onPress={() => setIsAddAmountModalVisible(false)}>
+              <TouchableOpacity
+                onPress={() => setIsAddAmountModalVisible(false)}
+              >
                 <X size={24} color="#6b7280" />
               </TouchableOpacity>
             </View>
 
             <View className="space-y-5">
               <View>
-                <Text className="text-gray-700 mb-2 font-medium">Amount ($)</Text>
+                <Text className="text-gray-700 mb-2 font-medium">
+                  Amount ($)
+                </Text>
                 <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50">
                   <View className="px-4">
                     <DollarSign size={18} color="#6b7280" />
@@ -880,14 +956,18 @@ export default function SavingsScreen() {
               <Text className="font-bold text-xl text-gray-900">
                 Withdraw from Goal
               </Text>
-              <TouchableOpacity onPress={() => setIsWithdrawModalVisible(false)}>
+              <TouchableOpacity
+                onPress={() => setIsWithdrawModalVisible(false)}
+              >
                 <X size={24} color="#6b7280" />
               </TouchableOpacity>
             </View>
 
             <View className="space-y-5">
               <View>
-                <Text className="text-gray-700 mb-2 font-medium">Amount ($)</Text>
+                <Text className="text-gray-700 mb-2 font-medium">
+                  Amount ($)
+                </Text>
                 <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50">
                   <View className="px-4">
                     <DollarSign size={18} color="#6b7280" />
@@ -946,7 +1026,10 @@ export default function SavingsScreen() {
                     className="p-3 rounded-full mb-2"
                     style={{ backgroundColor: formData.icon_color }}
                   >
-                    {React.createElement(goalIcons[icon], { size: 32, color: formData.icon_color })}
+                    {React.createElement(goalIcons[icon], {
+                      size: 32,
+                      color: formData.icon_color,
+                    })}
                   </View>
                   <Text className="text-xs text-gray-700 capitalize">
                     {icon}

@@ -54,7 +54,7 @@ const AccountDetails = () => {
       setAccount(accountData);
     } catch (error) {
       console.error("Failed to load account data:", error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
+      console.error("Error details:", JSON.stringify(error, null, 2));
     } finally {
       setLoading(false);
     }
@@ -86,15 +86,10 @@ const AccountDetails = () => {
     <SafeAreaView className="flex-1 bg-gray-50 p-safe">
       {/* Header */}
       <View className="flex-row items-center justify-between p-6 border-b border-gray-100">
-        <TouchableOpacity 
-          onPress={() => router.back()}
-          className="p-2"
-        >
+        <TouchableOpacity onPress={() => router.back()} className="p-2">
           <ChevronLeft size={24} color="#6b7280" />
         </TouchableOpacity>
-        <Text className="text-gray-900 text-2xl font-bold">
-          {account.name}
-        </Text>
+        <Text className="text-gray-900 text-2xl font-bold">{account.name}</Text>
         <TouchableOpacity
           className="bg-blue-500 rounded-lg py-3 px-3 items-center"
           onPress={() => router.push(`/account-details/edit/${id}`)}
@@ -132,9 +127,11 @@ const AccountDetails = () => {
           </View>
           <View className="items-center">
             <Text className="text-gray-600 text-sm mb-1">Total</Text>
-            <Text className={`font-bold ${
-              summary.total >= 0 ? "text-green-600" : "text-red-600"
-            }`}>
+            <Text
+              className={`font-bold ${
+                summary.total >= 0 ? "text-green-600" : "text-red-600"
+              }`}
+            >
               ${summary.total.toFixed(2)}
             </Text>
           </View>
@@ -149,7 +146,9 @@ const AccountDetails = () => {
 
       {/* Recent Transactions Header */}
       <View className="p-6 bg-white border-b border-gray-100">
-        <Text className="text-gray-900 font-bold text-lg">Recent Transactions</Text>
+        <Text className="text-gray-900 font-bold text-lg">
+          Recent Transactions
+        </Text>
       </View>
 
       {/* Transactions List */}
@@ -174,10 +173,13 @@ const AccountDetails = () => {
               </View>
               <Text
                 className={`font-bold ${
-                  transaction.type === "income" ? "text-green-600" : "text-red-600"
+                  transaction.type === "income"
+                    ? "text-green-600"
+                    : "text-red-600"
                 }`}
               >
-                {transaction.type === "income" ? "+" : "-"}${Math.abs(transaction.amount).toFixed(2)}
+                {transaction.type === "income" ? "+" : "-"}$
+                {Math.abs(transaction.amount).toFixed(2)}
               </Text>
             </TouchableOpacity>
           ))
