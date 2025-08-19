@@ -1403,7 +1403,7 @@ export default function AddExpenseScreen() {
                       How often?
                     </Text>
                     <View style={{ flexDirection: "row", gap: 8 }}>
-                      {["daily", "weekly", "monthly", "yearly"].map((freq) => {
+                      {["weekly", "monthly", "yearly"].map((freq) => {
                         const isSelected = recurringFrequency === freq;
                         return (
                           <TouchableOpacity
