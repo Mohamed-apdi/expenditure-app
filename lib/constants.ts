@@ -2,10 +2,11 @@ export const NAV_THEME = {
   light: {
     // Main backgrounds
     background: "#ffffff",
-    cardBackground: "#f8fafc",
+    cardBackground: "#f9fafb",
+    Homebackground: "#3b82f6",
 
     // Borders and dividers
-    border: "#e2e8f0",
+    border: "#3b82f6",
 
     // Text colors
     text: "#334155",
@@ -14,7 +15,6 @@ export const NAV_THEME = {
 
     // Form elements
     placeholder: "#94a3b8",
-    inputBackground: "#f8fafc",
 
     // Action colors - Blue and white theme
     primary: "#3b82f6",
@@ -27,7 +27,7 @@ export const NAV_THEME = {
     dangerText: "#ffffff",
 
     // Icons
-    icon: "#ffffff",
+    icon: "#3b82f6",
     iconMuted: "#94a3b8",
 
     // Status indicators
@@ -35,11 +35,13 @@ export const NAV_THEME = {
     stepActive: "#0891b2",
   },
   dark: {
-    icon: "#3b82f6",
+    border: "#e2e8f0",
+    icon: "#ffffff",
 
     // Main backgrounds
-    background: "#0f172a",
-    cardBackground: "#1e293b",
+    background: "#1e293b",
+    Homebackground: "#1e293b",
+    cardBackground: "#334155",
 
     // Borders and dividers
     border: "#334155",
@@ -51,7 +53,6 @@ export const NAV_THEME = {
 
     // Form elements
     placeholder: "#94a3b8",
-    inputBackground: "#1e293b",
 
     // Action colors - Blue and white theme
     primary: "#3b82f6",

@@ -25,6 +25,7 @@ import { supabase } from "~/lib/supabase";
 import { useFocusEffect } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAccount } from "~/lib/AccountContext";
+import { ChevronDown } from "lucide-react-native";
 
 const Debt_Loan = () => {
   const { refreshAccounts } = useAccount();
@@ -192,6 +193,27 @@ const Debt_Loan = () => {
       return;
     }
 
+    // Check balance for loan_given type
+    if (formData.type === "loan_given") {
+      const selectedAccount = accounts.find(
+        (acc) => acc.id === formData.account_id
+      );
+      const loanAmount = parseFloat(formData.principal_amount);
+
+      if (!selectedAccount) {
+        Alert.alert("Error", "Selected account not found");
+        return;
+      }
+
+      if (selectedAccount.amount < loanAmount) {
+        Alert.alert(
+          "Insufficient Balance",
+          `You don't have enough money in this account to give this loan.\n\nAccount Balance: $${selectedAccount.amount.toFixed(2)}\nLoan Amount: $${loanAmount.toFixed(2)}\nShortfall: $${(loanAmount - selectedAccount.amount).toFixed(2)}\n\nPlease either:\n- Reduce the loan amount\n- Transfer money to this account\n- Choose a different account with sufficient balance`
+        );
+        return;
+      }
+    }
+
     try {
       const newLoan = await createLoan({
         user_id: currentUser,
@@ -234,6 +256,32 @@ const Debt_Loan = () => {
         "Please fill in all required fields including account selection"
       );
       return;
+    }
+
+    // Check balance for loan_given type
+    if (formData.type === "loan_given") {
+      const selectedAccount = accounts.find(
+        (acc) => acc.id === formData.account_id
+      );
+      const loanAmount = parseFloat(formData.principal_amount);
+
+      if (!selectedAccount) {
+        Alert.alert("Error", "Selected account not found");
+        return;
+      }
+
+      // For editing, we need to consider the current loan amount that will be refunded
+      // when the loan is updated, so we add back the current principal amount
+      const currentLoanAmount = selectedLoan.principal_amount;
+      const effectiveBalance = selectedAccount.amount + currentLoanAmount;
+
+      if (effectiveBalance < loanAmount) {
+        Alert.alert(
+          "Insufficient Balance",
+          `You don't have enough money in this account to update this loan.\n\nEffective Balance: $${effectiveBalance.toFixed(2)}\n(Current balance + current loan amount being refunded)\nNew Loan Amount: $${loanAmount.toFixed(2)}\nShortfall: $${(loanAmount - effectiveBalance).toFixed(2)}\n\nPlease either:\n- Reduce the loan amount\n- Transfer money to this account\n- Choose a different account with sufficient balance`
+        );
+        return;
+      }
     }
 
     try {
@@ -403,6 +451,52 @@ const Debt_Loan = () => {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
+  };
+
+  // Helper functions for balance checking
+  const getSelectedAccount = () => {
+    return accounts.find((acc) => acc.id === formData.account_id);
+  };
+
+  const checkInsufficientBalance = () => {
+    if (
+      formData.type !== "loan_given" ||
+      !formData.account_id ||
+      !formData.principal_amount
+    ) {
+      return false;
+    }
+
+    const selectedAccount = getSelectedAccount();
+    if (!selectedAccount) return false;
+
+    const loanAmount = parseFloat(formData.principal_amount);
+    if (isNaN(loanAmount) || loanAmount <= 0) return false;
+
+    return selectedAccount.amount < loanAmount;
+  };
+
+  const checkInsufficientBalanceForEdit = () => {
+    if (
+      formData.type !== "loan_given" ||
+      !formData.account_id ||
+      !formData.principal_amount ||
+      !selectedLoan
+    ) {
+      return false;
+    }
+
+    const selectedAccount = getSelectedAccount();
+    if (!selectedAccount) return false;
+
+    const loanAmount = parseFloat(formData.principal_amount);
+    if (isNaN(loanAmount) || loanAmount <= 0) return false;
+
+    // For editing, consider the current loan amount that will be refunded
+    const currentLoanAmount = selectedLoan.principal_amount;
+    const effectiveBalance = selectedAccount.amount + currentLoanAmount;
+
+    return effectiveBalance < loanAmount;
   };
 
   if (loading) {
@@ -710,7 +804,7 @@ const Debt_Loan = () => {
                 <View className="flex-row justify-between items-center mb-4">
                   <Text className="font-bold text-lg">Add New Loan</Text>
                   <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                    <Text className="text-gray-500 text-xl">✕</Text>
+                    <Text className="text-gray-500 text-xl">X</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -777,6 +871,64 @@ const Debt_Loan = () => {
                     }
                     keyboardType="numeric"
                   />
+
+                  {/* Balance warning for loan_given */}
+                  {showEditModal
+                    ? checkInsufficientBalanceForEdit() && (
+                        <View className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <Text className="text-red-800 font-medium text-sm">
+                            Insufficient Balance for Edit
+                          </Text>
+                          <Text className="text-red-600 text-sm mt-1">
+                            Effective Balance:{" "}
+                            {formatCurrency(
+                              (getSelectedAccount()?.amount || 0) +
+                                (selectedLoan?.principal_amount || 0)
+                            )}
+                          </Text>
+                          <Text className="text-gray-500 text-xs">
+                            (Current balance + current loan amount being
+                            refunded)
+                          </Text>
+                          <Text className="text-red-600 text-sm">
+                            New Loan Amount:{" "}
+                            {formatCurrency(
+                              parseFloat(formData.principal_amount) || 0
+                            )}
+                          </Text>
+                          <Text className="text-red-600 text-sm">
+                            Shortfall:{" "}
+                            {formatCurrency(
+                              (parseFloat(formData.principal_amount) || 0) -
+                                (getSelectedAccount()?.amount || 0)
+                            )}
+                          </Text>
+                        </View>
+                      )
+                    : checkInsufficientBalance() && (
+                        <View className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <Text className="text-red-800 font-medium text-sm">
+                            Insufficient Balance
+                          </Text>
+                          <Text className="text-red-600 text-sm mt-1">
+                            Account Balance:{" "}
+                            {formatCurrency(getSelectedAccount()?.amount || 0)}
+                          </Text>
+                          <Text className="text-red-600 text-sm">
+                            Loan Amount:{" "}
+                            {formatCurrency(
+                              parseFloat(formData.principal_amount) || 0
+                            )}
+                          </Text>
+                          <Text className="text-red-600 text-sm">
+                            Shortfall:{" "}
+                            {formatCurrency(
+                              (parseFloat(formData.principal_amount) || 0) -
+                                (getSelectedAccount()?.amount || 0)
+                            )}
+                          </Text>
+                        </View>
+                      )}
                 </View>
 
                 <View className="mb-4">
@@ -842,7 +994,7 @@ const Debt_Loan = () => {
                             ?.name
                         : "Select an account *"}
                     </Text>
-                    <Text className="text-gray-400">▼</Text>
+                    <Text className="text-gray-400">V</Text>
                   </TouchableOpacity>
 
                   {!formData.account_id && (
@@ -882,10 +1034,23 @@ const Debt_Loan = () => {
                 </View>
 
                 <TouchableOpacity
-                  className="bg-blue-500 py-3 rounded-lg items-center"
+                  className={`py-3 rounded-lg items-center ${
+                    checkInsufficientBalance() ? "bg-gray-300" : "bg-blue-500"
+                  }`}
                   onPress={handleAddLoan}
+                  disabled={checkInsufficientBalance()}
                 >
-                  <Text className="text-white font-medium">Create Loan</Text>
+                  <Text
+                    className={`font-medium ${
+                      checkInsufficientBalance()
+                        ? "text-gray-500"
+                        : "text-white"
+                    }`}
+                  >
+                    {checkInsufficientBalance()
+                      ? "Insufficient Balance"
+                      : "Create Loan"}
+                  </Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>
@@ -972,6 +1137,65 @@ const Debt_Loan = () => {
                     }
                     keyboardType="numeric"
                   />
+
+                  {/* Balance warning for loan_given */}
+                  {showEditModal
+                    ? checkInsufficientBalanceForEdit() && (
+                        <View className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <Text className="text-red-800 font-medium text-sm">
+                            Insufficient Balance for Edit
+                          </Text>
+                          <Text className="text-red-600 text-sm mt-1">
+                            Effective Balance:{" "}
+                            {formatCurrency(
+                              (getSelectedAccount()?.amount || 0) +
+                                (selectedLoan?.principal_amount || 0)
+                            )}
+                          </Text>
+                          <Text className="text-gray-500 text-xs">
+                            (Current balance + current loan amount being
+                            refunded)
+                          </Text>
+                          <Text className="text-red-600 text-sm">
+                            New Loan Amount:{" "}
+                            {formatCurrency(
+                              parseFloat(formData.principal_amount) || 0
+                            )}
+                          </Text>
+                          <Text className="text-red-600 text-sm">
+                            Shortfall:{" "}
+                            {formatCurrency(
+                              (parseFloat(formData.principal_amount) || 0) -
+                                ((getSelectedAccount()?.amount || 0) +
+                                  (selectedLoan?.principal_amount || 0))
+                            )}
+                          </Text>
+                        </View>
+                      )
+                    : checkInsufficientBalance() && (
+                        <View className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <Text className="text-red-800 font-medium text-sm">
+                            Insufficient Balance
+                          </Text>
+                          <Text className="text-red-600 text-sm mt-1">
+                            Account Balance:{" "}
+                            {formatCurrency(getSelectedAccount()?.amount || 0)}
+                          </Text>
+                          <Text className="text-red-600 text-sm">
+                            Loan Amount:{" "}
+                            {formatCurrency(
+                              parseFloat(formData.principal_amount) || 0
+                            )}
+                          </Text>
+                          <Text className="text-red-600 text-sm">
+                            Shortfall:{" "}
+                            {formatCurrency(
+                              (parseFloat(formData.principal_amount) || 0) -
+                                (getSelectedAccount()?.amount || 0)
+                            )}
+                          </Text>
+                        </View>
+                      )}
                 </View>
 
                 <View className="mb-4">
@@ -1010,7 +1234,7 @@ const Debt_Loan = () => {
                 </View>
 
                 <View className="mb-6">
-                  <Text className="text-gray-700 mb-1">Account *</Text>
+                  <Text className="text-gray-700 mb-1">Account</Text>
                   <TouchableOpacity
                     className={`border rounded-lg p-3 flex-row justify-between items-center ${
                       formData.account_id ? "border-gray-300" : "border-red-300"
@@ -1037,7 +1261,7 @@ const Debt_Loan = () => {
                             ?.name
                         : "Select an account *"}
                     </Text>
-                    <Text className="text-gray-400">▼</Text>
+                    <ChevronDown size={20} color="gray" />
                   </TouchableOpacity>
 
                   {!formData.account_id && (
@@ -1077,10 +1301,25 @@ const Debt_Loan = () => {
                 </View>
 
                 <TouchableOpacity
-                  className="bg-blue-500 py-3 rounded-lg items-center"
+                  className={`py-3 rounded-lg items-center ${
+                    checkInsufficientBalanceForEdit()
+                      ? "bg-gray-300"
+                      : "bg-blue-500"
+                  }`}
                   onPress={handleEditLoan}
+                  disabled={checkInsufficientBalanceForEdit()}
                 >
-                  <Text className="text-white font-medium">Update Loan</Text>
+                  <Text
+                    className={`font-medium ${
+                      checkInsufficientBalanceForEdit()
+                        ? "text-gray-500"
+                        : "text-white"
+                    }`}
+                  >
+                    {checkInsufficientBalanceForEdit()
+                      ? "Insufficient Balance"
+                      : "Update Loan"}
+                  </Text>
                 </TouchableOpacity>
               </ScrollView>
             </View>
@@ -1137,7 +1376,7 @@ const Debt_Loan = () => {
                   {selectedLoan && selectedLoan.remaining_amount <= 0 ? (
                     <View className="p-3 bg-green-50 border border-green-200 rounded-lg">
                       <Text className="text-green-800 text-center font-medium">
-                        ✅ This loan is fully repaid!
+                        This loan is fully repaid!
                       </Text>
                     </View>
                   ) : (

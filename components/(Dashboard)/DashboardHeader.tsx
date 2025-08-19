@@ -10,11 +10,13 @@ import {
   Bell,
   Calendar,
   Search,
+  Globe,
 } from "lucide-react-native";
 import { useColorScheme } from "~/lib/useColorScheme";
 import { useTheme } from "~/lib/theme";
 import { WalletDropdown } from "./WalletDropdown";
 import { useAccount } from "~/lib/AccountContext";
+import { useLanguage } from "~/lib/LanguageProvider";
 
 interface DashboardHeaderProps {
   userName: string;
@@ -44,6 +46,7 @@ export default function DashboardHeader({
   const { isDarkColorScheme, toggleColorScheme } = useColorScheme();
 
   const theme = useTheme();
+  const { t, language, setLanguage } = useLanguage();
 
   const dropdownAnimation = useRef(new Animated.Value(0)).current;
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -151,7 +154,7 @@ export default function DashboardHeader({
                       userImageUrl ||
                       `https://ui-avatars.com/api/?name=${encodeURIComponent(userName || "User")}`,
                   }}
-                  className="w-10 h-10 rounded-full border-2 border-[#3b82f6]"
+                  className="w-10 h-10 rounded-full border-2 border-white"
                 />
               </TouchableOpacity>
             </Animated.View>
@@ -221,7 +224,20 @@ export default function DashboardHeader({
                     className="text-sm font-medium "
                     style={{ color: theme.text }}
                   >
-                    Dark Mode
+                    {isDarkColorScheme ? t.lightMode : t.darkMode}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setLanguage(language === "en" ? "so" : "en")}
+                  activeOpacity={0.7}
+                  className="flex-row items-center p-3 rounded-lg gap-3 active:bg-slate-50"
+                >
+                  <Globe size={18} color={theme.text} />
+                  <Text
+                    className="text-sm font-medium"
+                    style={{ color: theme.text }}
+                  >
+                    {t.languages} ({language.toUpperCase()})
                   </Text>
                 </TouchableOpacity>
                 {/* Menu Items */}
@@ -260,7 +276,7 @@ export default function DashboardHeader({
             activeOpacity={0.7}
           >
             <View>
-              <Bell size={22} color={theme.icon} />
+              <Bell size={22} color="#fff" />
               <View className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full" />
             </View>
           </TouchableOpacity>
@@ -268,18 +284,16 @@ export default function DashboardHeader({
 
         {/*  dropdown */}
         <WalletDropdown />
-        
-      
-        
+
         <View className="flex-row items-center justify-between px-4 py-3">
           {/* Calendar */}
           <TouchableOpacity className="mx-3" onPress={onCalendarPress}>
-            <Calendar size={22} color={theme.icon} />
+            <Calendar size={22} color="#fff" />
           </TouchableOpacity>
 
           {/* Search */}
           <TouchableOpacity className="ml-3" onPress={onSearchPress}>
-            <Search size={22} color={theme.icon} />
+            <Search size={22} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
