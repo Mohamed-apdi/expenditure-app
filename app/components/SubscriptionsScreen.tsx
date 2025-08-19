@@ -20,9 +20,12 @@ import {
   Trash2,
   DollarSign,
   ChevronDown,
+  Bell,
+  BellOff,
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import * as Notifications from 'expo-notifications';
 import { supabase } from "~/lib/supabase";
 import {
   fetchSubscriptionsWithAccounts,
@@ -33,6 +36,7 @@ import {
   type Subscription,
 } from "~/lib/subscriptions";
 import { fetchAccounts, type Account } from "~/lib/accounts";
+import notificationService from "~/lib/notificationService";
 
 // Use the exact same expense categories as BudgetScreen and AddExpense
 const expenseCategories = [
@@ -125,6 +129,7 @@ export default function SubscriptionsScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isCheckingFees, setIsCheckingFees] = useState(false);
   const [showFeeSuccessMessage, setShowFeeSuccessMessage] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isIconModalVisible, setIsIconModalVisible] = useState(false);
@@ -147,97 +152,27 @@ export default function SubscriptionsScreen() {
 
   const billingCycles = ["weekly", "monthly", "yearly"];
 
-  // Function to automatically cut subscription fees
-  const checkAndCutSubscriptionFees = async () => {
+  // Function to check due subscriptions and send notifications
+  const checkDueSubscriptionsAndNotify = async () => {
     try {
       if (!userId || isCheckingFees) return;
 
       setIsCheckingFees(true);
-
-      const today = new Date();
-      const todayString = today.toISOString().split("T")[0];
-
-      // Get all active subscriptions
-      const activeSubscriptions = subscriptions.filter((sub) => sub.is_active);
-
-      for (const subscription of activeSubscriptions) {
-        const nextPaymentDate = new Date(subscription.next_payment_date);
-        const nextPaymentString = nextPaymentDate.toISOString().split("T")[0];
-
-        // Check if payment is due today or overdue
-        if (nextPaymentString <= todayString) {
-          try {
-            // Import transaction service
-            const { addTransaction } = await import("~/lib/transactions");
-
-            // Create expense transaction for subscription fee
-            await addTransaction({
-              user_id: userId,
-              account_id: subscription.account_id,
-              amount: subscription.amount,
-              description: `Subscription fee for ${subscription.name}`,
-              date: todayString,
-              category: subscription.category || "Subscriptions",
-              type: "expense",
-              is_recurring: true,
-              recurrence_interval: subscription.billing_cycle,
-            });
-
-            console.log(
-              `Created subscription fee transaction for: ${subscription.name}`
-            );
-
-            // Calculate next payment date based on billing cycle
-            let nextPayment: Date;
-            switch (subscription.billing_cycle) {
-              case "weekly":
-                nextPayment = new Date(
-                  nextPaymentDate.getTime() + 7 * 24 * 60 * 60 * 1000
-                );
-                break;
-              case "monthly":
-                nextPayment = new Date(
-                  nextPaymentDate.getFullYear(),
-                  nextPaymentDate.getMonth() + 1,
-                  nextPaymentDate.getDate()
-                );
-                break;
-              case "yearly":
-                nextPayment = new Date(
-                  nextPaymentDate.getFullYear() + 1,
-                  nextPaymentDate.getMonth(),
-                  nextPaymentDate.getDate()
-                );
-                break;
-              default:
-                nextPayment = new Date(
-                  nextPaymentDate.getTime() + 30 * 24 * 60 * 60 * 1000
-                ); // Default to monthly
-            }
-
-            // Update subscription with new next payment date
-            await updateSubscription(subscription.id, {
-              ...subscription,
-              next_payment_date: nextPayment.toISOString().split("T")[0],
-            });
-
-            console.log(
-              `Updated next payment date for: ${subscription.name} to ${nextPayment.toISOString().split("T")[0]}`
-            );
-          } catch (error) {
-            console.error(
-              `Error processing subscription fee for ${subscription.name}:`,
-              error
-            );
-          }
-        }
-      }
-
-      // Don't call fetchData() here to avoid infinite loop
-      // Instead, just update the local state with new payment dates
-      console.log("Subscription fees processed successfully");
+      
+      // Use the notification service to check and send notifications
+      await notificationService.checkDueSubscriptionsAndNotify();
+      
+      console.log("Subscription notifications checked and sent");
+      setShowFeeSuccessMessage(true);
+      
+      // Hide the success message after 3 seconds
+      setTimeout(() => {
+        setShowFeeSuccessMessage(false);
+      }, 3000);
+      
     } catch (error) {
-      console.error("Error checking subscription fees:", error);
+      console.error("Error checking subscription notifications:", error);
+      Alert.alert("Error", "Failed to check subscription notifications");
     } finally {
       setIsCheckingFees(false);
     }
@@ -271,8 +206,10 @@ export default function SubscriptionsScreen() {
         setSelectedAccount(accountsData[0]);
       }
 
-      // Don't call checkAndCutSubscriptionFees here to avoid infinite loop
-      // It will be called separately when needed
+      // Schedule notifications for upcoming subscriptions
+      if (user) {
+        await notificationService.scheduleAllUpcomingNotifications();
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
       Alert.alert("Error", "Failed to fetch data");
@@ -288,40 +225,51 @@ export default function SubscriptionsScreen() {
     setRefreshing(false);
   };
 
-  // Manual function to check subscription fees
-  const manualCheckFees = async () => {
-    if (!isCheckingFees) {
-      await checkAndCutSubscriptionFees();
-      // Refresh data after processing fees
-      await fetchData();
-
-      // Show success message
-      setShowFeeSuccessMessage(true);
-      setTimeout(() => setShowFeeSuccessMessage(false), 3000);
-    }
-  };
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  // Check subscription fees only when component mounts and user is available
+  // Initialize notifications when component mounts
   useEffect(() => {
-    if (userId && subscriptions.length > 0) {
-      // Add a small delay to avoid immediate execution
-      const timer = setTimeout(() => {
-        checkAndCutSubscriptionFees();
-      }, 1000);
+    const initializeNotifications = async () => {
+      try {
+        // Register background tasks and setup notifications
+        await notificationService.registerBackgroundTask();
+        setNotificationsEnabled(true);
+        
+        // Check for due subscriptions immediately
+        if (userId) {
+          await checkDueSubscriptionsAndNotify();
+        }
+      } catch (error) {
+        console.error("Failed to initialize notifications:", error);
+        setNotificationsEnabled(false);
+      }
+    };
 
-      return () => clearTimeout(timer);
+    if (userId) {
+      initializeNotifications();
     }
-  }, [userId]); // Only depend on userId, not subscriptions
+  }, [userId]);
+
+  // Set up notification response listener
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      notificationService.handleNotificationResponse
+    );
+
+    return () => subscription.remove();
+  }, []);
 
   const toggleSubscription = async (id: string, currentStatus: boolean) => {
     try {
       await toggleSubscriptionStatus(id, !currentStatus);
       // Refresh data to get updated status
       fetchData();
+      
+      // Reschedule notifications based on new status
+      await notificationService.scheduleAllUpcomingNotifications();
     } catch (error) {
       console.error("Error toggling subscription:", error);
       Alert.alert("Error", "Failed to toggle subscription status");
@@ -425,6 +373,9 @@ export default function SubscriptionsScreen() {
       setIsModalVisible(false);
       // Refresh data to get updated subscriptions
       fetchData();
+      
+      // Reschedule notifications for all subscriptions
+      await notificationService.scheduleAllUpcomingNotifications();
     } catch (error) {
       console.error("Error saving subscription:", error);
       Alert.alert("Error", "Failed to save subscription");
@@ -446,6 +397,9 @@ export default function SubscriptionsScreen() {
               Alert.alert("Success", "Subscription deleted successfully");
               // Refresh data to get updated subscriptions
               fetchData();
+              
+              // Reschedule notifications for remaining subscriptions
+              await notificationService.scheduleAllUpcomingNotifications();
             } catch (error) {
               console.error("Error deleting subscription:", error);
               Alert.alert("Error", "Failed to delete subscription");
@@ -518,15 +472,6 @@ export default function SubscriptionsScreen() {
           </Text>
           <View className="flex-row gap-2">
             <TouchableOpacity
-              className="bg-green-500 rounded-lg py-3 px-3 items-center"
-              onPress={manualCheckFees}
-              disabled={isCheckingFees}
-            >
-              <Text className="text-white text-sm">
-                {isCheckingFees ? "Checking..." : "Check Fees"}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
               className="bg-blue-500 rounded-lg py-3 px-3 items-center"
               onPress={openAddModal}
             >
@@ -540,7 +485,7 @@ export default function SubscriptionsScreen() {
           <View className="px-6 mb-4">
             <View className="bg-green-50 border border-green-200 p-3 rounded-lg">
               <Text className="text-green-700 text-center">
-                ✅ Subscription fees checked and processed successfully!
+                🔔 Subscription notifications checked and sent successfully!
               </Text>
             </View>
           </View>
@@ -549,7 +494,7 @@ export default function SubscriptionsScreen() {
         {/* Summary Card */}
         <View className="px-6 mb-6">
           <View className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-            <View className="flex-row justify-between items-center">
+            <View className="flex-row justify-between items-center mb-3">
               <View>
                 <Text className="text-gray-600 text-sm mb-1">
                   Total Monthly Cost
@@ -561,10 +506,37 @@ export default function SubscriptionsScreen() {
               {isCheckingFees && (
                 <View className="bg-green-100 px-3 py-1 rounded-full">
                   <Text className="text-green-700 text-xs">
-                    Checking Fees...
+                    Checking Due...
                   </Text>
                 </View>
               )}
+            </View>
+            
+            {/* Notification Status and Controls */}
+            <View className="border-t border-gray-100 pt-3">
+              <View className="flex-row justify-between items-center">
+                <View className="flex-row items-center">
+                  {notificationsEnabled ? (
+                    <Bell size={16} color="#10b981" />
+                  ) : (
+                    <BellOff size={16} color="#ef4444" />
+                  )}
+                  <Text className="text-gray-600 text-sm ml-2">
+                    {notificationsEnabled 
+                      ? "Smart notifications enabled" 
+                      : "Notifications disabled"}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  className="bg-blue-100 px-3 py-1 rounded-full"
+                  onPress={checkDueSubscriptionsAndNotify}
+                  disabled={isCheckingFees}
+                >
+                  <Text className="text-blue-700 text-xs font-medium">
+                    Check Now
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
