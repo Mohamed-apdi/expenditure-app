@@ -184,7 +184,7 @@ export default function TransactionsScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity 
               className="bg-white p-4 border-b border-gray-100"
-              onPress={() => router.push(`/expense-detail/${item.id}`)}
+              onPress={() => router.push(`/transaction-detail/${item.id}`)}
             >
               <View className="flex-row justify-between items-center">
                 <View className="flex-1">
