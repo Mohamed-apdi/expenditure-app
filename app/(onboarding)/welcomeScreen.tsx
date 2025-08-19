@@ -225,13 +225,13 @@ const screenOpacity = screenTransition.interpolate({
             className="items-center px-5"
           >
             <Text className="text-white text-3xl font-bold text-center mb-4">
-              Household Expenditure Predictor
+              Qoondeeye
             </Text>
             <Text className="text-emerald-400 text-lg text-center font-semibold mb-3">
-              Take control of household spending with AI-powered predictions
+              Take control of your financial future with smart money management
             </Text>
             <Text className="text-slate-400 text-base text-center leading-6">
-              Get accurate forecasts based on your family's spending patterns
+              Track expenses, manage budgets, and achieve your financial goals
             </Text>
           </Animated.View>
 

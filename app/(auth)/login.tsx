@@ -132,7 +132,7 @@ export default function LoginScreen() {
         </View>
         <Text className="text-white text-2xl font-bold mb-2">Welcome Back</Text>
         <Text className="text-slate-400 text-center leading-6">
-          Sign in to access your household expenditure predictions
+          Sign in to access your financial management dashboard
         </Text>
       </View>
 

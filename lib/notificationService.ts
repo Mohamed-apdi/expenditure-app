@@ -1,11 +1,19 @@
 import * as Notifications from 'expo-notifications';
 import * as TaskManager from 'expo-task-manager';
 import { Platform } from 'react-native';
+import { isExpoGo } from './expoGoUtils';
 import { supabase } from './supabase';
 import { addTransaction } from './transactions';
 import { updateSubscription, fetchSubscriptionsWithAccounts } from './subscriptions';
 import { fetchAccounts } from './accounts';
 import { getBudgetProgress, type BudgetProgress } from './analytics';
+import { 
+  createBudgetNotification, 
+  createSubscriptionNotification,
+  createTransactionNotification 
+} from './notifications';
+
+
 
 // Define the background task name
 const SUBSCRIPTION_CHECK_TASK = 'subscription-check-task';
@@ -15,111 +23,165 @@ const SUBSCRIPTION_NOTIFICATION_CATEGORY = 'subscription-payment';
 const BUDGET_WARNING_CATEGORY = 'budget-warning';
 const BUDGET_EXCEEDED_CATEGORY = 'budget-exceeded';
 
-// Set notification handler
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// Set notification handler only if not in Expo Go
+if (!isExpoGo) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 // Define interactive notification actions
 export const setupNotificationCategories = async () => {
-  // Subscription notifications
-  await Notifications.setNotificationCategoryAsync(
-    SUBSCRIPTION_NOTIFICATION_CATEGORY,
-    [
-      {
-        identifier: 'PAY_NOW',
-        buttonTitle: 'Pay Now',
-        options: {
-          isDestructive: false,
-          isAuthenticationRequired: false,
-        },
-      },
-      {
-        identifier: 'PAUSE_SUBSCRIPTION',
-        buttonTitle: 'Pause',
-        options: {
-          isDestructive: true,
-          isAuthenticationRequired: false,
-        },
-      },
-    ],
-    {
-      intentIdentifiers: [],
-      hiddenPreviewsBodyPlaceholder: 'Subscription payment due',
-      customDismissAction: false,
-    }
-  );
+  // If running in Expo Go, return early
+  if (isExpoGo) {
+    console.warn('Notification categories are not available in Expo Go with SDK 53.');
+    return;
+  }
 
-  // Budget warning notifications
-  await Notifications.setNotificationCategoryAsync(
-    BUDGET_WARNING_CATEGORY,
-    [
-      {
-        identifier: 'VIEW_BUDGET',
-        buttonTitle: 'View Budget',
-        options: {
-          isDestructive: false,
-          isAuthenticationRequired: false,
+  try {
+    // Subscription notifications
+    await Notifications.setNotificationCategoryAsync(
+      SUBSCRIPTION_NOTIFICATION_CATEGORY,
+      [
+        {
+          identifier: 'PAY_NOW',
+          buttonTitle: 'Pay Now',
+          options: {
+            isDestructive: false,
+            isAuthenticationRequired: false,
+          },
         },
-      },
-      {
-        identifier: 'REMIND_LATER',
-        buttonTitle: 'Remind Later',
-        options: {
-          isDestructive: false,
-          isAuthenticationRequired: false,
+        {
+          identifier: 'PAUSE_SUBSCRIPTION',
+          buttonTitle: 'Pause',
+          options: {
+            isDestructive: true,
+            isAuthenticationRequired: false,
+          },
         },
-      },
-    ],
-    {
-      intentIdentifiers: [],
-      hiddenPreviewsBodyPlaceholder: 'Budget alert',
-      customDismissAction: false,
-    }
-  );
+      ],
+      {
+        intentIdentifiers: [],
+        hiddenPreviewsBodyPlaceholder: 'Subscription payment due',
+        customDismissAction: false,
+      }
+    );
 
-  // Budget exceeded notifications
-  await Notifications.setNotificationCategoryAsync(
-    BUDGET_EXCEEDED_CATEGORY,
-    [
-      {
-        identifier: 'VIEW_BUDGET',
-        buttonTitle: 'View Budget',
-        options: {
-          isDestructive: false,
-          isAuthenticationRequired: false,
+    // Budget warning notifications
+    await Notifications.setNotificationCategoryAsync(
+      BUDGET_WARNING_CATEGORY,
+      [
+        {
+          identifier: 'VIEW_BUDGET',
+          buttonTitle: 'View Budget',
+          options: {
+            isDestructive: false,
+            isAuthenticationRequired: false,
+          },
         },
-      },
-      {
-        identifier: 'ADJUST_BUDGET',
-        buttonTitle: 'Adjust Budget',
-        options: {
-          isDestructive: false,
-          isAuthenticationRequired: false,
+        {
+          identifier: 'REMIND_LATER',
+          buttonTitle: 'Remind Later',
+          options: {
+            isDestructive: false,
+            isAuthenticationRequired: false,
+          },
         },
-      },
-    ],
-    {
-      intentIdentifiers: [],
-      hiddenPreviewsBodyPlaceholder: 'Budget exceeded',
-      customDismissAction: false,
-    }
-  );
+      ],
+      {
+        intentIdentifiers: [],
+        hiddenPreviewsBodyPlaceholder: 'Budget alert',
+        customDismissAction: false,
+      }
+    );
+
+    // Budget exceeded notifications
+    await Notifications.setNotificationCategoryAsync(
+      BUDGET_EXCEEDED_CATEGORY,
+      [
+        {
+          identifier: 'VIEW_BUDGET',
+          buttonTitle: 'View Budget',
+          options: {
+            isDestructive: false,
+            isAuthenticationRequired: false,
+          },
+        },
+        {
+          identifier: 'ADJUST_BUDGET',
+          buttonTitle: 'Adjust Budget',
+          options: {
+            isDestructive: false,
+            isAuthenticationRequired: false,
+          },
+        },
+      ],
+      {
+        intentIdentifiers: [],
+        hiddenPreviewsBodyPlaceholder: 'Budget exceeded',
+        customDismissAction: false,
+      }
+    );
+  } catch (error) {
+    console.error('Failed to setup notification categories:', error);
+  }
 };
 
 // Request notification permissions
 export const requestNotificationPermissions = async () => {
-  const { status } = await Notifications.requestPermissionsAsync();
-  
-  if (status !== 'granted') {
-    throw new Error('Notification permissions not granted');
+  // If running in Expo Go, return early with a warning
+  if (isExpoGo) {
+    console.warn('Push notifications are not available in Expo Go with SDK 53. Use development build for full functionality.');
+    return 'unavailable';
   }
-  
-  return status;
+
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync({
+        ios: {
+          allowAlert: true,
+          allowBadge: true,
+          allowSound: true,
+          allowDisplayInCarPlay: true,
+          allowCriticalAlerts: true,
+          allowProvisional: false,
+          allowAnnouncements: true,
+        },
+        android: {
+          allowAlert: true,
+          allowBadge: true,
+          allowSound: true,
+        },
+      });
+      finalStatus = status;
+    }
+    
+    if (finalStatus !== 'granted') {
+      console.log('Failed to get push token for push notification!');
+      return false;
+    }
+    
+    // Get push token for debugging
+    try {
+      const token = await Notifications.getExpoPushTokenAsync();
+      console.log('Push token:', token.data);
+    } catch (tokenError) {
+      console.log('Could not get push token:', tokenError);
+    }
+    
+    return finalStatus;
+  } catch (error) {
+    console.error('Error requesting notification permissions:', error);
+    throw error;
+  }
 };
 
 // Schedule a subscription notification with interactive buttons
@@ -147,7 +209,7 @@ export const scheduleSubscriptionNotification = async (
       accountId: subscription.account_id,
       billingCycle: subscription.billing_cycle,
     },
-    sound: 'default',
+    sound: 'notification.wav',
   };
   
   await Notifications.scheduleNotificationAsync({
@@ -196,7 +258,7 @@ export const handleNotificationResponse = async (response: Notifications.Notific
           content: {
             title: '✅ Payment Processed',
             body: `Successfully paid $${amount.toFixed(2)} for ${subscriptionName}`,
-            sound: 'default',
+            sound: 'notification.wav',
           },
           trigger: null, // Show immediately
         });
@@ -210,7 +272,7 @@ export const handleNotificationResponse = async (response: Notifications.Notific
           content: {
             title: '⏸️ Subscription Paused',
             body: `${subscriptionName} has been paused and won't charge automatically`,
-            sound: 'default',
+            sound: 'notification.wav',
           },
           trigger: null, // Show immediately
         });
@@ -228,7 +290,7 @@ export const handleNotificationResponse = async (response: Notifications.Notific
           content: {
             title: '📊 Budget View',
             body: `Open the app to view your ${category} budget details`,
-            sound: 'default',
+            sound: 'notification.wav',
           },
           trigger: null,
         });
@@ -252,7 +314,7 @@ export const handleNotificationResponse = async (response: Notifications.Notific
           content: {
             title: '💡 Budget Adjustment',
             body: `Open the app to adjust your ${category} budget or review your spending`,
-            sound: 'default',
+            sound: 'notification.wav',
           },
           trigger: null,
         });
@@ -266,7 +328,7 @@ export const handleNotificationResponse = async (response: Notifications.Notific
       content: {
         title: '❌ Action Failed',
         body: 'Failed to process your request. Please try again in the app.',
-        sound: 'default',
+        sound: 'notification.wav',
       },
       trigger: null,
     });
@@ -371,10 +433,23 @@ export const sendBudgetNotification = async (
           remaining: budgetProgress.remaining,
           notificationType: type,
         },
-        sound: 'default',
+        sound: 'notification.wav',
       },
       trigger: null, // Show immediately
     });
+    
+    // Save to database notifications table
+    const { data, error: authError } = await supabase.auth.getUser();
+    if (!authError && data?.user) {
+      await createBudgetNotification({
+        userId: data.user.id,
+        budgetName: budgetProgress.category,
+        percentage: budgetProgress.percentage,
+        currentAmount: budgetProgress.spent,
+        budgetLimit: budgetProgress.budgeted,
+        budgetId: budgetProgress.category, // Using category as ID for now
+      });
+    }
     
     console.log(`Sent ${type} notification for ${budgetProgress.category} budget`);
   } catch (error) {
@@ -451,9 +526,19 @@ export const checkDueSubscriptionsAndNotify = async () => {
               accountId: subscription.account_id,
               billingCycle: subscription.billing_cycle,
             },
-            sound: 'default',
+            sound: 'notification.wav',
           },
           trigger: null, // Show immediately
+        });
+        
+        // Save to database notifications table
+        await createSubscriptionNotification({
+          userId: user.id,
+          subscriptionName: subscription.name,
+          amount: subscription.amount,
+          dueDate: subscription.next_payment_date,
+          subscriptionId: subscription.id,
+          isOverdue: false,
         });
         
         console.log(`Sent notification for subscription: ${subscription.name}`);
@@ -475,13 +560,23 @@ TaskManager.defineTask(SUBSCRIPTION_CHECK_TASK, async () => {
   }
 });
 
-// Register background task
+// Register background task with enhanced settings
 export const registerBackgroundTask = async () => {
+  // If running in Expo Go, return early with a warning
+  if (isExpoGo) {
+    console.warn('Background tasks and push notifications are not available in Expo Go with SDK 53. Use development build for full functionality.');
+    return { success: false, reason: 'expo-go-limitation' };
+  }
+
   try {
-    // Request permissions first
-    await requestNotificationPermissions();
+    // Request permissions first with enhanced settings
+    const permissionStatus = await requestNotificationPermissions();
     
-    // Setup notification categories
+    if (permissionStatus === 'unavailable') {
+      return { success: false, reason: 'permissions-unavailable' };
+    }
+    
+    // Setup notification categories for interactive buttons
     await setupNotificationCategories();
     
     // Register background fetch (for iOS)
@@ -489,18 +584,56 @@ export const registerBackgroundTask = async () => {
       try {
         const BackgroundFetch = await import('expo-background-fetch');
         await BackgroundFetch.default.registerTaskAsync(SUBSCRIPTION_CHECK_TASK, {
-          minimumInterval: 24 * 60 * 60 * 1000, // 24 hours
+          minimumInterval: 12 * 60 * 60 * 1000, // 12 hours (more frequent)
           stopOnTerminate: false,
           startOnBoot: true,
         });
+        console.log('iOS Background fetch registered for subscriptions and budgets');
       } catch (error) {
-        console.log('Background fetch not available:', error);
+        console.log('Background fetch not available on iOS:', error);
       }
     }
     
-    console.log('Background task registered successfully');
+    // For Android, schedule recurring notifications as backup
+    if (Platform.OS === 'android') {
+      try {
+        // Schedule daily checks for the next 30 days
+        for (let days = 1; days <= 30; days++) {
+          const futureDate = new Date();
+          futureDate.setDate(futureDate.getDate() + days);
+          futureDate.setHours(9, 0, 0, 0); // 9 AM daily check
+          
+          await Notifications.scheduleNotificationAsync({
+            identifier: `daily-check-${days}`,
+            content: {
+              title: 'Daily Check',
+              body: 'Checking subscriptions and budgets...',
+              data: { type: 'daily-check' },
+            },
+            trigger: {
+              date: futureDate,
+            },
+          });
+        }
+        console.log('Android scheduled daily checks for 30 days');
+      } catch (error) {
+        console.log('Failed to schedule Android daily checks:', error);
+      }
+    }
+    
+    // Schedule budget check notifications
+    await scheduleBudgetCheckNotifications();
+    
+    // Immediate check when app starts
+    setTimeout(() => {
+      checkAllNotifications();
+    }, 5000); // Check after 5 seconds
+    
+    console.log('Background task and scheduling setup completed');
+    return { success: true };
   } catch (error) {
     console.error('Failed to register background task:', error);
+    return { success: false };
   }
 };
 
@@ -530,6 +663,50 @@ export const cancelAllSubscriptionNotifications = async () => {
     if (notification.identifier.startsWith('subscription-')) {
       await Notifications.cancelScheduledNotificationAsync(notification.identifier);
     }
+  }
+};
+
+// Schedule budget check notifications for the next 7 days
+export const scheduleBudgetCheckNotifications = async () => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Cancel existing budget check notifications
+    const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+    for (const notification of scheduledNotifications) {
+      if (notification.identifier.startsWith('budget-check-')) {
+        await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+      }
+    }
+
+    // Schedule budget checks every day at 8 PM for the next 7 days
+    for (let days = 1; days <= 7; days++) {
+      const checkDate = new Date();
+      checkDate.setDate(checkDate.getDate() + days);
+      checkDate.setHours(20, 0, 0, 0); // 8 PM
+
+      await Notifications.scheduleNotificationAsync({
+        identifier: `budget-check-${days}`,
+        content: {
+          title: 'Budget Check',
+          body: 'Checking your budget progress for today...',
+          data: { 
+            type: 'budget-check',
+            userId: user.id,
+            scheduledDate: checkDate.toISOString()
+          },
+          sound: 'notification.wav',
+        },
+        trigger: {
+          date: checkDate,
+        },
+      });
+    }
+
+    console.log('Scheduled budget check notifications for the next 7 days');
+  } catch (error) {
+    console.error('Error scheduling budget check notifications:', error);
   }
 };
 
@@ -576,4 +753,5 @@ export default {
   checkAllNotifications,
   cancelAllSubscriptionNotifications,
   scheduleAllUpcomingNotifications,
+  scheduleBudgetCheckNotifications,
 };

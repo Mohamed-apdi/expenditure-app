@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "Money Manager",
-    "slug": "money-manager",
+    "name": "Qoondeeye",
+    "slug": "qoondeeye",
     "owner": "mohamed_99",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "money-manager",
+    "scheme": "qoondeeye",
     "platforms": ["ios", "android", "web"],
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -23,7 +23,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "icon": "./assets/android/mipmap-xxxhdpi/Qoondeeye.png"
     },
     "web": {
       "bundler": "metro",
@@ -36,7 +37,9 @@
       [
         "expo-notifications",
         {
-          "color": "#ffffff"
+          "color": "#ffffff",
+          "icon": "./assets/android/mipmap-mdpi/Qoondeeye.png",
+          "sounds": ["./assets/sounds/notification.wav"]
         }
       ]
     ],

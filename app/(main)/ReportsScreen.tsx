@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -47,6 +47,7 @@ const { width: screenWidth } = Dimensions.get("window");
 
 export default function ReportsScreen() {
   const { selectedAccount, accounts } = useAccount();
+  
   // Set default date range to today for both dates
   const getDefaultDateRange = () => {
     const today = new Date();
@@ -59,14 +60,12 @@ export default function ReportsScreen() {
   const [dateRange, setDateRange] = useState(getDefaultDateRange());
   const [pendingDateRange, setPendingDateRange] = useState(getDefaultDateRange());
   const [datePickerVisible, setDatePickerVisible] = useState(false);
-  const [datePickerMode, setDatePickerMode] = useState<"start" | "end">(
-    "start"
-  );
+  const [datePickerMode, setDatePickerMode] = useState<"start" | "end">("start");
   const [loading, setLoading] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Report data states
-  const [transactionData, setTransactionData] =
-    useState<TransactionReport | null>(null);
+  const [transactionData, setTransactionData] = useState<TransactionReport | null>(null);
   
   // Pie chart interaction states
   const [selectedSegment, setSelectedSegment] = useState<{
@@ -77,7 +76,85 @@ export default function ReportsScreen() {
   } | null>(null);
   const [segmentModalVisible, setSegmentModalVisible] = useState(false);
 
+  // Memoized data processing functions
+  const processedChartData = useMemo(() => {
+    if (!transactionData) return null;
 
+    const daysDiff = Math.ceil(
+      (dateRange.endDate.getTime() - dateRange.startDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    
+    let chartData = transactionData.daily_trends;
+    let dateFormatter: Intl.DateTimeFormatOptions;
+    let chartTitle = "Daily Spending Trends";
+    
+    if (daysDiff <= 14) {
+      chartData = transactionData.daily_trends;
+      dateFormatter = { month: "short", day: "numeric" };
+      chartTitle = "Daily Spending Trends";
+    } else if (daysDiff <= 60) {
+      const weeklyData = aggregateByWeek(transactionData.daily_trends);
+      chartData = weeklyData;
+      dateFormatter = { month: "short", day: "numeric" };
+      chartTitle = "Weekly Spending Trends";
+    } else {
+      const monthlyData = aggregateByMonth(transactionData.daily_trends);
+      chartData = monthlyData;
+      dateFormatter = { month: "short", year: "2-digit" };
+      chartTitle = "Monthly Spending Trends";
+    }
+
+    // Limit chart data for better readability (max 30 data points)
+    const maxDataPoints = 30;
+    let displayData = chartData;
+    let showingLimited = false;
+    
+    if (chartData.length > maxDataPoints) {
+      displayData = chartData.slice(-maxDataPoints);
+      showingLimited = true;
+    }
+
+    return {
+      chartData,
+      displayData,
+      dateFormatter,
+      chartTitle,
+      showingLimited,
+      maxDataPoints
+    };
+  }, [transactionData, dateRange]);
+
+  // Memoized pie chart data
+  const pieChartData = useMemo(() => {
+    if (!transactionData) return [];
+    
+    return Object.entries(transactionData.category_breakdown).map(
+      ([category, data]) => ({
+        name: category,
+        population: Math.abs(data.amount),
+        color: getCategoryColor(category),
+        legendFontColor: "#64748b",
+        legendFontSize: 12,
+      })
+    );
+  }, [transactionData]);
+
+  // Memoized bar chart data
+  const barChartData = useMemo(() => {
+    if (!processedChartData) return null;
+
+    return {
+      labels: processedChartData.displayData.map((item) =>
+        new Date(item.date).toLocaleDateString("en-US", processedChartData.dateFormatter)
+      ),
+      datasets: [
+        {
+          data: processedChartData.displayData.map((item) => Math.abs(item.amount)),
+          colors: processedChartData.displayData.map((_, index) => () => getColorByIndex(index)),
+        },
+      ],
+    };
+  }, [processedChartData]);
 
   const fetchTransactionReports = useCallback(async () => {
     if (!selectedAccount) {
@@ -95,13 +172,16 @@ export default function ReportsScreen() {
         "to",
         dateRange.endDate.toISOString().split("T")[0]
       );
+      
       const data = await getTransactionReports(
         selectedAccount?.id,
         dateRange.startDate.toISOString().split("T")[0],
         dateRange.endDate.toISOString().split("T")[0]
       );
+      
       console.log("Transaction reports data received:", data);
       setTransactionData(data);
+      setIsInitialLoad(false);
     } catch (error) {
       console.error("Error fetching transaction reports:", error);
       const errorMessage =
@@ -115,6 +195,68 @@ export default function ReportsScreen() {
       setLoading(false);
     }
   }, [selectedAccount, dateRange.startDate, dateRange.endDate]);
+
+  // Optimized initial data loading - only test API once per session
+  useEffect(() => {
+    if (selectedAccount && isInitialLoad) {
+      console.log("Loading initial data with default dates...");
+      fetchTransactionReports();
+    }
+  }, [selectedAccount, isInitialLoad, fetchTransactionReports]);
+
+  // Refresh transaction data only when date range changes (triggered by submit)
+  useEffect(() => {
+    if (selectedAccount && dateRange && !isInitialLoad) {
+      console.log("Date range changed via submit, refreshing data...");
+      fetchTransactionReports();
+    }
+  }, [dateRange, selectedAccount, fetchTransactionReports, isInitialLoad]);
+
+  // Helper functions for data aggregation (moved outside component to prevent recreation)
+  const aggregateByWeek = (dailyData: any[]) => {
+    const weeklyMap = new Map();
+    
+    dailyData.forEach(item => {
+      const date = new Date(item.date);
+      // Get start of week (Monday)
+      const startOfWeek = new Date(date);
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+      startOfWeek.setDate(diff);
+      startOfWeek.setHours(0, 0, 0, 0);
+      
+      const weekKey = startOfWeek.toISOString().split('T')[0];
+      
+      if (!weeklyMap.has(weekKey)) {
+        weeklyMap.set(weekKey, { date: weekKey, amount: 0 });
+      }
+      
+      weeklyMap.get(weekKey).amount += item.amount;
+    });
+    
+    return Array.from(weeklyMap.values()).sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+  };
+
+  const aggregateByMonth = (dailyData: any[]) => {
+    const monthlyMap = new Map();
+    
+    dailyData.forEach(item => {
+      const date = new Date(item.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
+      
+      if (!monthlyMap.has(monthKey)) {
+        monthlyMap.set(monthKey, { date: monthKey, amount: 0 });
+      }
+      
+      monthlyMap.get(monthKey).amount += item.amount;
+    });
+    
+    return Array.from(monthlyMap.values()).sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+  };
 
   const handleDownload = async (format: "csv" | "pdf") => {
     try {
@@ -263,31 +405,6 @@ export default function ReportsScreen() {
     setDatePickerVisible(true);
   }, []);
 
-  useEffect(() => {
-    // Test API connectivity first and load initial data when component mounts or account changes
-    testAPIConnectivity().then((isConnected) => {
-      console.log("API connectivity test result:", isConnected);
-      if (isConnected && selectedAccount) {
-        // Load initial data for transactions tab with default dates
-        console.log("Loading initial data with default dates...");
-        fetchTransactionReports();
-      } else if (!isConnected) {
-        Alert.alert(
-          "Connection Error",
-          "Unable to connect to the API server. Please check your internet connection and try again."
-        );
-      }
-    });
-  }, [selectedAccount, fetchTransactionReports]);
-
-  // Refresh transaction data only when date range changes (triggered by submit)
-  useEffect(() => {
-    if (selectedAccount && dateRange) {
-      console.log("Date range changed via submit, refreshing data...");
-      fetchTransactionReports();
-    }
-  }, [dateRange, selectedAccount, fetchTransactionReports]);
-
   // Function to handle pie chart segment selection
   const handleSegmentPress = (segment: any) => {
     const total = Object.values(transactionData?.category_breakdown || {}).reduce(
@@ -302,52 +419,6 @@ export default function ReportsScreen() {
       percentage: percentage,
     });
     setSegmentModalVisible(true);
-  };
-
-  // Helper functions for data aggregation
-  const aggregateByWeek = (dailyData: any[]) => {
-    const weeklyMap = new Map();
-    
-    dailyData.forEach(item => {
-      const date = new Date(item.date);
-      // Get start of week (Monday)
-      const startOfWeek = new Date(date);
-      const day = date.getDay();
-      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-      startOfWeek.setDate(diff);
-      startOfWeek.setHours(0, 0, 0, 0);
-      
-      const weekKey = startOfWeek.toISOString().split('T')[0];
-      
-      if (!weeklyMap.has(weekKey)) {
-        weeklyMap.set(weekKey, { date: weekKey, amount: 0 });
-      }
-      
-      weeklyMap.get(weekKey).amount += item.amount;
-    });
-    
-    return Array.from(weeklyMap.values()).sort((a, b) => 
-      new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-  };
-
-  const aggregateByMonth = (dailyData: any[]) => {
-    const monthlyMap = new Map();
-    
-    dailyData.forEach(item => {
-      const date = new Date(item.date);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
-      
-      if (!monthlyMap.has(monthKey)) {
-        monthlyMap.set(monthKey, { date: monthKey, amount: 0 });
-      }
-      
-      monthlyMap.get(monthKey).amount += item.amount;
-    });
-    
-    return Array.from(monthlyMap.values()).sort((a, b) => 
-      new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
   };
 
   const renderTransactionTab = () => {
@@ -376,65 +447,13 @@ export default function ReportsScreen() {
       );
     }
 
-    const pieChartData = Object.entries(transactionData.category_breakdown).map(
-      ([category, data]) => ({
-        name: category,
-        population: Math.abs(data.amount),
-        color: getCategoryColor(category),
-        legendFontColor: "#64748b",
-        legendFontSize: 12,
-      })
-    );
-
-    // Calculate appropriate data display based on date range
-    const daysDiff = Math.ceil(
-      (dateRange.endDate.getTime() - dateRange.startDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
-    
-    let chartData = transactionData.daily_trends;
-    let dateFormatter: Intl.DateTimeFormatOptions;
-    let chartTitle = "Daily Spending Trends";
-    
-    if (daysDiff <= 14) {
-      // Show daily data for 2 weeks or less
-      chartData = transactionData.daily_trends;
-      dateFormatter = { month: "short", day: "numeric" };
-      chartTitle = "Daily Spending Trends";
-    } else if (daysDiff <= 60) {
-      // Show weekly aggregation for 2 months or less
-      const weeklyData = aggregateByWeek(transactionData.daily_trends);
-      chartData = weeklyData;
-      dateFormatter = { month: "short", day: "numeric" };
-      chartTitle = "Weekly Spending Trends";
-    } else {
-      // Show monthly aggregation for longer periods
-      const monthlyData = aggregateByMonth(transactionData.daily_trends);
-      chartData = monthlyData;
-      dateFormatter = { month: "short", year: "2-digit" };
-      chartTitle = "Monthly Spending Trends";
+    if (!processedChartData || !barChartData) {
+      return (
+        <View className="flex-1 justify-center items-center p-8">
+          <Text className="text-gray-500">Processing chart data...</Text>
+        </View>
+      );
     }
-
-    // Limit chart data for better readability (max 30 data points)
-    const maxDataPoints = 30;
-    let displayData = chartData;
-    let showingLimited = false;
-    
-    if (chartData.length > maxDataPoints) {
-      displayData = chartData.slice(-maxDataPoints);
-      showingLimited = true;
-    }
-
-    const barChartData = {
-      labels: displayData.map((item) =>
-        new Date(item.date).toLocaleDateString("en-US", dateFormatter)
-      ),
-      datasets: [
-        {
-          data: displayData.map((item) => Math.abs(item.amount)),
-          colors: displayData.map((_, index) => () => getColorByIndex(index)),
-        },
-      ],
-    };
 
     return (
       <ScrollView className="flex-1">
@@ -590,7 +609,7 @@ export default function ReportsScreen() {
         <View className="mb-6 bg-white p-4 rounded-xl shadow-sm">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="font-bold text-lg text-gray-800">
-              {chartTitle}
+              {processedChartData.chartTitle}
             </Text>
             <BarChart2 size={20} color="#6366f1" />
           </View>
@@ -629,9 +648,9 @@ export default function ReportsScreen() {
             </Text>
           )}
           
-          {showingLimited && (
+          {processedChartData.showingLimited && (
             <Text className="text-xs text-gray-400 text-center mt-2">
-              Showing most recent {maxDataPoints} data points of {chartData.length} total
+              Showing most recent {processedChartData.maxDataPoints} data points of {processedChartData.chartData.length} total
             </Text>
           )}
         </View>
@@ -845,7 +864,7 @@ export default function ReportsScreen() {
                       <Text className="text-white text-center font-bold">
                         Confirm
                       </Text>
-                    </TouchableOpacity>
+                      </TouchableOpacity>
                   </View>
                 </View>
               </Modal>
