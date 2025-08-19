@@ -18,6 +18,8 @@ import { setAndroidNavigationBar } from "~/lib/android-navigation-bar";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import Toast from "react-native-toast-message";
 import { AccountProvider } from "~/lib/AccountContext";
+import * as Notifications from 'expo-notifications';
+import notificationService from "~/lib/notificationService";
 
 const LIGHT_THEME: Theme = {
   ...DefaultTheme,
@@ -42,6 +44,24 @@ const usePlatformSpecificSetup = Platform.select({
 export default function RootLayout() {
   usePlatformSpecificSetup();
   const { isDarkColorScheme } = useColorScheme();
+
+  // Initialize notifications globally
+  React.useEffect(() => {
+    const initializeNotifications = async () => {
+      try {
+        // Set up notification response listener globally
+        const subscription = Notifications.addNotificationResponseReceivedListener(
+          notificationService.handleNotificationResponse
+        );
+
+        return () => subscription.remove();
+      } catch (error) {
+        console.error('Failed to initialize global notifications:', error);
+      }
+    };
+
+    initializeNotifications();
+  }, []);
 
   return (
     <AccountProvider>
