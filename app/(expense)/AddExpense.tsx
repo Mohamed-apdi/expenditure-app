@@ -55,6 +55,12 @@ import {
   Sofa,
   Wrench,
   Receipt,
+  ArrowRight,
+  ArrowUpDown,
+  Copy,
+  Eye,
+  EyeOff,
+  Check,
 } from "lucide-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { supabase } from "~/lib/supabase";
@@ -65,7 +71,7 @@ import { addTransaction } from "~/lib/transactions";
 import { addTransfer } from "~/lib/transfers";
 import { addSubscription } from "~/lib/subscriptions";
 import type { Account } from "~/lib/accounts";
-import TransferScreen from "../components/TransferScreen";
+import notificationService from "~/lib/notificationService";
 
 const ENTRY_TABS = [
   { id: "Income", label: "Income" },
@@ -391,6 +397,16 @@ export default function AddExpenseScreen() {
         } catch (subscriptionError) {
           console.error("Error auto-creating subscription:", subscriptionError);
           // Don't fail the main operation if subscription creation fails
+        }
+      }
+
+      // Check budget thresholds after adding an expense
+      if (entryType === "Expense" && selectedCategory?.name) {
+        try {
+          await notificationService.checkBudgetsAndNotify();
+        } catch (error) {
+          console.error("Error checking budget notifications:", error);
+          // Don't fail the main operation if budget checking fails
         }
       }
 
@@ -1901,95 +1917,594 @@ export default function AddExpenseScreen() {
           )}
 
           {entryType === "Transfer" && (
-            <View className="space-y-4">
-              {/* Transfer Amount */}
-              <View>
-                <Text className="text-sm font-medium text-gray-700 mb-2">
-                  Transfer Amount
+            <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
+              {/* Transfer Header */}
+              <View style={{ marginBottom: 32 }}>
+                <Text
+                  style={{
+                    fontSize: 24,
+                    fontWeight: "700",
+                    color: theme.text,
+                    textAlign: "center",
+                    marginBottom: 8,
+                  }}
+                >
+                  Transfer Money
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    color: theme.textSecondary,
+                    textAlign: "center",
+                  }}
+                >
+                  Move funds between your accounts
+                </Text>
+              </View>
+
+              {/* Amount Input Section */}
+              <View
+                style={{
+                  backgroundColor: theme.cardBackground,
+                  borderRadius: 16,
+                  padding: 24,
+                  marginBottom: 24,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: "600",
+                    color: theme.text,
+                    marginBottom: 16,
+                    textAlign: "center",
+                  }}
+                >
+                  How much do you want to transfer?
+                </Text>
+                
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginBottom: 20,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 40,
+                      fontWeight: "300",
+                      color: theme.primary,
+                      marginRight: 8,
+                    }}
+                  >
+                    $
                 </Text>
                 <TextInput
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg text-lg"
+                    style={{
+                      fontSize: 40,
+                      fontWeight: "700",
+                      color: theme.text,
+                      textAlign: "center",
+                      minWidth: 120,
+                      borderBottomWidth: 2,
+                      borderBottomColor: theme.primary,
+                      paddingVertical: 8,
+                    }}
                   placeholder="0.00"
+                    placeholderTextColor={theme.placeholder}
                   value={transferAmount}
                   onChangeText={setTransferAmount}
                   keyboardType="numeric"
-                  style={{ color: theme.text }}
                 />
               </View>
 
-              {/* From Account */}
-              <View>
-                <Text className="text-sm font-medium text-gray-700 mb-2">
-                  From Account
+                {/* Quick Amount Buttons */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-around",
+                    marginTop: 16,
+                  }}
+                >
+                  {[50, 100, 200, 500].map((amount) => (
+                    <TouchableOpacity
+                      key={amount}
+                      style={{
+                        backgroundColor: theme.inputBackground,
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
+                        borderRadius: 20,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                      }}
+                      onPress={() => setTransferAmount(amount.toString())}
+                    >
+                      <Text
+                        style={{
+                          color: theme.text,
+                          fontWeight: "500",
+                          fontSize: 14,
+                        }}
+                      >
+                        ${amount}
                 </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Transfer Flow Visual */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginBottom: 24,
+                }}
+              >
+                {/* From Account Card */}
                 <TouchableOpacity
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg flex-row justify-between items-center"
+                  style={{
+                    flex: 1,
+                    backgroundColor: fromAccount ? theme.primary + "10" : theme.cardBackground,
+                    borderRadius: 12,
+                    padding: 16,
+                    borderWidth: 2,
+                    borderColor: fromAccount ? theme.primary : theme.border,
+                    marginRight: 12,
+                  }}
                   onPress={() => {
-                    // Show account selection modal for from account
                     setShowAccountSelectionModal(true);
                     setAccountSelectionType("from");
                   }}
                 >
-                  <Text className="text-lg" style={{ color: theme.text }}>
+                  <View style={{ alignItems: "center" }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "600",
+                        color: theme.textSecondary,
+                        marginBottom: 8,
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      FROM
+                    </Text>
+                    
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginBottom: 8,
+                      }}
+                    >
+                      <View
+                        style={{
+                          backgroundColor: fromAccount ? theme.primary : theme.iconMuted,
+                          borderRadius: 20,
+                          padding: 8,
+                          marginRight: 8,
+                        }}
+                      >
+                        <Wallet size={16} color="white" />
+                      </View>
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "600",
+                          color: theme.text,
+                          textAlign: "center",
+                          flex: 1,
+                        }}
+                        numberOfLines={1}
+                      >
                     {fromAccount ? fromAccount.name : "Select Account"}
                   </Text>
-                  <ChevronDown size={20} color={theme.iconMuted} />
-                </TouchableOpacity>
+                    </View>
+                    
                 {fromAccount && (
-                  <Text className="text-sm text-gray-500 mt-1">
-                    Balance: ${fromAccount.amount.toFixed(2)}
+                      <View style={{ alignItems: "center" }}>
+                        <Text
+                          style={{
+                            fontSize: 18,
+                            fontWeight: "700",
+                            color: theme.primary,
+                          }}
+                        >
+                          ${fromAccount.amount.toFixed(2)}
                   </Text>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: theme.textSecondary,
+                          }}
+                        >
+                          Available
+                        </Text>
+                      </View>
                 )}
               </View>
+                </TouchableOpacity>
 
-              {/* To Account */}
-              <View>
-                <Text className="text-sm font-medium text-gray-700 mb-2">
-                  To Account
-                </Text>
+                {/* Arrow */}
+                <View
+                  style={{
+                    backgroundColor: theme.primary,
+                    borderRadius: 25,
+                    padding: 12,
+                    marginHorizontal: 4,
+                  }}
+                >
+                  <ArrowRight size={20} color="white" />
+                </View>
+
+                {/* To Account Card */}
                 <TouchableOpacity
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg flex-row justify-between items-center"
+                  style={{
+                    flex: 1,
+                    backgroundColor: toAccount ? theme.success + "10" : theme.cardBackground,
+                    borderRadius: 12,
+                    padding: 16,
+                    borderWidth: 2,
+                    borderColor: toAccount ? theme.success : theme.border,
+                    marginLeft: 12,
+                  }}
                   onPress={() => {
-                    // Show account selection modal for to account
                     setShowAccountSelectionModal(true);
                     setAccountSelectionType("to");
                   }}
                 >
-                  <Text className="text-lg" style={{ color: theme.text }}>
+                  <View style={{ alignItems: "center" }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: "600",
+                        color: theme.textSecondary,
+                        marginBottom: 8,
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                      }}
+                    >
+                      TO
+                    </Text>
+                    
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginBottom: 8,
+                      }}
+                    >
+                      <View
+                        style={{
+                          backgroundColor: toAccount ? theme.success : theme.iconMuted,
+                          borderRadius: 20,
+                          padding: 8,
+                          marginRight: 8,
+                        }}
+                      >
+                        <Wallet size={16} color="white" />
+                      </View>
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: "600",
+                          color: theme.text,
+                          textAlign: "center",
+                          flex: 1,
+                        }}
+                        numberOfLines={1}
+                      >
                     {toAccount ? toAccount.name : "Select Account"}
                   </Text>
-                  <ChevronDown size={20} color={theme.iconMuted} />
-                </TouchableOpacity>
+                    </View>
+                    
                 {toAccount && (
-                  <Text className="text-sm text-gray-500 mt-1">
-                    Balance: ${toAccount.amount.toFixed(2)}
+                      <View style={{ alignItems: "center" }}>
+                        <Text
+                          style={{
+                            fontSize: 18,
+                            fontWeight: "700",
+                            color: theme.success,
+                          }}
+                        >
+                          ${toAccount.amount.toFixed(2)}
                   </Text>
-                )}
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: theme.textSecondary,
+                          }}
+                        >
+                          Current
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
               </View>
+
+              {/* Swap Accounts Button */}
+              {fromAccount && toAccount && (
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: theme.inputBackground,
+                    borderRadius: 25,
+                    paddingVertical: 12,
+                    paddingHorizontal: 20,
+                    marginBottom: 24,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                  }}
+                  onPress={() => {
+                    const temp = fromAccount;
+                    setFromAccount(toAccount);
+                    setToAccount(temp);
+                  }}
+                >
+                  <ArrowUpDown size={16} color={theme.primary} />
+                  <Text
+                    style={{
+                      marginLeft: 8,
+                      color: theme.primary,
+                      fontWeight: "600",
+                      fontSize: 14,
+                    }}
+                  >
+                    Swap Accounts
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Transfer Preview */}
+              {fromAccount && toAccount && transferAmount && Number.parseFloat(transferAmount) > 0 && (
+                <View
+                  style={{
+                    backgroundColor: theme.cardBackground,
+                    borderRadius: 12,
+                    padding: 20,
+                    marginBottom: 24,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "600",
+                      color: theme.text,
+                      marginBottom: 16,
+                      textAlign: "center",
+                    }}
+                  >
+                    Transfer Preview
+                  </Text>
+
+                  <View style={{ marginBottom: 12 }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginBottom: 8,
+                      }}
+                    >
+                      <Text style={{ color: theme.textSecondary }}>From</Text>
+                      <Text
+                        style={{
+                          color: theme.text,
+                          fontWeight: "500",
+                        }}
+                      >
+                        {fromAccount.name}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginBottom: 8,
+                      }}
+                    >
+                      <Text style={{ color: theme.textSecondary }}>To</Text>
+                      <Text
+                        style={{
+                          color: theme.text,
+                          fontWeight: "500",
+                        }}
+                      >
+                        {toAccount.name}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginBottom: 8,
+                      }}
+                    >
+                      <Text style={{ color: theme.textSecondary }}>Amount</Text>
+                      <Text
+                        style={{
+                          color: theme.primary,
+                          fontWeight: "700",
+                          fontSize: 16,
+                        }}
+                      >
+                        ${Number.parseFloat(transferAmount).toFixed(2)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View
+                    style={{
+                      borderTopWidth: 1,
+                      borderTopColor: theme.border,
+                      paddingTop: 12,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginBottom: 4,
+                      }}
+                    >
+                      <Text style={{ color: theme.textSecondary, fontSize: 12 }}>
+                        {fromAccount.name} new balance
+                      </Text>
+                      <Text
+                        style={{
+                          color: theme.text,
+                          fontWeight: "500",
+                          fontSize: 12,
+                        }}
+                      >
+                        ${(fromAccount.amount - Number.parseFloat(transferAmount)).toFixed(2)}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <Text style={{ color: theme.textSecondary, fontSize: 12 }}>
+                        {toAccount.name} new balance
+                      </Text>
+                      <Text
+                        style={{
+                          color: theme.success,
+                          fontWeight: "500",
+                          fontSize: 12,
+                        }}
+                      >
+                        ${(toAccount.amount + Number.parseFloat(transferAmount)).toFixed(2)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
 
               {/* Transfer Button */}
               <TouchableOpacity
-                className={`w-full py-4 rounded-lg ${
+                style={{
+                  backgroundColor:
                   fromAccount &&
                   toAccount &&
                   transferAmount &&
-                  Number.parseFloat(transferAmount) > 0
-                    ? "bg-blue-600"
-                    : "bg-gray-300"
-                }`}
+                    Number.parseFloat(transferAmount) > 0 &&
+                    Number.parseFloat(transferAmount) <= fromAccount.amount
+                      ? theme.primary
+                      : theme.border,
+                  borderRadius: 16,
+                  paddingVertical: 16,
+                  alignItems: "center",
+                  shadowColor: theme.primary,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 8,
+                }}
                 onPress={handleTransfer}
                 disabled={
                   !fromAccount ||
                   !toAccount ||
                   !transferAmount ||
                   Number.parseFloat(transferAmount) <= 0 ||
+                  Number.parseFloat(transferAmount) > fromAccount.amount ||
                   isSubmitting
                 }
               >
-                <Text className="text-white text-center font-semibold text-lg">
-                  {isSubmitting ? "Processing..." : "Transfer"}
+                {isSubmitting ? (
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <ActivityIndicator color="white" size="small" />
+                    <Text
+                      style={{
+                        color: "white",
+                        fontSize: 18,
+                        fontWeight: "600",
+                        marginLeft: 12,
+                      }}
+                    >
+                      Processing Transfer...
                 </Text>
+                  </View>
+                ) : (
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <ArrowRight size={20} color="white" />
+                    <Text
+                      style={{
+                        color: "white",
+                        fontSize: 18,
+                        fontWeight: "600",
+                        marginLeft: 8,
+                      }}
+                    >
+                      Complete Transfer
+                    </Text>
+                  </View>
+                )}
               </TouchableOpacity>
+
+              {/* Transfer Info */}
+              {transferAmount && Number.parseFloat(transferAmount) > 0 && fromAccount && (
+                <View style={{ marginTop: 16, alignItems: "center" }}>
+                  {Number.parseFloat(transferAmount) > fromAccount.amount ? (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: theme.error + "20",
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 20,
+                      }}
+                    >
+                      <X size={16} color={theme.error} />
+                      <Text
+                        style={{
+                          color: theme.error,
+                          fontSize: 14,
+                          marginLeft: 6,
+                          fontWeight: "500",
+                        }}
+                      >
+                        Insufficient funds
+                      </Text>
+                    </View>
+                  ) : (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: theme.success + "20",
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 20,
+                      }}
+                    >
+                      <Check size={16} color={theme.success} />
+                      <Text
+                        style={{
+                          color: theme.success,
+                          fontSize: 14,
+                          marginLeft: 6,
+                          fontWeight: "500",
+                        }}
+                      >
+                        Transfer ready
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
           )}
 

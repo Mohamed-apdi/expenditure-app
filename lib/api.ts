@@ -113,18 +113,87 @@ export const downloadReport = async (
   return apiCall(`/reports/download/${reportType}`, params);
 };
 
+export const generateLocalCSVReport = async (
+  reportType: string,
+  data: any,
+  dateRange?: { startDate: string; endDate: string }
+): Promise<string> => {
+  const { generateCSVReport } = await import('~/lib/csvGenerator');
+  
+  // Create CSV data structure
+  const csvData = {
+    title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`,
+    dateRange: dateRange ? `${formatDate(dateRange.startDate)} - ${formatDate(dateRange.endDate)}` : '',
+    summary: [] as Array<{ label: string; value: string }>,
+    tables: [] as Array<{ title: string; headers: string[]; rows: string[][] }>,
+  };
+
+  // Add summary data
+  if (data.summary) {
+    Object.entries(data.summary).forEach(([key, value]: [string, any]) => {
+      if (typeof value === 'number') {
+        csvData.summary.push({
+          label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          value: key.includes('amount') || key.includes('balance') || key.includes('cost') || key.includes('saved') || key.includes('target') 
+            ? formatCurrency(value) 
+            : key.includes('percentage') || key.includes('progress')
+            ? formatPercentage(value)
+            : value.toString()
+        });
+      } else {
+        csvData.summary.push({
+          label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          value: value.toString()
+        });
+      }
+    });
+  }
+
+  // Generate tables based on report type
+  if (reportType === 'transactions') {
+    csvData.tables.push({
+      title: 'Category Breakdown',
+      headers: ['Category', 'Amount', 'Percentage', 'Count'],
+      rows: Object.entries(data.category_breakdown).map(([category, categoryData]: [string, any]) => [
+        category,
+        Math.abs(categoryData.amount).toString(),
+        categoryData.percentage.toString(),
+        categoryData.count.toString()
+      ])
+    });
+
+    // Add daily trends table if available
+    if (data.daily_trends && data.daily_trends.length > 0) {
+      csvData.tables.push({
+        title: 'Daily Spending Trends',
+        headers: ['Date', 'Amount'],
+        rows: data.daily_trends.map((trend: any) => [
+          trend.date,
+          Math.abs(trend.amount).toString()
+        ])
+      });
+    }
+  }
+
+  // Generate the CSV and return the file URI
+  const fileUri = await generateCSVReport(csvData);
+  return fileUri;
+};
+
 export const generateLocalPDFReport = async (
   reportType: string,
   data: any,
   dateRange?: { startDate: string; endDate: string }
 ): Promise<string> => {
-  const { sharePDF } = await import('~/lib/pdfGenerator');
+  const { generatePDFReport } = await import('~/lib/pdfGenerator');
   
   // Create PDF data structure
   const pdfData = {
     title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`,
     subtitle: dateRange ? `${formatDate(dateRange.startDate)} - ${formatDate(dateRange.endDate)}` : '',
+    dateRange: dateRange ? `${formatDate(dateRange.startDate)} - ${formatDate(dateRange.endDate)}` : '',
     summary: [] as Array<{ label: string; value: string }>,
+    charts: [] as any[],
     tables: [] as Array<{ title: string; headers: string[]; rows: string[][] }>,
   };
 
@@ -153,16 +222,31 @@ export const generateLocalPDFReport = async (
   if (reportType === 'transactions') {
     pdfData.tables.push({
       title: 'Category Breakdown',
-      headers: ['Category', 'Amount', 'Percentage'],
-      rows: Object.entries(data.category_breakdown).map(([category, data]: [string, any]) => [
+      headers: ['Category', 'Amount', 'Percentage', 'Count'],
+      rows: Object.entries(data.category_breakdown).map(([category, categoryData]: [string, any]) => [
         category,
-        formatCurrency(data.amount),
-        formatPercentage(data.percentage)
+        formatCurrency(Math.abs(categoryData.amount)),
+        formatPercentage(categoryData.percentage),
+        categoryData.count.toString()
       ])
     });
+
+    // Add daily trends table if available
+    if (data.daily_trends && data.daily_trends.length > 0) {
+      pdfData.tables.push({
+        title: 'Daily Spending Trends',
+        headers: ['Date', 'Amount'],
+        rows: data.daily_trends.slice(-15).map((trend: any) => [
+          formatDate(trend.date),
+          formatCurrency(Math.abs(trend.amount))
+        ])
+      });
+    }
   }
 
-  return sharePDF(pdfData);
+  // Generate the PDF and return the file URI
+  const fileUri = await generatePDFReport(pdfData);
+  return fileUri;
 };
 
 export const formatCurrency = (amount: number, currency: string = 'USD'): string => {

@@ -18,6 +18,8 @@ import {
   Edit2,
   Trash2,
   ChevronDown,
+  Bell,
+  BellOff,
 } from "lucide-react-native";
 import { CircularProgress } from "react-native-circular-progress";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -38,6 +40,7 @@ import {
   getBudgetProgress,
   type BudgetProgress,
 } from "~/lib/analytics";
+import notificationService from "~/lib/notificationService";
 import Investments from "../components/Investments";
 import Debt_Loan from "../components/Debt_Loan";
 
@@ -78,6 +81,8 @@ export default function BudgetScreen() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
+  const [budgetNotificationsEnabled, setBudgetNotificationsEnabled] = useState(false);
+  const [isCheckingBudgets, setIsCheckingBudgets] = useState(false);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -154,6 +159,25 @@ export default function BudgetScreen() {
   const [newAllocated, setNewAllocated] = useState("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
+  // Function to check budget thresholds and send notifications
+  const checkBudgetThresholds = async () => {
+    try {
+      if (!userId || isCheckingBudgets) return;
+
+      setIsCheckingBudgets(true);
+      
+      // Use the notification service to check and send budget notifications
+      await notificationService.checkBudgetsAndNotify();
+      
+      console.log("Budget thresholds checked and notifications sent");
+      
+    } catch (error) {
+      console.error("Error checking budget thresholds:", error);
+    } finally {
+      setIsCheckingBudgets(false);
+    }
+  };
+
   // Fetch budgets and accounts from database
   const fetchData = async () => {
     try {
@@ -184,6 +208,11 @@ export default function BudgetScreen() {
       if (accountsData.length > 0) {
         setSelectedAccount(accountsData[0]);
       }
+
+      // Check budget thresholds after data is loaded
+      if (user) {
+        await checkBudgetThresholds();
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
       Alert.alert("Error", "Failed to fetch data");
@@ -202,6 +231,24 @@ export default function BudgetScreen() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Initialize budget notifications when component mounts
+  useEffect(() => {
+    const initializeBudgetNotifications = async () => {
+      try {
+        // Setup notification categories if not already done
+        await notificationService.setupNotificationCategories();
+        setBudgetNotificationsEnabled(true);
+      } catch (error) {
+        console.error("Failed to initialize budget notifications:", error);
+        setBudgetNotificationsEnabled(false);
+      }
+    };
+
+    if (userId) {
+      initializeBudgetNotifications();
+    }
+  }, [userId]);
 
   const openAddModal = () => {
     if (accounts.length === 0) {
@@ -420,6 +467,38 @@ export default function BudgetScreen() {
                   >
                     <Text className="text-white">Add Budgets</Text>
                   </TouchableOpacity>
+                </View>
+
+                {/* Budget Notifications Control */}
+                <View className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <View className="flex-row justify-between items-center">
+                    <View className="flex-row items-center">
+                      {budgetNotificationsEnabled ? (
+                        <Bell size={16} color="#10b981" />
+                      ) : (
+                        <BellOff size={16} color="#ef4444" />
+                      )}
+                      <Text className="text-gray-700 text-sm ml-2">
+                        {budgetNotificationsEnabled 
+                          ? "Budget alerts enabled" 
+                          : "Budget alerts disabled"}
+                      </Text>
+                    </View>
+                    <View className="flex-row gap-2">
+                      <TouchableOpacity
+                        className="bg-orange-100 px-3 py-1 rounded-full"
+                        onPress={checkBudgetThresholds}
+                        disabled={isCheckingBudgets}
+                      >
+                        <Text className="text-orange-700 text-xs font-medium">
+                          {isCheckingBudgets ? "Checking..." : "Check Now"}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <Text className="text-gray-500 text-xs mt-1">
+                    Get notified when budgets reach 80% or exceed 100%
+                  </Text>
                 </View>
 
                 {loading ? (

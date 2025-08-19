@@ -4,6 +4,7 @@ import { LineChart, PieChart } from "react-native-chart-kit"
 import Icon from "react-native-vector-icons/Feather"
 import { useEffect, useState } from "react"
 import { fetchExpenseCategories, fetchExpenseOverview, fetchExpenseTrends } from "~/lib/api";
+import { getCategoryColor } from "~/lib/chartColors";
 
 export const ExpenseAnalytics = ({ 
   chartConfig, 
@@ -134,7 +135,7 @@ export const ExpenseAnalytics = ({
             data={categoriesData.categories.map((cat, index) => ({
               name: cat.category,
               population: cat.amount,
-              color: ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#ef4444", "#64748b"][index % 6],
+              color: getCategoryColor(cat.category),
               legendFontColor: "#f8fafc",
               legendFontSize: 12,
             }))}

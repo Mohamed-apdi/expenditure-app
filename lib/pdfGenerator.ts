@@ -4,10 +4,11 @@ import * as FileSystem from 'expo-file-system';
 
 export interface PDFReportData {
   title: string;
-  summary: any;
-  charts: any[];
-  tables: any[];
+  subtitle?: string;
   dateRange?: string;
+  summary: Array<{ label: string; value: string }>;
+  charts: any[];
+  tables: Array<{ title: string; headers: string[]; rows: string[][] }>;
 }
 
 export const generatePDFReport = async (data: PDFReportData): Promise<string> => {

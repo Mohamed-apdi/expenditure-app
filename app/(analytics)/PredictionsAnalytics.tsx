@@ -3,6 +3,7 @@ import { LineChart, PieChart } from "react-native-chart-kit";
 import Icon from "react-native-vector-icons/Feather";
 import { useEffect, useState } from "react";
 import { fetchPredictionCategories, fetchPredictionOverview, fetchPredictionTrends } from "~/lib/api";
+import { getColorByIndex } from "~/lib/chartColors";
 
 export const PredictionsAnalytics = ({ 
   chartConfig, 
@@ -118,7 +119,7 @@ export const PredictionsAnalytics = ({
             data={categoryEntries.map(([name, value], index) => ({
               name,
               population: value,
-              color: ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#ef4444", "#64748b"][index % 6],
+              color: getColorByIndex(index),
               legendFontColor: "#f8fafc",
               legendFontSize: 12,
             }))}

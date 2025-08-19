@@ -33,22 +33,31 @@ import {
   getTransactionReports,
   downloadReport,
   generateLocalPDFReport,
+  generateLocalCSVReport,
   formatCurrency,
   formatPercentage,
   formatDate,
   testAPIConnectivity,
   type TransactionReport,
 } from "~/lib/api";
+import { getCategoryColor, getColorByIndex } from "~/lib/chartColors";
 import { sharePDF } from "~/lib/pdfGenerator";
 
 const { width: screenWidth } = Dimensions.get("window");
 
 export default function ReportsScreen() {
   const { selectedAccount, accounts } = useAccount();
-  const [dateRange, setDateRange] = useState({
-    startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)),
-    endDate: new Date(),
-  });
+  // Set default date range to today for both dates
+  const getDefaultDateRange = () => {
+    const today = new Date();
+    return {
+      startDate: today,
+      endDate: today,
+    };
+  };
+
+  const [dateRange, setDateRange] = useState(getDefaultDateRange());
+  const [pendingDateRange, setPendingDateRange] = useState(getDefaultDateRange());
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [datePickerMode, setDatePickerMode] = useState<"start" | "end">(
     "start"
@@ -58,37 +67,33 @@ export default function ReportsScreen() {
   // Report data states
   const [transactionData, setTransactionData] =
     useState<TransactionReport | null>(null);
+  
+  // Pie chart interaction states
+  const [selectedSegment, setSelectedSegment] = useState<{
+    name: string;
+    value: number;
+    color: string;
+    percentage: number;
+  } | null>(null);
+  const [segmentModalVisible, setSegmentModalVisible] = useState(false);
 
-  const getCategoryColor = (category: string): string => {
-    const colors: Record<string, string> = {
-      Food: "#ff6b6b",
-      Transport: "#4ecdc4",
-      Entertainment: "#45b7d1",
-      Utilities: "#96ceb4",
-      Income: "#52c41a",
-      Other: "#8c7ae6",
-      Savings: "#fd79a8",
-      Investment: "#fdcb6e",
-      Checking: "#00b894",
-      Credit: "#e17055",
-      Housing: "#a29bfe",
-      Healthcare: "#fab1a0",
-      Education: "#74b9ff",
-      Shopping: "#81ecec",
-      Travel: "#ff7675",
-      active: "#52c41a",
-      completed: "#00b894",
-      paused: "#fdcb6e",
-    };
-    return colors[category] || "#6c5ce7";
-  };
 
-  const fetchTransactionReports = async () => {
+
+  const fetchTransactionReports = useCallback(async () => {
+    if (!selectedAccount) {
+      console.log("No selected account, skipping fetch");
+      return;
+    }
+
     try {
       setLoading(true);
       console.log(
         "Fetching transaction reports for account:",
-        selectedAccount?.id
+        selectedAccount?.id,
+        "Date range:",
+        dateRange.startDate.toISOString().split("T")[0],
+        "to",
+        dateRange.endDate.toISOString().split("T")[0]
       );
       const data = await getTransactionReports(
         selectedAccount?.id,
@@ -105,10 +110,11 @@ export default function ReportsScreen() {
         "Error",
         `Failed to fetch transaction reports: ${errorMessage}`
       );
+      setTransactionData(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedAccount, dateRange.startDate, dateRange.endDate]);
 
   const handleDownload = async (format: "csv" | "pdf") => {
     try {
@@ -116,52 +122,104 @@ export default function ReportsScreen() {
       const startDate = dateRange.startDate.toISOString().split("T")[0];
       const endDate = dateRange.endDate.toISOString().split("T")[0];
 
+      if (!transactionData) {
+        Alert.alert("Error", "No data available for report generation");
+        return;
+      }
+
       if (format === "pdf") {
         // Generate PDF locally
-        const data = transactionData;
-
-        if (!data) {
-          Alert.alert("Error", "No data available for PDF generation");
-          return;
-        }
-
+        console.log("Generating PDF report...");
         const filePath = await generateLocalPDFReport(
           "transactions",
-          data,
+          transactionData,
           startDate && endDate ? { startDate, endDate } : undefined
         );
 
-        Alert.alert("Success", `PDF report generated successfully!`, [
-          {
-            text: "Share",
-            onPress: async () => {
-              try {
-                await sharePDF(filePath);
-              } catch (error) {
-                console.error("Error sharing PDF:", error);
-                Alert.alert("Error", "Failed to share PDF");
-              }
+        console.log("PDF generated at:", filePath);
+
+        Alert.alert(
+          "PDF Generated Successfully",
+          "Your transaction report has been saved to your device. What would you like to do?",
+          [
+            {
+              text: "Share",
+              onPress: async () => {
+                try {
+                  const { sharePDF } = await import("~/lib/pdfGenerator");
+                  await sharePDF(filePath);
+                } catch (error) {
+                  console.error("Error sharing PDF:", error);
+                  Alert.alert("Error", "Failed to share PDF. The file has been saved to your device.");
+                }
+              },
             },
-          },
-          {
-            text: "OK",
-            style: "cancel",
-          },
-        ]);
-      } else {
-        // Download CSV from server
-        await downloadReport(
-          "transactions",
-          format,
-          startDate,
-          endDate,
-          selectedAccount?.id
+            {
+              text: "Open File Manager",
+              onPress: () => {
+                Alert.alert(
+                  "File Location",
+                  "Your PDF has been saved to the Documents folder. You can access it through your device's file manager.",
+                  [{ text: "OK" }]
+                );
+              },
+            },
+            {
+              text: "Done",
+              style: "cancel",
+            },
+          ]
         );
-        Alert.alert("Success", "Transaction report downloaded successfully");
+      } else {
+        // Generate CSV locally
+        console.log("Generating CSV report...");
+        const filePath = await generateLocalCSVReport(
+          "transactions",
+          transactionData,
+          startDate && endDate ? { startDate, endDate } : undefined
+        );
+
+        console.log("CSV generated at:", filePath);
+
+        Alert.alert(
+          "CSV Generated Successfully",
+          "Your transaction report has been saved to your device. What would you like to do?",
+          [
+            {
+              text: "Share",
+              onPress: async () => {
+                try {
+                  const { shareCSV } = await import("~/lib/csvGenerator");
+                  await shareCSV(filePath);
+                } catch (error) {
+                  console.error("Error sharing CSV:", error);
+                  Alert.alert("Error", "Failed to share CSV. The file has been saved to your device.");
+                }
+              },
+            },
+            {
+              text: "Open File Manager",
+              onPress: () => {
+                Alert.alert(
+                  "File Location",
+                  "Your CSV has been saved to the Documents folder. You can access it through your device's file manager.",
+                  [{ text: "OK" }]
+                );
+              },
+            },
+            {
+              text: "Done",
+              style: "cancel",
+            },
+          ]
+        );
       }
     } catch (error) {
-      console.error("Error downloading report:", error);
-      Alert.alert("Error", "Failed to download report");
+      console.error(`Error generating ${format.toUpperCase()} report:`, error);
+      Alert.alert(
+        "Error",
+        `Failed to generate ${format.toUpperCase()} report. Please try again.`
+      );
     } finally {
       setLoading(false);
     }
@@ -178,17 +236,12 @@ export default function ReportsScreen() {
 
       if (selectedDate) {
         if (datePickerMode === "start") {
-          setDateRange((prev) => ({ ...prev, startDate: selectedDate }));
+          setPendingDateRange((prev) => ({ ...prev, startDate: selectedDate }));
         } else {
-          setDateRange((prev) => ({ ...prev, endDate: selectedDate }));
+          setPendingDateRange((prev) => ({ ...prev, endDate: selectedDate }));
         }
 
-        if (Platform.OS === "ios") {
-          // On iOS, we'll handle the confirm separately
-        } else {
-          // On Android, refresh data immediately
-          setTimeout(() => fetchTransactionReports(), 100);
-        }
+        console.log("Date selected, waiting for submit to apply changes");
       }
     },
     [datePickerMode]
@@ -196,8 +249,14 @@ export default function ReportsScreen() {
 
   const confirmIOSDate = useCallback(() => {
     setDatePickerVisible(false);
-    fetchTransactionReports();
+    console.log("iOS date confirmed, waiting for submit to apply changes");
   }, []);
+
+  // Function to apply pending date changes and refresh data
+  const handleSubmitDateRange = useCallback(() => {
+    console.log("Applying date range changes and refreshing data...");
+    setDateRange(pendingDateRange);
+  }, [pendingDateRange]);
 
   const openDatePicker = useCallback((mode: "start" | "end") => {
     setDatePickerMode(mode);
@@ -205,11 +264,12 @@ export default function ReportsScreen() {
   }, []);
 
   useEffect(() => {
-    // Test API connectivity first
+    // Test API connectivity first and load initial data when component mounts or account changes
     testAPIConnectivity().then((isConnected) => {
       console.log("API connectivity test result:", isConnected);
       if (isConnected && selectedAccount) {
-        // Load initial data for transactions tab if we have a selected account
+        // Load initial data for transactions tab with default dates
+        console.log("Loading initial data with default dates...");
         fetchTransactionReports();
       } else if (!isConnected) {
         Alert.alert(
@@ -218,14 +278,77 @@ export default function ReportsScreen() {
         );
       }
     });
-  }, [selectedAccount]);
+  }, [selectedAccount, fetchTransactionReports]);
 
-  // Refresh transaction data when date range changes
+  // Refresh transaction data only when date range changes (triggered by submit)
   useEffect(() => {
-    if (selectedAccount) {
+    if (selectedAccount && dateRange) {
+      console.log("Date range changed via submit, refreshing data...");
       fetchTransactionReports();
     }
-  }, [dateRange]);
+  }, [dateRange, selectedAccount, fetchTransactionReports]);
+
+  // Function to handle pie chart segment selection
+  const handleSegmentPress = (segment: any) => {
+    const total = Object.values(transactionData?.category_breakdown || {}).reduce(
+      (sum: number, item: any) => sum + Math.abs(item.amount), 0
+    );
+    const percentage = total > 0 ? (Math.abs(segment.population) / total) * 100 : 0;
+    
+    setSelectedSegment({
+      name: segment.name,
+      value: segment.population,
+      color: segment.color,
+      percentage: percentage,
+    });
+    setSegmentModalVisible(true);
+  };
+
+  // Helper functions for data aggregation
+  const aggregateByWeek = (dailyData: any[]) => {
+    const weeklyMap = new Map();
+    
+    dailyData.forEach(item => {
+      const date = new Date(item.date);
+      // Get start of week (Monday)
+      const startOfWeek = new Date(date);
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+      startOfWeek.setDate(diff);
+      startOfWeek.setHours(0, 0, 0, 0);
+      
+      const weekKey = startOfWeek.toISOString().split('T')[0];
+      
+      if (!weeklyMap.has(weekKey)) {
+        weeklyMap.set(weekKey, { date: weekKey, amount: 0 });
+      }
+      
+      weeklyMap.get(weekKey).amount += item.amount;
+    });
+    
+    return Array.from(weeklyMap.values()).sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+  };
+
+  const aggregateByMonth = (dailyData: any[]) => {
+    const monthlyMap = new Map();
+    
+    dailyData.forEach(item => {
+      const date = new Date(item.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
+      
+      if (!monthlyMap.has(monthKey)) {
+        monthlyMap.set(monthKey, { date: monthKey, amount: 0 });
+      }
+      
+      monthlyMap.get(monthKey).amount += item.amount;
+    });
+    
+    return Array.from(monthlyMap.values()).sort((a, b) => 
+      new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+  };
 
   const renderTransactionTab = () => {
     if (!selectedAccount) {
@@ -263,23 +386,52 @@ export default function ReportsScreen() {
       })
     );
 
+    // Calculate appropriate data display based on date range
+    const daysDiff = Math.ceil(
+      (dateRange.endDate.getTime() - dateRange.startDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    
+    let chartData = transactionData.daily_trends;
+    let dateFormatter: Intl.DateTimeFormatOptions;
+    let chartTitle = "Daily Spending Trends";
+    
+    if (daysDiff <= 14) {
+      // Show daily data for 2 weeks or less
+      chartData = transactionData.daily_trends;
+      dateFormatter = { month: "short", day: "numeric" };
+      chartTitle = "Daily Spending Trends";
+    } else if (daysDiff <= 60) {
+      // Show weekly aggregation for 2 months or less
+      const weeklyData = aggregateByWeek(transactionData.daily_trends);
+      chartData = weeklyData;
+      dateFormatter = { month: "short", day: "numeric" };
+      chartTitle = "Weekly Spending Trends";
+    } else {
+      // Show monthly aggregation for longer periods
+      const monthlyData = aggregateByMonth(transactionData.daily_trends);
+      chartData = monthlyData;
+      dateFormatter = { month: "short", year: "2-digit" };
+      chartTitle = "Monthly Spending Trends";
+    }
+
+    // Limit chart data for better readability (max 30 data points)
+    const maxDataPoints = 30;
+    let displayData = chartData;
+    let showingLimited = false;
+    
+    if (chartData.length > maxDataPoints) {
+      displayData = chartData.slice(-maxDataPoints);
+      showingLimited = true;
+    }
+
     const barChartData = {
-      labels: transactionData.daily_trends
-        .slice(-7)
-        .map((item) =>
-          new Date(item.date).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          })
-        ),
+      labels: displayData.map((item) =>
+        new Date(item.date).toLocaleDateString("en-US", dateFormatter)
+      ),
       datasets: [
         {
-          data: transactionData.daily_trends
-            .slice(-7)
-            .map((item) => item.amount),
-          colors: transactionData.daily_trends
-            .slice(-7)
-            .map((_, index) => () => `hsl(${index * 51}, 70%, 50%)`),
+          data: displayData.map((item) => Math.abs(item.amount)),
+          colors: displayData.map((_, index) => () => getColorByIndex(index)),
         },
       ],
     };
@@ -351,21 +503,82 @@ export default function ReportsScreen() {
             <PieChart size={20} color="#8b5cf6" />
           </View>
           {pieChartData.length > 0 ? (
-            <ChartKitPieChart
-              data={pieChartData}
-              width={screenWidth - 48}
-              height={220}
-              chartConfig={{
-                backgroundColor: "#ffffff",
-                backgroundGradientFrom: "#faf5ff",
-                backgroundGradientTo: "#f3e8ff",
-                color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-              }}
-              accessor="population"
-              backgroundColor="transparent"
-              paddingLeft="15"
-              absolute
-            />
+            <>
+              <TouchableOpacity
+                onPress={() => {
+                  // Show general chart info when tapping the chart area
+                  const total = pieChartData.reduce((sum, item) => sum + item.population, 0);
+                  setSelectedSegment({
+                    name: "All Categories",
+                    value: total,
+                    color: "#8b5cf6",
+                    percentage: 100,
+                  });
+                  setSegmentModalVisible(true);
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={{ 
+                  width: '100%', 
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  paddingHorizontal: 0 
+                }}>
+                  <ChartKitPieChart
+                    data={pieChartData}
+                    width={screenWidth - 80}
+                    height={220}
+                    chartConfig={{
+                      backgroundColor: "#ffffff",
+                      backgroundGradientFrom: "#faf5ff",
+                      backgroundGradientTo: "#f3e8ff",
+                      color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                    }}
+                    accessor="population"
+                    backgroundColor="transparent"
+                    paddingLeft="80"
+                    absolute
+                    hasLegend={false}
+                    center={[0, 0]}
+                    style={{ 
+                      alignSelf: 'center',
+                      marginLeft: 'auto',
+                      marginRight: 'auto'
+                    }}
+                  />
+                </View>
+              </TouchableOpacity>
+              
+              {/* Interactive Legend */}
+              <View className="mt-4">
+                <Text className="text-sm font-semibold text-gray-600 mb-2">
+                  Tap a category to see details:
+                </Text>
+                <View className="flex-row flex-wrap">
+                  {pieChartData.map((segment, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => handleSegmentPress(segment)}
+                      className="flex-row items-center mr-4 mb-2 p-2 rounded-lg"
+                      style={{ 
+                        backgroundColor: "#f8fafc",
+                        borderWidth: 1,
+                        borderColor: "#e2e8f0",
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <View
+                        className="w-3 h-3 rounded-full mr-2"
+                        style={{ backgroundColor: segment.color }}
+                      />
+                      <Text className="text-sm font-medium text-gray-700">
+                        {segment.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </>
           ) : (
             <Text className="text-gray-500 text-center py-8">
               No data available
@@ -377,7 +590,7 @@ export default function ReportsScreen() {
         <View className="mb-6 bg-white p-4 rounded-xl shadow-sm">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="font-bold text-lg text-gray-800">
-              Daily Spending Trends
+              {chartTitle}
             </Text>
             <BarChart2 size={20} color="#6366f1" />
           </View>
@@ -389,21 +602,36 @@ export default function ReportsScreen() {
               yAxisLabel="$"
               chartConfig={{
                 backgroundColor: "#ffffff",
-                backgroundGradientFrom: "#f8fafc",
-                backgroundGradientTo: "#f1f5f9",
+                backgroundGradientFrom: "#fef7ff",
+                backgroundGradientTo: "#f3e8ff",
                 decimalPlaces: 0,
-                color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`,
+                color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
                 labelColor: (opacity = 1) => `rgba(71, 85, 105, ${opacity})`,
                 style: { borderRadius: 16 },
-                barPercentage: 0.8,
-                fillShadowGradient: "#6366f1",
-                fillShadowGradientOpacity: 0.8,
+                barPercentage: 0.7,
+                fillShadowGradient: "#8b5cf6",
+                fillShadowGradientOpacity: 0.3,
+                propsForBackgroundLines: {
+                  strokeDasharray: "5,5",
+                  stroke: "#e2e8f0",
+                  strokeWidth: 1,
+                },
+                propsForLabels: {
+                  fontSize: 12,
+                  fontWeight: "500",
+                },
               }}
               style={{ marginVertical: 8, borderRadius: 16 }}
             />
           ) : (
             <Text className="text-gray-500 text-center py-8">
               No trend data available
+            </Text>
+          )}
+          
+          {showingLimited && (
+            <Text className="text-xs text-gray-400 text-center mt-2">
+              Showing most recent {maxDataPoints} data points of {chartData.length} total
             </Text>
           )}
         </View>
@@ -463,7 +691,7 @@ export default function ReportsScreen() {
                 </Text>
               )}
             </View>
-            <View className="flex-row space-x-2">
+            <View className="flex-row gap-2">
               <TouchableOpacity
                 className="bg-blue-500 p-2 rounded-lg"
                 style={{
@@ -475,6 +703,7 @@ export default function ReportsScreen() {
                   elevation: 1,
                 }}
                 onPress={() => handleDownload("csv")}
+                disabled={loading}
               >
                 <Download size={18} color="white" />
               </TouchableOpacity>
@@ -489,6 +718,7 @@ export default function ReportsScreen() {
                   elevation: 1,
                 }}
                 onPress={() => handleDownload("pdf")}
+                disabled={loading}
               >
                 <Download size={18} color="white" />
               </TouchableOpacity>
@@ -496,28 +726,59 @@ export default function ReportsScreen() {
           </View>
 
           {/* Date Range Picker */}
-          <View className="flex-row justify-between items-center space-x-2">
+          <View className="gap-2">
+            <View className="flex-row justify-between items-center gap-2">
+              <TouchableOpacity
+                className="flex-1 bg-blue-50 p-3 rounded-lg flex-row items-center mr-2"
+                onPress={() => openDatePicker("start")}
+                style={{ backgroundColor: "#eff6ff" }}
+                disabled={loading}
+              >
+                <Calendar size={14} color="#3b82f6" />
+                <Text className="ml-2 text-blue-700 text-sm font-medium">
+                  From: {formatDate(pendingDateRange.startDate.toISOString())}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                className="flex-1 bg-purple-50 p-3 rounded-lg flex-row items-center"
+                onPress={() => openDatePicker("end")}
+                style={{ backgroundColor: "#faf5ff" }}
+                disabled={loading}
+              >
+                <Calendar size={14} color="#8b5cf6" />
+                <Text className="ml-2 text-purple-700 text-sm font-medium">
+                  To: {formatDate(pendingDateRange.endDate.toISOString())}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Submit Button */}
             <TouchableOpacity
-              className="flex-1 bg-blue-50 p-3 rounded-lg flex-row items-center mr-2"
-              onPress={() => openDatePicker("start")}
-              style={{ backgroundColor: "#eff6ff" }}
+              className="bg-green-500 p-3 rounded-lg flex-row items-center justify-center"
+              style={{ 
+                backgroundColor: "#10b981",
+                opacity: loading ? 0.6 : 1,
+              }}
+              onPress={handleSubmitDateRange}
+              disabled={loading}
             >
-              <Calendar size={14} color="#3b82f6" />
-              <Text className="ml-2 text-blue-700 text-sm font-medium">
-                From: {formatDate(dateRange.startDate.toISOString())}
+              {loading ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <Filter size={16} color="white" />
+              )}
+              <Text className="ml-2 text-white font-semibold">
+                {loading ? "Loading..." : "Apply Date Range"}
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              className="flex-1 bg-purple-50 p-3 rounded-lg flex-row items-center"
-              onPress={() => openDatePicker("end")}
-              style={{ backgroundColor: "#faf5ff" }}
-            >
-              <Calendar size={14} color="#8b5cf6" />
-              <Text className="ml-2 text-purple-700 text-sm font-medium">
-                To: {formatDate(dateRange.endDate.toISOString())}
+            {/* Current active date range indicator */}
+            <View className="bg-gray-50 p-2 rounded-lg">
+              <Text className="text-xs text-gray-600 text-center">
+                Showing data: {formatDate(dateRange.startDate.toISOString())} - {formatDate(dateRange.endDate.toISOString())}
               </Text>
-            </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -558,20 +819,20 @@ export default function ReportsScreen() {
                     <DateTimePicker
                       value={
                         datePickerMode === "start"
-                          ? dateRange.startDate
-                          : dateRange.endDate
+                          ? pendingDateRange.startDate
+                          : pendingDateRange.endDate
                       }
                       mode="date"
                       display="spinner"
                       onChange={onDateChange}
                       maximumDate={
                         datePickerMode === "start"
-                          ? dateRange.endDate
+                          ? pendingDateRange.endDate
                           : new Date()
                       }
                       minimumDate={
                         datePickerMode === "end"
-                          ? dateRange.startDate
+                          ? pendingDateRange.startDate
                           : new Date(2020, 0, 1)
                       }
                       themeVariant="light"
@@ -592,23 +853,104 @@ export default function ReportsScreen() {
               <DateTimePicker
                 value={
                   datePickerMode === "start"
-                    ? dateRange.startDate
-                    : dateRange.endDate
+                    ? pendingDateRange.startDate
+                    : pendingDateRange.endDate
                 }
                 mode="date"
                 display="default"
                 onChange={onDateChange}
                 maximumDate={
-                  datePickerMode === "start" ? dateRange.endDate : new Date()
+                  datePickerMode === "start" ? pendingDateRange.endDate : new Date()
                 }
                 minimumDate={
                   datePickerMode === "end"
-                    ? dateRange.startDate
+                    ? pendingDateRange.startDate
                     : new Date(2020, 0, 1)
                 }
               />
             )}
           </>
+        )}
+
+        {/* Segment Details Modal */}
+        {selectedSegment && (
+          <Modal
+            transparent={true}
+            animationType="fade"
+            visible={segmentModalVisible}
+            onRequestClose={() => setSegmentModalVisible(false)}
+          >
+            <View className="flex-1 justify-center items-center bg-black/50">
+              <View 
+                className="bg-white rounded-2xl p-6 mx-8 shadow-lg"
+                style={{
+                  minWidth: 280,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 8,
+                  elevation: 8,
+                }}
+              >
+                {/* Header with category color */}
+                <View className="flex-row items-center mb-4">
+                  <View
+                    className="w-6 h-6 rounded-full mr-3"
+                    style={{ backgroundColor: selectedSegment.color }}
+                  />
+                  <Text className="text-xl font-bold text-gray-800 flex-1">
+                    {selectedSegment.name}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setSegmentModalVisible(false)}
+                    className="p-1"
+                  >
+                    <X size={20} color="#6b7280" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Amount and percentage */}
+                <View className="mb-4">
+                  <View className="bg-gray-50 p-4 rounded-lg mb-3">
+                    <Text className="text-sm text-gray-600 mb-1">Amount</Text>
+                    <Text className="text-2xl font-bold text-gray-800">
+                      {formatCurrency(Math.abs(selectedSegment.value))}
+                    </Text>
+                  </View>
+                  
+                  <View className="bg-gray-50 p-4 rounded-lg">
+                    <Text className="text-sm text-gray-600 mb-1">
+                      Percentage of Total
+                    </Text>
+                    <Text className="text-xl font-semibold" style={{ color: selectedSegment.color }}>
+                      {selectedSegment.percentage.toFixed(1)}%
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Transaction count if available */}
+                {selectedSegment.name !== "All Categories" && transactionData?.category_breakdown[selectedSegment.name] && (
+                  <View className="bg-blue-50 p-4 rounded-lg mb-4">
+                    <Text className="text-sm text-blue-600 mb-1">Transactions</Text>
+                    <Text className="text-lg font-semibold text-blue-800">
+                      {transactionData.category_breakdown[selectedSegment.name].count} transactions
+                    </Text>
+                  </View>
+                )}
+
+                {/* Close button */}
+                <TouchableOpacity
+                  onPress={() => setSegmentModalVisible(false)}
+                  className="bg-purple-500 p-3 rounded-xl mt-2"
+                  style={{ backgroundColor: "#8b5cf6" }}
+                >
+                  <Text className="text-white text-center font-semibold">
+                    Close
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
         )}
       </View>
     </SafeAreaView>
