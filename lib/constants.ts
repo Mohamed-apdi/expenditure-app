@@ -35,7 +35,6 @@ export const NAV_THEME = {
     stepActive: "#0891b2",
   },
   dark: {
-    border: "#e2e8f0",
     icon: "#ffffff",
 
     // Main backgrounds
@@ -44,7 +43,7 @@ export const NAV_THEME = {
     cardBackground: "#334155",
 
     // Borders and dividers
-    border: "#334155",
+    border: "#3b82f6",
 
     // Text colors
     text: "#f8fafc",

@@ -23,7 +23,7 @@ import {
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import * as Notifications from 'expo-notifications';
+import * as Notifications from "expo-notifications";
 import { supabase } from "~/lib/supabase";
 import {
   fetchSubscriptionsWithAccounts,
@@ -36,6 +36,7 @@ import {
 import { fetchAccounts, type Account } from "~/lib/accounts";
 import notificationService from "~/lib/notificationService";
 import ExpoGoWarning from "~/components/ExpoGoWarning";
+import { useTheme } from "~/lib/theme";
 
 // Use the exact same expense categories as BudgetScreen and AddExpense
 const expenseCategories = [
@@ -117,6 +118,7 @@ const getDefaultIcon = (serviceName: string): ServiceIcon => {
 };
 
 export default function SubscriptionsScreen() {
+  const theme = useTheme();
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -126,7 +128,6 @@ export default function SubscriptionsScreen() {
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isIconModalVisible, setIsIconModalVisible] = useState(false);
@@ -148,8 +149,6 @@ export default function SubscriptionsScreen() {
   });
 
   const billingCycles = ["weekly", "monthly", "yearly"];
-
-
 
   // Fetch subscriptions and accounts from database
   const fetchData = async () => {
@@ -199,7 +198,6 @@ export default function SubscriptionsScreen() {
     setRefreshing(false);
   };
 
-
   useEffect(() => {
     fetchData();
   }, []);
@@ -225,20 +223,23 @@ export default function SubscriptionsScreen() {
     const setupNotifications = async () => {
       try {
         // Check if we're in Expo Go (where notifications are limited)
-        const { isExpoGo } = await import('~/lib/expoGoUtils');
-        
+        const { isExpoGo } = await import("~/lib/expoGoUtils");
+
         if (isExpoGo) {
-          console.warn('Push notifications are limited in Expo Go with SDK 53. Use development build for full functionality.');
+          console.warn(
+            "Push notifications are limited in Expo Go with SDK 53. Use development build for full functionality."
+          );
           return;
         }
 
-        const subscription = Notifications.addNotificationResponseReceivedListener(
-          notificationService.handleNotificationResponse
-        );
+        const subscription =
+          Notifications.addNotificationResponseReceivedListener(
+            notificationService.handleNotificationResponse
+          );
 
         return () => subscription.remove();
       } catch (error) {
-        console.error('Failed to setup notification listener:', error);
+        console.error("Failed to setup notification listener:", error);
       }
     };
 
@@ -250,7 +251,7 @@ export default function SubscriptionsScreen() {
       await toggleSubscriptionStatus(id, !currentStatus);
       // Refresh data to get updated status
       fetchData();
-      
+
       // Reschedule notifications based on new status
       await notificationService.scheduleAllUpcomingNotifications();
     } catch (error) {
@@ -356,7 +357,7 @@ export default function SubscriptionsScreen() {
       setIsModalVisible(false);
       // Refresh data to get updated subscriptions
       fetchData();
-      
+
       // Reschedule notifications for all subscriptions
       await notificationService.scheduleAllUpcomingNotifications();
     } catch (error) {
@@ -380,7 +381,7 @@ export default function SubscriptionsScreen() {
               Alert.alert("Success", "Subscription deleted successfully");
               // Refresh data to get updated subscriptions
               fetchData();
-              
+
               // Reschedule notifications for remaining subscriptions
               await notificationService.scheduleAllUpcomingNotifications();
             } catch (error) {
@@ -434,14 +435,23 @@ export default function SubscriptionsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center">
-        <Text className="text-gray-500">Loading subscriptions...</Text>
+      <SafeAreaView
+        style={{
+          flex: 1,
+          backgroundColor: theme.background,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Text style={{ color: theme.textSecondary }}>
+          Loading subscriptions...
+        </Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
       <ScrollView
         className="flex-1"
         refreshControl={
@@ -449,52 +459,92 @@ export default function SubscriptionsScreen() {
         }
       >
         {/* Header */}
-        <View className="flex-row justify-between items-center p-6">
-          <Text className="text-gray-900 text-2xl font-bold">
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: 24,
+          }}
+        >
+          <Text style={{ color: theme.text, fontSize: 24, fontWeight: "bold" }}>
             Subscriptions
           </Text>
           <View className="flex-row gap-2">
             <TouchableOpacity
-              className="bg-blue-500 rounded-lg py-3 px-3 items-center"
+              style={{
+                backgroundColor: theme.primary,
+                borderRadius: 8,
+                paddingVertical: 12,
+                paddingHorizontal: 12,
+                alignItems: "center",
+              }}
               onPress={openAddModal}
             >
-              <Text className="text-white">Add Subscription</Text>
+              <Text style={{ color: theme.primaryText }}>Add Subscription</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Expo Go Warning */}
-        <ExpoGoWarning />
-
-
+        {/*<ExpoGoWarning />*/}
 
         {/* Summary Card */}
-        <View className="px-6 mb-6">
-          <View className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+        <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
+          <View
+            style={{
+              backgroundColor: theme.cardBackground,
+              padding: 16,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: theme.border,
+              shadowColor: theme.border,
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+              elevation: 1,
+            }}
+          >
             <View className="flex-row justify-between items-center mb-3">
               <View>
-                <Text className="text-gray-600 text-sm mb-1">
+                <Text
+                  style={{
+                    color: theme.textSecondary,
+                    fontSize: 14,
+                    marginBottom: 4,
+                  }}
+                >
                   Total Monthly Cost
                 </Text>
-                <Text className="text-blue-600 text-xl font-bold">
+                <Text
+                  style={{
+                    color: theme.primary,
+                    fontSize: 20,
+                    fontWeight: "bold",
+                  }}
+                >
                   ${totalMonthlyCost.toFixed(2)}
                 </Text>
               </View>
-
             </View>
-            
-
           </View>
         </View>
 
         {/* Active Subscriptions */}
-        <View className="px-6 mb-6">
-          <Text className="font-bold text-lg text-gray-900 mb-3">
+        <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
+          <Text
+            style={{
+              color: theme.text,
+              fontWeight: "bold",
+              fontSize: 18,
+              marginBottom: 12,
+            }}
+          >
             Active Subscriptions
           </Text>
           {subscriptions.filter((sub) => sub.is_active).length === 0 ? (
-            <View className="py-4 items-center">
-              <Text className="text-gray-500 text-lg">
+            <View style={{ paddingVertical: 16, alignItems: "center" }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 18 }}>
                 No active subscriptions
               </Text>
             </View>
@@ -504,7 +554,19 @@ export default function SubscriptionsScreen() {
               .map((subscription) => (
                 <Pressable
                   key={subscription.id}
-                  className="mb-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm"
+                  style={{
+                    marginBottom: 16,
+                    padding: 16,
+                    backgroundColor: theme.cardBackground,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    shadowColor: theme.border,
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 2,
+                    elevation: 1,
+                  }}
                   onPress={() => openEditModal(subscription)}
                 >
                   <View className="flex-row justify-between items-start">
@@ -522,12 +584,24 @@ export default function SubscriptionsScreen() {
                         />
                       </View>
                       <View className="flex-1">
-                        <Text className="font-semibold text-gray-900 text-lg">
+                        <Text
+                          style={{
+                            color: theme.text,
+                            fontWeight: "600",
+                            fontSize: 18,
+                          }}
+                        >
                           {subscription.name}
                         </Text>
                         <View className="flex-row items-center mt-1">
-                          <Clock size={14} color="#6b7280" />
-                          <Text className="text-gray-500 text-sm ml-2">
+                          <Clock size={14} color={theme.textMuted} />
+                          <Text
+                            style={{
+                              color: theme.textSecondary,
+                              fontSize: 14,
+                              marginLeft: 8,
+                            }}
+                          >
                             {subscription.billing_cycle
                               .charAt(0)
                               .toUpperCase() +
@@ -536,19 +610,37 @@ export default function SubscriptionsScreen() {
                           </Text>
                         </View>
                         {subscription.account && (
-                          <Text className="text-gray-500 text-sm mt-1">
+                          <Text
+                            style={{
+                              color: theme.textSecondary,
+                              fontSize: 14,
+                              marginTop: 4,
+                            }}
+                          >
                             {subscription.account.name}
                           </Text>
                         )}
                         {subscription.category && (
-                          <Text className="text-gray-500 text-sm mt-1">
+                          <Text
+                            style={{
+                              color: theme.textSecondary,
+                              fontSize: 14,
+                              marginTop: 4,
+                            }}
+                          >
                             {subscription.category}
                           </Text>
                         )}
                       </View>
                     </View>
-                    <View className="items-end">
-                      <Text className="font-medium text-gray-900 mr-1">
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text
+                        style={{
+                          color: theme.text,
+                          fontWeight: "500",
+                          marginRight: 4,
+                        }}
+                      >
                         ${subscription.amount.toFixed(2)}
                       </Text>
                       <Switch
@@ -559,9 +651,9 @@ export default function SubscriptionsScreen() {
                             subscription.is_active
                           )
                         }
-                        trackColor={{ false: "#767577", true: "#3b82f6" }}
+                        trackColor={{ false: "#767577", true: theme.primary }}
                         thumbColor="#f4f3f4"
-                        className="mt-1"
+                        style={{ marginTop: 4 }}
                       />
                     </View>
                   </View>
@@ -571,13 +663,20 @@ export default function SubscriptionsScreen() {
         </View>
 
         {/* Inactive Subscriptions */}
-        <View className="px-6 mb-6">
-          <Text className="font-bold text-lg text-gray-900 mb-3">
+        <View style={{ paddingHorizontal: 24, marginBottom: 24 }}>
+          <Text
+            style={{
+              color: theme.text,
+              fontWeight: "bold",
+              fontSize: 18,
+              marginBottom: 12,
+            }}
+          >
             Inactive Subscriptions
           </Text>
           {subscriptions.filter((sub) => !sub.is_active).length === 0 ? (
-            <View className="py-4 items-center">
-              <Text className="text-gray-500 text-lg">
+            <View style={{ paddingVertical: 16, alignItems: "center" }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 18 }}>
                 No inactive subscriptions
               </Text>
             </View>
@@ -587,7 +686,15 @@ export default function SubscriptionsScreen() {
               .map((subscription) => (
                 <Pressable
                   key={subscription.id}
-                  className="mb-4 p-2 bg-gray-50 rounded-xl border border-gray-100 opacity-80"
+                  style={{
+                    marginBottom: 16,
+                    padding: 8,
+                    backgroundColor: theme.background,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    opacity: 0.8,
+                  }}
                   onPress={() => openEditModal(subscription)}
                 >
                   <View className="flex-row justify-between items-start">
@@ -605,12 +712,24 @@ export default function SubscriptionsScreen() {
                         />
                       </View>
                       <View className="flex-1">
-                        <Text className="font-semibold text-gray-900 text-lg">
+                        <Text
+                          style={{
+                            color: theme.text,
+                            fontWeight: "600",
+                            fontSize: 18,
+                          }}
+                        >
                           {subscription.name}
                         </Text>
                         <View className="flex-row items-center mt-1">
-                          <Clock size={14} color="#6b7280" />
-                          <Text className="text-gray-500 text-sm ml-2">
+                          <Clock size={14} color={theme.textMuted} />
+                          <Text
+                            style={{
+                              color: theme.textSecondary,
+                              fontSize: 14,
+                              marginLeft: 8,
+                            }}
+                          >
                             {subscription.billing_cycle
                               .charAt(0)
                               .toUpperCase() +
@@ -619,14 +738,26 @@ export default function SubscriptionsScreen() {
                           </Text>
                         </View>
                         {subscription.account && (
-                          <Text className="text-gray-500 text-sm mt-1">
+                          <Text
+                            style={{
+                              color: theme.textSecondary,
+                              fontSize: 14,
+                              marginTop: 4,
+                            }}
+                          >
                             {subscription.account.name}
                           </Text>
                         )}
                       </View>
                     </View>
-                    <View className="items-end">
-                      <Text className="font-medium text-gray-900 mr-1">
+                    <View style={{ alignItems: "flex-end" }}>
+                      <Text
+                        style={{
+                          color: theme.text,
+                          fontWeight: "500",
+                          marginRight: 4,
+                        }}
+                      >
                         ${subscription.amount.toFixed(2)}
                       </Text>
                       <Switch
@@ -637,9 +768,9 @@ export default function SubscriptionsScreen() {
                             subscription.is_active
                           )
                         }
-                        trackColor={{ false: "#767577", true: "#3b82f6" }}
+                        trackColor={{ false: "#767577", true: theme.primary }}
                         thumbColor="#f4f3f4"
-                        className="mt-1"
+                        style={{ marginTop: 4 }}
                       />
                     </View>
                   </View>
@@ -656,10 +787,28 @@ export default function SubscriptionsScreen() {
         transparent={true}
         onRequestClose={() => setIsModalVisible(false)}
       >
-        <View className="flex-1 justify-center items-center bg-black/50 p-4">
-          <View className="bg-white rounded-2xl p-6 w-full max-w-md">
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            padding: 16,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderRadius: 16,
+              padding: 24,
+              width: "100%",
+              maxWidth: 400,
+            }}
+          >
             <View className="flex-row justify-between items-center mb-6">
-              <Text className="font-bold text-xl text-gray-900">
+              <Text
+                style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
+              >
                 {isEditMode ? "Edit Subscription" : "New Subscription"}
               </Text>
               <View className="flex-row justify-center items-center gap-2">
@@ -672,7 +821,7 @@ export default function SubscriptionsScreen() {
                   </TouchableOpacity>
                 ) : null}
                 <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                  <X size={24} color="#6b7280" />
+                  <X size={24} color={theme.textMuted} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -681,9 +830,25 @@ export default function SubscriptionsScreen() {
               {/* Icon and Color Selection */}
               <View className="flex-row space-x-4 gap-2 items-center">
                 <View className="flex-1">
-                  <Text className="text-gray-700 mb-2 font-medium">Icon</Text>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      marginBottom: 8,
+                      fontWeight: "500",
+                    }}
+                  >
+                    Icon
+                  </Text>
                   <TouchableOpacity
-                    className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row items-center"
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 12,
+                      padding: 16,
+                      backgroundColor: theme.background,
+                      flexDirection: "row",
+                      alignItems: "center",
+                    }}
                     onPress={() => setIsIconModalVisible(true)}
                   >
                     <View
@@ -695,31 +860,61 @@ export default function SubscriptionsScreen() {
                         className="w-6 h-6"
                       />
                     </View>
-                    <Text className="text-gray-900">Change Icon</Text>
+                    <Text style={{ color: theme.text }}>Change Icon</Text>
                   </TouchableOpacity>
                 </View>
                 <View className="flex-1">
-                  <Text className="text-gray-700 mb-2 font-medium">Color</Text>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      marginBottom: 8,
+                      fontWeight: "500",
+                    }}
+                  >
+                    Color
+                  </Text>
                   <TouchableOpacity
-                    className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row items-center"
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 12,
+                      padding: 16,
+                      backgroundColor: theme.background,
+                      flexDirection: "row",
+                      alignItems: "center",
+                    }}
                     onPress={() => setIsColorModalVisible(true)}
                   >
                     <View
                       className="w-6 h-6 rounded-full mr-3"
                       style={{ backgroundColor: formData.icon_color }}
                     />
-                    <Text className="text-gray-900">Change Color</Text>
+                    <Text style={{ color: theme.text }}>Change Color</Text>
                   </TouchableOpacity>
                 </View>
               </View>
 
               <View>
-                <Text className="text-gray-700 mb-2 font-medium">
+                <Text
+                  style={{
+                    color: theme.text,
+                    marginBottom: 8,
+                    fontWeight: "500",
+                  }}
+                >
                   Service Name
                 </Text>
                 <TextInput
-                  className="border border-gray-200 rounded-xl p-4 bg-gray-50"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 12,
+                    padding: 16,
+                    backgroundColor: theme.background,
+                    color: theme.text,
+                  }}
                   placeholder="e.g., Netflix, Spotify"
+                  placeholderTextColor={theme.textMuted}
                   value={formData.name}
                   onChangeText={(text) =>
                     setFormData({ ...formData, name: text })
@@ -728,36 +923,71 @@ export default function SubscriptionsScreen() {
               </View>
 
               <View>
-                <Text className="text-gray-700 mb-2 font-medium">Category</Text>
+                <Text
+                  style={{
+                    color: theme.text,
+                    marginBottom: 8,
+                    fontWeight: "500",
+                  }}
+                >
+                  Category
+                </Text>
                 <TouchableOpacity
-                  className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 8,
+                    padding: 12,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
                   onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
                 >
                   <Text
-                    className={
-                      formData.category ? "text-gray-900" : "text-gray-500"
-                    }
+                    style={{
+                      color: formData.category ? theme.text : theme.textMuted,
+                    }}
                   >
                     {formData.category || "Select a category"}
                   </Text>
-                  <ChevronDown size={16} color="#6b7280" />
+                  <ChevronDown size={16} color={theme.textMuted} />
                 </TouchableOpacity>
 
                 {showCategoryDropdown && (
-                  <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
+                  <View
+                    style={{
+                      marginTop: 8,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 8,
+                      backgroundColor: theme.cardBackground,
+                      maxHeight: 160,
+                    }}
+                  >
                     <ScrollView>
                       {expenseCategories.map((category) => (
                         <TouchableOpacity
                           key={category}
-                          className={`p-3 border-b border-gray-200 ${
-                            formData.category === category ? "bg-blue-50" : ""
-                          }`}
+                          style={{
+                            padding: 12,
+                            borderBottomWidth: 1,
+                            borderBottomColor: theme.border,
+                            backgroundColor:
+                              formData.category === category
+                                ? `${theme.primary}20`
+                                : "transparent",
+                          }}
                           onPress={() => {
                             setFormData({ ...formData, category });
                             setShowCategoryDropdown(false);
                           }}
                         >
-                          <Text className="font-medium">{category}</Text>
+                          <Text
+                            style={{ color: theme.text, fontWeight: "500" }}
+                          >
+                            {category}
+                          </Text>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
@@ -766,41 +996,76 @@ export default function SubscriptionsScreen() {
               </View>
 
               <View>
-                <Text className="text-gray-700 mb-2 font-medium">Account</Text>
+                <Text
+                  style={{
+                    color: theme.text,
+                    marginBottom: 8,
+                    fontWeight: "500",
+                  }}
+                >
+                  Account
+                </Text>
                 <TouchableOpacity
-                  className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 8,
+                    padding: 12,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
                   onPress={() => setShowAccountDropdown(!showAccountDropdown)}
                 >
                   <Text
-                    className={
-                      selectedAccount ? "text-gray-900" : "text-gray-500"
-                    }
+                    style={{
+                      color: selectedAccount ? theme.text : theme.textMuted,
+                    }}
                   >
                     {selectedAccount
                       ? selectedAccount.name
                       : "Select an account"}
                   </Text>
-                  <ChevronDown size={16} color="#6b7280" />
+                  <ChevronDown size={16} color={theme.textMuted} />
                 </TouchableOpacity>
 
                 {showAccountDropdown && (
-                  <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
+                  <View
+                    style={{
+                      marginTop: 8,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 8,
+                      backgroundColor: theme.cardBackground,
+                      maxHeight: 160,
+                    }}
+                  >
                     <ScrollView>
                       {accounts.map((account) => (
                         <TouchableOpacity
                           key={account.id}
-                          className={`p-3 border-b border-gray-200 ${
-                            selectedAccount?.id === account.id
-                              ? "bg-blue-50"
-                              : ""
-                          }`}
+                          style={{
+                            padding: 12,
+                            borderBottomWidth: 1,
+                            borderBottomColor: theme.border,
+                            backgroundColor:
+                              selectedAccount?.id === account.id
+                                ? `${theme.primary}20`
+                                : "transparent",
+                          }}
                           onPress={() => {
                             setSelectedAccount(account);
                             setShowAccountDropdown(false);
                           }}
                         >
-                          <Text className="font-medium">{account.name}</Text>
-                          <Text className="text-sm text-gray-500">
+                          <Text
+                            style={{ color: theme.text, fontWeight: "500" }}
+                          >
+                            {account.name}
+                          </Text>
+                          <Text
+                            style={{ color: theme.textSecondary, fontSize: 14 }}
+                          >
                             {account.account_type}
                           </Text>
                         </TouchableOpacity>
@@ -811,14 +1076,32 @@ export default function SubscriptionsScreen() {
               </View>
 
               <View>
-                <Text className="text-gray-700 mb-2 font-medium">Amount</Text>
-                <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50">
-                  <View className="px-4">
-                    <DollarSign size={18} color="#6b7280" />
+                <Text
+                  style={{
+                    color: theme.text,
+                    marginBottom: 8,
+                    fontWeight: "500",
+                  }}
+                >
+                  Amount
+                </Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 12,
+                    backgroundColor: theme.background,
+                  }}
+                >
+                  <View style={{ paddingHorizontal: 16 }}>
+                    <DollarSign size={18} color={theme.textMuted} />
                   </View>
                   <TextInput
-                    className="flex-1 p-4"
+                    style={{ flex: 1, padding: 16, color: theme.text }}
                     placeholder="0.00"
+                    placeholderTextColor={theme.textMuted}
                     keyboardType="numeric"
                     value={formData.amount}
                     onChangeText={(text) =>
@@ -829,14 +1112,28 @@ export default function SubscriptionsScreen() {
               </View>
 
               <View>
-                <Text className="text-gray-700 mb-2 font-medium">
+                <Text
+                  style={{
+                    color: theme.text,
+                    marginBottom: 8,
+                    fontWeight: "500",
+                  }}
+                >
                   Billing Cycle
                 </Text>
                 <View className="flex-row gap-2 mb-1">
                   {billingCycles.map((cycle) => (
                     <TouchableOpacity
                       key={cycle}
-                      className={`px-4 py-2 rounded-lg ${formData.billing_cycle === cycle ? "bg-blue-600" : "bg-gray-200"}`}
+                      style={{
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
+                        borderRadius: 8,
+                        backgroundColor:
+                          formData.billing_cycle === cycle
+                            ? theme.primary
+                            : theme.background,
+                      }}
                       onPress={() =>
                         setFormData({
                           ...formData,
@@ -848,11 +1145,14 @@ export default function SubscriptionsScreen() {
                       }
                     >
                       <Text
-                        className={
-                          formData.billing_cycle === cycle
-                            ? "text-white font-medium"
-                            : "text-gray-800"
-                        }
+                        style={{
+                          color:
+                            formData.billing_cycle === cycle
+                              ? theme.primaryText
+                              : theme.text,
+                          fontWeight:
+                            formData.billing_cycle === cycle ? "500" : "normal",
+                        }}
                       >
                         {cycle.charAt(0).toUpperCase() + cycle.slice(1)}
                       </Text>
@@ -862,27 +1162,56 @@ export default function SubscriptionsScreen() {
               </View>
 
               <View>
-                <Text className="text-gray-700 mb-2 font-medium">
+                <Text
+                  style={{
+                    color: theme.text,
+                    marginBottom: 8,
+                    fontWeight: "500",
+                  }}
+                >
                   Next Payment Date
                 </Text>
                 <TouchableOpacity
-                  className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row items-center justify-between"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 12,
+                    padding: 16,
+                    backgroundColor: theme.background,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
                   onPress={showDatePickerModal}
                 >
-                  <Text className="text-gray-900">
+                  <Text style={{ color: theme.text }}>
                     {formData.next_payment_date.toLocaleDateString()}
                   </Text>
-                  <Calendar size={18} color="#6b7280" />
+                  <Calendar size={18} color={theme.textMuted} />
                 </TouchableOpacity>
               </View>
 
               <View>
-                <Text className="text-gray-700 mb-2 font-medium">
+                <Text
+                  style={{
+                    color: theme.text,
+                    marginBottom: 8,
+                    fontWeight: "500",
+                  }}
+                >
                   Description
                 </Text>
                 <TextInput
-                  className="border border-gray-200 rounded-xl p-4 bg-gray-50"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 12,
+                    padding: 16,
+                    backgroundColor: theme.background,
+                    color: theme.text,
+                  }}
                   placeholder="Optional description"
+                  placeholderTextColor={theme.textMuted}
                   value={formData.description}
                   onChangeText={(text) =>
                     setFormData({ ...formData, description: text })
@@ -892,22 +1221,36 @@ export default function SubscriptionsScreen() {
               </View>
 
               <View className="flex-row justify-between items-center">
-                <Text className="text-gray-700 font-medium">Active</Text>
+                <Text style={{ color: theme.text, fontWeight: "500" }}>
+                  Active
+                </Text>
                 <Switch
                   value={formData.is_active}
                   onValueChange={(value) =>
                     setFormData({ ...formData, is_active: value })
                   }
-                  trackColor={{ false: "#767577", true: "#3b82f6" }}
+                  trackColor={{ false: "#767577", true: theme.primary }}
                   thumbColor="#f4f3f4"
                 />
               </View>
 
               <TouchableOpacity
-                className="bg-blue-600 p-4 rounded-xl items-center mt-2"
+                style={{
+                  backgroundColor: theme.primary,
+                  padding: 16,
+                  borderRadius: 12,
+                  alignItems: "center",
+                  marginTop: 8,
+                }}
                 onPress={handleSave}
               >
-                <Text className="text-white font-medium text-lg">
+                <Text
+                  style={{
+                    color: theme.primaryText,
+                    fontWeight: "500",
+                    fontSize: 18,
+                  }}
+                >
                   {isEditMode ? "Update" : "Add Subscription"}
                 </Text>
               </TouchableOpacity>
@@ -933,14 +1276,32 @@ export default function SubscriptionsScreen() {
         transparent={true}
         onRequestClose={() => setIsIconModalVisible(false)}
       >
-        <View className="flex-1 justify-center items-center bg-black/50 p-4">
-          <View className="bg-white rounded-2xl p-6 w-full max-w-md">
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            padding: 16,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderRadius: 16,
+              padding: 24,
+              width: "100%",
+              maxWidth: 400,
+            }}
+          >
             <View className="flex-row justify-between items-center mb-6">
-              <Text className="font-bold text-xl text-gray-900">
+              <Text
+                style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
+              >
                 Select Icon
               </Text>
               <TouchableOpacity onPress={() => setIsIconModalVisible(false)}>
-                <X size={24} color="#6b7280" />
+                <X size={24} color={theme.textMuted} />
               </TouchableOpacity>
             </View>
 
@@ -948,7 +1309,16 @@ export default function SubscriptionsScreen() {
               {Object.keys(serviceIcons).map((icon) => (
                 <TouchableOpacity
                   key={icon}
-                  className={`w-1/4 p-4 items-center ${formData.icon === icon ? "bg-blue-50 rounded-lg" : ""}`}
+                  style={{
+                    width: "25%",
+                    padding: 16,
+                    alignItems: "center",
+                    backgroundColor:
+                      formData.icon === icon
+                        ? `${theme.primary}20`
+                        : "transparent",
+                    borderRadius: 8,
+                  }}
                   onPress={() => selectIcon(icon as ServiceIcon)}
                 >
                   <View
@@ -957,7 +1327,13 @@ export default function SubscriptionsScreen() {
                   >
                     <Image source={serviceIcons[icon]} className="w-8 h-8" />
                   </View>
-                  <Text className="text-xs text-gray-700 capitalize">
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontSize: 12,
+                      textTransform: "capitalize",
+                    }}
+                  >
                     {icon}
                   </Text>
                 </TouchableOpacity>
@@ -974,14 +1350,32 @@ export default function SubscriptionsScreen() {
         transparent={true}
         onRequestClose={() => setIsColorModalVisible(false)}
       >
-        <View className="flex-1 justify-center items-center bg-black/50 p-4">
-          <View className="bg-white rounded-2xl p-6 w-full max-w-md">
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            padding: 16,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderRadius: 16,
+              padding: 24,
+              width: "100%",
+              maxWidth: 400,
+            }}
+          >
             <View className="flex-row justify-between items-center mb-6">
-              <Text className="font-bold text-xl text-gray-900">
+              <Text
+                style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
+              >
                 Select Color
               </Text>
               <TouchableOpacity onPress={() => setIsColorModalVisible(false)}>
-                <X size={24} color="#6b7280" />
+                <X size={24} color={theme.textMuted} />
               </TouchableOpacity>
             </View>
 
@@ -989,7 +1383,16 @@ export default function SubscriptionsScreen() {
               {colors.map((color) => (
                 <TouchableOpacity
                   key={color}
-                  className={`w-1/4 p-4 items-center ${formData.icon_color === color ? "bg-blue-50 rounded-lg" : ""}`}
+                  style={{
+                    width: "25%",
+                    padding: 16,
+                    alignItems: "center",
+                    backgroundColor:
+                      formData.icon_color === color
+                        ? `${theme.primary}20`
+                        : "transparent",
+                    borderRadius: 8,
+                  }}
                   onPress={() => selectColor(color)}
                 >
                   <View

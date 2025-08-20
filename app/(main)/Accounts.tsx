@@ -14,6 +14,7 @@ import { supabase } from "~/lib/supabase";
 import AddAccount from "../account-details/add-account";
 import { useAccount } from "~/lib/AccountContext";
 import { useFocusEffect } from "@react-navigation/native";
+import { useTheme } from "~/lib/theme";
 
 interface AccountGroup {
   id: string;
@@ -42,6 +43,7 @@ const Accounts = () => {
   const [loading, setLoading] = useState(true);
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const theme = useTheme();
 
   const loadAccounts = async () => {
     try {
@@ -152,17 +154,29 @@ const Accounts = () => {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center">
+      <SafeAreaView
+        className="flex-1 items-center justify-center"
+        style={{ backgroundColor: theme.background }}
+      >
         <ActivityIndicator size="large" color="#3b82f6" />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 py-safe">
+    <SafeAreaView
+      className="flex-1 py-safe"
+      style={{ backgroundColor: theme.background }}
+    >
       {error && (
-        <View className="bg-red-50 border border-red-200 p-4 rounded-lg mx-6 mt-4">
-          <Text className="text-red-600">{error}</Text>
+        <View
+          className="border p-4 rounded-lg mx-6 mt-4"
+          style={{
+            backgroundColor: theme.cardBackground,
+            borderColor: theme.border,
+          }}
+        >
+          <Text style={{ color: theme.text }}>{error}</Text>
           <TouchableOpacity
             onPress={() => setError(null)}
             className="absolute top-3 right-3"
@@ -174,7 +188,9 @@ const Accounts = () => {
 
       {/* Header */}
       <View className="flex-row justify-between items-center p-6">
-        <Text className="text-gray-900 text-2xl font-bold">Accounts</Text>
+        <Text className="text-2xl font-bold" style={{ color: theme.text }}>
+          Accounts
+        </Text>
         <TouchableOpacity
           className="bg-blue-500 rounded-lg py-3 px-3 items-center"
           onPress={() => setShowAddAccount(true)}
@@ -185,8 +201,16 @@ const Accounts = () => {
 
       {/* Summary Cards */}
       <View className="flex-row px-6 mb-6 gap-4">
-        <View className="flex-1 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-          <Text className="text-gray-600 text-sm mb-1">Total</Text>
+        <View
+          className="flex-1 p-4 rounded-xl border shadow-sm"
+          style={{
+            backgroundColor: theme.cardBackground,
+            borderColor: theme.border,
+          }}
+        >
+          <Text className="text-sm mb-1" style={{ color: theme.textSecondary }}>
+            Total
+          </Text>
           <Text className="text-green-600 text-xl font-bold">
             ${total.toFixed(2)}
           </Text>
@@ -202,7 +226,10 @@ const Accounts = () => {
           )
           .map((group) => (
             <View key={group.id} className="mb-6">
-              <Text className="font-bold text-lg text-gray-900 mb-3">
+              <Text
+                className="font-bold text-lg mb-3"
+                style={{ color: theme.text }}
+              >
                 {group.name}
               </Text>
               <View className="gap-3">
@@ -211,15 +238,25 @@ const Accounts = () => {
                   .map((account) => (
                     <TouchableOpacity
                       key={account.id}
-                      className="flex-row justify-between bg-white p-5 rounded-xl border border-gray-100 shadow-sm"
+                      className="flex-row justify-between p-5 rounded-xl border shadow-sm"
+                      style={{
+                        backgroundColor: theme.cardBackground,
+                        borderColor: theme.border,
+                      }}
                       onPress={() => handleAccountPress(account.id)}
                     >
                       <View className="flex-1">
-                        <Text className="font-semibold text-gray-900 text-lg">
+                        <Text
+                          className="font-semibold text-lg"
+                          style={{ color: theme.text }}
+                        >
                           {account.name}
                         </Text>
                         {account.description && (
-                          <Text className="text-gray-500 text-sm mt-1">
+                          <Text
+                            className="text-sm mt-1"
+                            style={{ color: theme.textSecondary }}
+                          >
                             {account.description}
                           </Text>
                         )}

@@ -108,6 +108,7 @@ type QuickAction = {
 
 export default function DashboardScreen() {
   const router = useRouter();
+
   const { selectedAccount, refreshBalances, accounts } = useAccount(); // Remove initializeAccounts since it's auto-loaded
   const [userProfile, setUserProfile] = useState({
     fullName: "",
@@ -483,7 +484,7 @@ export default function DashboardScreen() {
             "Dashboard - Initial load, user authenticated, fetching data..."
           );
           fetchData(); // Accounts are already loaded by AccountContext
-          
+
           // Also load initial month data
           const current = new Date();
           const currentMonth = current.getMonth();
@@ -537,44 +538,44 @@ export default function DashboardScreen() {
       // Expense categories
       "Food & Drinks": Utensils,
       "Home & Rent": Home,
-      "Travel": Bus,
-      "Bills": Zap,
-      "Fun": Film,
-      "Health": HeartPulse,
-      "Shopping": ShoppingBag,
-      "Learning": GraduationCap,
+      Travel: Bus,
+      Bills: Zap,
+      Fun: Film,
+      Health: HeartPulse,
+      Shopping: ShoppingBag,
+      Learning: GraduationCap,
       "Personal Care": Smile,
-      "Insurance": Shield,
-      "Loans": CreditCard,
-      "Gifts": Gift,
-      "Donations": HandHeart,
-      "Vacation": Luggage,
-      "Pets": PawPrint,
-      "Children": Baby,
-      "Subscriptions": Repeat,
+      Insurance: Shield,
+      Loans: CreditCard,
+      Gifts: Gift,
+      Donations: HandHeart,
+      Vacation: Luggage,
+      Pets: PawPrint,
+      Children: Baby,
+      Subscriptions: Repeat,
       "Gym & Sports": Dumbbell,
-      "Electronics": Smartphone,
-      "Furniture": Sofa,
-      "Repairs": Wrench,
-      "Taxes": Receipt,
+      Electronics: Smartphone,
+      Furniture: Sofa,
+      Repairs: Wrench,
+      Taxes: Receipt,
 
       // Income categories
       "Job Salary": DollarSign,
-      "Bonus": Zap,
+      Bonus: Zap,
       "Part-time Work": Clock,
-      "Business": Briefcase,
-      "Investments": TrendingUp,
+      Business: Briefcase,
+      Investments: TrendingUp,
       "Bank Interest": Percent,
       "Rent Income": Home,
-      "Sales": ShoppingBag,
-      "Gambling": Dice5,
-      "Awards": Award,
-      "Refunds": RefreshCw,
-      "Freelance": Laptop,
-      "Royalties": Book,
-      "Grants": HandCoins,
+      Sales: ShoppingBag,
+      Gambling: Dice5,
+      Awards: Award,
+      Refunds: RefreshCw,
+      Freelance: Laptop,
+      Royalties: Book,
+      Grants: HandCoins,
       "Gifts Received": Gift,
-      "Pension": User,
+      Pension: User,
     };
     return icons[category] || MoreHorizontal;
   };
@@ -584,44 +585,44 @@ export default function DashboardScreen() {
       // Expense colors
       "Food & Drinks": "#059669",
       "Home & Rent": "#0891b2",
-      "Travel": "#3b82f6",
-      "Bills": "#f97316",
-      "Fun": "#8b5cf6",
-      "Health": "#dc2626",
-      "Shopping": "#06b6d4",
-      "Learning": "#84cc16",
+      Travel: "#3b82f6",
+      Bills: "#f97316",
+      Fun: "#8b5cf6",
+      Health: "#dc2626",
+      Shopping: "#06b6d4",
+      Learning: "#84cc16",
       "Personal Care": "#ec4899",
-      "Insurance": "#14b8a6",
-      "Loans": "#f97316",
-      "Gifts": "#8b5cf6",
-      "Donations": "#ef4444",
-      "Vacation": "#3b82f6",
-      "Pets": "#f59e0b",
-      "Children": "#ec4899",
-      "Subscriptions": "#8b5cf6",
+      Insurance: "#14b8a6",
+      Loans: "#f97316",
+      Gifts: "#8b5cf6",
+      Donations: "#ef4444",
+      Vacation: "#3b82f6",
+      Pets: "#f59e0b",
+      Children: "#ec4899",
+      Subscriptions: "#8b5cf6",
       "Gym & Sports": "#059669",
-      "Electronics": "#64748b",
-      "Furniture": "#f59e0b",
-      "Repairs": "#3b82f6",
-      "Taxes": "#ef4444",
+      Electronics: "#64748b",
+      Furniture: "#f59e0b",
+      Repairs: "#3b82f6",
+      Taxes: "#ef4444",
 
       // Income colors
       "Job Salary": "#059669",
-      "Bonus": "#3b82f6",
+      Bonus: "#3b82f6",
       "Part-time Work": "#f97316",
-      "Business": "#8b5cf6",
-      "Investments": "#ef4444",
+      Business: "#8b5cf6",
+      Investments: "#ef4444",
       "Bank Interest": "#06b6d4",
       "Rent Income": "#84cc16",
-      "Sales": "#64748b",
-      "Gambling": "#f43f5e",
-      "Awards": "#8b5cf6",
-      "Refunds": "#3b82f6",
-      "Freelance": "#f97316",
-      "Royalties": "#84cc16",
-      "Grants": "#059669",
+      Sales: "#64748b",
+      Gambling: "#f43f5e",
+      Awards: "#8b5cf6",
+      Refunds: "#3b82f6",
+      Freelance: "#f97316",
+      Royalties: "#84cc16",
+      Grants: "#059669",
       "Gifts Received": "#8b5cf6",
-      "Pension": "#64748b",
+      Pension: "#64748b",
     };
     return colors[category] || "#64748b";
   };
@@ -683,10 +684,13 @@ export default function DashboardScreen() {
       <NotificationPermissionRequest />
 
       {/* Recent Transactions */}
-      <View className="flex-1 bg-white rounded-t-3xl">
+      <View
+        className="flex-1  rounded-t-3xl"
+        style={{ backgroundColor: theme.background }}
+      >
         <View className="px-5 pt-6 pb-2 flex-1">
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-lg font-bold text-gray-900">
+            <Text className="text-lg font-bold" style={{ color: theme.text }}>
               Recent Transactions
             </Text>
             <View className="flex-row gap-2">
@@ -710,7 +714,10 @@ export default function DashboardScreen() {
                   key={t.id}
                   onPress={() => router.push(`/transaction-detail/${t.id}`)}
                 >
-                  <View className="flex-row items-center p-4 bg-gray-50 rounded-xl gap-3 mb-2">
+                  <View
+                    className="flex-row items-center p-4 rounded-xl gap-3 mb-2"
+                    style={{ backgroundColor: theme.cardBackground }}
+                  >
                     <View
                       className="w-11 h-11 rounded-xl items-center justify-center"
                       style={{ backgroundColor: `${color}20` }}
@@ -721,7 +728,8 @@ export default function DashboardScreen() {
                       <View className="flex-1 flex-row items-center">
                         <View style={{ flex: 1, paddingRight: 8 }}>
                           <Text
-                            className="text-base font-semibold text-gray-900"
+                            className="text-base font-semibold"
+                            style={{ color: theme.text }}
                             numberOfLines={1}
                             ellipsizeMode="tail"
                           >
@@ -729,7 +737,8 @@ export default function DashboardScreen() {
                           </Text>
                           {t.description && (
                             <Text
-                              className="text-xs text-gray-500"
+                              className="text-xs"
+                              style={{ color: theme.textSecondary }}
                               numberOfLines={1}
                               ellipsizeMode="tail"
                             >
@@ -750,7 +759,10 @@ export default function DashboardScreen() {
                             {t.type === "expense" ? "-" : "+"}$
                             {Math.abs(t.amount).toFixed(2)}
                           </Text>
-                          <Text className="text-xs text-gray-500">
+                          <Text
+                            className="text-xs"
+                            style={{ color: theme.textSecondary }}
+                          >
                             {formatDistanceToNow(new Date(t.created_at), {
                               addSuffix: true,
                             })}

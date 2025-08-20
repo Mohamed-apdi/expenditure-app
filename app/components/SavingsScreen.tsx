@@ -39,6 +39,7 @@ import {
   type Goal,
 } from "~/lib/goals";
 import { fetchAccounts, type Account } from "~/lib/accounts";
+import { useTheme } from "~/lib/theme";
 
 // Define goal icons
 type GoalIcon =
@@ -89,6 +90,7 @@ const goalCategories = [
 ];
 
 export default function SavingsScreen() {
+  const theme = useTheme();
   const [goals, setGoals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -393,10 +395,10 @@ export default function SavingsScreen() {
   };
 
   const getProgressColor = (progress: number) => {
-    if (progress >= 100) return "#10b981"; // Green when completed
-    if (progress >= 75) return "#3b82f6"; // Blue when close
+    if (progress >= 100) return theme.success; // Green when completed
+    if (progress >= 75) return theme.primary; // Blue when close
     if (progress >= 50) return "#f59e0b"; // Yellow when halfway
-    return "#ef4444"; // Red when far from goal
+    return theme.danger; // Red when far from goal
   };
 
   return (
@@ -408,40 +410,40 @@ export default function SavingsScreen() {
         }
       >
         {/* Total Savings Summary */}
-        <View className="bg-gradient-to-r from-blue-500 to-purple-600 p-6 rounded-2xl mb-6">
-          <Text className="text-black text-lg font-medium">Total Savings</Text>
-          <Text className="text-black text-3xl font-bold">
+        <View style={{ backgroundColor: theme.primary, padding: 24, borderRadius: 16, marginBottom: 24 }}>
+          <Text style={{ color: theme.primaryText, fontSize: 18, fontWeight: '500' }}>Total Savings</Text>
+          <Text style={{ color: theme.primaryText, fontSize: 30, fontWeight: 'bold' }}>
             ${totalSavings.toFixed(2)}
           </Text>
-          <Text className="text-blue-400 text-sm">
+          <Text style={{ color: `${theme.primaryText}80`, fontSize: 14 }}>
             Across {goals.filter((g) => g.is_active).length} active goals
           </Text>
         </View>
 
         {/* Active Goals */}
-        <View className="mb-6">
+        <View style={{ marginBottom: 24 }}>
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="font-bold text-xl text-gray-900">
+            <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 20 }}>
               Active Goals
             </Text>
             <TouchableOpacity
-              className="bg-blue-500 rounded-lg py-3 px-3 items-center"
+              style={{ backgroundColor: theme.primary, borderRadius: 8, paddingVertical: 12, paddingHorizontal: 12, alignItems: 'center' }}
               onPress={openAddModal}
             >
-              <Text className="text-white">Add Goal</Text>
+              <Text style={{ color: theme.primaryText }}>Add Goal</Text>
             </TouchableOpacity>
           </View>
 
           {loading ? (
-            <View className="py-8 items-center">
-              <Text className="text-gray-500 text-lg">Loading goals...</Text>
+            <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 18 }}>Loading goals...</Text>
             </View>
           ) : goals.filter((goal) => goal.is_active).length === 0 ? (
-            <View className="py-8 items-center">
-              <Text className="text-gray-500 text-lg">
+            <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 18 }}>
                 No active savings goals
               </Text>
-              <Text className="text-gray-400 text-sm mt-2">
+              <Text style={{ color: theme.textMuted, fontSize: 14, marginTop: 8 }}>
                 Create your first goal to start saving!
               </Text>
             </View>
@@ -462,7 +464,7 @@ export default function SavingsScreen() {
                 return (
                   <Pressable
                     key={goal.id}
-                    className="mb-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm"
+                    style={{ marginBottom: 16, padding: 16, backgroundColor: theme.cardBackground, borderRadius: 12, borderWidth: 1, borderColor: theme.border, shadowColor: theme.border, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 }}
                     onPress={() => openEditModal(goal)}
                   >
                     <View className="flex-row justify-between items-start mb-3">
@@ -477,10 +479,10 @@ export default function SavingsScreen() {
                           )}
                         </View>
                         <View className="flex-1">
-                          <Text className="font-semibold text-gray-900 text-lg">
+                          <Text style={{ color: theme.text, fontWeight: '600', fontSize: 18 }}>
                             {goal.name}
                           </Text>
-                          <Text className="text-gray-500 text-sm">
+                          <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
                             {goal.category}
                           </Text>
                         </View>
@@ -490,26 +492,27 @@ export default function SavingsScreen() {
                         onValueChange={() =>
                           handleToggleGoalStatus(goal.id, goal.is_active)
                         }
-                        trackColor={{ false: "#767577", true: "#3b82f6" }}
+                        trackColor={{ false: "#767577", true: theme.primary }}
                         thumbColor="#f4f3f4"
                       />
                     </View>
 
                     {/* Progress Bar */}
-                    <View className="mb-3">
+                    <View style={{ marginBottom: 12 }}>
                       <View className="flex-row justify-between items-center mb-2">
-                        <Text className="text-gray-600 text-sm">
+                        <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
                           ${goal.current_amount.toFixed(2)} of $
                           {goal.target_amount.toFixed(2)}
                         </Text>
-                        <Text className="text-gray-600 text-sm font-medium">
+                        <Text style={{ color: theme.textSecondary, fontSize: 14, fontWeight: '500' }}>
                           {Math.round(progress)}%
                         </Text>
                       </View>
-                      <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <View style={{ height: 8, backgroundColor: theme.border, borderRadius: 4, overflow: 'hidden' }}>
                         <View
-                          className="h-2 rounded-full"
                           style={{
+                            height: 8,
+                            borderRadius: 4,
                             width: `${progress}%`,
                             backgroundColor: getProgressColor(progress),
                           }}
@@ -520,21 +523,21 @@ export default function SavingsScreen() {
                     {/* Goal Details */}
                     <View className="flex-row justify-between items-center mb-3">
                       <View className="flex-row items-center">
-                        <Calendar size={14} color="#6b7280" />
-                        <Text className="text-gray-500 text-sm ml-2">
+                        <Calendar size={14} color={theme.textMuted} />
+                        <Text style={{ color: theme.textSecondary, fontSize: 14, marginLeft: 8 }}>
                           Target: {formatDate(goal.target_date)}
                         </Text>
                       </View>
                       <View className="flex-row items-center">
-                        <Clock size={14} color="#6b7280" />
-                        <Text className="text-gray-500 text-sm ml-2">
+                        <Clock size={14} color={theme.textMuted} />
+                        <Text style={{ color: theme.textSecondary, fontSize: 14, marginLeft: 8 }}>
                           {daysLeft > 0 ? `${daysLeft} days left` : "Overdue"}
                         </Text>
                       </View>
                     </View>
 
                     {goal.account && (
-                      <Text className="text-gray-500 text-sm mb-3">
+                      <Text style={{ color: theme.textSecondary, fontSize: 14, marginBottom: 12 }}>
                         Account: {goal.account.name}
                       </Text>
                     )}
@@ -542,18 +545,18 @@ export default function SavingsScreen() {
                     {/* Action Buttons */}
                     <View className="flex-row space-x-2">
                       <TouchableOpacity
-                        className="flex-1 bg-green-500 py-2 rounded-lg items-center"
+                        style={{ flex: 1, backgroundColor: "#10b981", paddingVertical: 8, borderRadius: 8, alignItems: 'center' }}
                         onPress={() => openAddAmountModal(goal, "add")}
                       >
-                        <Text className="text-white font-medium">
+                        <Text style={{ color: "white", fontWeight: '500' }}>
                           Add Money
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        className="flex-1 bg-orange-500 py-2 rounded-lg items-center"
+                        style={{ flex: 1, backgroundColor: "#f59e0b", paddingVertical: 8, borderRadius: 8, alignItems: 'center' }}
                         onPress={() => openAddAmountModal(goal, "withdraw")}
                       >
-                        <Text className="text-white font-medium">Withdraw</Text>
+                        <Text style={{ color: "white", fontWeight: '500' }}>Withdraw</Text>
                       </TouchableOpacity>
                     </View>
                   </Pressable>
@@ -563,13 +566,13 @@ export default function SavingsScreen() {
         </View>
 
         {/* Inactive Goals */}
-        <View className="bg-white p-6 rounded-2xl shadow-sm">
-          <Text className="font-bold text-xl text-gray-900 mb-6">
+        <View style={{ backgroundColor: theme.cardBackground, padding: 24, borderRadius: 16, shadowColor: theme.border, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 }}>
+          <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 20, marginBottom: 24 }}>
             Inactive Goals
           </Text>
           {goals.filter((goal) => !goal.is_active).length === 0 ? (
-            <View className="py-4 items-center">
-              <Text className="text-gray-500 text-lg">No inactive goals</Text>
+            <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 18 }}>No inactive goals</Text>
             </View>
           ) : (
             goals
@@ -577,7 +580,7 @@ export default function SavingsScreen() {
               .map((goal) => (
                 <Pressable
                   key={goal.id}
-                  className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-200 opacity-80"
+                  style={{ marginBottom: 16, padding: 16, backgroundColor: theme.background, borderRadius: 12, borderWidth: 1, borderColor: theme.border, opacity: 0.8 }}
                   onPress={() => openEditModal(goal)}
                 >
                   <View className="flex-row justify-between items-start">
@@ -592,10 +595,10 @@ export default function SavingsScreen() {
                         )}
                       </View>
                       <View className="flex-1">
-                        <Text className="font-semibold text-gray-900 text-lg">
+                        <Text style={{ color: theme.text, fontWeight: '600', fontSize: 18 }}>
                           {goal.name}
                         </Text>
-                        <Text className="text-gray-500 text-sm">
+                        <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
                           {goal.category} • Paused
                         </Text>
                       </View>
@@ -605,7 +608,7 @@ export default function SavingsScreen() {
                       onValueChange={() =>
                         handleToggleGoalStatus(goal.id, goal.is_active)
                       }
-                      trackColor={{ false: "#767577", true: "#3b82f6" }}
+                      trackColor={{ false: "#767577", true: theme.primary }}
                       thumbColor="#f4f3f4"
                     />
                   </View>
@@ -622,11 +625,11 @@ export default function SavingsScreen() {
         transparent={true}
         onRequestClose={() => setIsModalVisible(false)}
       >
-        <View className="flex-1 justify-center items-center bg-black/50 p-4">
-          <View className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[90%]">
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: 16 }}>
+          <View style={{ backgroundColor: theme.cardBackground, borderRadius: 16, padding: 24, width: '100%', maxWidth: 400, maxHeight: '90%' }}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <View className="flex-row justify-between items-center mb-6">
-                <Text className="font-bold text-xl text-gray-900">
+                <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 20 }}>
                   {isEditMode ? "Edit Goal" : "New Savings Goal"}
                 </Text>
                 <View className="flex-row justify-center items-center gap-2">
@@ -635,11 +638,11 @@ export default function SavingsScreen() {
                       className="p-2"
                       onPress={() => handleDelete(currentGoal.id)}
                     >
-                      <Trash2 size={18} color="#ef4444" />
+                      <Trash2 size={18} color={theme.danger} />
                     </TouchableOpacity>
                   ) : null}
                   <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                    <X size={24} color="#6b7280" />
+                    <X size={24} color={theme.textMuted} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -648,9 +651,9 @@ export default function SavingsScreen() {
                 {/* Icon and Color Selection */}
                 <View className="flex-row space-x-4 gap-2 items-center">
                   <View className="flex-1">
-                    <Text className="text-gray-700 mb-2 font-medium">Icon</Text>
+                    <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>Icon</Text>
                     <TouchableOpacity
-                      className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row items-center"
+                      style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 12, padding: 16, backgroundColor: theme.background, flexDirection: 'row', alignItems: 'center' }}
                       onPress={() => setIsIconModalVisible(true)}
                     >
                       <View
@@ -662,33 +665,34 @@ export default function SavingsScreen() {
                           color: formData.icon_color,
                         })}
                       </View>
-                      <Text className="text-gray-900">Change Icon</Text>
+                      <Text style={{ color: theme.text }}>Change Icon</Text>
                     </TouchableOpacity>
                   </View>
                   <View className="flex-1">
-                    <Text className="text-gray-700 mb-2 font-medium">
+                    <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
                       Color
                     </Text>
                     <TouchableOpacity
-                      className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row items-center"
+                      style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 12, padding: 16, backgroundColor: theme.background, flexDirection: 'row', alignItems: 'center' }}
                       onPress={() => setIsColorModalVisible(true)}
                     >
                       <View
                         className="w-6 h-6 rounded-full mr-3"
                         style={{ backgroundColor: formData.icon_color }}
                       />
-                      <Text className="text-gray-900">Change Color</Text>
+                      <Text style={{ color: theme.text }}>Change Color</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
 
                 <View>
-                  <Text className="text-gray-700 mb-2 font-medium">
+                  <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
                     Goal Name
                   </Text>
                   <TextInput
-                    className="border border-gray-200 rounded-xl p-4 bg-gray-50"
+                    style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 12, padding: 16, backgroundColor: theme.background, color: theme.text }}
                     placeholder="e.g., New Car, Vacation"
+                    placeholderTextColor={theme.textMuted}
                     value={formData.name}
                     onChangeText={(text) =>
                       setFormData({ ...formData, name: text })
@@ -697,40 +701,41 @@ export default function SavingsScreen() {
                 </View>
 
                 <View>
-                  <Text className="text-gray-700 mb-2 font-medium">
+                  <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
                     Category
                   </Text>
                   <TouchableOpacity
-                    className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
+                    style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 8, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
                     onPress={() =>
                       setShowCategoryDropdown(!showCategoryDropdown)
                     }
                   >
                     <Text
-                      className={
-                        formData.category ? "text-gray-900" : "text-gray-500"
-                      }
+                      style={{ color: formData.category ? theme.text : theme.textMuted }}
                     >
                       {formData.category || "Select a category"}
                     </Text>
-                    <ChevronDown size={16} color="#6b7280" />
+                    <ChevronDown size={16} color={theme.textMuted} />
                   </TouchableOpacity>
 
                   {showCategoryDropdown && (
-                    <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
+                    <View style={{ marginTop: 8, borderWidth: 1, borderColor: theme.border, borderRadius: 8, backgroundColor: theme.cardBackground, maxHeight: 160 }}>
                       <ScrollView>
                         {goalCategories.map((category) => (
                           <TouchableOpacity
                             key={category}
-                            className={`p-3 border-b border-gray-200 ${
-                              formData.category === category ? "bg-blue-50" : ""
-                            }`}
+                            style={{ 
+                              padding: 12, 
+                              borderBottomWidth: 1, 
+                              borderBottomColor: theme.border,
+                              backgroundColor: formData.category === category ? `${theme.primary}20` : 'transparent'
+                            }}
                             onPress={() => {
                               setFormData({ ...formData, category });
                               setShowCategoryDropdown(false);
                             }}
                           >
-                            <Text className="font-medium">{category}</Text>
+                            <Text style={{ color: theme.text, fontWeight: '500' }}>{category}</Text>
                           </TouchableOpacity>
                         ))}
                       </ScrollView>
@@ -739,43 +744,42 @@ export default function SavingsScreen() {
                 </View>
 
                 <View>
-                  <Text className="text-gray-700 mb-2 font-medium">
+                  <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
                     Account
                   </Text>
                   <TouchableOpacity
-                    className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
+                    style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 8, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
                     onPress={() => setShowAccountDropdown(!showAccountDropdown)}
                   >
                     <Text
-                      className={
-                        selectedAccount ? "text-gray-900" : "text-gray-500"
-                      }
+                      style={{ color: selectedAccount ? theme.text : theme.textMuted }}
                     >
                       {selectedAccount
                         ? selectedAccount.name
                         : "Select an account"}
                     </Text>
-                    <ChevronDown size={16} color="#6b7280" />
+                    <ChevronDown size={16} color={theme.textMuted} />
                   </TouchableOpacity>
 
                   {showAccountDropdown && (
-                    <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
+                    <View style={{ marginTop: 8, borderWidth: 1, borderColor: theme.border, borderRadius: 8, backgroundColor: theme.cardBackground, maxHeight: 160 }}>
                       <ScrollView>
                         {accounts.map((account) => (
                           <TouchableOpacity
                             key={account.id}
-                            className={`p-3 border-b border-gray-200 ${
-                              selectedAccount?.id === account.id
-                                ? "bg-blue-50"
-                                : ""
-                            }`}
+                            style={{ 
+                              padding: 12, 
+                              borderBottomWidth: 1, 
+                              borderBottomColor: theme.border,
+                              backgroundColor: selectedAccount?.id === account.id ? `${theme.primary}20` : 'transparent'
+                            }}
                             onPress={() => {
                               setSelectedAccount(account);
                               setShowAccountDropdown(false);
                             }}
                           >
-                            <Text className="font-medium">{account.name}</Text>
-                            <Text className="text-sm text-gray-500">
+                            <Text style={{ color: theme.text, fontWeight: '500' }}>{account.name}</Text>
+                            <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
                               {account.account_type}
                             </Text>
                           </TouchableOpacity>
@@ -786,16 +790,17 @@ export default function SavingsScreen() {
                 </View>
 
                 <View>
-                  <Text className="text-gray-700 mb-2 font-medium">
+                  <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
                     Target Amount ($)
                   </Text>
-                  <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50">
-                    <View className="px-4">
-                      <DollarSign size={18} color="#6b7280" />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.border, borderRadius: 12, backgroundColor: theme.background }}>
+                    <View style={{ paddingHorizontal: 16 }}>
+                      <DollarSign size={18} color={theme.textMuted} />
                     </View>
                     <TextInput
-                      className="flex-1 p-4"
+                      style={{ flex: 1, padding: 16, color: theme.text }}
                       placeholder="0.00"
+                      placeholderTextColor={theme.textMuted}
                       keyboardType="numeric"
                       value={formData.target_amount}
                       onChangeText={(text) =>
@@ -807,16 +812,17 @@ export default function SavingsScreen() {
 
                 {isEditMode && (
                   <View>
-                    <Text className="text-gray-700 mb-2 font-medium">
+                    <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
                       Current Amount ($)
                     </Text>
-                    <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50">
-                      <View className="px-4">
-                        <DollarSign size={18} color="#6b7280" />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.border, borderRadius: 12, backgroundColor: theme.background }}>
+                      <View style={{ paddingHorizontal: 16 }}>
+                        <DollarSign size={18} color={theme.textMuted} />
                       </View>
                       <TextInput
-                        className="flex-1 p-4"
+                        style={{ flex: 1, padding: 16, color: theme.text }}
                         placeholder="0.00"
+                        placeholderTextColor={theme.textMuted}
                         keyboardType="numeric"
                         value={formData.current_amount}
                         onChangeText={(text) =>
@@ -828,33 +834,32 @@ export default function SavingsScreen() {
                 )}
 
                 <View>
-                  <Text className="text-gray-700 mb-2 font-medium">
+                  <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
                     Target Date
                   </Text>
                   <TouchableOpacity
-                    className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row items-center justify-between"
+                    style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 12, padding: 16, backgroundColor: theme.background, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
                     onPress={() => setShowDatePicker(true)}
                   >
                     <Text
-                      className={
-                        formData.target_date ? "text-gray-900" : "text-gray-500"
-                      }
+                      style={{ color: formData.target_date ? theme.text : theme.textMuted }}
                     >
                       {formData.target_date
                         ? formatDate(formData.target_date)
                         : "Select target date"}
                     </Text>
-                    <Calendar size={20} color="#6b7280" />
+                    <Calendar size={20} color={theme.textMuted} />
                   </TouchableOpacity>
                 </View>
 
                 <View>
-                  <Text className="text-gray-700 mb-2 font-medium">
+                  <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
                     Description
                   </Text>
                   <TextInput
-                    className="border border-gray-200 rounded-xl p-4 bg-gray-50"
+                    style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 12, padding: 16, backgroundColor: theme.background, color: theme.text }}
                     placeholder="Optional description"
+                    placeholderTextColor={theme.textMuted}
                     value={formData.description}
                     onChangeText={(text) =>
                       setFormData({ ...formData, description: text })
@@ -864,22 +869,22 @@ export default function SavingsScreen() {
                 </View>
 
                 <View className="flex-row justify-between items-center">
-                  <Text className="text-gray-700 font-medium">Active</Text>
+                  <Text style={{ color: theme.text, fontWeight: '500' }}>Active</Text>
                   <Switch
                     value={formData.is_active}
                     onValueChange={(value) =>
                       setFormData({ ...formData, is_active: value })
                     }
-                    trackColor={{ false: "#767577", true: "#3b82f6" }}
+                    trackColor={{ false: "#767577", true: theme.primary }}
                     thumbColor="#f4f3f4"
                   />
                 </View>
 
                 <TouchableOpacity
-                  className="bg-blue-600 p-4 rounded-xl items-center mt-2"
+                  style={{ backgroundColor: theme.primary, padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 8 }}
                   onPress={handleSave}
                 >
-                  <Text className="text-white font-medium text-lg">
+                  <Text style={{ color: theme.primaryText, fontWeight: '500', fontSize: 18 }}>
                     {isEditMode ? "Update Goal" : "Create Goal"}
                   </Text>
                 </TouchableOpacity>
@@ -896,31 +901,32 @@ export default function SavingsScreen() {
         transparent={true}
         onRequestClose={() => setIsAddAmountModalVisible(false)}
       >
-        <View className="flex-1 justify-center items-center bg-black/50 p-4">
-          <View className="bg-white rounded-2xl p-6 w-full max-w-md">
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: 16 }}>
+          <View style={{ backgroundColor: theme.cardBackground, borderRadius: 16, padding: 24, width: '100%', maxWidth: 400 }}>
             <View className="flex-row justify-between items-center mb-6">
-              <Text className="font-bold text-xl text-gray-900">
+              <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 20 }}>
                 Add Money to Goal
               </Text>
               <TouchableOpacity
                 onPress={() => setIsAddAmountModalVisible(false)}
               >
-                <X size={24} color="#6b7280" />
+                <X size={24} color={theme.textMuted} />
               </TouchableOpacity>
             </View>
 
             <View className="space-y-5">
               <View>
-                <Text className="text-gray-700 mb-2 font-medium">
+                <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
                   Amount ($)
                 </Text>
-                <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50">
-                  <View className="px-4">
-                    <DollarSign size={18} color="#6b7280" />
+                <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.border, borderRadius: 12, backgroundColor: theme.background }}>
+                  <View style={{ paddingHorizontal: 16 }}>
+                    <DollarSign size={18} color={theme.textMuted} />
                   </View>
                   <TextInput
-                    className="flex-1 p-4"
+                    style={{ flex: 1, padding: 16, color: theme.text }}
                     placeholder="0.00"
+                    placeholderTextColor={theme.textMuted}
                     keyboardType="numeric"
                     value={amountModalData.amount}
                     onChangeText={(text) =>
@@ -931,10 +937,10 @@ export default function SavingsScreen() {
               </View>
 
               <TouchableOpacity
-                className="bg-green-500 p-4 rounded-xl items-center"
+                style={{ backgroundColor: "#10b981", padding: 16, borderRadius: 12, alignItems: 'center' }}
                 onPress={handleAddAmount}
               >
-                <Text className="text-white font-medium text-lg">
+                <Text style={{ color: "white", fontWeight: '500', fontSize: 18 }}>
                   Add Money
                 </Text>
               </TouchableOpacity>
@@ -950,31 +956,32 @@ export default function SavingsScreen() {
         transparent={true}
         onRequestClose={() => setIsWithdrawModalVisible(false)}
       >
-        <View className="flex-1 justify-center items-center bg-black/50 p-4">
-          <View className="bg-white rounded-2xl p-6 w-full max-w-md">
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: 16 }}>
+          <View style={{ backgroundColor: theme.cardBackground, borderRadius: 16, padding: 24, width: '100%', maxWidth: 400 }}>
             <View className="flex-row justify-between items-center mb-6">
-              <Text className="font-bold text-xl text-gray-900">
+              <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 20 }}>
                 Withdraw from Goal
               </Text>
               <TouchableOpacity
                 onPress={() => setIsWithdrawModalVisible(false)}
               >
-                <X size={24} color="#6b7280" />
+                <X size={24} color={theme.textMuted} />
               </TouchableOpacity>
             </View>
 
             <View className="space-y-5">
               <View>
-                <Text className="text-gray-700 mb-2 font-medium">
+                <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
                   Amount ($)
                 </Text>
-                <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50">
-                  <View className="px-4">
-                    <DollarSign size={18} color="#6b7280" />
+                <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.border, borderRadius: 12, backgroundColor: theme.background }}>
+                  <View style={{ paddingHorizontal: 16 }}>
+                    <DollarSign size={18} color={theme.textMuted} />
                   </View>
                   <TextInput
-                    className="flex-1 p-4"
+                    style={{ flex: 1, padding: 16, color: theme.text }}
                     placeholder="0.00"
+                    placeholderTextColor={theme.textMuted}
                     keyboardType="numeric"
                     value={amountModalData.amount}
                     onChangeText={(text) =>
@@ -985,10 +992,10 @@ export default function SavingsScreen() {
               </View>
 
               <TouchableOpacity
-                className="bg-orange-500 p-4 rounded-xl items-center"
+                style={{ backgroundColor: "#f59e0b", padding: 16, borderRadius: 12, alignItems: 'center' }}
                 onPress={handleAddAmount}
               >
-                <Text className="text-white font-medium text-lg">
+                <Text style={{ color: "white", fontWeight: '500', fontSize: 18 }}>
                   Withdraw Money
                 </Text>
               </TouchableOpacity>
@@ -1004,14 +1011,14 @@ export default function SavingsScreen() {
         transparent={true}
         onRequestClose={() => setIsIconModalVisible(false)}
       >
-        <View className="flex-1 justify-center items-center bg-black/50 p-4">
-          <View className="bg-white rounded-2xl p-6 w-full max-w-md">
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: 16 }}>
+          <View style={{ backgroundColor: theme.cardBackground, borderRadius: 16, padding: 24, width: '100%', maxWidth: 400 }}>
             <View className="flex-row justify-between items-center mb-6">
-              <Text className="font-bold text-xl text-gray-900">
+              <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 20 }}>
                 Select Icon
               </Text>
               <TouchableOpacity onPress={() => setIsIconModalVisible(false)}>
-                <X size={24} color="#6b7280" />
+                <X size={24} color={theme.textMuted} />
               </TouchableOpacity>
             </View>
 
@@ -1019,7 +1026,13 @@ export default function SavingsScreen() {
               {Object.keys(goalIcons).map((icon) => (
                 <TouchableOpacity
                   key={icon}
-                  className={`w-1/4 p-4 items-center ${formData.icon === icon ? "bg-blue-50 rounded-lg" : ""}`}
+                  style={{ 
+                    width: '25%', 
+                    padding: 16, 
+                    alignItems: 'center',
+                    backgroundColor: formData.icon === icon ? `${theme.primary}20` : 'transparent',
+                    borderRadius: 8
+                  }}
                   onPress={() => selectIcon(icon as GoalIcon)}
                 >
                   <View
@@ -1031,7 +1044,7 @@ export default function SavingsScreen() {
                       color: formData.icon_color,
                     })}
                   </View>
-                  <Text className="text-xs text-gray-700 capitalize">
+                  <Text style={{ color: theme.text, fontSize: 12, textTransform: 'capitalize' }}>
                     {icon}
                   </Text>
                 </TouchableOpacity>
@@ -1048,14 +1061,14 @@ export default function SavingsScreen() {
         transparent={true}
         onRequestClose={() => setIsColorModalVisible(false)}
       >
-        <View className="flex-1 justify-center items-center bg-black/50 p-4">
-          <View className="bg-white rounded-2xl p-6 w-full max-w-md">
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: 16 }}>
+          <View style={{ backgroundColor: theme.cardBackground, borderRadius: 16, padding: 24, width: '100%', maxWidth: 400 }}>
             <View className="flex-row justify-between items-center mb-6">
-              <Text className="font-bold text-xl text-gray-900">
+              <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 20 }}>
                 Select Color
               </Text>
               <TouchableOpacity onPress={() => setIsColorModalVisible(false)}>
-                <X size={24} color="#6b7280" />
+                <X size={24} color={theme.textMuted} />
               </TouchableOpacity>
             </View>
 
@@ -1063,7 +1076,13 @@ export default function SavingsScreen() {
               {colors.map((color) => (
                 <TouchableOpacity
                   key={color}
-                  className={`w-1/4 p-4 items-center ${formData.icon_color === color ? "bg-blue-50 rounded-lg" : ""}`}
+                  style={{ 
+                    width: '25%', 
+                    padding: 16, 
+                    alignItems: 'center',
+                    backgroundColor: formData.icon_color === color ? `${theme.primary}20` : 'transparent',
+                    borderRadius: 8
+                  }}
                   onPress={() => selectColor(color)}
                 >
                   <View

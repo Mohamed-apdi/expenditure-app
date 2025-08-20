@@ -15,6 +15,7 @@ import {
   BarChart2,
 } from "lucide-react-native";
 import { useEffect, useRef } from "react";
+import { useTheme } from "../../lib/theme";
 
 const categories = [
   {
@@ -94,6 +95,7 @@ const FloatingParticle = ({ style }: any) => {
 
 export default function InputCategoriesScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const categoryAnimations = useRef(
     categories.map(() => new Animated.Value(0))
@@ -180,7 +182,7 @@ export default function InputCategoriesScreen() {
   });
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
       {/* Floating particles background */}
       {particles.map((particle) => (
         <FloatingParticle
@@ -189,7 +191,7 @@ export default function InputCategoriesScreen() {
             width: particle.size,
             height: particle.size,
             borderRadius: particle.size / 2,
-            backgroundColor: "#10b981",
+            backgroundColor: theme.primary,
             left: `${particle.left}%`,
             top: `${particle.top}%`,
           }}
@@ -213,9 +215,30 @@ export default function InputCategoriesScreen() {
         <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
           {/* Progress Indicator */}
           <View className="flex-row items-center justify-center gap-1.5 pt-10 px-6">
-            <View className="w-2 h-2 bg-white/30 rounded-full" />
-            <View className="w-6 h-2 bg-emerald-400 rounded-full" />
-            <View className="w-2 h-2 bg-white/30 rounded-full" />
+            <View
+              style={{
+                width: 8,
+                height: 8,
+                backgroundColor: theme.textMuted,
+                borderRadius: 4,
+              }}
+            />
+            <View
+              style={{
+                width: 24,
+                height: 8,
+                backgroundColor: theme.primary,
+                borderRadius: 4,
+              }}
+            />
+            <View
+              style={{
+                width: 8,
+                height: 8,
+                backgroundColor: theme.textMuted,
+                borderRadius: 4,
+              }}
+            />
           </View>
 
           {/* Title and Tagline */}
@@ -231,8 +254,11 @@ export default function InputCategoriesScreen() {
                     }),
                   },
                 ],
+                color: theme.text,
+                fontSize: 24,
+                fontWeight: "bold",
+                marginBottom: 8,
               }}
-              className="text-white text-2xl font-bold mb-2"
             >
               Account Setup
             </Animated.Text>
@@ -247,8 +273,10 @@ export default function InputCategoriesScreen() {
                     }),
                   },
                 ],
+                color: theme.textSecondary,
+                fontSize: 16,
+                lineHeight: 24,
               }}
-              className="text-slate-400 text-base leading-6"
             >
               Choose what you want to manage — accounts, expenses, and more
             </Animated.Text>
@@ -268,8 +296,15 @@ export default function InputCategoriesScreen() {
                       }),
                     },
                   ],
+                  backgroundColor: theme.cardBackground,
+                  borderRadius: 12,
+                  padding: 20,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  flexDirection: "row",
+                  alignItems: "flex-start",
+                  position: "relative",
                 }}
-                className="bg-slate-800 rounded-xl p-5 border border-slate-700 flex-row items-start relative"
               >
                 <Animated.View
                   style={[
@@ -280,26 +315,54 @@ export default function InputCategoriesScreen() {
                         },
                       ],
                       backgroundColor: `${category.color}20`,
+                      width: 56,
+                      height: 56,
+                      borderRadius: 8,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      marginRight: 16,
                     },
                   ]}
-                  className="w-14 h-14 rounded-lg justify-center items-center mr-4"
                 >
                   <category.icon size={28} color={category.color} />
                 </Animated.View>
 
-                <View className="flex-1">
-                  <Text className="text-white text-lg font-bold mb-1">
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontSize: 18,
+                      fontWeight: "bold",
+                      marginBottom: 4,
+                    }}
+                  >
                     {category.title}
                   </Text>
-                  <Text className="text-slate-400 text-sm mb-3 leading-5">
+                  <Text
+                    style={{
+                      color: theme.textSecondary,
+                      fontSize: 14,
+                      marginBottom: 12,
+                      lineHeight: 20,
+                    }}
+                  >
                     {category.description}
                   </Text>
 
                   <View>
-                    <Text className="text-slate-500 text-xs font-medium mb-1">
+                    <Text
+                      style={{
+                        color: theme.textMuted,
+                        fontSize: 12,
+                        fontWeight: "500",
+                        marginBottom: 4,
+                      }}
+                    >
                       Includes:
                     </Text>
-                    <View className="flex-row flex-wrap gap-1.5">
+                    <View
+                      style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}
+                    >
                       {category.fields.slice(0, 3).map((field, idx) => (
                         <Animated.View
                           key={idx}
@@ -313,10 +376,19 @@ export default function InputCategoriesScreen() {
                                 }),
                               },
                             ],
+                            backgroundColor: theme.border,
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 4,
                           }}
-                          className="bg-slate-700 px-2 py-1 rounded"
                         >
-                          <Text className="text-slate-200 text-xs font-medium">
+                          <Text
+                            style={{
+                              color: theme.text,
+                              fontSize: 12,
+                              fontWeight: "500",
+                            }}
+                          >
                             {field}
                           </Text>
                         </Animated.View>
@@ -333,10 +405,19 @@ export default function InputCategoriesScreen() {
                                 }),
                               },
                             ],
+                            backgroundColor: theme.border,
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 4,
                           }}
-                          className="bg-slate-700 px-2 py-1 rounded"
                         >
-                          <Text className="text-slate-200 text-xs font-medium">
+                          <Text
+                            style={{
+                              color: theme.text,
+                              fontSize: 12,
+                              fontWeight: "500",
+                            }}
+                          >
                             +{category.fields.length - 3}
                           </Text>
                         </Animated.View>
@@ -355,10 +436,24 @@ export default function InputCategoriesScreen() {
                         }),
                       },
                     ],
+                    position: "absolute",
+                    top: 16,
+                    right: 16,
+                    width: 24,
+                    height: 24,
+                    backgroundColor: theme.primary,
+                    borderRadius: 12,
+                    justifyContent: "center",
+                    alignItems: "center",
                   }}
-                  className="absolute top-4 right-4 w-6 h-6 bg-emerald-500 rounded-full justify-center items-center"
                 >
-                  <Text className="text-white text-xs font-bold">
+                  <Text
+                    style={{
+                      color: theme.primaryText,
+                      fontSize: 12,
+                      fontWeight: "bold",
+                    }}
+                  >
                     {index + 1}
                   </Text>
                 </Animated.View>
@@ -368,15 +463,36 @@ export default function InputCategoriesScreen() {
 
           <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
             <TouchableOpacity
-              className="mx-6 mb-6 bg-emerald-500 py-4 rounded-xl flex-row items-center justify-center shadow-lg shadow-emerald-500/30"
+              style={{
+                marginHorizontal: 24,
+                marginBottom: 24,
+                backgroundColor: theme.primary,
+                paddingVertical: 16,
+                borderRadius: 12,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                shadowColor: theme.primary,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 12,
+                elevation: 8,
+              }}
               onPressIn={handleButtonPressIn}
               onPressOut={handleButtonPressOut}
               onPress={handleNavigate}
             >
-              <Text className="text-white text-base font-bold mr-2">
+              <Text
+                style={{
+                  color: theme.primaryText,
+                  fontSize: 16,
+                  fontWeight: "bold",
+                  marginRight: 8,
+                }}
+              >
                 Continue
               </Text>
-              <ArrowRight size={20} color="#ffffff" />
+              <ArrowRight size={20} color={theme.primaryText} />
             </TouchableOpacity>
           </Animated.View>
         </ScrollView>

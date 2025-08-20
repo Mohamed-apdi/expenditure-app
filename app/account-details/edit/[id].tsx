@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { X, ChevronDown, Check, DollarSign } from "lucide-react-native";
 import { supabase } from "~/lib/supabase";
 import { updateAccount, fetchAccounts } from "~/lib/accounts";
+import { useTheme } from "~/lib/theme";
 
 type AccountGroup = {
   id: string;
@@ -56,7 +57,8 @@ export default function EditAccount() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const theme = useTheme();
+
   const [formData, setFormData] = useState({
     account_type: "",
     name: "",
@@ -71,9 +73,11 @@ export default function EditAccount() {
   const loadAccount = async () => {
     try {
       setLoading(true);
-      
+
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         router.replace("/login");
         return;
@@ -135,44 +139,75 @@ export default function EditAccount() {
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center">
-        <Text className="text-gray-600">Loading account...</Text>
+      <SafeAreaView
+        className="flex-1 items-center justify-center"
+        style={{ backgroundColor: theme.background }}
+      >
+        <Text style={{ color: theme.textSecondary }}>Loading account...</Text>
       </SafeAreaView>
     );
   }
 
   if (!account) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center">
-        <Text className="text-gray-600">Account not found</Text>
+      <SafeAreaView
+        className="flex-1 items-center justify-center"
+        style={{ backgroundColor: theme.background }}
+      >
+        <Text style={{ color: theme.textSecondary }}>Account not found</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      <View className="flex-row justify-between items-center p-6 border-b border-gray-100">
-        <Text className="text-gray-900 text-xl font-bold">Edit Account</Text>
+    <SafeAreaView
+      className="flex-1 pt-safe"
+      style={{ backgroundColor: theme.background }}
+    >
+      <View
+        className="flex-row justify-between items-center p-6 border-b"
+        style={{ borderColor: theme.border }}
+      >
+        <Text className="text-xl font-bold" style={{ color: theme.text }}>
+          Edit Account
+        </Text>
         <TouchableOpacity onPress={() => router.back()}>
           <X size={24} color="#6b7280" />
         </TouchableOpacity>
       </View>
 
       {error && (
-        <View className="bg-red-50 border border-red-200 p-4 mx-6 mt-4 rounded-lg">
-          <Text className="text-red-600">{error}</Text>
+        <View
+          className="border p-4 mx-6 mt-4 rounded-lg"
+          style={{
+            backgroundColor: theme.cardBackground,
+            borderColor: theme.border,
+          }}
+        >
+          <Text style={{ color: theme.text }}>{error}</Text>
         </View>
       )}
 
       <ScrollView className="flex-1 px-6 pt-6">
         {/* Group Input */}
         <View className="mb-5">
-          <Text className="text-gray-700 mb-2 font-medium">Group</Text>
+          <Text className="mb-2 font-medium" style={{ color: theme.text }}>
+            Group
+          </Text>
           <TouchableOpacity
-            className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row justify-between items-center"
+            className="border rounded-xl p-4 flex-row justify-between items-center"
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderColor: theme.border,
+            }}
             onPress={() => setShowGroupModal(true)}
           >
-            <Text className={formData.account_type ? "text-gray-900" : "text-gray-400"}>
+            <Text
+              className={formData.account_type ? "" : ""}
+              style={{
+                color: formData.account_type ? theme.text : theme.textMuted,
+              }}
+            >
               {formData.account_type || "Select group"}
             </Text>
             <ChevronDown size={18} color="#6b7280" />
@@ -181,11 +216,18 @@ export default function EditAccount() {
 
         {/* Name Input */}
         <View className="mb-5">
-          <Text className="text-gray-700 mb-2 font-medium">Name</Text>
+          <Text className="mb-2 font-medium" style={{ color: theme.text }}>
+            Name
+          </Text>
           <TextInput
-            className="border border-gray-200 rounded-xl p-4 bg-gray-50"
+            className="border rounded-xl p-4"
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderColor: theme.border,
+              color: theme.text,
+            }}
             placeholder="Account name"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.placeholder}
             value={formData.name}
             onChangeText={(text) => setFormData({ ...formData, name: text })}
           />
@@ -193,15 +235,24 @@ export default function EditAccount() {
 
         {/* Amount Input */}
         <View className="mb-5">
-          <Text className="text-gray-700 mb-2 font-medium">Amount</Text>
-          <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50">
+          <Text className="mb-2 font-medium" style={{ color: theme.text }}>
+            Amount
+          </Text>
+          <View
+            className="flex-row items-center border rounded-xl"
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderColor: theme.border,
+            }}
+          >
             <View className="px-4">
               <DollarSign size={18} color="#6b7280" />
             </View>
             <TextInput
               className="flex-1 p-4"
+              style={{ color: theme.text }}
               placeholder="0.00"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.placeholder}
               keyboardType="numeric"
               value={formData.amount.toString()}
               onChangeText={(text) => {
@@ -210,10 +261,13 @@ export default function EditAccount() {
                 let formattedValue = decimalParts[0];
 
                 if (decimalParts.length > 1) {
-                  formattedValue += "." + decimalParts.slice(1).join("").substring(0, 2);
+                  formattedValue +=
+                    "." + decimalParts.slice(1).join("").substring(0, 2);
                 }
 
-                const numericValue = formattedValue ? parseFloat(formattedValue) : 0;
+                const numericValue = formattedValue
+                  ? parseFloat(formattedValue)
+                  : 0;
                 setFormData({ ...formData, amount: numericValue });
               }}
             />
@@ -222,13 +276,22 @@ export default function EditAccount() {
 
         {/* Description Input */}
         <View className="mb-5">
-          <Text className="text-gray-700 mb-2 font-medium">Description</Text>
+          <Text className="mb-2 font-medium" style={{ color: theme.text }}>
+            Description
+          </Text>
           <TextInput
-            className="border border-gray-200 rounded-xl p-4 bg-gray-50"
+            className="border rounded-xl p-4"
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderColor: theme.border,
+              color: theme.text,
+            }}
             placeholder="Optional description"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={theme.placeholder}
             value={formData.description}
-            onChangeText={(text) => setFormData({ ...formData, description: text })}
+            onChangeText={(text) =>
+              setFormData({ ...formData, description: text })
+            }
           />
         </View>
 
@@ -252,9 +315,17 @@ export default function EditAccount() {
         onRequestClose={() => setShowGroupModal(false)}
       >
         <View className="flex-1 bg-black/50 justify-center p-4">
-          <View className="bg-white rounded-2xl max-h-[80%]">
-            <View className="p-6 border-b border-gray-100">
-              <Text className="text-gray-900 font-bold text-lg">Select Group</Text>
+          <View
+            className="rounded-2xl max-h-[80%]"
+            style={{ backgroundColor: theme.cardBackground }}
+          >
+            <View
+              className="p-6 border-b"
+              style={{ borderColor: theme.border }}
+            >
+              <Text className="font-bold text-lg" style={{ color: theme.text }}>
+                Select Group
+              </Text>
             </View>
             <FlatList
               data={accountGroups}
@@ -269,7 +340,7 @@ export default function EditAccount() {
                     setShowGroupModal(false);
                   }}
                 >
-                  <Text className="text-gray-900">{item.name}</Text>
+                  <Text style={{ color: theme.text }}>{item.name}</Text>
                   {formData.account_type === item.name && (
                     <Check size={20} color="#3b82f6" />
                   )}

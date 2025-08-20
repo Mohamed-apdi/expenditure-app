@@ -17,11 +17,13 @@ import AntDesign from "@expo/vector-icons/AntDesign";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
 import Toast from "react-native-toast-message";
+import { useTheme } from "../../lib/theme";
 
 // Required for Expo OAuth
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
+  const theme = useTheme();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -42,7 +44,7 @@ export default function LoginScreen() {
 
     if (error) {
       Toast.show({
-        type: "error", 
+        type: "error",
         position: "top",
         text1: "Error",
         text2: "Missing credentials or invalid email/password",
@@ -75,7 +77,7 @@ export default function LoginScreen() {
     setSocialLoading(provider);
 
     try {
-      const redirectUrl = AuthSession.makeRedirectUri({ useProxy: true })
+      const redirectUrl = AuthSession.makeRedirectUri({ useProxy: true });
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
@@ -124,27 +126,73 @@ export default function LoginScreen() {
   };
 
   return (
-    <View className="flex-1 bg-slate-900 px-6 justify-center">
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: theme.background,
+        paddingHorizontal: 24,
+        justifyContent: "center",
+      }}
+    >
       {/* Header */}
       <View className="items-center mb-6">
-        <View className="bg-emerald-400/20 p-4 rounded-full mb-4">
-          <LogIn size={32} color="#10b981" />
+        <View
+          style={{
+            backgroundColor: `${theme.primary}20`,
+            padding: 16,
+            borderRadius: 32,
+            marginBottom: 16,
+          }}
+        >
+          <LogIn size={32} color={theme.primary} />
         </View>
-        <Text className="text-white text-2xl font-bold mb-2">Welcome Back</Text>
-        <Text className="text-slate-400 text-center leading-6">
+        <Text
+          style={{
+            color: theme.text,
+            fontSize: 24,
+            fontWeight: "bold",
+            marginBottom: 8,
+          }}
+        >
+          Welcome Back
+        </Text>
+        <Text
+          style={{
+            color: theme.textSecondary,
+            textAlign: "center",
+            lineHeight: 24,
+          }}
+        >
           Sign in to access your financial management dashboard
         </Text>
       </View>
 
       {/* Email */}
       <View className="mb-4">
-        <Text className="text-slate-200 mb-1">Email Address</Text>
-        <View className="flex-row items-center bg-slate-800 border border-slate-700 rounded-xl px-4">
-          <Mail size={20} color="#64748b" />
+        <Text style={{ color: theme.text, marginBottom: 4 }}>
+          Email Address
+        </Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: theme.cardBackground,
+            borderWidth: 1,
+            borderColor: theme.border,
+            borderRadius: 12,
+            paddingHorizontal: 16,
+          }}
+        >
+          <Mail size={20} color={theme.textMuted} />
           <TextInput
-            className="flex-1 py-3 px-2 text-white"
+            style={{
+              flex: 1,
+              paddingVertical: 12,
+              paddingHorizontal: 8,
+              color: theme.text,
+            }}
             placeholder="Enter your email"
-            placeholderTextColor="#64748b"
+            placeholderTextColor={theme.textMuted}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -155,29 +203,44 @@ export default function LoginScreen() {
 
       {/* Password */}
       <View className="mb-4">
-        <Text className="text-slate-200 mb-1">Password</Text>
-        <View className="flex-row items-center bg-slate-800 border border-slate-700 rounded-xl px-4">
-          <Lock size={20} color="#64748b" />
+        <Text style={{ color: theme.text, marginBottom: 4 }}>Password</Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: theme.cardBackground,
+            borderWidth: 1,
+            borderColor: theme.border,
+            borderRadius: 12,
+            paddingHorizontal: 16,
+          }}
+        >
+          <Lock size={20} color={theme.textMuted} />
           <TextInput
-            className="flex-1 py-3 px-2 text-white"
+            style={{
+              flex: 1,
+              paddingVertical: 12,
+              paddingHorizontal: 8,
+              color: theme.text,
+            }}
             placeholder="Enter your password"
-            placeholderTextColor="#64748b"
+            placeholderTextColor={theme.textMuted}
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
           />
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
             {showPassword ? (
-              <EyeOff size={20} color="#64748b" />
+              <EyeOff size={20} color={theme.textMuted} />
             ) : (
-              <Eye size={20} color="#64748b" />
+              <Eye size={20} color={theme.textMuted} />
             )}
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Remember / Forgot */}
-      <View className="flex-row justify-between items-center mb-6">
+      {/*<View className="flex-row justify-between items-center mb-6">
         <TouchableOpacity
           onPress={() => setRememberMe(!rememberMe)}
           className="flex-row items-center space-x-2"
@@ -192,29 +255,59 @@ export default function LoginScreen() {
           <Text className="text-slate-300 ml-2">Remember me</Text>
         </TouchableOpacity>
         <Text className="text-emerald-400">Forgot Password?</Text>
-      </View>
+      </View>*/}
 
       {/* Login */}
       <Button
-        className="flex-row items-center justify-center bg-emerald-500 rounded-xl p-4 mt-2"
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: theme.primary,
+          borderRadius: 12,
+          padding: 16,
+          marginTop: 8,
+        }}
         onPress={handleLogin}
         disabled={loading}
       >
-        <Text className="text-white font-bold ml-2 mr-2">
+        <Text
+          style={{
+            color: theme.primaryText,
+            fontWeight: "bold",
+            marginLeft: 8,
+            marginRight: 8,
+          }}
+        >
           {loading ? "Signing In..." : "Sign In"}
         </Text>
-        <LogIn size={20} color="#ffffff" />
+        <LogIn size={20} color={theme.primaryText} />
       </Button>
 
       {/* Divider */}
-      <View className="flex-row items-center my-6">
-        <View className="flex-1 h-px bg-slate-700" />
-        <Text className="mx-4 text-slate-500 text-sm font-semibold">OR</Text>
-        <View className="flex-1 h-px bg-slate-700" />
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          marginVertical: 24,
+        }}
+      >
+        <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
+        <Text
+          style={{
+            marginHorizontal: 16,
+            color: theme.textMuted,
+            fontSize: 14,
+            fontWeight: "600",
+          }}
+        >
+          OR
+        </Text>
+        <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
       </View>
 
       {/* Google Button */}
-      <TouchableOpacity
+      {/*<TouchableOpacity
         className="flex-row items-center bg-slate-800 border border-slate-700 rounded-xl p-4"
         onPress={() => handleSocialLogin("google")}
         disabled={socialLoading !== null || loading}
@@ -231,10 +324,10 @@ export default function LoginScreen() {
         <Text className="text-white font-medium flex-1">
           Continue with Google
         </Text>
-      </TouchableOpacity>
+      </TouchableOpacity>*/}
 
       {/* Github Button */}
-      <TouchableOpacity
+      {/*<TouchableOpacity
         className="flex-row items-center mt-2 bg-slate-800 border border-slate-700 rounded-xl p-4"
         onPress={() => handleSocialLogin("github")}
         disabled={socialLoading !== null || loading}
@@ -251,14 +344,14 @@ export default function LoginScreen() {
         <Text className="text-white font-medium flex-1">
           Continue with Github
         </Text>
-      </TouchableOpacity>
+      </TouchableOpacity>*/}
 
       {/* Footer */}
-      <View className="mt-6 items-center">
-        <Text className="text-slate-400">
-          Don’t have an account?{" "}
+      <View style={{ marginTop: 24, alignItems: "center" }}>
+        <Text style={{ color: theme.textSecondary }}>
+          Don't have an account?{" "}
           <Text
-            className="text-emerald-400 font-bold"
+            style={{ color: theme.primary, fontWeight: "bold" }}
             onPress={() => router.push("/signup")}
           >
             Sign Up

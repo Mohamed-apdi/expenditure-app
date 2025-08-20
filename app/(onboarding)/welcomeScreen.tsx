@@ -18,6 +18,7 @@ import {
   DollarSign,
 } from "lucide-react-native";
 import { useEffect, useRef } from "react";
+import { useTheme } from "../../lib/theme";
 
 const { width, height } = Dimensions.get("window");
 
@@ -72,6 +73,7 @@ const FloatingParticle = ({ style }: any) => {
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const slideUpAnim = useRef(new Animated.Value(20)).current;
@@ -176,7 +178,7 @@ export default function WelcomeScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <SafeAreaView className="flex-1 bg-slate-900">
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
         {/* Floating particles background */}
         {particles.map((particle) => (
           <FloatingParticle
@@ -185,7 +187,7 @@ export default function WelcomeScreen() {
               width: particle.size,
               height: particle.size,
               borderRadius: particle.size / 2,
-              backgroundColor: "#10b981",
+              backgroundColor: theme.primary,
               left: `${particle.left}%`,
               top: `${particle.top}%`,
             }}
@@ -208,9 +210,30 @@ export default function WelcomeScreen() {
         >
           {/* Progress Indicator */}
           <View className="flex-row items-center justify-center gap-1.5">
-            <View className="w-6 h-2 bg-emerald-400 rounded-full" />
-            <View className="w-2 h-2 bg-white/30 rounded-full" />
-            <View className="w-2 h-2 bg-white/30 rounded-full" />
+            <View
+              style={{
+                width: 24,
+                height: 8,
+                backgroundColor: theme.primary,
+                borderRadius: 4,
+              }}
+            />
+            <View
+              style={{
+                width: 8,
+                height: 8,
+                backgroundColor: theme.textMuted,
+                borderRadius: 4,
+              }}
+            />
+            <View
+              style={{
+                width: 8,
+                height: 8,
+                backgroundColor: theme.textMuted,
+                borderRadius: 4,
+              }}
+            />
           </View>
 
           {/* Hero Illustration */}
@@ -219,22 +242,44 @@ export default function WelcomeScreen() {
               style={{
                 transform: [{ scale: scaleAnim }],
                 opacity: fadeAnim,
+                width: 192,
+                height: 192,
+                backgroundColor: theme.cardBackground,
+                borderRadius: 96,
+                justifyContent: "center",
+                alignItems: "center",
+                borderWidth: 2,
+                borderColor: `${theme.primary}80`,
+                shadowColor: theme.primary,
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.2,
+                shadowRadius: 20,
+                elevation: 10,
               }}
-              className="w-48 h-48 bg-slate-800 rounded-full justify-center items-center border-2 border-emerald-500/50 relative shadow-xl shadow-emerald-500/20"
             >
               <Animated.View
                 style={{ transform: [{ rotate: rotateInterpolate }] }}
               >
-                <PieChart size={80} color="#10b981" strokeWidth={1.8} />
+                <PieChart size={80} color={theme.primary} strokeWidth={1.8} />
               </Animated.View>
               <Animated.View
                 style={{
                   transform: [{ scale: scaleAnim }],
                   opacity: fadeAnim,
+                  position: "absolute",
+                  bottom: -20,
+                  right: 20,
+                  backgroundColor: theme.primary,
+                  borderRadius: 12,
+                  padding: 8,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 4,
+                  elevation: 5,
                 }}
-                className="absolute bottom-[-20px] right-5 bg-emerald-400 rounded-xl p-2 shadow-md shadow-black/30"
               >
-                <DollarSign size={40} color="#fff" />
+                <DollarSign size={40} color={theme.primaryText} />
               </Animated.View>
             </Animated.View>
           </View>
@@ -244,16 +289,40 @@ export default function WelcomeScreen() {
             style={{
               transform: [{ translateY: slideUpAnim }],
               opacity: fadeAnim,
+              alignItems: "center",
+              paddingHorizontal: 20,
             }}
-            className="items-center px-5"
           >
-            <Text className="text-white text-3xl font-bold text-center mb-4">
+            <Text
+              style={{
+                color: theme.text,
+                fontSize: 30,
+                fontWeight: "bold",
+                textAlign: "center",
+                marginBottom: 16,
+              }}
+            >
               Qoondeeye
             </Text>
-            <Text className="text-emerald-400 text-lg text-center font-semibold mb-3">
+            <Text
+              style={{
+                color: theme.primary,
+                fontSize: 18,
+                textAlign: "center",
+                fontWeight: "600",
+                marginBottom: 12,
+              }}
+            >
               Take control of your financial future with smart money management
             </Text>
-            <Text className="text-slate-400 text-base text-center leading-6">
+            <Text
+              style={{
+                color: theme.textSecondary,
+                fontSize: 16,
+                textAlign: "center",
+                lineHeight: 24,
+              }}
+            >
               Track expenses, manage budgets, and achieve your financial goals
             </Text>
           </Animated.View>
@@ -263,24 +332,50 @@ export default function WelcomeScreen() {
             style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideUpAnim }],
+              flexDirection: "row",
+              justifyContent: "space-around",
+              paddingHorizontal: 20,
             }}
-            className="flex-row justify-around px-5"
           >
-            <View className="items-center flex-1">
-              <TrendingUp size={26} color="#10b981" />
-              <Text className="text-slate-200 text-sm mt-2 text-center font-medium">
+            <View style={{ alignItems: "center", flex: 1 }}>
+              <TrendingUp size={26} color={theme.primary} />
+              <Text
+                style={{
+                  color: theme.text,
+                  fontSize: 14,
+                  marginTop: 8,
+                  textAlign: "center",
+                  fontWeight: "500",
+                }}
+              >
                 Expense Tracking
               </Text>
             </View>
-            <View className="items-center flex-1">
-              <Shield size={26} color="#10b981" />
-              <Text className="text-slate-200 text-sm mt-2 text-center font-medium">
+            <View style={{ alignItems: "center", flex: 1 }}>
+              <Shield size={26} color={theme.primary} />
+              <Text
+                style={{
+                  color: theme.text,
+                  fontSize: 14,
+                  marginTop: 8,
+                  textAlign: "center",
+                  fontWeight: "500",
+                }}
+              >
                 Account Security
               </Text>
             </View>
-            <View className="items-center flex-1">
-              <Zap size={26} color="#10b981" />
-              <Text className="text-slate-200 text-sm mt-2 text-center font-medium">
+            <View style={{ alignItems: "center", flex: 1 }}>
+              <Zap size={26} color={theme.primary} />
+              <Text
+                style={{
+                  color: theme.text,
+                  fontSize: 14,
+                  marginTop: 8,
+                  textAlign: "center",
+                  fontWeight: "500",
+                }}
+              >
                 Instant Insights
               </Text>
             </View>
@@ -294,15 +389,36 @@ export default function WelcomeScreen() {
             }}
           >
             <TouchableOpacity
-              className="bg-emerald-500 py-4 px-8 rounded-xl flex-row items-center justify-center mx-5 shadow-lg shadow-emerald-500/30"
+              style={{
+                backgroundColor: theme.primary,
+                paddingVertical: 16,
+                paddingHorizontal: 32,
+                borderRadius: 12,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                marginHorizontal: 20,
+                shadowColor: theme.primary,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 12,
+                elevation: 8,
+              }}
               onPressIn={handleButtonPressIn}
               onPressOut={handleButtonPressOut}
               onPress={handleNavigate}
             >
-              <Text className="text-white text-lg font-bold mr-2">
+              <Text
+                style={{
+                  color: theme.primaryText,
+                  fontSize: 18,
+                  fontWeight: "bold",
+                  marginRight: 8,
+                }}
+              >
                 Start Managing
               </Text>
-              <ArrowRight size={20} color="#ffffff" />
+              <ArrowRight size={20} color={theme.primaryText} />
             </TouchableOpacity>
           </Animated.View>
         </Animated.View>

@@ -10,6 +10,7 @@ import {
   ArrowRight,
 } from "lucide-react-native";
 import { useEffect, useRef } from "react";
+import { useTheme } from "../../lib/theme";
 
 {
   /* Benefits */
@@ -83,6 +84,7 @@ const FloatingParticle = ({ style }: any) => {
 
 export default function AuthGateScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const benefitAnimations = useRef(
     benefitData.map(() => new Animated.Value(0))
@@ -171,7 +173,9 @@ export default function AuthGateScreen() {
   });
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900 overflow-hidden">
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: theme.background, overflow: "hidden" }}
+    >
       {/* Floating particles background */}
       {particles.map((particle) => (
         <FloatingParticle
@@ -180,7 +184,7 @@ export default function AuthGateScreen() {
             width: particle.size,
             height: particle.size,
             borderRadius: particle.size / 2,
-            backgroundColor: "#10b981",
+            backgroundColor: theme.primary,
             left: `${particle.left}%`,
             top: `${particle.top}%`,
           }}
@@ -199,21 +203,43 @@ export default function AuthGateScreen() {
               }),
             },
           ],
+          flex: 1,
+          paddingHorizontal: 24,
+          justifyContent: "space-center",
+          paddingVertical: 20,
         }}
-        className="flex-1 px-6  justify-between py-5"
       >
         {/* Progress Indicator */}
-        <View className="flex-row items-center justify-center gap-1.5 pt-5">
-          <View className="w-2 h-2 bg-white/30 rounded-full" />
-          <View className="w-2 h-2 bg-white/30 rounded-full" />
-          <View className="w-6 h-2 bg-emerald-400 rounded-full" />
+        <View className="flex-row items-center justify-center gap-1.5">
+          <View
+            style={{
+              width: 8,
+              height: 8,
+              backgroundColor: theme.textMuted,
+              borderRadius: 4,
+            }}
+          />
+          <View
+            style={{
+              width: 8,
+              height: 8,
+              backgroundColor: theme.textMuted,
+              borderRadius: 4,
+            }}
+          />
+          <View
+            style={{
+              width: 24,
+              height: 8,
+              backgroundColor: theme.primary,
+              borderRadius: 4,
+            }}
+          />
         </View>
-        {/* Motivational Header with pulse animation */}
+
         {/* Motivational Header */}
-        <View className="items-center pt-0">
+        <View style={{ alignItems: "center", paddingTop: 0 }}>
           <Animated.View
-            className="w-28 h-28 bg-emerald-500/10 rounded-full justify-center items-center mb-6 
-              border border-emerald-500/30 shadow-lg shadow-emerald-500/10"
             style={{
               transform: [
                 {
@@ -225,22 +251,45 @@ export default function AuthGateScreen() {
               ],
             }}
           >
-            <ShieldCheck size={56} color="#10b981" strokeWidth={1.5} />
+            <ShieldCheck size={56} color={theme.primary} strokeWidth={1.5} />
           </Animated.View>
 
-          <Text className="text-white text-3xl font-bold text-center mb-2">
+          <Text
+            style={{
+              color: theme.text,
+              fontSize: 30,
+              fontWeight: "bold",
+              textAlign: "center",
+              marginBottom: 8,
+            }}
+          >
             Take Control of Your Money
           </Text>
-          <Text className="text-emerald-400 text-lg text-center font-medium mb-1">
+          <Text
+            style={{
+              color: theme.primary,
+              fontSize: 18,
+              textAlign: "center",
+              fontWeight: "500",
+              marginBottom: 4,
+            }}
+          >
             Simple tools to track spending, accounts, and savings
           </Text>
-          <Text className="text-slate-400 text-base text-center px-4">
+          <Text
+            style={{
+              color: theme.textSecondary,
+              fontSize: 16,
+              textAlign: "center",
+              paddingHorizontal: 16,
+            }}
+          >
             All your finances in one place — secure and private
           </Text>
         </View>
 
         {/* Interactive Benefits with staggered entrance */}
-        <View className="py-4 px-2">
+        <View style={{ paddingVertical: 16, paddingHorizontal: 8 }}>
           {benefitData.map((item, index) => (
             <Animated.View
               key={index}
@@ -254,9 +303,15 @@ export default function AuthGateScreen() {
                   },
                 ],
                 opacity: benefitAnimations[index],
+                flexDirection: "row",
+                alignItems: "flex-start",
+                marginBottom: 20,
+                backgroundColor: `${theme.cardBackground}66`,
+                padding: 16,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: `${theme.border}80`,
               }}
-              className="flex-row items-start mb-5 bg-slate-800/40 p-4 rounded-xl 
-                        border border-slate-700/50"
             >
               <Animated.View
                 style={{
@@ -265,43 +320,89 @@ export default function AuthGateScreen() {
                       scale: benefitAnimations[index],
                     },
                   ],
+                  backgroundColor: `${theme.primary}10`,
+                  padding: 12,
+                  borderRadius: 20,
+                  marginRight: 16,
                 }}
-                className="bg-emerald-500/10 p-3 rounded-full mr-4"
               >
-                <item.icon size={22} color="#10b981" />
+                <item.icon size={22} color={theme.primary} />
               </Animated.View>
-              <View className="flex-1">
-                <Text className="text-white text-lg font-semibold">
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{ color: theme.text, fontSize: 18, fontWeight: "600" }}
+                >
                   {item.title}
                 </Text>
-                <Text className="text-slate-400 text-sm mt-1">
+                <Text
+                  style={{
+                    color: theme.textSecondary,
+                    fontSize: 14,
+                    marginTop: 4,
+                  }}
+                >
                   {item.description}
                 </Text>
               </View>
-              <ArrowRight size={18} color="#64748b" className="mt-1" />
+              <ArrowRight
+                size={18}
+                color={theme.textMuted}
+                style={{ marginTop: 4 }}
+              />
             </Animated.View>
           ))}
         </View>
 
         {/* Auth Actions */}
-        <View className="mb-6">
+        <View style={{ marginBottom: 24 }}>
           <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
             <TouchableOpacity
-              className="flex-row items-center justify-center bg-emerald-500 rounded-xl p-5 mb-4
-                shadow-lg shadow-emerald-500/30"
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: theme.primary,
+                borderRadius: 12,
+                padding: 20,
+                marginBottom: 16,
+                shadowColor: theme.primary,
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 12,
+                elevation: 8,
+              }}
               onPressIn={handleButtonPressIn}
               onPressOut={handleButtonPressOut}
               onPress={handleNavigateLogin}
             >
-              <Lock size={22} color="#ffffff" />
-              <Text className="text-white font-bold text-lg ml-3">Sign In</Text>
+              <Lock size={22} color={theme.primaryText} />
+              <Text
+                style={{
+                  color: theme.primaryText,
+                  fontWeight: "bold",
+                  fontSize: 18,
+                  marginLeft: 12,
+                }}
+              >
+                Sign In
+              </Text>
             </TouchableOpacity>
           </Animated.View>
 
-          <View className="flex-row justify-center items-center">
-            <Text className="text-slate-400 mr-1">New to Money Manager?</Text>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: theme.textSecondary, marginRight: 4 }}>
+              New to Money Manager?
+            </Text>
             <TouchableOpacity onPress={handleNavigateSignup}>
-              <Text className="text-emerald-400 font-bold flex-1">
+              <Text
+                style={{ color: theme.primary, fontWeight: "bold", flex: 1 }}
+              >
                 Create Account
               </Text>
             </TouchableOpacity>
@@ -315,10 +416,16 @@ export default function AuthGateScreen() {
               inputRange: [0, 1],
               outputRange: [0, 1],
             }),
+            alignItems: "center",
           }}
-          className="items-center pb-4"
         >
-          <View className="flex-row items-center mb-2">
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginBottom: 8,
+            }}
+          >
             {[...Array(5)].map((_, i) => (
               <Animated.Text
                 key={i}
@@ -327,14 +434,21 @@ export default function AuthGateScreen() {
                     inputRange: [0, 0.2 * (i + 1), 1],
                     outputRange: [0, 0, 1],
                   }),
+                  color: "#fbbf24",
+                  fontSize: 18,
                 }}
-                className="text-yellow-400 text-lg"
               >
                 ★
               </Animated.Text>
             ))}
           </View>
-          <Text className="text-slate-500 text-xs text-center">
+          <Text
+            style={{
+              color: theme.textMuted,
+              fontSize: 12,
+              textAlign: "center",
+            }}
+          >
             Helping users manage money securely every day
           </Text>
         </Animated.View>

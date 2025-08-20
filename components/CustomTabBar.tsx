@@ -1,6 +1,6 @@
 import React from "react";
 import { View, TouchableOpacity, Text } from "react-native";
-import { Home, BarChart2, Wallet, Plus } from "lucide-react-native";
+import { Home, BarChart2, Wallet, Plus, Banknote } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "~/lib/theme";
 
@@ -70,7 +70,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
         className="items-center justify-center"
         onPress={() => router.push("/(main)/Accounts")}
       >
-        <Wallet size={24} color={state.index === 3 ? "#3b82f6" : "#64748b"} />
+        <Banknote size={24} color={state.index === 3 ? "#3b82f6" : "#64748b"} />
         <Text
           className={`text-xs mt-0.5 ${state.index === 3 ? "text-[#3b82f6] font-medium" : "text-slate-500"}`}
         >

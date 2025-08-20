@@ -38,13 +38,13 @@ import { deleteItemAsync } from "expo-secure-store";
 import { supabase } from "~/lib/supabase";
 import { UserProfile } from "~/types/userTypes";
 import { useTheme } from "~/lib/theme";
-import { 
-  fetchProfile, 
-  updateProfile, 
-  updateProfileName, 
-  updateProfilePhone, 
+import {
+  fetchProfile,
+  updateProfile,
+  updateProfileName,
+  updateProfilePhone,
   updateProfileEmail,
-  type Profile 
+  type Profile,
 } from "~/lib/profiles";
 
 type PasswordData = {
@@ -125,9 +125,9 @@ export default function ProfileScreen() {
       }
 
       const updatedProfile = await updateProfile(user.id, updates);
-      
+
       // Update local state
-      setUserProfile(prev => ({
+      setUserProfile((prev) => ({
         ...prev,
         fullName: updatedProfile.full_name || prev.fullName,
         phone: updatedProfile.phone || prev.phone,
@@ -153,7 +153,7 @@ export default function ProfileScreen() {
       }
 
       await updateProfileName(user.id, newName);
-      setUserProfile(prev => ({ ...prev, fullName: newName }));
+      setUserProfile((prev) => ({ ...prev, fullName: newName }));
       Alert.alert("Success", "Name updated successfully");
     } catch (error) {
       console.error("Error updating name:", error);
@@ -173,7 +173,7 @@ export default function ProfileScreen() {
       }
 
       await updateProfilePhone(user.id, newPhone);
-      setUserProfile(prev => ({ ...prev, phone: newPhone }));
+      setUserProfile((prev) => ({ ...prev, phone: newPhone }));
       Alert.alert("Success", "Phone updated successfully");
     } catch (error) {
       console.error("Error updating phone:", error);
@@ -193,7 +193,7 @@ export default function ProfileScreen() {
       }
 
       await updateProfileEmail(user.id, newEmail);
-      setUserProfile(prev => ({ ...prev, email: newEmail }));
+      setUserProfile((prev) => ({ ...prev, email: newEmail }));
       Alert.alert("Success", "Email updated successfully");
     } catch (error) {
       console.error("Error updating email:", error);
@@ -456,7 +456,7 @@ export default function ProfileScreen() {
             </View>
 
             {/* Divider */}
-            <View className="h-px bg-slate-700 ml-14" />
+            <View className="h-px bg-[#3b82f6] " />
 
             {/* Phone Number */}
             <View className="flex-row items-center p-4">
@@ -479,7 +479,7 @@ export default function ProfileScreen() {
             </View>
 
             {/* Divider */}
-            <View className="h-px bg-slate-700 ml-14" />
+            <View className="h-px bg-[#3b82f6] " />
 
             {/* Email */}
             <View className="flex-row items-center p-4">

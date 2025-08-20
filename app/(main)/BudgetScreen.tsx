@@ -38,6 +38,7 @@ import {
   getBudgetProgress,
   type BudgetProgress,
 } from "~/lib/analytics";
+import { useTheme } from "../../lib/theme";
 
 import Investments from "../components/Investments";
 import Debt_Loan from "../components/Debt_Loan";
@@ -69,6 +70,7 @@ const expenseCategories = [
 ];
 
 export default function BudgetScreen() {
+  const theme = useTheme();
   const [activeTab, setActiveTab] = useState("Budget");
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetsWithAccounts, setBudgetsWithAccounts] = useState<any[]>([]);
@@ -79,7 +81,6 @@ export default function BudgetScreen() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
-
 
   const panResponder = useRef(
     PanResponder.create({
@@ -156,8 +157,6 @@ export default function BudgetScreen() {
   const [newAllocated, setNewAllocated] = useState("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
-
-
   // Fetch budgets and accounts from database
   const fetchData = async () => {
     try {
@@ -188,8 +187,6 @@ export default function BudgetScreen() {
       if (accountsData.length > 0) {
         setSelectedAccount(accountsData[0]);
       }
-
-
     } catch (error) {
       console.error("Error fetching data:", error);
       Alert.alert("Error", "Failed to fetch data");
@@ -208,8 +205,6 @@ export default function BudgetScreen() {
   useEffect(() => {
     fetchData();
   }, []);
-
-
 
   const openAddModal = () => {
     if (accounts.length === 0) {
@@ -351,59 +346,116 @@ export default function BudgetScreen() {
   const DebtLoanTab = () => <Debt_Loan />;
 
   return (
-    <SafeAreaView className="flex-1 pt-safe">
+    <SafeAreaView style={{ flex: 1, paddingTop: 0 }}>
       <View className="flex-1">
         {/* Tabs with PanResponder */}
         <View
-          className="flex-row justify-around px-safe border-b border-gray-200 bg-white"
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-around",
+            paddingHorizontal: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border,
+            backgroundColor: theme.cardBackground,
+          }}
           {...panResponder.panHandlers}
         >
           <TouchableOpacity
-            className={` py-4 items-center ${activeTab === "Budget" ? "border-b-2 border-blue-500" : ""}`}
+            style={{
+              paddingVertical: 16,
+              alignItems: "center",
+              borderBottomWidth: activeTab === "Budget" ? 2 : 0,
+              borderBottomColor:
+                activeTab === "Budget" ? theme.primary : "transparent",
+            }}
             onPress={() => setActiveTab("Budget")}
           >
             <Text
-              className={`font-medium ${activeTab === "Budget" ? "text-blue-500" : "text-gray-500"}`}
+              style={{
+                fontWeight: "500",
+                color: activeTab === "Budget" ? theme.primary : theme.textMuted,
+              }}
             >
               Budget
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className={` py-4 items-center ${activeTab === "Subscriptions" ? "border-b-2 border-blue-500" : ""}`}
+            style={{
+              paddingVertical: 16,
+              alignItems: "center",
+              borderBottomWidth: activeTab === "Subscriptions" ? 2 : 0,
+              borderBottomColor:
+                activeTab === "Subscriptions" ? theme.primary : "transparent",
+            }}
             onPress={() => setActiveTab("Subscriptions")}
           >
             <Text
-              className={`font-medium ${activeTab === "Subscriptions" ? "text-blue-500" : "text-gray-500"}`}
+              style={{
+                fontWeight: "500",
+                color:
+                  activeTab === "Subscriptions"
+                    ? theme.primary
+                    : theme.textMuted,
+              }}
             >
               Subscriptions
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className={` py-4 items-center ${activeTab === "Goals" ? "border-b-2 border-blue-500" : ""}`}
+            style={{
+              paddingVertical: 16,
+              alignItems: "center",
+              borderBottomWidth: activeTab === "Goals" ? 2 : 0,
+              borderBottomColor:
+                activeTab === "Goals" ? theme.primary : "transparent",
+            }}
             onPress={() => setActiveTab("Goals")}
           >
             <Text
-              className={`font-medium ${activeTab === "Goals" ? "text-blue-500" : "text-gray-500"}`}
+              style={{
+                fontWeight: "500",
+                color: activeTab === "Goals" ? theme.primary : theme.textMuted,
+              }}
             >
               Goals
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className={` py-4 items-center ${activeTab === "Investments" ? "border-b-2 border-blue-500" : ""}`}
+            style={{
+              paddingVertical: 16,
+              alignItems: "center",
+              borderBottomWidth: activeTab === "Investments" ? 2 : 0,
+              borderBottomColor:
+                activeTab === "Investments" ? theme.primary : "transparent",
+            }}
             onPress={() => setActiveTab("Investments")}
           >
             <Text
-              className={`font-medium ${activeTab === "Investments" ? "text-blue-500" : "text-gray-500"}`}
+              style={{
+                fontWeight: "500",
+                color:
+                  activeTab === "Investments" ? theme.primary : theme.textMuted,
+              }}
             >
               Investments
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className={` py-4 items-center ${activeTab === "Debt/Loan" ? "border-b-2 border-blue-500" : ""}`}
+            style={{
+              paddingVertical: 16,
+              alignItems: "center",
+              borderBottomWidth: activeTab === "Debt/Loan" ? 2 : 0,
+              borderBottomColor:
+                activeTab === "Debt/Loan" ? theme.primary : "transparent",
+            }}
             onPress={() => setActiveTab("Debt/Loan")}
           >
             <Text
-              className={`font-medium ${activeTab === "Debt/Loan" ? "text-blue-500" : "text-gray-500"}`}
+              style={{
+                fontWeight: "500",
+                color:
+                  activeTab === "Debt/Loan" ? theme.primary : theme.textMuted,
+              }}
             >
               Debt/Loan
             </Text>
@@ -418,40 +470,81 @@ export default function BudgetScreen() {
           }
         >
           {activeTab === "Budget" && (
-            <View className="p-4">
-              <View className="mb-6 bg-white  rounded-xl">
+            <View>
+              <View
+                className="px-2"
+                style={{
+                  marginBottom: 24,
+                  backgroundColor: theme.cardBackground,
+                  paddingTop: 16,
+                }}
+              >
                 <View className="flex-row justify-between items-center mb-4">
-                  <Text className="font-bold text-xl">Monthly Budget</Text>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontWeight: "bold",
+                      fontSize: 20,
+                    }}
+                  >
+                    Monthly Budget
+                  </Text>
                   <TouchableOpacity
-                    className="bg-blue-500 rounded-lg py-3 px-3 items-center"
+                    style={{
+                      backgroundColor: theme.primary,
+                      borderRadius: 8,
+                      paddingVertical: 12,
+                      paddingHorizontal: 12,
+                      alignItems: "center",
+                    }}
                     onPress={openAddModal}
                   >
-                    <Text className="text-white">Add Budgets</Text>
+                    <Text style={{ color: theme.primaryText }}>
+                      Add Budgets
+                    </Text>
                   </TouchableOpacity>
                 </View>
 
                 {/* Budget Notifications Control */}
-                <View className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                  <View className="flex-row justify-between items-center">
-                  <View className="flex-row items-center">
-                    <Text className="text-gray-700 text-sm">
-                      Budget alerts enabled
-                    </Text>
+                <View
+                  style={{
+                    marginBottom: 16,
+                    padding: 12,
+                    backgroundColor: theme.background,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                  }}
+                >
+                  <View className="flex-row justify-between items-center">
+                    <View className="flex-row items-center">
+                      <Text style={{ color: theme.text, fontSize: 14 }}>
+                        Budget alerts enabled
+                      </Text>
+                    </View>
                   </View>
-
-                  </View>
-                  <Text className="text-gray-500 text-xs mt-1">
+                  <Text
+                    style={{
+                      color: theme.textSecondary,
+                      fontSize: 12,
+                      marginTop: 4,
+                    }}
+                  >
                     Get notified when budgets reach 80% or exceed 100%
                   </Text>
                 </View>
 
                 {loading ? (
-                  <View className="py-8 items-center">
-                    <Text className="text-gray-500">Loading budgets...</Text>
+                  <View style={{ paddingVertical: 32, alignItems: "center" }}>
+                    <Text style={{ color: theme.textSecondary }}>
+                      Loading budgets...
+                    </Text>
                   </View>
                 ) : budgets.length === 0 ? (
-                  <View className="py-8 items-center">
-                    <Text className="text-gray-500">No budgets set up yet</Text>
+                  <View style={{ paddingVertical: 32, alignItems: "center" }}>
+                    <Text style={{ color: theme.textSecondary }}>
+                      No budgets set up yet
+                    </Text>
                   </View>
                 ) : (
                   <View className="flex-row flex-wrap justify-between">
@@ -465,17 +558,27 @@ export default function BudgetScreen() {
                       return (
                         <View
                           key={budget.id}
-                          className="w-[48%] mb-4 p-3 bg-white rounded-xl border border-gray-100"
+                          style={{
+                            width: "48%",
+                            marginBottom: 16,
+                            padding: 12,
+                            backgroundColor: theme.cardBackground,
+                            borderRadius: 12,
+                            borderWidth: 1,
+                            borderColor: theme.border,
+                          }}
                         >
                           <View className="flex-row justify-between items-center mb-2">
-                            <Text className="font-medium">
+                            <Text
+                              style={{ color: theme.text, fontWeight: "500" }}
+                            >
                               {budget.category}
                             </Text>
                             <View className="flex-row space-x-2">
                               <TouchableOpacity
                                 onPress={() => openEditModal(budget)}
                               >
-                                <Edit2 size={16} color="#6b7280" />
+                                <Edit2 size={16} color={theme.icon} />
                               </TouchableOpacity>
                               <TouchableOpacity
                                 onPress={() => handleDeleteBudget(budget.id)}
@@ -486,12 +589,20 @@ export default function BudgetScreen() {
                           </View>
 
                           {budget.account && (
-                            <Text className="text-xs text-gray-500 mb-2">
+                            <Text
+                              style={{
+                                color: theme.textSecondary,
+                                fontSize: 12,
+                                marginBottom: 8,
+                              }}
+                            >
                               {budget.account.name}
                             </Text>
                           )}
 
-                          <View className="items-center my-2">
+                          <View
+                            style={{ alignItems: "center", marginVertical: 8 }}
+                          >
                             <CircularProgress
                               size={80}
                               width={8}
@@ -502,40 +613,73 @@ export default function BudgetScreen() {
                               lineCap="round"
                             >
                               {(fill) => (
-                                <Text className="font-bold text-lg">
+                                <Text
+                                  style={{
+                                    color: theme.text,
+                                    fontWeight: "bold",
+                                    fontSize: 18,
+                                  }}
+                                >
                                   {Math.round(fill)}%
                                 </Text>
                               )}
                             </CircularProgress>
                           </View>
 
-                          <View className="mt-2">
+                          <View style={{ marginTop: 8 }}>
                             <View className="flex-row justify-between">
-                              <Text className="text-gray-500 text-xs">
+                              <Text
+                                style={{
+                                  color: theme.textSecondary,
+                                  fontSize: 12,
+                                }}
+                              >
                                 Spent
                               </Text>
-                              <Text className="text-xs font-medium">
+                              <Text
+                                style={{
+                                  color: theme.text,
+                                  fontSize: 12,
+                                  fontWeight: "500",
+                                }}
+                              >
                                 ${spent.toFixed(2)}
                               </Text>
                             </View>
                             <View className="flex-row justify-between">
-                              <Text className="text-gray-500 text-xs">
+                              <Text
+                                style={{
+                                  color: theme.textSecondary,
+                                  fontSize: 12,
+                                }}
+                              >
                                 Budget
                               </Text>
-                              <Text className="text-xs font-medium">
+                              <Text
+                                style={{
+                                  color: theme.text,
+                                  fontSize: 12,
+                                  fontWeight: "500",
+                                }}
+                              >
                                 ${budget.amount.toFixed(2)}
                               </Text>
                             </View>
                             <View className="flex-row justify-between">
-                              <Text className="text-gray-500 text-xs">
+                              <Text
+                                style={{
+                                  color: theme.textSecondary,
+                                  fontSize: 12,
+                                }}
+                              >
                                 Remaining
                               </Text>
                               <Text
-                                className={`text-xs font-medium ${
-                                  remaining < 0
-                                    ? "text-red-500"
-                                    : "text-green-500"
-                                }`}
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: "500",
+                                  color: remaining < 0 ? "#ef4444" : "#10b981",
+                                }}
                               >
                                 ${Math.abs(remaining).toFixed(2)}{" "}
                                 {remaining < 0 ? "Over" : "Left"}
@@ -564,46 +708,97 @@ export default function BudgetScreen() {
           transparent={true}
           onRequestClose={() => setIsModalVisible(false)}
         >
-          <View className="flex-1 justify-center items-center bg-black/50">
-            <View className="w-11/12 bg-white rounded-xl p-6">
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+            }}
+          >
+            <View
+              style={{
+                width: "92%",
+                backgroundColor: theme.cardBackground,
+                borderRadius: 12,
+                padding: 24,
+              }}
+            >
               <View className="flex-row justify-between items-center mb-4">
-                <Text className="font-bold text-lg">
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontWeight: "bold",
+                    fontSize: 18,
+                  }}
+                >
                   {currentBudget ? "Edit Budget" : "Add New Budget"}
                 </Text>
                 <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                  <X size={24} color="#6b7280" />
+                  <X size={24} color={theme.textMuted} />
                 </TouchableOpacity>
               </View>
 
               <View className="mb-4">
-                <Text className="text-gray-700 mb-1">Category</Text>
+                <Text style={{ color: theme.text, marginBottom: 4 }}>
+                  Category
+                </Text>
                 <TouchableOpacity
-                  className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 8,
+                    padding: 12,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
                   onPress={() => setShowCategoryDropdown(!showCategoryDropdown)}
                 >
                   <Text
-                    className={newCategory ? "text-gray-900" : "text-gray-500"}
+                    style={{
+                      color: newCategory ? theme.text : theme.textMuted,
+                    }}
                   >
                     {newCategory || "Select a category"}
                   </Text>
-                  <ChevronDown size={16} color="#6b7280" />
+                  <ChevronDown size={16} color={theme.textMuted} />
                 </TouchableOpacity>
 
                 {showCategoryDropdown && (
-                  <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
+                  <View
+                    style={{
+                      marginTop: 8,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 8,
+                      backgroundColor: theme.cardBackground,
+                      maxHeight: 160,
+                    }}
+                  >
                     <ScrollView>
                       {expenseCategories.map((category) => (
                         <TouchableOpacity
                           key={category}
-                          className={`p-3 border-b border-gray-200 ${
-                            newCategory === category ? "bg-blue-50" : ""
-                          }`}
+                          style={{
+                            padding: 12,
+                            borderBottomWidth: 1,
+                            borderBottomColor: theme.border,
+                            backgroundColor:
+                              newCategory === category
+                                ? `${theme.primary}20`
+                                : "transparent",
+                          }}
                           onPress={() => {
                             setNewCategory(category);
                             setShowCategoryDropdown(false);
                           }}
                         >
-                          <Text className="font-medium">{category}</Text>
+                          <Text
+                            style={{ color: theme.text, fontWeight: "500" }}
+                          >
+                            {category}
+                          </Text>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
@@ -612,41 +807,70 @@ export default function BudgetScreen() {
               </View>
 
               <View className="mb-4">
-                <Text className="text-gray-700 mb-1">Account</Text>
+                <Text style={{ color: theme.text, marginBottom: 4 }}>
+                  Account
+                </Text>
                 <TouchableOpacity
-                  className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 8,
+                    padding: 12,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
                   onPress={() => setShowAccountDropdown(!showAccountDropdown)}
                 >
                   <Text
-                    className={
-                      selectedAccount ? "text-gray-900" : "text-gray-500"
-                    }
+                    style={{
+                      color: selectedAccount ? theme.text : theme.textMuted,
+                    }}
                   >
                     {selectedAccount
                       ? selectedAccount.name
                       : "Select an account"}
                   </Text>
-                  <ChevronDown size={16} color="#6b7280" />
+                  <ChevronDown size={16} color={theme.textMuted} />
                 </TouchableOpacity>
 
                 {showAccountDropdown && (
-                  <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
+                  <View
+                    style={{
+                      marginTop: 8,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 8,
+                      backgroundColor: theme.cardBackground,
+                      maxHeight: 160,
+                    }}
+                  >
                     <ScrollView>
                       {accounts.map((account) => (
                         <TouchableOpacity
                           key={account.id}
-                          className={`p-3 border-b border-gray-200 ${
-                            selectedAccount?.id === account.id
-                              ? "bg-blue-50"
-                              : ""
-                          }`}
+                          style={{
+                            padding: 12,
+                            borderBottomWidth: 1,
+                            borderBottomColor: theme.border,
+                            backgroundColor:
+                              selectedAccount?.id === account.id
+                                ? `${theme.primary}20`
+                                : "transparent",
+                          }}
                           onPress={() => {
                             setSelectedAccount(account);
                             setShowAccountDropdown(false);
                           }}
                         >
-                          <Text className="font-medium">{account.name}</Text>
-                          <Text className="text-sm text-gray-500">
+                          <Text
+                            style={{ color: theme.text, fontWeight: "500" }}
+                          >
+                            {account.name}
+                          </Text>
+                          <Text
+                            style={{ color: theme.textSecondary, fontSize: 14 }}
+                          >
                             {account.account_type}
                           </Text>
                         </TouchableOpacity>
@@ -657,10 +881,20 @@ export default function BudgetScreen() {
               </View>
 
               <View className="mb-4">
-                <Text className="text-gray-700 mb-1">Budget Amount ($)</Text>
+                <Text style={{ color: theme.text, marginBottom: 4 }}>
+                  Budget Amount ($)
+                </Text>
                 <TextInput
-                  className="border border-gray-300 rounded-lg p-3"
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 8,
+                    padding: 12,
+                    color: theme.text,
+                    backgroundColor: theme.background,
+                  }}
                   placeholder="Enter amount"
+                  placeholderTextColor={theme.textMuted}
                   keyboardType="numeric"
                   value={newAllocated}
                   onChangeText={setNewAllocated}
@@ -668,10 +902,15 @@ export default function BudgetScreen() {
               </View>
 
               <TouchableOpacity
-                className="bg-blue-500 py-3 rounded-lg items-center"
+                style={{
+                  backgroundColor: theme.primary,
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  alignItems: "center",
+                }}
                 onPress={handleSaveBudget}
               >
-                <Text className="text-white font-medium">
+                <Text style={{ color: theme.primaryText, fontWeight: "500" }}>
                   {currentBudget ? "Update Budget" : "Add Budget"}
                 </Text>
               </TouchableOpacity>
