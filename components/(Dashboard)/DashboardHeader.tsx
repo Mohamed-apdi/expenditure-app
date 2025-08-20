@@ -216,7 +216,7 @@ export default function DashboardHeader({
 
                 {/* Separator */}
                 <View className="h-px bg-slate-200 my-1" />
-                
+
                 {/* Dark Mode Toggle */}
                 <TouchableOpacity
                   onPress={toggleColorScheme}
@@ -248,7 +248,7 @@ export default function DashboardHeader({
                     {t.languages} ({language.toUpperCase()})
                   </Text>
                 </TouchableOpacity>
-                
+
                 {/* Menu Items */}
                 {menuItems.map((item, index) => (
                   <TouchableOpacity
@@ -285,32 +285,32 @@ export default function DashboardHeader({
             onPress={onNotificationPress}
             activeOpacity={0.7}
           >
-            <View style={{ position: 'relative' }}>
-              <Bell size={22} color={theme.icon} />
+            <View style={{ position: "relative" }}>
+              <Bell size={22} color="#fff" />
               {unreadCount > 0 && (
                 <View
                   style={{
-                    position: 'absolute',
+                    position: "absolute",
                     top: -6,
                     right: -6,
-                    backgroundColor: '#ef4444',
+                    backgroundColor: "#ef4444",
                     borderRadius: 10,
                     minWidth: 20,
                     height: 20,
-                    justifyContent: 'center',
-                    alignItems: 'center',
+                    justifyContent: "center",
+                    alignItems: "center",
                     paddingHorizontal: 4,
                   }}
                 >
                   <Text
                     style={{
-                      color: 'white',
+                      color: "white",
                       fontSize: 11,
-                      fontWeight: '600',
+                      fontWeight: "600",
                       lineHeight: 16,
                     }}
                   >
-                    {unreadCount > 99 ? '99+' : unreadCount.toString()}
+                    {unreadCount > 99 ? "99+" : unreadCount.toString()}
                   </Text>
                 </View>
               )}
@@ -326,13 +326,15 @@ export default function DashboardHeader({
         {/* Right Section - Calendar and Search */}
         <View className="flex-row items-center gap-4">
           {/* Calendar */}
-          <TouchableOpacity onPress={onCalendarPress}>
-            <RefreshCcw size={22} color={theme.icon} />
-          </TouchableOpacity>
+          {/*<TouchableOpacity onPress={onCalendarPress}>
+            <RefreshCcw size={22} color="#fff" />
+          </TouchableOpacity>*/}
 
           {/* Search */}
-          <TouchableOpacity onPress={() => router.push("/components/TransactionsScreen")}>
-            <Search size={22} color={theme.icon} />
+          <TouchableOpacity
+            onPress={() => router.push("/components/TransactionsScreen")}
+          >
+            <Search size={22} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>

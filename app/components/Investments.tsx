@@ -24,6 +24,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "~/lib/supabase";
 import { fetchAccounts, type Account } from "~/lib/accounts";
+import { useTheme } from "~/lib/theme";
 
 // Investment types
 const investmentTypes = [
@@ -53,6 +54,7 @@ interface Investment {
 }
 
 const Investments = () => {
+  const theme = useTheme();
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -282,15 +284,15 @@ const Investments = () => {
   };
 
   const getProfitLossColor = (profitLoss: number) => {
-    if (profitLoss > 0) return "#10b981"; // Green
-    if (profitLoss < 0) return "#ef4444"; // Red
-    return "#6b7280"; // Gray
+    if (profitLoss > 0) return theme.success; // Green
+    if (profitLoss < 0) return theme.danger; // Red
+    return theme.textSecondary; // Gray
   };
 
   const getProfitLossIcon = (profitLoss: number) => {
-    if (profitLoss > 0) return <TrendingUp size={16} color="#10b981" />;
-    if (profitLoss < 0) return <TrendingDown size={16} color="#ef4444" />;
-    return <BarChart3 size={16} color="#6b7280" />;
+    if (profitLoss > 0) return <TrendingUp size={16} color={theme.success} />;
+    if (profitLoss < 0) return <TrendingDown size={16} color={theme.danger} />;
+    return <BarChart3 size={16} color={theme.textSecondary} />;
   };
 
   // Calculate total portfolio value
@@ -307,7 +309,7 @@ const Investments = () => {
     totalInvested > 0 ? (totalProfitLoss / totalInvested) * 100 : 0;
 
   return (
-    <SafeAreaView className="flex-1">
+    <SafeAreaView style={{ flex: 1 }}>
       <ScrollView
         className="flex-1"
         refreshControl={
@@ -315,42 +317,95 @@ const Investments = () => {
         }
       >
         {/* Investments */}
-        <View className="px-4">
+        <View style={{ paddingHorizontal: 16 }}>
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="font-bold text-xl mb-4">Investments</Text>
+            <Text
+              style={{
+                color: theme.text,
+                fontWeight: "bold",
+                fontSize: 20,
+                marginBottom: 16,
+              }}
+            >
+              Investments
+            </Text>
             <TouchableOpacity
-              className="bg-blue-500 rounded-lg py-3 px-4 items-center flex-row"
+              style={{
+                backgroundColor: theme.primary,
+                borderRadius: 8,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                alignItems: "center",
+                flexDirection: "row",
+              }}
               onPress={openAddModal}
             >
-              <Plus size={20} color="white" />
-              <Text className="text-white font-medium ml-2">
+              <Plus size={20} color={theme.primaryText} />
+              <Text
+                style={{
+                  color: theme.primaryText,
+                  fontWeight: "500",
+                  marginLeft: 8,
+                }}
+              >
                 Add Investment
               </Text>
             </TouchableOpacity>
           </View>
-          <View className="mb-6 bg-white rounded-xl ">
+          <View
+            style={{
+              marginBottom: 24,
+              backgroundColor: theme.cardBackground,
+              borderRadius: 12,
+            }}
+          >
             <View className="flex-row justify-between mb-4">
               <View className="flex-1 items-center">
-                <Text className="text-gray-500 text-sm">Total Invested</Text>
-                <Text className="font-bold text-lg">
+                <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
+                  Total Invested
+                </Text>
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontWeight: "bold",
+                    fontSize: 18,
+                  }}
+                >
                   ${totalInvested.toFixed(2)}
                 </Text>
               </View>
               <View className="flex-1 items-center">
-                <Text className="text-gray-500 text-sm">Current Value</Text>
-                <Text className="font-bold text-lg">
+                <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
+                  Current Value
+                </Text>
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontWeight: "bold",
+                    fontSize: 18,
+                  }}
+                >
                   ${totalCurrentValue.toFixed(2)}
                 </Text>
               </View>
               <View className="flex-1 items-center">
-                <Text className="text-gray-500 text-sm">Total P&L</Text>
+                <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
+                  Total P&L
+                </Text>
                 <Text
-                  className={`font-bold text-lg ${getProfitLossColor(totalProfitLoss)}`}
+                  style={{
+                    fontWeight: "bold",
+                    fontSize: 18,
+                    color: getProfitLossColor(totalProfitLoss),
+                  }}
                 >
                   ${totalProfitLoss.toFixed(2)}
                 </Text>
                 <Text
-                  className={`text-sm ${getProfitLossColor(totalProfitLoss)}`}
+                  style={{
+                    fontSize: 14,
+                    color: getProfitLossColor(totalProfitLoss),
+                  }}
                 >
                   {totalReturnPercentage.toFixed(2)}%
                 </Text>
@@ -359,39 +414,77 @@ const Investments = () => {
           </View>
 
           {/* My Investments */}
-          <View className="mb-6 bg-white rounded-xl p-4">
+          <View
+            style={{
+              marginBottom: 24,
+              backgroundColor: theme.cardBackground,
+              borderRadius: 12,
+              padding: 16,
+            }}
+          >
             <View className="flex-row justify-between items-center">
-              <Text className="font-bold text-xl">My Investments</Text>
+              <Text
+                style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
+              >
+                My Investments
+              </Text>
             </View>
 
             {loading ? (
-              <View className="py-8 items-center">
-                <Text className="text-gray-500">Loading investments...</Text>
+              <View style={{ paddingVertical: 32, alignItems: "center" }}>
+                <Text style={{ color: theme.textSecondary }}>
+                  Loading investments...
+                </Text>
               </View>
             ) : investments.length === 0 ? (
-              <View className="py-8 items-center">
-                <Text className="text-gray-500">No investments yet</Text>
-                <Text className="text-gray-400 text-sm mt-2">
+              <View style={{ paddingVertical: 32, alignItems: "center" }}>
+                <Text style={{ color: theme.textSecondary }}>
+                  No investments yet
+                </Text>
+                <Text
+                  style={{ color: theme.textMuted, fontSize: 14, marginTop: 8 }}
+                >
                   Add your first investment to get started
                 </Text>
               </View>
             ) : (
-              <View className="mt-4">
+              <View style={{ marginTop: 16 }}>
                 {investments.map((investment) => (
                   <View
                     key={investment.id}
-                    className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-100"
+                    style={{
+                      marginBottom: 16,
+                      padding: 16,
+                      backgroundColor: theme.background,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                    }}
                   >
                     <View className="flex-row justify-between items-start mb-3">
                       <View className="flex-1">
-                        <Text className="font-bold text-lg">
+                        <Text
+                          style={{
+                            color: theme.text,
+                            fontWeight: "bold",
+                            fontSize: 18,
+                          }}
+                        >
                           {investment.name}
                         </Text>
-                        <Text className="text-gray-500 text-sm">
+                        <Text
+                          style={{ color: theme.textSecondary, fontSize: 14 }}
+                        >
                           {investment.type}
                         </Text>
                         {investment.account && (
-                          <Text className="text-gray-400 text-xs mt-1">
+                          <Text
+                            style={{
+                              color: theme.textMuted,
+                              fontSize: 12,
+                              marginTop: 4,
+                            }}
+                          >
                             {investment.account.name}
                           </Text>
                         )}
@@ -399,15 +492,23 @@ const Investments = () => {
                       <View className="flex-row space-x-2">
                         <TouchableOpacity
                           onPress={() => openEditModal(investment)}
-                          className="p-2 bg-blue-100 rounded-lg"
+                          style={{
+                            padding: 8,
+                            backgroundColor: `${theme.primary}20`,
+                            borderRadius: 8,
+                          }}
                         >
-                          <Edit2 size={16} color="#3b82f6" />
+                          <Edit2 size={16} color={theme.primary} />
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => handleDeleteInvestment(investment.id)}
-                          className="p-2 bg-red-100 rounded-lg"
+                          style={{
+                            padding: 8,
+                            backgroundColor: "#fef2f2",
+                            borderRadius: 8,
+                          }}
                         >
-                          <Trash2 size={16} color="#ef4444" />
+                          <Trash2 size={16} color={theme.danger} />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -415,32 +516,50 @@ const Investments = () => {
                     <View className="flex-row justify-between items-center">
                       <View className="flex-1">
                         <View className="flex-row justify-between mb-1">
-                          <Text className="text-gray-500 text-sm">
+                          <Text
+                            style={{ color: theme.textSecondary, fontSize: 14 }}
+                          >
                             Invested
                           </Text>
-                          <Text className="font-medium">
+                          <Text
+                            style={{ color: theme.text, fontWeight: "500" }}
+                          >
                             ${investment.invested_amount.toFixed(2)}
                           </Text>
                         </View>
                         <View className="flex-row justify-between mb-1">
-                          <Text className="text-gray-500 text-sm">Current</Text>
-                          <Text className="font-medium">
+                          <Text
+                            style={{ color: theme.textSecondary, fontSize: 14 }}
+                          >
+                            Current
+                          </Text>
+                          <Text
+                            style={{ color: theme.text, fontWeight: "500" }}
+                          >
                             ${investment.current_value.toFixed(2)}
                           </Text>
                         </View>
                       </View>
 
-                      <View className="items-end">
+                      <View style={{ alignItems: "flex-end" }}>
                         <View className="flex-row items-center mb-1">
                           {getProfitLossIcon(investment.profit_loss)}
                           <Text
-                            className={`font-bold text-lg ml-1 ${getProfitLossColor(investment.profit_loss)}`}
+                            style={{
+                              fontWeight: "bold",
+                              fontSize: 18,
+                              marginLeft: 4,
+                              color: getProfitLossColor(investment.profit_loss),
+                            }}
                           >
                             ${investment.profit_loss.toFixed(2)}
                           </Text>
                         </View>
                         <Text
-                          className={`text-sm ${getProfitLossColor(investment.profit_loss)}`}
+                          style={{
+                            fontSize: 14,
+                            color: getProfitLossColor(investment.profit_loss),
+                          }}
                         >
                           {investment.invested_amount > 0
                             ? (
@@ -467,49 +586,99 @@ const Investments = () => {
           transparent={true}
           onRequestClose={() => setIsModalVisible(false)}
         >
-          <View className="flex-1 justify-center items-center bg-black/50">
-            <View className="w-11/12 bg-white rounded-xl p-6 max-h-[90%]">
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+            }}
+          >
+            <View
+              style={{
+                width: "92%",
+                backgroundColor: theme.cardBackground,
+                borderRadius: 12,
+                padding: 24,
+                maxHeight: "90%",
+              }}
+            >
               <ScrollView showsVerticalScrollIndicator={false}>
                 <View className="flex-row justify-between items-center mb-4">
-                  <Text className="font-bold text-lg">
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontWeight: "bold",
+                      fontSize: 18,
+                    }}
+                  >
                     {currentInvestment
                       ? "Edit Investment"
                       : "Add New Investment"}
                   </Text>
                   <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-                    <X size={24} color="#6b7280" />
+                    <X size={24} color={theme.textMuted} />
                   </TouchableOpacity>
                 </View>
 
                 <View className="mb-4">
-                  <Text className="text-gray-700 mb-1">Investment Type</Text>
+                  <Text style={{ color: theme.text, marginBottom: 4 }}>
+                    Investment Type
+                  </Text>
                   <TouchableOpacity
-                    className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 8,
+                      padding: 12,
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
                     onPress={() => setShowTypeDropdown(!showTypeDropdown)}
                   >
                     <Text
-                      className={newType ? "text-gray-900" : "text-gray-500"}
+                      style={{ color: newType ? theme.text : theme.textMuted }}
                     >
                       {newType || "Select investment type"}
                     </Text>
-                    <ChevronDown size={16} color="#6b7280" />
+                    <ChevronDown size={16} color={theme.textMuted} />
                   </TouchableOpacity>
 
                   {showTypeDropdown && (
-                    <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
+                    <View
+                      style={{
+                        marginTop: 8,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        borderRadius: 8,
+                        backgroundColor: theme.cardBackground,
+                        maxHeight: 160,
+                      }}
+                    >
                       <ScrollView>
                         {investmentTypes.map((type) => (
                           <TouchableOpacity
                             key={type}
-                            className={`p-3 border-b border-gray-200 ${
-                              newType === type ? "bg-blue-50" : ""
-                            }`}
+                            style={{
+                              padding: 12,
+                              borderBottomWidth: 1,
+                              borderBottomColor: theme.border,
+                              backgroundColor:
+                                newType === type
+                                  ? `${theme.primary}20`
+                                  : "transparent",
+                            }}
                             onPress={() => {
                               setNewType(type);
                               setShowTypeDropdown(false);
                             }}
                           >
-                            <Text className="font-medium">{type}</Text>
+                            <Text
+                              style={{ color: theme.text, fontWeight: "500" }}
+                            >
+                              {type}
+                            </Text>
                           </TouchableOpacity>
                         ))}
                       </ScrollView>
@@ -518,51 +687,93 @@ const Investments = () => {
                 </View>
 
                 <View className="mb-4">
-                  <Text className="text-gray-700 mb-1">Investment Name</Text>
+                  <Text style={{ color: theme.text, marginBottom: 4 }}>
+                    Investment Name
+                  </Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg p-3"
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 8,
+                      padding: 12,
+                      color: theme.text,
+                      backgroundColor: theme.background,
+                    }}
                     placeholder="e.g., Apple Inc., Bitcoin, Rental House"
+                    placeholderTextColor={theme.textMuted}
                     value={newName}
                     onChangeText={setNewName}
                   />
                 </View>
 
                 <View className="mb-4">
-                  <Text className="text-gray-700 mb-1">Account</Text>
+                  <Text style={{ color: theme.text, marginBottom: 4 }}>
+                    Account
+                  </Text>
                   <TouchableOpacity
-                    className="border border-gray-300 rounded-lg p-3 flex-row justify-between items-center"
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 8,
+                      padding: 12,
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
                     onPress={() => setShowAccountDropdown(!showAccountDropdown)}
                   >
                     <Text
-                      className={
-                        selectedAccount ? "text-gray-900" : "text-gray-500"
-                      }
+                      style={{
+                        color: selectedAccount ? theme.text : theme.textMuted,
+                      }}
                     >
                       {selectedAccount
                         ? selectedAccount.name
                         : "Select an account"}
                     </Text>
-                    <ChevronDown size={16} color="#6b7280" />
+                    <ChevronDown size={16} color={theme.textMuted} />
                   </TouchableOpacity>
 
                   {showAccountDropdown && (
-                    <View className="mt-2 border border-gray-300 rounded-lg bg-white max-h-40">
+                    <View
+                      style={{
+                        marginTop: 8,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        borderRadius: 8,
+                        backgroundColor: theme.cardBackground,
+                        maxHeight: 160,
+                      }}
+                    >
                       <ScrollView>
                         {accounts.map((account) => (
                           <TouchableOpacity
                             key={account.id}
-                            className={`p-3 border-b border-gray-200 ${
-                              selectedAccount?.id === account.id
-                                ? "bg-blue-50"
-                                : ""
-                            }`}
+                            style={{
+                              padding: 12,
+                              borderBottomWidth: 1,
+                              borderBottomColor: theme.border,
+                              backgroundColor:
+                                selectedAccount?.id === account.id
+                                  ? `${theme.primary}20`
+                                  : "transparent",
+                            }}
                             onPress={() => {
                               setSelectedAccount(account);
                               setShowAccountDropdown(false);
                             }}
                           >
-                            <Text className="font-medium">{account.name}</Text>
-                            <Text className="text-sm text-gray-500">
+                            <Text
+                              style={{ color: theme.text, fontWeight: "500" }}
+                            >
+                              {account.name}
+                            </Text>
+                            <Text
+                              style={{
+                                color: theme.textSecondary,
+                                fontSize: 14,
+                              }}
+                            >
                               {account.account_type}
                             </Text>
                           </TouchableOpacity>
@@ -573,12 +784,20 @@ const Investments = () => {
                 </View>
 
                 <View className="mb-4">
-                  <Text className="text-gray-700 mb-1">
+                  <Text style={{ color: theme.text, marginBottom: 4 }}>
                     Amount Invested ($)
                   </Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg p-3"
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 8,
+                      padding: 12,
+                      color: theme.text,
+                      backgroundColor: theme.background,
+                    }}
                     placeholder="Enter amount invested"
+                    placeholderTextColor={theme.textMuted}
                     keyboardType="numeric"
                     value={newInvestedAmount}
                     onChangeText={setNewInvestedAmount}
@@ -586,10 +805,20 @@ const Investments = () => {
                 </View>
 
                 <View className="mb-6">
-                  <Text className="text-gray-700 mb-1">Current Value ($)</Text>
+                  <Text style={{ color: theme.text, marginBottom: 4 }}>
+                    Current Value ($)
+                  </Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg p-3"
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 8,
+                      padding: 12,
+                      color: theme.text,
+                      backgroundColor: theme.background,
+                    }}
                     placeholder="Enter current value"
+                    placeholderTextColor={theme.textMuted}
                     keyboardType="numeric"
                     value={newCurrentValue}
                     onChangeText={setNewCurrentValue}
@@ -597,10 +826,15 @@ const Investments = () => {
                 </View>
 
                 <TouchableOpacity
-                  className="bg-blue-500 py-3 rounded-lg items-center"
+                  style={{
+                    backgroundColor: theme.primary,
+                    paddingVertical: 12,
+                    borderRadius: 8,
+                    alignItems: "center",
+                  }}
                   onPress={handleSaveInvestment}
                 >
-                  <Text className="text-white font-medium">
+                  <Text style={{ color: theme.primaryText, fontWeight: "500" }}>
                     {currentInvestment ? "Update Investment" : "Add Investment"}
                   </Text>
                 </TouchableOpacity>

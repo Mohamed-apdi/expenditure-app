@@ -12,6 +12,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, Pen, Trash2 } from "lucide-react-native";
 import { supabase } from "~/lib/supabase";
 import { format } from "date-fns";
+import { useTheme } from "~/lib/theme";
 
 type Transaction = {
   id: string;
@@ -34,6 +35,7 @@ const AccountDetails = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const theme = useTheme();
 
   useEffect(() => {
     if (id) {
@@ -60,11 +62,12 @@ const AccountDetails = () => {
       setAccount(accountData);
 
       // Fetch transactions for this specific account
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("account_id", id)
-        .order("created_at", { ascending: false });
+      const { data: transactionsData, error: transactionsError } =
+        await supabase
+          .from("transactions")
+          .select("*")
+          .eq("account_id", id)
+          .order("created_at", { ascending: false });
 
       if (transactionsError) throw transactionsError;
       setTransactions(transactionsData || []);
@@ -92,7 +95,7 @@ const AccountDetails = () => {
           onPress: async () => {
             try {
               setLoading(true);
-              
+
               // First, delete all budgets associated with this account
               const { error: budgetsError } = await supabase
                 .from("budgets")
@@ -112,7 +115,10 @@ const AccountDetails = () => {
                 .eq("from_account_id", id);
 
               if (transfersFromError) {
-                console.error("Error deleting transfers from account:", transfersFromError);
+                console.error(
+                  "Error deleting transfers from account:",
+                  transfersFromError
+                );
                 Alert.alert("Error", "Failed to delete transfers from account");
                 return;
               }
@@ -123,7 +129,10 @@ const AccountDetails = () => {
                 .eq("to_account_id", id);
 
               if (transfersToError) {
-                console.error("Error deleting transfers to account:", transfersToError);
+                console.error(
+                  "Error deleting transfers to account:",
+                  transfersToError
+                );
                 Alert.alert("Error", "Failed to delete transfers to account");
                 return;
               }
@@ -135,7 +144,10 @@ const AccountDetails = () => {
                 .eq("account_id", id);
 
               if (transactionsError) {
-                console.error("Error deleting transactions:", transactionsError);
+                console.error(
+                  "Error deleting transactions:",
+                  transactionsError
+                );
                 Alert.alert("Error", "Failed to delete account transactions");
                 return;
               }
@@ -172,7 +184,10 @@ const AccountDetails = () => {
 
   if (loading || !account) {
     return (
-      <SafeAreaView className="flex-1 bg-gray-50 items-center justify-center">
+      <SafeAreaView
+        className="flex-1 items-center justify-center"
+        style={{ backgroundColor: theme.background }}
+      >
         <ActivityIndicator size="large" color="#3b82f6" />
       </SafeAreaView>
     );
@@ -190,13 +205,21 @@ const AccountDetails = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50 p-safe">
+    <SafeAreaView
+      className="flex-1 p-safe"
+      style={{ backgroundColor: theme.background }}
+    >
       {/* Header */}
-      <View className="flex-row items-center justify-between p-6 border-b border-gray-100">
+      <View
+        className="flex-row items-center justify-between p-6 border-b"
+        style={{ borderColor: theme.border }}
+      >
         <TouchableOpacity onPress={() => router.back()} className="p-2">
           <ChevronLeft size={24} color="#6b7280" />
         </TouchableOpacity>
-        <Text className="text-gray-900 text-2xl font-bold">{account.name}</Text>
+        <Text className="text-2xl font-bold" style={{ color: theme.text }}>
+          {account.name}
+        </Text>
         <View className="flex-row gap-2">
           <TouchableOpacity
             className="bg-blue-500 rounded-lg py-3 px-3 items-center"
@@ -215,8 +238,16 @@ const AccountDetails = () => {
       </View>
 
       {/* Current Balance */}
-      <View className="bg-white p-6 border-b border-gray-100">
-        <Text className="text-gray-600 text-sm mb-1">Current Balance</Text>
+      <View
+        className="p-6 border-b"
+        style={{
+          backgroundColor: theme.cardBackground,
+          borderColor: theme.border,
+        }}
+      >
+        <Text className="text-sm mb-1" style={{ color: theme.textSecondary }}>
+          Current Balance
+        </Text>
         <Text
           className={`text-2xl font-bold ${
             account.amount >= 0 ? "text-green-600" : "text-red-600"
@@ -227,23 +258,44 @@ const AccountDetails = () => {
       </View>
 
       {/* Summary Cards - Single Row */}
-      <View className="p-6 bg-white border-b border-gray-100">
+      <View
+        className="p-6 border-b"
+        style={{
+          backgroundColor: theme.cardBackground,
+          borderColor: theme.border,
+        }}
+      >
         <View className="flex-row justify-between">
           <View className="items-center">
-            <Text className="text-gray-600 text-sm mb-1">Income</Text>
+            <Text
+              className="text-sm mb-1"
+              style={{ color: theme.textSecondary }}
+            >
+              Income
+            </Text>
             <Text className="text-green-600 font-bold">
               ${summary.income.toFixed(2)}
             </Text>
           </View>
           <View className="items-center">
-            <Text className="text-gray-600 text-sm mb-1">Expense</Text>
+            <Text
+              className="text-sm mb-1"
+              style={{ color: theme.textSecondary }}
+            >
+              Expense
+            </Text>
             <Text className="text-red-600 font-bold">
               ${summary.expense.toFixed(2)}
             </Text>
           </View>
           <View className="items-center">
-            <Text className="text-gray-600 text-sm mb-1">Balance</Text>
-            <Text className="text-gray-900 font-bold">
+            <Text
+              className="text-sm mb-1"
+              style={{ color: theme.textSecondary }}
+            >
+              Balance
+            </Text>
+            <Text className="font-bold" style={{ color: theme.text }}>
               ${summary.balance.toFixed(2)}
             </Text>
           </View>
@@ -251,18 +303,26 @@ const AccountDetails = () => {
       </View>
 
       {/* Recent Transactions Header */}
-      <View className="p-6 bg-white border-b border-gray-100">
+      <View
+        className="p-6 border-b"
+        style={{
+          backgroundColor: theme.cardBackground,
+          borderColor: theme.border,
+        }}
+      >
         <View className="flex-row justify-between items-center">
-          <Text className="text-gray-900 font-bold text-lg">
+          <Text className="font-bold text-lg" style={{ color: theme.text }}>
             Recent Transactions
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             onPress={() => loadAccountData(true)}
             className="bg-blue-100 px-3 py-1 rounded-lg"
             disabled={refreshing}
           >
-            <Text className={`text-sm ${refreshing ? 'text-blue-400' : 'text-blue-600'}`}>
-              {refreshing ? 'Refreshing...' : 'Refresh'}
+            <Text
+              className={`text-sm ${refreshing ? "text-blue-400" : "text-blue-600"}`}
+            >
+              {refreshing ? "Refreshing..." : "Refresh"}
             </Text>
           </TouchableOpacity>
         </View>
@@ -273,28 +333,48 @@ const AccountDetails = () => {
         {refreshing && (
           <View className="py-4 items-center">
             <ActivityIndicator size="small" color="#3b82f6" />
-            <Text className="text-gray-500 text-sm mt-2">Refreshing transactions...</Text>
+            <Text
+              className="text-sm mt-2"
+              style={{ color: theme.textSecondary }}
+            >
+              Refreshing transactions...
+            </Text>
           </View>
         )}
         {transactions.length === 0 ? (
           <View className="py-8 items-center">
-            <Text className="text-gray-500">No transactions yet</Text>
+            <Text style={{ color: theme.textSecondary }}>
+              No transactions yet
+            </Text>
           </View>
         ) : (
           transactions.map((transaction) => (
             <TouchableOpacity
               key={transaction.id}
-              className="flex-row justify-between items-center py-4 border-b border-gray-100"
-              onPress={() => router.push(`/transaction-detail/${transaction.id}`)}
+              className="flex-row justify-between items-center py-4 border-b"
+              style={{ borderColor: theme.border }}
+              onPress={() =>
+                router.push(`/transaction-detail/${transaction.id}`)
+              }
             >
               <View className="flex-1">
-                <Text className="font-medium text-gray-900">
-                  {transaction.description || transaction.category || 'No description'}
+                <Text className="font-medium" style={{ color: theme.text }}>
+                  {transaction.description ||
+                    transaction.category ||
+                    "No description"}
                 </Text>
-                <Text className="text-gray-500 text-sm mt-1">
-                  {transaction.category && transaction.description ? transaction.category : ''}
+                <Text
+                  className="text-sm mt-1"
+                  style={{ color: theme.textSecondary }}
+                >
+                  {transaction.category && transaction.description
+                    ? transaction.category
+                    : ""}
                 </Text>
-                <Text className="text-gray-400 text-xs mt-1">
+                <Text
+                  className="text-xs mt-1"
+                  style={{ color: theme.textMuted }}
+                >
                   {format(new Date(transaction.created_at), "MMM d, yyyy")}
                 </Text>
               </View>
@@ -303,12 +383,16 @@ const AccountDetails = () => {
                   transaction.type === "income"
                     ? "text-green-600"
                     : transaction.type === "expense"
-                    ? "text-red-600"
-                    : "text-blue-600"
+                      ? "text-red-600"
+                      : "text-blue-600"
                 }`}
               >
-                {transaction.type === "income" ? "+" : transaction.type === "expense" ? "-" : ""}$
-                {Math.abs(transaction.amount).toFixed(2)}
+                {transaction.type === "income"
+                  ? "+"
+                  : transaction.type === "expense"
+                    ? "-"
+                    : ""}
+                ${Math.abs(transaction.amount).toFixed(2)}
               </Text>
             </TouchableOpacity>
           ))

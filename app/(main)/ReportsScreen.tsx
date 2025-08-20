@@ -42,12 +42,14 @@ import {
 } from "~/lib/api";
 import { getCategoryColor, getColorByIndex } from "~/lib/chartColors";
 import { sharePDF } from "~/lib/pdfGenerator";
+import { useTheme } from "../../lib/theme";
 
 const { width: screenWidth } = Dimensions.get("window");
 
 export default function ReportsScreen() {
+  const theme = useTheme();
   const { selectedAccount, accounts } = useAccount();
-  
+
   // Set default date range to today for both dates
   const getDefaultDateRange = () => {
     const today = new Date();
@@ -58,15 +60,20 @@ export default function ReportsScreen() {
   };
 
   const [dateRange, setDateRange] = useState(getDefaultDateRange());
-  const [pendingDateRange, setPendingDateRange] = useState(getDefaultDateRange());
+  const [pendingDateRange, setPendingDateRange] = useState(
+    getDefaultDateRange()
+  );
   const [datePickerVisible, setDatePickerVisible] = useState(false);
-  const [datePickerMode, setDatePickerMode] = useState<"start" | "end">("start");
+  const [datePickerMode, setDatePickerMode] = useState<"start" | "end">(
+    "start"
+  );
   const [loading, setLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Report data states
-  const [transactionData, setTransactionData] = useState<TransactionReport | null>(null);
-  
+  const [transactionData, setTransactionData] =
+    useState<TransactionReport | null>(null);
+
   // Pie chart interaction states
   const [selectedSegment, setSelectedSegment] = useState<{
     name: string;
@@ -81,13 +88,14 @@ export default function ReportsScreen() {
     if (!transactionData) return null;
 
     const daysDiff = Math.ceil(
-      (dateRange.endDate.getTime() - dateRange.startDate.getTime()) / (1000 * 60 * 60 * 24)
+      (dateRange.endDate.getTime() - dateRange.startDate.getTime()) /
+        (1000 * 60 * 60 * 24)
     );
-    
+
     let chartData = transactionData.daily_trends;
     let dateFormatter: Intl.DateTimeFormatOptions;
     let chartTitle = "Daily Spending Trends";
-    
+
     if (daysDiff <= 14) {
       chartData = transactionData.daily_trends;
       dateFormatter = { month: "short", day: "numeric" };
@@ -108,7 +116,7 @@ export default function ReportsScreen() {
     const maxDataPoints = 30;
     let displayData = chartData;
     let showingLimited = false;
-    
+
     if (chartData.length > maxDataPoints) {
       displayData = chartData.slice(-maxDataPoints);
       showingLimited = true;
@@ -120,14 +128,14 @@ export default function ReportsScreen() {
       dateFormatter,
       chartTitle,
       showingLimited,
-      maxDataPoints
+      maxDataPoints,
     };
   }, [transactionData, dateRange]);
 
   // Memoized pie chart data
   const pieChartData = useMemo(() => {
     if (!transactionData) return [];
-    
+
     return Object.entries(transactionData.category_breakdown).map(
       ([category, data]) => ({
         name: category,
@@ -145,12 +153,19 @@ export default function ReportsScreen() {
 
     return {
       labels: processedChartData.displayData.map((item) =>
-        new Date(item.date).toLocaleDateString("en-US", processedChartData.dateFormatter)
+        new Date(item.date).toLocaleDateString(
+          "en-US",
+          processedChartData.dateFormatter
+        )
       ),
       datasets: [
         {
-          data: processedChartData.displayData.map((item) => Math.abs(item.amount)),
-          colors: processedChartData.displayData.map((_, index) => () => getColorByIndex(index)),
+          data: processedChartData.displayData.map((item) =>
+            Math.abs(item.amount)
+          ),
+          colors: processedChartData.displayData.map(
+            (_, index) => () => getColorByIndex(index)
+          ),
         },
       ],
     };
@@ -172,13 +187,13 @@ export default function ReportsScreen() {
         "to",
         dateRange.endDate.toISOString().split("T")[0]
       );
-      
+
       const data = await getTransactionReports(
         selectedAccount?.id,
         dateRange.startDate.toISOString().split("T")[0],
         dateRange.endDate.toISOString().split("T")[0]
       );
-      
+
       console.log("Transaction reports data received:", data);
       setTransactionData(data);
       setIsInitialLoad(false);
@@ -215,8 +230,8 @@ export default function ReportsScreen() {
   // Helper functions for data aggregation (moved outside component to prevent recreation)
   const aggregateByWeek = (dailyData: any[]) => {
     const weeklyMap = new Map();
-    
-    dailyData.forEach(item => {
+
+    dailyData.forEach((item) => {
       const date = new Date(item.date);
       // Get start of week (Monday)
       const startOfWeek = new Date(date);
@@ -224,37 +239,37 @@ export default function ReportsScreen() {
       const diff = date.getDate() - day + (day === 0 ? -6 : 1);
       startOfWeek.setDate(diff);
       startOfWeek.setHours(0, 0, 0, 0);
-      
-      const weekKey = startOfWeek.toISOString().split('T')[0];
-      
+
+      const weekKey = startOfWeek.toISOString().split("T")[0];
+
       if (!weeklyMap.has(weekKey)) {
         weeklyMap.set(weekKey, { date: weekKey, amount: 0 });
       }
-      
+
       weeklyMap.get(weekKey).amount += item.amount;
     });
-    
-    return Array.from(weeklyMap.values()).sort((a, b) => 
-      new Date(a.date).getTime() - new Date(b.date).getTime()
+
+    return Array.from(weeklyMap.values()).sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
   };
 
   const aggregateByMonth = (dailyData: any[]) => {
     const monthlyMap = new Map();
-    
-    dailyData.forEach(item => {
+
+    dailyData.forEach((item) => {
       const date = new Date(item.date);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`;
-      
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+
       if (!monthlyMap.has(monthKey)) {
         monthlyMap.set(monthKey, { date: monthKey, amount: 0 });
       }
-      
+
       monthlyMap.get(monthKey).amount += item.amount;
     });
-    
-    return Array.from(monthlyMap.values()).sort((a, b) => 
-      new Date(a.date).getTime() - new Date(b.date).getTime()
+
+    return Array.from(monthlyMap.values()).sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
   };
 
@@ -292,7 +307,10 @@ export default function ReportsScreen() {
                   await sharePDF(filePath);
                 } catch (error) {
                   console.error("Error sharing PDF:", error);
-                  Alert.alert("Error", "Failed to share PDF. The file has been saved to your device.");
+                  Alert.alert(
+                    "Error",
+                    "Failed to share PDF. The file has been saved to your device."
+                  );
                 }
               },
             },
@@ -335,7 +353,10 @@ export default function ReportsScreen() {
                   await shareCSV(filePath);
                 } catch (error) {
                   console.error("Error sharing CSV:", error);
-                  Alert.alert("Error", "Failed to share CSV. The file has been saved to your device.");
+                  Alert.alert(
+                    "Error",
+                    "Failed to share CSV. The file has been saved to your device."
+                  );
                 }
               },
             },
@@ -407,11 +428,12 @@ export default function ReportsScreen() {
 
   // Function to handle pie chart segment selection
   const handleSegmentPress = (segment: any) => {
-    const total = Object.values(transactionData?.category_breakdown || {}).reduce(
-      (sum: number, item: any) => sum + Math.abs(item.amount), 0
-    );
-    const percentage = total > 0 ? (Math.abs(segment.population) / total) * 100 : 0;
-    
+    const total = Object.values(
+      transactionData?.category_breakdown || {}
+    ).reduce((sum: number, item: any) => sum + Math.abs(item.amount), 0);
+    const percentage =
+      total > 0 ? (Math.abs(segment.population) / total) * 100 : 0;
+
     setSelectedSegment({
       name: segment.name,
       value: segment.population,
@@ -425,11 +447,26 @@ export default function ReportsScreen() {
     if (!selectedAccount) {
       return (
         <View className="flex-1 justify-center items-center p-8">
-          <Wallet size={48} color="#6b7280" />
-          <Text className="text-lg font-semibold text-gray-700 mt-4 text-center">
+          <Wallet size={48} color={theme.textMuted} />
+          <Text
+            style={{
+              color: theme.text,
+              fontSize: 18,
+              fontWeight: "600",
+              marginTop: 16,
+              textAlign: "center",
+            }}
+          >
             No Account Selected
           </Text>
-          <Text className="text-sm text-gray-500 mt-2 text-center">
+          <Text
+            style={{
+              color: theme.textSecondary,
+              fontSize: 14,
+              marginTop: 8,
+              textAlign: "center",
+            }}
+          >
             Please select an account to view transaction reports
           </Text>
         </View>
@@ -439,8 +476,8 @@ export default function ReportsScreen() {
     if (!transactionData) {
       return (
         <View className="flex-1 justify-center items-center p-8">
-          <ActivityIndicator size="large" color="#10b981" />
-          <Text className="text-gray-600 mt-4">
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={{ color: theme.textSecondary, marginTop: 16 }}>
             Loading transaction data for {selectedAccount.name}...
           </Text>
         </View>
@@ -450,7 +487,9 @@ export default function ReportsScreen() {
     if (!processedChartData || !barChartData) {
       return (
         <View className="flex-1 justify-center items-center p-8">
-          <Text className="text-gray-500">Processing chart data...</Text>
+          <Text style={{ color: theme.textSecondary }}>
+            Processing chart data...
+          </Text>
         </View>
       );
     }
@@ -462,29 +501,68 @@ export default function ReportsScreen() {
           {/* First Row - Net Amount */}
           <View className="flex-row justify-between mb-3">
             <View
-              className="flex-1 bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl mr-2 shadow-sm"
-              style={{ backgroundColor: "#dbeafe" }}
+              style={{
+                flex: 1,
+                backgroundColor: theme.cardBackground,
+                padding: 16,
+                borderRadius: 12,
+                marginRight: 8,
+                shadowColor: theme.border,
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.05,
+                shadowRadius: 2,
+                elevation: 1,
+              }}
             >
-              <Text className="text-blue-600 text-sm font-medium">
+              <Text
+                style={{
+                  color: theme.primary,
+                  fontSize: 14,
+                  fontWeight: "500",
+                }}
+              >
                 Net Amount
               </Text>
               <Text
-                className={`text-2xl font-bold ${transactionData.summary.total_amount >= 0 ? "text-green-700" : "text-red-700"}`}
+                style={{
+                  fontSize: 24,
+                  fontWeight: "bold",
+                  color:
+                    transactionData.summary.total_amount >= 0
+                      ? "#059669"
+                      : "#dc2626",
+                }}
               >
                 {formatCurrency(transactionData.summary.total_amount)}
               </Text>
-              <Text className="text-xs text-gray-500 mt-1">
+              <Text
+                style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}
+              >
                 Income - Expenses
               </Text>
             </View>
             <View
-              className="flex-1 bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-xl ml-2 shadow-sm"
-              style={{ backgroundColor: "#ede9fe" }}
+              style={{
+                flex: 1,
+                backgroundColor: theme.cardBackground,
+                padding: 16,
+                borderRadius: 12,
+                marginLeft: 8,
+                shadowColor: theme.border,
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.05,
+                shadowRadius: 2,
+                elevation: 1,
+              }}
             >
-              <Text className="text-purple-600 text-sm font-medium">
+              <Text
+                style={{ color: "#8b5cf6", fontSize: 14, fontWeight: "500" }}
+              >
                 Transactions
               </Text>
-              <Text className="text-2xl font-bold text-purple-800">
+              <Text
+                style={{ fontSize: 24, fontWeight: "bold", color: "#7c3aed" }}
+              >
                 {transactionData.summary.total_transactions}
               </Text>
             </View>
@@ -493,20 +571,52 @@ export default function ReportsScreen() {
           {/* Second Row - Income and Expenses */}
           <View className="flex-row justify-between">
             <View
-              className="flex-1 bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-xl mr-2 shadow-sm"
-              style={{ backgroundColor: "#dcfce7" }}
+              style={{
+                flex: 1,
+                backgroundColor: theme.cardBackground,
+                padding: 16,
+                borderRadius: 12,
+                marginRight: 8,
+                shadowColor: theme.border,
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.05,
+                shadowRadius: 2,
+                elevation: 1,
+              }}
             >
-              <Text className="text-green-600 text-sm font-medium">Income</Text>
-              <Text className="text-xl font-bold text-green-800">
+              <Text
+                style={{ color: "#059669", fontSize: 14, fontWeight: "500" }}
+              >
+                Income
+              </Text>
+              <Text
+                style={{ fontSize: 20, fontWeight: "bold", color: "#047857" }}
+              >
                 +{formatCurrency(transactionData.summary.total_income)}
               </Text>
             </View>
             <View
-              className="flex-1 bg-gradient-to-br from-red-50 to-red-100 p-4 rounded-xl ml-2 shadow-sm"
-              style={{ backgroundColor: "#fee2e2" }}
+              style={{
+                flex: 1,
+                backgroundColor: theme.cardBackground,
+                padding: 16,
+                borderRadius: 12,
+                marginLeft: 8,
+                shadowColor: theme.border,
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.05,
+                shadowRadius: 2,
+                elevation: 1,
+              }}
             >
-              <Text className="text-red-600 text-sm font-medium">Expenses</Text>
-              <Text className="text-xl font-bold text-red-800">
+              <Text
+                style={{ color: "#dc2626", fontSize: 14, fontWeight: "500" }}
+              >
+                Expenses
+              </Text>
+              <Text
+                style={{ fontSize: 20, fontWeight: "bold", color: "#b91c1c" }}
+              >
                 -{formatCurrency(transactionData.summary.total_expenses)}
               </Text>
             </View>
@@ -514,9 +624,23 @@ export default function ReportsScreen() {
         </View>
 
         {/* Category Breakdown Pie Chart */}
-        <View className="mb-6 bg-white p-4 rounded-xl shadow-sm">
+        <View
+          style={{
+            marginBottom: 24,
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+            shadowColor: theme.border,
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05,
+            shadowRadius: 2,
+            elevation: 1,
+          }}
+        >
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="font-bold text-lg text-gray-800">
+            <Text
+              style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}
+            >
               Spending by Category
             </Text>
             <PieChart size={20} color="#8b5cf6" />
@@ -526,7 +650,10 @@ export default function ReportsScreen() {
               <TouchableOpacity
                 onPress={() => {
                   // Show general chart info when tapping the chart area
-                  const total = pieChartData.reduce((sum, item) => sum + item.population, 0);
+                  const total = pieChartData.reduce(
+                    (sum, item) => sum + item.population,
+                    0
+                  );
                   setSelectedSegment({
                     name: "All Categories",
                     value: total,
@@ -537,20 +664,22 @@ export default function ReportsScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <View style={{ 
-                  width: '100%', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  paddingHorizontal: 0 
-                }}>
+                <View
+                  style={{
+                    width: "100%",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingHorizontal: 0,
+                  }}
+                >
                   <ChartKitPieChart
                     data={pieChartData}
                     width={screenWidth - 80}
                     height={220}
                     chartConfig={{
-                      backgroundColor: "#ffffff",
-                      backgroundGradientFrom: "#faf5ff",
-                      backgroundGradientTo: "#f3e8ff",
+                      backgroundColor: theme.cardBackground,
+                      backgroundGradientFrom: theme.cardBackground,
+                      backgroundGradientTo: theme.cardBackground,
                       color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
                     }}
                     accessor="population"
@@ -559,18 +688,25 @@ export default function ReportsScreen() {
                     absolute
                     hasLegend={false}
                     center={[0, 0]}
-                    style={{ 
-                      alignSelf: 'center',
-                      marginLeft: 'auto',
-                      marginRight: 'auto'
+                    style={{
+                      alignSelf: "center",
+                      marginLeft: "auto",
+                      marginRight: "auto",
                     }}
                   />
                 </View>
               </TouchableOpacity>
-              
+
               {/* Interactive Legend */}
               <View className="mt-4">
-                <Text className="text-sm font-semibold text-gray-600 mb-2">
+                <Text
+                  style={{
+                    color: theme.textSecondary,
+                    fontSize: 14,
+                    fontWeight: "600",
+                    marginBottom: 8,
+                  }}
+                >
                   Tap a category to see details:
                 </Text>
                 <View className="flex-row flex-wrap">
@@ -579,10 +715,10 @@ export default function ReportsScreen() {
                       key={index}
                       onPress={() => handleSegmentPress(segment)}
                       className="flex-row items-center mr-4 mb-2 p-2 rounded-lg"
-                      style={{ 
-                        backgroundColor: "#f8fafc",
+                      style={{
+                        backgroundColor: theme.background,
                         borderWidth: 1,
-                        borderColor: "#e2e8f0",
+                        borderColor: theme.border,
                       }}
                       activeOpacity={0.7}
                     >
@@ -590,7 +726,13 @@ export default function ReportsScreen() {
                         className="w-3 h-3 rounded-full mr-2"
                         style={{ backgroundColor: segment.color }}
                       />
-                      <Text className="text-sm font-medium text-gray-700">
+                      <Text
+                        style={{
+                          color: theme.text,
+                          fontSize: 14,
+                          fontWeight: "500",
+                        }}
+                      >
                         {segment.name}
                       </Text>
                     </TouchableOpacity>
@@ -599,16 +741,36 @@ export default function ReportsScreen() {
               </View>
             </>
           ) : (
-            <Text className="text-gray-500 text-center py-8">
+            <Text
+              style={{
+                color: theme.textSecondary,
+                textAlign: "center",
+                paddingVertical: 32,
+              }}
+            >
               No data available
             </Text>
           )}
         </View>
 
         {/* Daily Trends Bar Chart */}
-        <View className="mb-6 bg-white p-4 rounded-xl shadow-sm">
+        <View
+          style={{
+            marginBottom: 24,
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+            shadowColor: theme.border,
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05,
+            shadowRadius: 2,
+            elevation: 1,
+          }}
+        >
           <View className="flex-row justify-between items-center mb-4">
-            <Text className="font-bold text-lg text-gray-800">
+            <Text
+              style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}
+            >
               {processedChartData.chartTitle}
             </Text>
             <BarChart2 size={20} color="#6366f1" />
@@ -620,9 +782,9 @@ export default function ReportsScreen() {
               height={220}
               yAxisLabel="$"
               chartConfig={{
-                backgroundColor: "#ffffff",
-                backgroundGradientFrom: "#fef7ff",
-                backgroundGradientTo: "#f3e8ff",
+                backgroundColor: theme.cardBackground,
+                backgroundGradientFrom: theme.cardBackground,
+                backgroundGradientTo: theme.cardBackground,
                 decimalPlaces: 0,
                 color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
                 labelColor: (opacity = 1) => `rgba(71, 85, 105, ${opacity})`,
@@ -632,7 +794,7 @@ export default function ReportsScreen() {
                 fillShadowGradientOpacity: 0.3,
                 propsForBackgroundLines: {
                   strokeDasharray: "5,5",
-                  stroke: "#e2e8f0",
+                  stroke: theme.border,
                   strokeWidth: 1,
                 },
                 propsForLabels: {
@@ -643,38 +805,77 @@ export default function ReportsScreen() {
               style={{ marginVertical: 8, borderRadius: 16 }}
             />
           ) : (
-            <Text className="text-gray-500 text-center py-8">
+            <Text
+              style={{
+                color: theme.textSecondary,
+                textAlign: "center",
+                paddingVertical: 32,
+              }}
+            >
               No trend data available
             </Text>
           )}
-          
+
           {processedChartData.showingLimited && (
-            <Text className="text-xs text-gray-400 text-center mt-2">
-              Showing most recent {processedChartData.maxDataPoints} data points of {processedChartData.chartData.length} total
+            <Text
+              style={{
+                color: theme.textMuted,
+                fontSize: 12,
+                textAlign: "center",
+                marginTop: 8,
+              }}
+            >
+              Showing most recent {processedChartData.maxDataPoints} data points
+              of {processedChartData.chartData.length} total
             </Text>
           )}
         </View>
 
         {/* Category Breakdown Table */}
-        <View className="mb-6 bg-white p-4 rounded-xl">
-          <Text className="font-bold text-lg mb-4">Category Breakdown</Text>
+        <View
+          style={{
+            marginBottom: 24,
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+          }}
+        >
+          <Text
+            style={{
+              color: theme.text,
+              fontSize: 18,
+              fontWeight: "bold",
+              marginBottom: 16,
+            }}
+          >
+            Category Breakdown
+          </Text>
           {Object.entries(transactionData.category_breakdown).map(
             ([category, data], index) => (
               <View
                 key={index}
-                className="flex-row justify-between items-center py-3 border-b border-gray-100"
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  paddingVertical: 12,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.border,
+                }}
               >
-                <View className="flex-1">
-                  <Text className="font-medium">{category}</Text>
-                  <Text className="text-gray-500 text-sm">
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.text, fontWeight: "500" }}>
+                    {category}
+                  </Text>
+                  <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
                     {data.count} transactions
                   </Text>
                 </View>
-                <View className="items-end">
-                  <Text className="font-bold">
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text style={{ color: theme.text, fontWeight: "bold" }}>
                     {formatCurrency(data.amount)}
                   </Text>
-                  <Text className="text-gray-500 text-sm">
+                  <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
                     {formatPercentage(data.percentage)}
                   </Text>
                 </View>
@@ -687,34 +888,47 @@ export default function ReportsScreen() {
   };
 
   return (
-    <SafeAreaView
-      className="flex-1 bg-gradient-to-br from-gray-50 to-gray-100"
-      style={{ backgroundColor: "#f8fafc" }}
-    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
       <View className="flex-1">
         {/* Header */}
-        <View className="bg-white p-4 border-b border-gray-200">
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border,
+          }}
+        >
           <View className="flex-row justify-between items-center mb-4">
             <View>
-              <Text className="text-2xl font-bold text-gray-800">
+              <Text
+                style={{ color: theme.text, fontSize: 24, fontWeight: "bold" }}
+              >
                 Transaction Reports
               </Text>
               {selectedAccount && (
-                <Text className="text-sm text-gray-500 mt-1">
+                <Text
+                  style={{
+                    color: theme.textSecondary,
+                    fontSize: 14,
+                    marginTop: 4,
+                  }}
+                >
                   Showing data for: {selectedAccount.name}
                 </Text>
               )}
               {!selectedAccount && (
-                <Text className="text-sm text-amber-600 mt-1">
+                <Text style={{ color: "#d97706", fontSize: 14, marginTop: 4 }}>
                   ⚠️ Please select an account
                 </Text>
               )}
             </View>
             <View className="flex-row gap-2">
               <TouchableOpacity
-                className="bg-blue-500 p-2 rounded-lg"
                 style={{
                   backgroundColor: "#3b82f6",
+                  padding: 8,
+                  borderRadius: 8,
                   shadowColor: "#000",
                   shadowOffset: { width: 0, height: 1 },
                   shadowOpacity: 0.05,
@@ -727,9 +941,10 @@ export default function ReportsScreen() {
                 <Download size={18} color="white" />
               </TouchableOpacity>
               <TouchableOpacity
-                className="bg-green-500 p-2 rounded-lg"
                 style={{
                   backgroundColor: "#10b981",
+                  padding: 8,
+                  borderRadius: 8,
                   shadowColor: "#000",
                   shadowOffset: { width: 0, height: 1 },
                   shadowOpacity: 0.05,
@@ -748,25 +963,56 @@ export default function ReportsScreen() {
           <View className="gap-2">
             <View className="flex-row justify-between items-center gap-2">
               <TouchableOpacity
-                className="flex-1 bg-blue-50 p-3 rounded-lg flex-row items-center mr-2"
+                style={{
+                  flex: 1,
+                  backgroundColor: theme.background,
+                  padding: 12,
+                  borderRadius: 8,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  marginRight: 8,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                }}
                 onPress={() => openDatePicker("start")}
-                style={{ backgroundColor: "#eff6ff" }}
                 disabled={loading}
               >
                 <Calendar size={14} color="#3b82f6" />
-                <Text className="ml-2 text-blue-700 text-sm font-medium">
+                <Text
+                  style={{
+                    marginLeft: 8,
+                    color: "#1d4ed8",
+                    fontSize: 14,
+                    fontWeight: "500",
+                  }}
+                >
                   From: {formatDate(pendingDateRange.startDate.toISOString())}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                className="flex-1 bg-purple-50 p-3 rounded-lg flex-row items-center"
+                style={{
+                  flex: 1,
+                  backgroundColor: theme.background,
+                  padding: 12,
+                  borderRadius: 8,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                }}
                 onPress={() => openDatePicker("end")}
-                style={{ backgroundColor: "#faf5ff" }}
                 disabled={loading}
               >
                 <Calendar size={14} color="#8b5cf6" />
-                <Text className="ml-2 text-purple-700 text-sm font-medium">
+                <Text
+                  style={{
+                    marginLeft: 8,
+                    color: "#7c3aed",
+                    fontSize: 14,
+                    fontWeight: "500",
+                  }}
+                >
                   To: {formatDate(pendingDateRange.endDate.toISOString())}
                 </Text>
               </TouchableOpacity>
@@ -774,9 +1020,13 @@ export default function ReportsScreen() {
 
             {/* Submit Button */}
             <TouchableOpacity
-              className="bg-green-500 p-3 rounded-lg flex-row items-center justify-center"
-              style={{ 
+              style={{
                 backgroundColor: "#10b981",
+                padding: 12,
+                borderRadius: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
                 opacity: loading ? 0.6 : 1,
               }}
               onPress={handleSubmitDateRange}
@@ -787,26 +1037,45 @@ export default function ReportsScreen() {
               ) : (
                 <Filter size={16} color="white" />
               )}
-              <Text className="ml-2 text-white font-semibold">
+              <Text
+                style={{ marginLeft: 8, color: "white", fontWeight: "600" }}
+              >
                 {loading ? "Loading..." : "Apply Date Range"}
               </Text>
             </TouchableOpacity>
 
             {/* Current active date range indicator */}
-            <View className="bg-gray-50 p-2 rounded-lg">
-              <Text className="text-xs text-gray-600 text-center">
-                Showing data: {formatDate(dateRange.startDate.toISOString())} - {formatDate(dateRange.endDate.toISOString())}
+            <View
+              style={{
+                backgroundColor: theme.background,
+                padding: 8,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+            >
+              <Text
+                style={{
+                  color: theme.textSecondary,
+                  fontSize: 12,
+                  textAlign: "center",
+                }}
+              >
+                Showing data: {formatDate(dateRange.startDate.toISOString())} -{" "}
+                {formatDate(dateRange.endDate.toISOString())}
               </Text>
             </View>
           </View>
         </View>
 
         {/* Content */}
-        <View className="flex-1 bg-transparent p-4">
+        <View style={{ flex: 1, backgroundColor: "transparent", padding: 16 }}>
           {loading ? (
             <View className="flex-1 justify-center items-center">
-              <ActivityIndicator size="large" color="#10b981" />
-              <Text className="mt-4 text-gray-600">Loading reports...</Text>
+              <ActivityIndicator size="large" color={theme.primary} />
+              <Text style={{ marginTop: 16, color: theme.textSecondary }}>
+                Loading reports...
+              </Text>
             </View>
           ) : (
             renderTransactionTab()
@@ -823,15 +1092,34 @@ export default function ReportsScreen() {
                 visible={datePickerVisible}
                 onRequestClose={onDismiss}
               >
-                <View className="flex-1 justify-end bg-black/30">
-                  <View className="bg-white rounded-t-3xl p-5">
+                <View
+                  style={{
+                    flex: 1,
+                    justifyContent: "flex-end",
+                    backgroundColor: "rgba(0, 0, 0, 0.3)",
+                  }}
+                >
+                  <View
+                    style={{
+                      backgroundColor: theme.cardBackground,
+                      borderTopLeftRadius: 24,
+                      borderTopRightRadius: 24,
+                      padding: 20,
+                    }}
+                  >
                     <View className="flex-row justify-between items-center mb-4">
-                      <Text className="text-lg font-bold text-gray-800">
+                      <Text
+                        style={{
+                          color: theme.text,
+                          fontSize: 18,
+                          fontWeight: "bold",
+                        }}
+                      >
                         Select {datePickerMode === "start" ? "Start" : "End"}{" "}
                         Date
                       </Text>
                       <TouchableOpacity onPress={onDismiss}>
-                        <X size={24} color="#6b7280" />
+                        <X size={24} color={theme.textMuted} />
                       </TouchableOpacity>
                     </View>
 
@@ -854,17 +1142,28 @@ export default function ReportsScreen() {
                           ? pendingDateRange.startDate
                           : new Date(2020, 0, 1)
                       }
-                      themeVariant="light"
+                      themeVariant={theme.isDarkColorScheme ? "dark" : "light"}
                     />
 
                     <TouchableOpacity
-                      className="bg-blue-500 p-4 rounded-xl mt-4"
+                      style={{
+                        backgroundColor: "#3b82f6",
+                        padding: 16,
+                        borderRadius: 12,
+                        marginTop: 16,
+                      }}
                       onPress={confirmIOSDate}
                     >
-                      <Text className="text-white text-center font-bold">
+                      <Text
+                        style={{
+                          color: "white",
+                          textAlign: "center",
+                          fontWeight: "bold",
+                        }}
+                      >
                         Confirm
                       </Text>
-                      </TouchableOpacity>
+                    </TouchableOpacity>
                   </View>
                 </View>
               </Modal>
@@ -879,7 +1178,9 @@ export default function ReportsScreen() {
                 display="default"
                 onChange={onDateChange}
                 maximumDate={
-                  datePickerMode === "start" ? pendingDateRange.endDate : new Date()
+                  datePickerMode === "start"
+                    ? pendingDateRange.endDate
+                    : new Date()
                 }
                 minimumDate={
                   datePickerMode === "end"
@@ -899,10 +1200,20 @@ export default function ReportsScreen() {
             visible={segmentModalVisible}
             onRequestClose={() => setSegmentModalVisible(false)}
           >
-            <View className="flex-1 justify-center items-center bg-black/50">
-              <View 
-                className="bg-white rounded-2xl p-6 mx-8 shadow-lg"
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: "rgba(0, 0, 0, 0.5)",
+              }}
+            >
+              <View
                 style={{
+                  backgroundColor: theme.cardBackground,
+                  borderRadius: 16,
+                  padding: 24,
+                  marginHorizontal: 32,
                   minWidth: 280,
                   shadowColor: "#000",
                   shadowOffset: { width: 0, height: 4 },
@@ -917,53 +1228,142 @@ export default function ReportsScreen() {
                     className="w-6 h-6 rounded-full mr-3"
                     style={{ backgroundColor: selectedSegment.color }}
                   />
-                  <Text className="text-xl font-bold text-gray-800 flex-1">
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontSize: 20,
+                      fontWeight: "bold",
+                      flex: 1,
+                    }}
+                  >
                     {selectedSegment.name}
                   </Text>
                   <TouchableOpacity
                     onPress={() => setSegmentModalVisible(false)}
                     className="p-1"
                   >
-                    <X size={20} color="#6b7280" />
+                    <X size={20} color={theme.textMuted} />
                   </TouchableOpacity>
                 </View>
 
                 {/* Amount and percentage */}
                 <View className="mb-4">
-                  <View className="bg-gray-50 p-4 rounded-lg mb-3">
-                    <Text className="text-sm text-gray-600 mb-1">Amount</Text>
-                    <Text className="text-2xl font-bold text-gray-800">
+                  <View
+                    style={{
+                      backgroundColor: theme.background,
+                      padding: 16,
+                      borderRadius: 8,
+                      marginBottom: 12,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: theme.textSecondary,
+                        fontSize: 14,
+                        marginBottom: 4,
+                      }}
+                    >
+                      Amount
+                    </Text>
+                    <Text
+                      style={{
+                        color: theme.text,
+                        fontSize: 24,
+                        fontWeight: "bold",
+                      }}
+                    >
                       {formatCurrency(Math.abs(selectedSegment.value))}
                     </Text>
                   </View>
-                  
-                  <View className="bg-gray-50 p-4 rounded-lg">
-                    <Text className="text-sm text-gray-600 mb-1">
+
+                  <View
+                    style={{
+                      backgroundColor: theme.background,
+                      padding: 16,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: theme.textSecondary,
+                        fontSize: 14,
+                        marginBottom: 4,
+                      }}
+                    >
                       Percentage of Total
                     </Text>
-                    <Text className="text-xl font-semibold" style={{ color: selectedSegment.color }}>
+                    <Text
+                      style={{
+                        fontSize: 20,
+                        fontWeight: "600",
+                        color: selectedSegment.color,
+                      }}
+                    >
                       {selectedSegment.percentage.toFixed(1)}%
                     </Text>
                   </View>
                 </View>
 
                 {/* Transaction count if available */}
-                {selectedSegment.name !== "All Categories" && transactionData?.category_breakdown[selectedSegment.name] && (
-                  <View className="bg-blue-50 p-4 rounded-lg mb-4">
-                    <Text className="text-sm text-blue-600 mb-1">Transactions</Text>
-                    <Text className="text-lg font-semibold text-blue-800">
-                      {transactionData.category_breakdown[selectedSegment.name].count} transactions
-                    </Text>
-                  </View>
-                )}
+                {selectedSegment.name !== "All Categories" &&
+                  transactionData?.category_breakdown[selectedSegment.name] && (
+                    <View
+                      style={{
+                        backgroundColor: theme.background,
+                        padding: 16,
+                        borderRadius: 8,
+                        marginBottom: 16,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: "#1d4ed8",
+                          fontSize: 14,
+                          marginBottom: 4,
+                        }}
+                      >
+                        Transactions
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 18,
+                          fontWeight: "600",
+                          color: "#1e40af",
+                        }}
+                      >
+                        {
+                          transactionData.category_breakdown[
+                            selectedSegment.name
+                          ].count
+                        }{" "}
+                        transactions
+                      </Text>
+                    </View>
+                  )}
 
                 {/* Close button */}
                 <TouchableOpacity
                   onPress={() => setSegmentModalVisible(false)}
-                  className="bg-purple-500 p-3 rounded-xl mt-2"
-                  style={{ backgroundColor: "#8b5cf6" }}
+                  style={{
+                    backgroundColor: "#8b5cf6",
+                    padding: 12,
+                    borderRadius: 12,
+                    marginTop: 8,
+                  }}
                 >
-                  <Text className="text-white text-center font-semibold">
+                  <Text
+                    style={{
+                      color: "white",
+                      textAlign: "center",
+                      fontWeight: "600",
+                    }}
+                  >
                     Close
                   </Text>
                 </TouchableOpacity>
