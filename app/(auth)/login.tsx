@@ -18,12 +18,14 @@ import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
 import Toast from "react-native-toast-message";
 import { useTheme } from "../../lib/theme";
+import { useLanguage } from "../../lib/LanguageProvider";
 
 // Required for Expo OAuth
 WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen() {
   const theme = useTheme();
+  const { t } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -46,8 +48,8 @@ export default function LoginScreen() {
       Toast.show({
         type: "error",
         position: "top",
-        text1: "Error",
-        text2: "Missing credentials or invalid email/password",
+        text1: t.error,
+        text2: t.missingCredentials,
         visibilityTime: 6000, // 6 seconds
         autoHide: true,
         topOffset: 50,
@@ -58,8 +60,8 @@ export default function LoginScreen() {
     Toast.show({
       type: "success", // or 'error', 'info', custom
       position: "top", // 'top' | 'bottom'
-      text1: "Success",
-      text2: "Login successfully",
+      text1: t.success,
+      text2: t.loginSuccessfully,
       visibilityTime: 6000, // 6 seconds
       autoHide: true,
       topOffset: 50,
@@ -119,7 +121,7 @@ export default function LoginScreen() {
       }
     } catch (error) {
       console.log("error: ", error);
-      Alert.alert("Login Error");
+      Alert.alert(t.loginError);
     } finally {
       setSocialLoading(null);
     }
@@ -154,7 +156,7 @@ export default function LoginScreen() {
             marginBottom: 8,
           }}
         >
-          Welcome Back
+          {t.welcomeBack}
         </Text>
         <Text
           style={{
@@ -163,14 +165,14 @@ export default function LoginScreen() {
             lineHeight: 24,
           }}
         >
-          Sign in to access your financial management dashboard
+          {t.signInDescription}
         </Text>
       </View>
 
       {/* Email */}
       <View className="mb-4">
         <Text style={{ color: theme.text, marginBottom: 4 }}>
-          Email Address
+          {t.emailAddress}
         </Text>
         <View
           style={{
@@ -191,7 +193,7 @@ export default function LoginScreen() {
               paddingHorizontal: 8,
               color: theme.text,
             }}
-            placeholder="Enter your email"
+            placeholder={t.enterYourEmail}
             placeholderTextColor={theme.textMuted}
             value={email}
             onChangeText={setEmail}
@@ -203,7 +205,7 @@ export default function LoginScreen() {
 
       {/* Password */}
       <View className="mb-4">
-        <Text style={{ color: theme.text, marginBottom: 4 }}>Password</Text>
+        <Text style={{ color: theme.text, marginBottom: 4 }}>{t.password}</Text>
         <View
           style={{
             flexDirection: "row",
@@ -223,7 +225,7 @@ export default function LoginScreen() {
               paddingHorizontal: 8,
               color: theme.text,
             }}
-            placeholder="Enter your password"
+            placeholder={t.enterYourPassword}
             placeholderTextColor={theme.textMuted}
             value={password}
             onChangeText={setPassword}
@@ -279,7 +281,7 @@ export default function LoginScreen() {
             marginRight: 8,
           }}
         >
-          {loading ? "Signing In..." : "Sign In"}
+          {loading ? t.signingIn : t.signIn}
         </Text>
         <LogIn size={20} color={theme.primaryText} />
       </Button>
@@ -301,7 +303,7 @@ export default function LoginScreen() {
             fontWeight: "600",
           }}
         >
-          OR
+          {t.or}
         </Text>
         <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
       </View>
@@ -349,12 +351,12 @@ export default function LoginScreen() {
       {/* Footer */}
       <View style={{ marginTop: 24, alignItems: "center" }}>
         <Text style={{ color: theme.textSecondary }}>
-          Don't have an account?{" "}
+          {t.dontHaveAccount}{" "}
           <Text
             style={{ color: theme.primary, fontWeight: "bold" }}
             onPress={() => router.push("/signup")}
           >
-            Sign Up
+            {t.signUp}
           </Text>
         </Text>
       </View>

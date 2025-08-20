@@ -16,31 +16,32 @@ import {
 } from "lucide-react-native";
 import { useEffect, useRef } from "react";
 import { useTheme } from "../../lib/theme";
+import { useLanguage } from "../../lib/LanguageProvider";
 
 const categories = [
   {
     id: "accounts",
-    title: "Accounts",
-    description: "Cash, bank, cards, and savings balances",
+    titleKey: "accounts",
+    descriptionKey: "accountsDescription",
     icon: CreditCard,
     color: "#10b981",
-    fields: ["Cash", "Bank", "Cards", "Savings"],
+    fields: ["cash", "bank", "cards", "savings"],
   },
   {
     id: "household",
-    title: "Expenses",
-    description: "Daily spending, bills, and recurring payments",
+    titleKey: "expenses",
+    descriptionKey: "expensesDescription",
     icon: TrendingUp,
     color: "#3b82f6",
-    fields: ["Food", "Rent", "Bills", "Subscriptions"],
+    fields: ["food", "rent", "bills", "subscriptions"],
   },
   {
     id: "advanced",
-    title: "Insights",
-    description: "Budgets, goals, and financial reports",
+    titleKey: "insights",
+    descriptionKey: "insightsDescription",
     icon: BarChart2,
     color: "#8b5cf6",
-    fields: ["Budgets", "Goals", "Reports", "Trends"],
+    fields: ["budgets", "goals", "reports", "trends"],
   },
 ];
 
@@ -96,6 +97,7 @@ const FloatingParticle = ({ style }: any) => {
 export default function InputCategoriesScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { t } = useLanguage();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const categoryAnimations = useRef(
     categories.map(() => new Animated.Value(0))
@@ -260,7 +262,7 @@ export default function InputCategoriesScreen() {
                 marginBottom: 8,
               }}
             >
-              Account Setup
+              {t.accountSetup}
             </Animated.Text>
             <Animated.Text
               style={{
@@ -278,7 +280,7 @@ export default function InputCategoriesScreen() {
                 lineHeight: 24,
               }}
             >
-              Choose what you want to manage — accounts, expenses, and more
+              {t.accountSetupDescription}
             </Animated.Text>
           </View>
 
@@ -336,7 +338,7 @@ export default function InputCategoriesScreen() {
                       marginBottom: 4,
                     }}
                   >
-                    {category.title}
+                    {t[category.titleKey]}
                   </Text>
                   <Text
                     style={{
@@ -346,7 +348,7 @@ export default function InputCategoriesScreen() {
                       lineHeight: 20,
                     }}
                   >
-                    {category.description}
+                    {t[category.descriptionKey]}
                   </Text>
 
                   <View>
@@ -358,7 +360,7 @@ export default function InputCategoriesScreen() {
                         marginBottom: 4,
                       }}
                     >
-                      Includes:
+                      {t.includes}:
                     </Text>
                     <View
                       style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}
@@ -389,7 +391,7 @@ export default function InputCategoriesScreen() {
                               fontWeight: "500",
                             }}
                           >
-                            {field}
+                            {t[field]}
                           </Text>
                         </Animated.View>
                       ))}
@@ -490,7 +492,7 @@ export default function InputCategoriesScreen() {
                   marginRight: 8,
                 }}
               >
-                Continue
+                {t.continue}
               </Text>
               <ArrowRight size={20} color={theme.primaryText} />
             </TouchableOpacity>

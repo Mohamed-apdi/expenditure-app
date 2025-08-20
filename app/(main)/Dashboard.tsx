@@ -84,6 +84,7 @@ import {
 } from "lucide-react-native";
 import { formatDistanceToNow } from "date-fns";
 import { useTheme } from "~/lib/theme";
+import { useLanguage } from "~/lib/LanguageProvider";
 import DashboardHeader from "~/components/(Dashboard)/DashboardHeader";
 import MonthYearScroller from "~/components/(Dashboard)/MonthYearScroll";
 import NotificationPermissionRequest from "~/components/NotificationPermissionRequest";
@@ -108,6 +109,7 @@ type QuickAction = {
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const { selectedAccount, refreshBalances, accounts } = useAccount(); // Remove initializeAccounts since it's auto-loaded
   const [userProfile, setUserProfile] = useState({
@@ -629,19 +631,19 @@ export default function DashboardScreen() {
 
   const quickActions: QuickAction[] = [
     {
-      title: "History Expenses",
+      title: t.historyExpenses,
       icon: PieChart,
       color: "#3b82f6",
       screen: "../(expense)/ExpenseHistory",
     },
     {
-      title: "Generate Report",
+      title: t.generateReport,
       icon: PieChart,
       color: "#f43f5e",
       screen: "../(expense)/ExpenseReport",
     },
     {
-      title: "Compare Expenses",
+      title: t.compareExpenses,
       icon: TrendingUp,
       color: "#f43f5e",
       screen: "../(expense)/ExpenseComparison",
@@ -691,13 +693,13 @@ export default function DashboardScreen() {
         <View className="px-5 pt-6 pb-2 flex-1">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-lg font-bold" style={{ color: theme.text }}>
-              Recent Transactions
+              {t.recentTransactions}
             </Text>
             <View className="flex-row gap-2">
               <TouchableOpacity
                 onPress={() => router.push("/components/TransactionsScreen")}
               >
-                <Text className="text-blue-500">See More</Text>
+                <Text className="text-blue-500">{t.seeMore}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -777,7 +779,7 @@ export default function DashboardScreen() {
             ListEmptyComponent={
               <View className="p-4 bg-white rounded-xl items-center justify-center">
                 <Text className="text-sm text-gray-500">
-                  No transactions for this month
+                  {t.noTransactionsForMonth}
                 </Text>
               </View>
             }

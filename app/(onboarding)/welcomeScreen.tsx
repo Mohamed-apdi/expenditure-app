@@ -19,6 +19,7 @@ import {
 } from "lucide-react-native";
 import { useEffect, useRef } from "react";
 import { useTheme } from "../../lib/theme";
+import { useLanguage } from "../../lib/LanguageProvider";
 
 const { width, height } = Dimensions.get("window");
 
@@ -74,6 +75,7 @@ const FloatingParticle = ({ style }: any) => {
 export default function WelcomeScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { t } = useLanguage();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const slideUpAnim = useRef(new Animated.Value(20)).current;
@@ -302,7 +304,7 @@ export default function WelcomeScreen() {
                 marginBottom: 16,
               }}
             >
-              Qoondeeye
+              {t.appName}
             </Text>
             <Text
               style={{
@@ -313,7 +315,7 @@ export default function WelcomeScreen() {
                 marginBottom: 12,
               }}
             >
-              Take control of your financial future with smart money management
+              {t.tagline}
             </Text>
             <Text
               style={{
@@ -323,7 +325,7 @@ export default function WelcomeScreen() {
                 lineHeight: 24,
               }}
             >
-              Track expenses, manage budgets, and achieve your financial goals
+              {t.description}
             </Text>
           </Animated.View>
 
@@ -348,7 +350,7 @@ export default function WelcomeScreen() {
                   fontWeight: "500",
                 }}
               >
-                Expense Tracking
+                {t.expenseTracking}
               </Text>
             </View>
             <View style={{ alignItems: "center", flex: 1 }}>
@@ -362,7 +364,7 @@ export default function WelcomeScreen() {
                   fontWeight: "500",
                 }}
               >
-                Account Security
+                {t.accountSecurity}
               </Text>
             </View>
             <View style={{ alignItems: "center", flex: 1 }}>
@@ -376,7 +378,7 @@ export default function WelcomeScreen() {
                   fontWeight: "500",
                 }}
               >
-                Instant Insights
+                {t.instantInsights}
               </Text>
             </View>
           </Animated.View>
@@ -416,7 +418,7 @@ export default function WelcomeScreen() {
                   marginRight: 8,
                 }}
               >
-                Start Managing
+                {t.startManaging}
               </Text>
               <ArrowRight size={20} color={theme.primaryText} />
             </TouchableOpacity>
