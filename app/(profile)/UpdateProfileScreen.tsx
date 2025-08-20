@@ -27,6 +27,7 @@ import { supabase } from "~/lib/supabase";
 import * as ImagePicker from "expo-image-picker";
 import { decode } from "base64-arraybuffer";
 import { useTheme } from "~/lib/theme";
+import { useLanguage } from "~/lib/LanguageProvider";
 type FormData = {
   fullName: string;
   email: string;
@@ -43,6 +44,7 @@ type Errors = {
 export default function UpdateProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { t } = useLanguage();
   const userProfile = params.userProfile
     ? JSON.parse(params.userProfile as string)
     : {};
@@ -76,15 +78,12 @@ export default function UpdateProfileScreen() {
         if (user) {
           setCurrentUserId(user.id);
         } else {
-          Alert.alert(
-            "Error",
-            "You need to be logged in to update your profile"
-          );
+          Alert.alert(t.error, t.youNeedToBeLoggedIn);
           router.back();
         }
       } catch (error) {
         console.error("Error fetching user:", error);
-        Alert.alert("Error", "Failed to fetch user data");
+        Alert.alert(t.error, t.failedToFetchUser);
         router.back();
       }
     };
@@ -124,23 +123,23 @@ export default function UpdateProfileScreen() {
   const validateForm = (): boolean => {
     const newErrors: Errors = {};
     if (!formData.fullName.trim()) {
-      newErrors.fullName = "Full name is required";
+      newErrors.fullName = t.fullNameRequired;
     } else if (formData.fullName.trim().length < 2) {
-      newErrors.fullName = "Full name must be at least 2 characters";
+      newErrors.fullName = t.fullNameMinLength;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
+      newErrors.email = t.emailRequired;
     } else if (!emailRegex.test(formData.email)) {
-      newErrors.email = "Please enter a valid email address";
+      newErrors.email = t.validEmailAddress;
     }
 
     const phoneRegex = /^\+?[\d\s\-()]+$/;
     if (!formData.phone.trim()) {
-      newErrors.phone = "Phone number is required";
+      newErrors.phone = t.phoneRequired;
     } else if (!phoneRegex.test(formData.phone)) {
-      newErrors.phone = "Please enter a valid phone number";
+      newErrors.phone = t.validPhoneNumber;
     }
 
     setErrors(newErrors);
@@ -150,7 +149,7 @@ export default function UpdateProfileScreen() {
   const handleSave = async () => {
     if (!validateForm()) return;
     if (!currentUserId) {
-      Alert.alert("Error", "User not authenticated");
+      Alert.alert(t.error, t.userNotAuthenticated);
       return;
     }
 
@@ -168,9 +167,9 @@ export default function UpdateProfileScreen() {
 
       if (error) throw error;
 
-      Alert.alert("Success", "Profile updated successfully!", [
+      Alert.alert(t.success, t.profileUpdatedSuccessfully, [
         {
-          text: "OK",
+          text: t.ok,
           onPress: () =>
             router.push({
               pathname: "../(main)/ProfileScreen",
@@ -183,10 +182,7 @@ export default function UpdateProfileScreen() {
       ]);
     } catch (error: any) {
       console.error("Update error:", error);
-      Alert.alert(
-        "Error",
-        error.message || "Failed to update profile. Please try again."
-      );
+      Alert.alert(t.error, error.message || t.failedToUpdateProfile);
     } finally {
       setLoading(false);
     }
@@ -194,25 +190,21 @@ export default function UpdateProfileScreen() {
 
   const handleCancel = () => {
     if (hasChanges) {
-      Alert.alert(
-        "Discard Changes",
-        "You have unsaved changes. Are you sure you want to go back?",
-        [
-          { text: "Keep Editing", style: "cancel" },
-          {
-            text: "Discard",
-            style: "destructive",
-            onPress: () =>
-              router.push({
-                pathname: "../(main)/ProfileScreen",
-                params: {
-                  updated: "true",
-                  timestamp: Date.now(),
-                },
-              }),
-          },
-        ]
-      );
+      Alert.alert(t.discardChanges, t.unsavedChangesMessage, [
+        { text: t.keepEditing, style: "cancel" },
+        {
+          text: t.discard,
+          style: "destructive",
+          onPress: () =>
+            router.push({
+              pathname: "../(main)/ProfileScreen",
+              params: {
+                updated: "true",
+                timestamp: Date.now(),
+              },
+            }),
+        },
+      ]);
     } else {
       router.back();
     }
@@ -244,25 +236,25 @@ export default function UpdateProfileScreen() {
       return publicUrl;
     } catch (error: any) {
       console.error("Upload error:", error);
-      Alert.alert("Error", error.message || "Failed to upload image");
+      Alert.alert(t.error, error.message || t.failedToUploadImage);
       return null;
     } finally {
       setLoading(false);
     }
   };
   const handleChangePhoto = () => {
-    Alert.alert("Change Profile Photo", "Choose an option", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(t.changeProfilePhoto, t.chooseAnOption, [
+      { text: t.cancel, style: "cancel" },
       {
-        text: "Take Photo",
+        text: t.takePhoto,
         onPress: () => pickImage(true),
       },
       {
-        text: "Choose from Library",
+        text: t.chooseFromLibrary,
         onPress: () => pickImage(false),
       },
       {
-        text: "Remove Photo",
+        text: t.removePhoto,
         style: "destructive",
         onPress: () => updateFormData("image_url", ""),
       },
@@ -299,7 +291,7 @@ export default function UpdateProfileScreen() {
       }
     } catch (error) {
       console.error("Image picker error:", error);
-      Alert.alert("Error", "Failed to pick image");
+      Alert.alert(t.error, t.failedToPickImage);
     }
   };
   return (
@@ -319,7 +311,7 @@ export default function UpdateProfileScreen() {
               <X size={24} color={theme.icon} />
             </TouchableOpacity>
             <Text style={{ color: theme.text }} className=" text-lg font-bold">
-              Update Profile
+              {t.updateProfile}
             </Text>
             <TouchableOpacity
               className={`py-2 px-4 rounded-lg ${!hasChanges || loading ? "bg-slate-700" : "bg-emerald-500"}`}
@@ -329,7 +321,7 @@ export default function UpdateProfileScreen() {
               <Text
                 className={`text-sm font-bold ${!hasChanges || loading ? "text-slate-500" : "text-white"}`}
               >
-                {loading ? "Saving..." : "Save"}
+                {loading ? t.saving : t.save}
               </Text>
             </TouchableOpacity>
           </View>
@@ -375,7 +367,7 @@ export default function UpdateProfileScreen() {
                 className=" text-sm text-center"
                 style={{ color: theme.textSecondary }}
               >
-                Tap to change your profile photo
+                {t.tapToChangePhoto}
               </Text>
             </View>
 
@@ -387,7 +379,7 @@ export default function UpdateProfileScreen() {
                   style={{ color: theme.text }}
                   className=" text-sm font-semibold mb-2"
                 >
-                  Full Name
+                  {t.fullName}
                 </Text>
                 <View
                   className="flex-row items-center rounded-xl border px-4"
@@ -404,7 +396,7 @@ export default function UpdateProfileScreen() {
                   <TextInput
                     ref={fullNameRef}
                     className="flex-1 py-4 text-white text-base"
-                    placeholder="Enter your full name"
+                    placeholder={t.enterYourFullName}
                     placeholderTextColor={theme.placeholder}
                     style={{ color: theme.text }}
                     value={formData.fullName}
@@ -426,7 +418,7 @@ export default function UpdateProfileScreen() {
                   style={{ color: theme.text }}
                   className=" text-sm font-semibold mb-2"
                 >
-                  Email Address
+                  {t.emailAddress}
                 </Text>
                 <View
                   className="flex-row items-center rounded-xl border px-4"
@@ -461,7 +453,7 @@ export default function UpdateProfileScreen() {
                   style={{ color: theme.text }}
                   className=" text-sm font-semibold mb-2"
                 >
-                  Phone Number
+                  {t.phoneNumber}
                 </Text>
                 <View
                   className="flex-row items-center rounded-xl border px-4"
@@ -478,7 +470,7 @@ export default function UpdateProfileScreen() {
                   <TextInput
                     ref={phoneRef}
                     className="flex-1 py-4 text-white text-base"
-                    placeholder="Enter your phone number"
+                    placeholder={t.enterYourPhoneNumber}
                     placeholderTextColor={theme.placeholder}
                     style={{ color: theme.text }}
                     value={formData.phone}
@@ -496,7 +488,7 @@ export default function UpdateProfileScreen() {
                   className=" text-xs mt-1 ml-1"
                   style={{ color: theme.textSecondary }}
                 >
-                  Include country code (e.g., +1 555 123 4567)
+                  {t.includeCountryCode}
                 </Text>
               </View>
             </View>
@@ -514,8 +506,7 @@ export default function UpdateProfileScreen() {
                 className="text-sm ml-3 flex-1"
                 style={{ color: theme.textSecondary }}
               >
-                Your profile information is encrypted and stored securely. We
-                never share your personal data with third parties.
+                {t.profileInfoEncrypted}
               </Text>
             </View>
           </ScrollView>

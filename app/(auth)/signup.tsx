@@ -30,6 +30,7 @@ import * as Google from "expo-auth-session/providers/google";
 import * as AuthSession from "expo-auth-session";
 import Toast from "react-native-toast-message";
 import { useTheme } from "../../lib/theme";
+import { useLanguage } from "../../lib/LanguageProvider";
 
 // Configure Google Auth
 WebBrowser.maybeCompleteAuthSession();
@@ -45,6 +46,7 @@ const PasswordInput = memo(
     onSubmitEditing,
     returnKeyType = "done",
     inputRef,
+    placeholderText,
   }: {
     label: string;
     value: string;
@@ -54,6 +56,7 @@ const PasswordInput = memo(
     onSubmitEditing?: () => void;
     returnKeyType?: "done" | "next" | "go" | "search" | "send";
     inputRef?: React.RefObject<TextInput>;
+    placeholderText: string;
   }) => {
     const theme = useTheme();
     return (
@@ -79,7 +82,7 @@ const PasswordInput = memo(
               paddingHorizontal: 8,
               color: theme.text,
             }}
-            placeholder={`Enter ${label.toLowerCase()}`}
+            placeholder={placeholderText}
             placeholderTextColor={theme.textMuted}
             value={value}
             onChangeText={onChangeText}
@@ -110,6 +113,7 @@ const SignUp = memo(
     showConfirmPassword,
     toggleShowConfirmPassword,
     handleSocialSignup,
+    t,
   }: {
     formData: any;
     updateFormData: (key: string, value: any) => void;
@@ -118,6 +122,7 @@ const SignUp = memo(
     showConfirmPassword: boolean;
     toggleShowConfirmPassword: () => void;
     handleSocialSignup: (provider: "google" | "github") => void;
+    t: any;
   }) => {
     const theme = useTheme();
     return (
@@ -131,15 +136,17 @@ const SignUp = memo(
               marginBottom: 8,
             }}
           >
-            Create Account
+            {t.createAccount}
           </Text>
           <Text style={{ color: theme.textSecondary, textAlign: "center" }}>
-            Enter your email and create a secure password
+            {t.signupDescription}
           </Text>
         </View>
         {/* Full Name */}
         <View className="mb-4">
-          <Text style={{ color: theme.text, marginBottom: 4 }}>Full Name</Text>
+          <Text style={{ color: theme.text, marginBottom: 4 }}>
+            {t.fullName}
+          </Text>
           <View
             style={{
               flexDirection: "row",
@@ -159,7 +166,7 @@ const SignUp = memo(
                 paddingHorizontal: 8,
                 color: theme.text,
               }}
-              placeholder="Enter your full name"
+              placeholder={t.enterYourFullName}
               placeholderTextColor={theme.textMuted}
               value={formData.fullname}
               onChangeText={(value) => updateFormData("fullname", value)}
@@ -172,7 +179,7 @@ const SignUp = memo(
         {/* Email */}
         <View className="mb-4">
           <Text style={{ color: theme.text, marginBottom: 4 }}>
-            Email Address
+            {t.emailAddress}
           </Text>
           <View
             style={{
@@ -193,7 +200,7 @@ const SignUp = memo(
                 paddingHorizontal: 8,
                 color: theme.text,
               }}
-              placeholder="Enter your email"
+              placeholder={t.enterYourEmail}
               placeholderTextColor={theme.textMuted}
               value={formData.email}
               onChangeText={(value) => updateFormData("email", value)}
@@ -206,20 +213,22 @@ const SignUp = memo(
 
         {/* Password */}
         <PasswordInput
-          label="Password"
+          label={t.password}
           value={formData.password}
           onChangeText={(value) => updateFormData("password", value)}
           showPassword={showPassword}
           toggleShowPassword={toggleShowPassword}
+          placeholderText={t.enterYourPassword}
         />
 
         {/* Confirm Password */}
         <PasswordInput
-          label="Confirm Password"
+          label={t.confirmPassword}
           value={formData.confirmPassword}
           onChangeText={(value) => updateFormData("confirmPassword", value)}
           showPassword={showConfirmPassword}
           toggleShowPassword={toggleShowConfirmPassword}
+          placeholderText={t.enterYourConfirmPassword}
         />
 
         {/* Password Requirements */}
@@ -234,7 +243,7 @@ const SignUp = memo(
           }}
         >
           <Text style={{ color: theme.textSecondary, marginBottom: 8 }}>
-            Password must contain:
+            {t.passwordRequirements}
           </Text>
           <View className="flex-row items-center mb-1">
             <Check
@@ -242,7 +251,7 @@ const SignUp = memo(
               color={formData.password.length >= 8 ? theme.primary : "#ef4444"}
             />
             <Text style={{ color: theme.text, marginLeft: 8 }}>
-              At least 8 characters
+              {t.atLeast8Characters}
             </Text>
           </View>
           <View className="flex-row items-center mb-1">
@@ -253,7 +262,7 @@ const SignUp = memo(
               }
             />
             <Text style={{ color: theme.text, marginLeft: 8 }}>
-              One uppercase letter
+              {t.oneUppercaseLetter}
             </Text>
           </View>
           <View className="flex-row items-center">
@@ -263,7 +272,9 @@ const SignUp = memo(
                 /[0-9]/.test(formData.password) ? theme.primary : "#ef4444"
               }
             />
-            <Text style={{ color: theme.text, marginLeft: 8 }}>One number</Text>
+            <Text style={{ color: theme.text, marginLeft: 8 }}>
+              {t.oneNumber}
+            </Text>
           </View>
         </View>
         {/* Divider */}
@@ -283,7 +294,7 @@ const SignUp = memo(
               fontWeight: "600",
             }}
           >
-            OR
+            {t.or}
           </Text>
           <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
         </View>
@@ -314,6 +325,7 @@ const SignUp = memo(
 
 export default function SignupScreen() {
   const theme = useTheme();
+  const { t } = useLanguage();
   const [formData, setFormData] = useState({
     fullname: "",
     email: "",
@@ -344,7 +356,7 @@ export default function SignupScreen() {
 
     // Validate inputs
     if (formData.password !== formData.confirmPassword) {
-      Toast.show({ type: "error", text1: "Passwords do not match" });
+      Toast.show({ type: "error", text1: t.passwordsDoNotMatch });
       setLoading(false);
       return;
     }
@@ -386,16 +398,16 @@ export default function SignupScreen() {
 
           Toast.show({
             type: "success",
-            text1: "Account created!",
-            text2: "Default account 'Account 1' has been created for you",
+            text1: t.accountCreated,
+            text2: t.defaultAccountCreated,
           });
         } catch (accountError) {
           console.error("Error creating default account:", accountError);
           // Still show success for user creation, but warn about account
           Toast.show({
             type: "success",
-            text1: "Account created!",
-            text2: "Please check your email to verify your account",
+            text1: t.accountCreated,
+            text2: t.pleaseCheckEmail,
           });
         }
 
@@ -405,7 +417,7 @@ export default function SignupScreen() {
       console.error("Signup error:", error);
       Toast.show({
         type: "error",
-        text1: "Signup failed",
+        text1: t.signupFailed,
         text2: error.message,
       });
     } finally {
@@ -423,7 +435,7 @@ export default function SignupScreen() {
       ) {
         Toast.show({
           type: "error",
-          text1: "Please fill in all required fields",
+          text1: t.pleaseFillAllFields,
         });
         return;
       }
@@ -431,7 +443,7 @@ export default function SignupScreen() {
       if (/^\d+$/.test(formData.fullname)) {
         Toast.show({
           type: "error",
-          text1: "Full name cannot contain only numbers",
+          text1: t.fullNameCannotBeNumbers,
         });
         return;
       }
@@ -440,7 +452,7 @@ export default function SignupScreen() {
       if (!isValidEmail) {
         Toast.show({
           type: "error",
-          text1: "Invalid email format",
+          text1: t.invalidEmailFormat,
         });
         return;
       }
@@ -460,8 +472,7 @@ export default function SignupScreen() {
       ) {
         Toast.show({
           type: "error",
-          text1:
-            "Password must be at least 8 characters, contain an uppercase letter, and a number",
+          text1: t.passwordRequirementsError,
         });
         return;
       }
@@ -476,7 +487,7 @@ export default function SignupScreen() {
       if (existingName) {
         Toast.show({
           type: "error",
-          text1: "Full name already taken",
+          text1: t.fullNameAlreadyTaken,
         });
         return;
       }
@@ -491,7 +502,7 @@ export default function SignupScreen() {
       if (existingEmail) {
         Toast.show({
           type: "error",
-          text1: "Email already registered",
+          text1: t.emailAlreadyRegistered,
         });
         return;
       }
@@ -587,7 +598,7 @@ export default function SignupScreen() {
       }
     } catch (err) {
       console.error("Signup error:", err);
-      alert("Social signup failed.");
+      alert(t.socialSignupFailed);
     } finally {
       setSocialLoading(null);
     }
@@ -630,7 +641,7 @@ export default function SignupScreen() {
                 fontSize: 12,
               }}
             >
-              Account Creation
+              {t.accountCreation}
             </Text>
           </View>
 
@@ -656,6 +667,7 @@ export default function SignupScreen() {
             showConfirmPassword={showConfirmPassword}
             toggleShowConfirmPassword={toggleShowConfirmPassword}
             handleSocialSignup={handleSocialSignup}
+            t={t}
           />
 
           {/* Action Buttons */}
@@ -680,7 +692,7 @@ export default function SignupScreen() {
                   marginRight: 8,
                 }}
               >
-                {loading ? "Creating Account..." : "Sign Up"}
+                {loading ? t.creatingAccount : t.signUp}
               </Text>
               <ArrowRight size={20} color={theme.primaryText} />
             </Button>
@@ -689,12 +701,12 @@ export default function SignupScreen() {
           {/* Footer */}
           <View className="mt-6 items-center mb-10">
             <Text style={{ color: theme.textSecondary }}>
-              Already have an account?{" "}
+              {t.alreadyHaveAccount}{" "}
               <Text
                 style={{ color: theme.primary, fontWeight: "bold" }}
                 onPress={() => router.push("/login")}
               >
-                Sign In
+                {t.signIn}
               </Text>
             </Text>
           </View>

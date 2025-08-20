@@ -11,6 +11,7 @@ import {
 } from "lucide-react-native";
 import { useEffect, useRef } from "react";
 import { useTheme } from "../../lib/theme";
+import { useLanguage } from "../../lib/LanguageProvider";
 
 {
   /* Benefits */
@@ -18,18 +19,18 @@ import { useTheme } from "../../lib/theme";
 const benefitData = [
   {
     icon: BarChart2,
-    title: "Clear Reports",
-    description: "See where your money goes with easy breakdowns",
+    titleKey: "clearReports",
+    descriptionKey: "clearReportsDescription",
   },
   {
     icon: Bell,
-    title: "Helpful Alerts",
-    description: "Stay on top of bills and daily spending",
+    titleKey: "helpfulAlerts",
+    descriptionKey: "helpfulAlertsDescription",
   },
   {
     icon: TrendingUp,
-    title: "Smart Insights",
-    description: "Discover trends and plan your savings goals",
+    titleKey: "smartInsights",
+    descriptionKey: "smartInsightsDescription",
   },
 ];
 
@@ -85,6 +86,7 @@ const FloatingParticle = ({ style }: any) => {
 export default function AuthGateScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { t } = useLanguage();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const benefitAnimations = useRef(
     benefitData.map(() => new Animated.Value(0))
@@ -263,7 +265,7 @@ export default function AuthGateScreen() {
               marginBottom: 8,
             }}
           >
-            Take Control of Your Money
+            {t.takeControlOfMoney}
           </Text>
           <Text
             style={{
@@ -274,7 +276,7 @@ export default function AuthGateScreen() {
               marginBottom: 4,
             }}
           >
-            Simple tools to track spending, accounts, and savings
+            {t.simpleToolsDescription}
           </Text>
           <Text
             style={{
@@ -284,7 +286,7 @@ export default function AuthGateScreen() {
               paddingHorizontal: 16,
             }}
           >
-            All your finances in one place — secure and private
+            {t.allFinancesDescription}
           </Text>
         </View>
 
@@ -332,7 +334,7 @@ export default function AuthGateScreen() {
                 <Text
                   style={{ color: theme.text, fontSize: 18, fontWeight: "600" }}
                 >
-                  {item.title}
+                  {t[item.titleKey]}
                 </Text>
                 <Text
                   style={{
@@ -341,7 +343,7 @@ export default function AuthGateScreen() {
                     marginTop: 4,
                   }}
                 >
-                  {item.description}
+                  {t[item.descriptionKey]}
                 </Text>
               </View>
               <ArrowRight
@@ -384,7 +386,7 @@ export default function AuthGateScreen() {
                   marginLeft: 12,
                 }}
               >
-                Sign In
+                {t.signIn}
               </Text>
             </TouchableOpacity>
           </Animated.View>
@@ -397,13 +399,13 @@ export default function AuthGateScreen() {
             }}
           >
             <Text style={{ color: theme.textSecondary, marginRight: 4 }}>
-              New to Money Manager?
+              {t.newToMoneyManager}
             </Text>
             <TouchableOpacity onPress={handleNavigateSignup}>
               <Text
                 style={{ color: theme.primary, fontWeight: "bold", flex: 1 }}
               >
-                Create Account
+                {t.createAccount}
               </Text>
             </TouchableOpacity>
           </View>
@@ -449,7 +451,7 @@ export default function AuthGateScreen() {
               textAlign: "center",
             }}
           >
-            Helping users manage money securely every day
+            {t.helpingUsersText}
           </Text>
         </Animated.View>
       </Animated.View>

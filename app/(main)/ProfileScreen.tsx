@@ -38,6 +38,7 @@ import { deleteItemAsync } from "expo-secure-store";
 import { supabase } from "~/lib/supabase";
 import { UserProfile } from "~/types/userTypes";
 import { useTheme } from "~/lib/theme";
+import { useLanguage } from "~/lib/LanguageProvider";
 import {
   fetchProfile,
   updateProfile,
@@ -55,6 +56,7 @@ type PasswordData = {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [userProfile, setUserProfile] = useState<UserProfile>({
     fullName: "",
     email: "",
@@ -104,7 +106,7 @@ export default function ProfileScreen() {
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
-        Alert.alert("Error", "Failed to fetch profile data");
+        Alert.alert(t.error, t.failedToFetchProfile);
       } finally {
         setLoading(false);
       }
@@ -134,10 +136,10 @@ export default function ProfileScreen() {
         image_url: updatedProfile.image_url || prev.image_url,
       }));
 
-      Alert.alert("Success", "Profile updated successfully");
+      Alert.alert(t.success, t.profileUpdatedSuccessfully);
     } catch (error) {
       console.error("Error updating profile:", error);
-      Alert.alert("Error", "Failed to update profile");
+      Alert.alert(t.error, t.failedToUpdateProfile);
     }
   };
 
@@ -148,16 +150,16 @@ export default function ProfileScreen() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        Alert.alert("Error", "User not authenticated");
+        Alert.alert(t.error, t.userNotAuthenticated);
         return;
       }
 
       await updateProfileName(user.id, newName);
       setUserProfile((prev) => ({ ...prev, fullName: newName }));
-      Alert.alert("Success", "Name updated successfully");
+      Alert.alert(t.success, t.nameUpdatedSuccessfully);
     } catch (error) {
       console.error("Error updating name:", error);
-      Alert.alert("Error", "Failed to update name");
+      Alert.alert(t.error, t.failedToUpdateName);
     }
   };
 
@@ -168,16 +170,16 @@ export default function ProfileScreen() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        Alert.alert("Error", "User not authenticated");
+        Alert.alert(t.error, t.userNotAuthenticated);
         return;
       }
 
       await updateProfilePhone(user.id, newPhone);
       setUserProfile((prev) => ({ ...prev, phone: newPhone }));
-      Alert.alert("Success", "Phone updated successfully");
+      Alert.alert(t.success, t.phoneUpdatedSuccessfully);
     } catch (error) {
       console.error("Error updating phone:", error);
-      Alert.alert("Error", "Failed to update phone");
+      Alert.alert(t.error, t.failedToUpdatePhone);
     }
   };
 
@@ -188,16 +190,16 @@ export default function ProfileScreen() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        Alert.alert("Error", "User not authenticated");
+        Alert.alert(t.error, t.userNotAuthenticated);
         return;
       }
 
       await updateProfileEmail(user.id, newEmail);
       setUserProfile((prev) => ({ ...prev, email: newEmail }));
-      Alert.alert("Success", "Email updated successfully");
+      Alert.alert(t.success, t.emailUpdatedSuccessfully);
     } catch (error) {
       console.error("Error updating email:", error);
-      Alert.alert("Error", "Failed to update email");
+      Alert.alert(t.error, t.failedToUpdateEmail);
     }
   };
 
@@ -225,7 +227,7 @@ export default function ProfileScreen() {
       !passwordData.newPassword ||
       !passwordData.confirmPassword
     ) {
-      Alert.alert("Error", "Please fill in all fields");
+      Alert.alert(t.error, t.pleaseFillAllFields);
       return;
     }
 
@@ -233,15 +235,15 @@ export default function ProfileScreen() {
     const passwordErrors = [];
 
     if (passwordData.newPassword.length < 8) {
-      passwordErrors.push("At least 8 characters");
+      passwordErrors.push(t.atLeast8Characters);
     }
 
     if (!/[A-Z]/.test(passwordData.newPassword)) {
-      passwordErrors.push("One uppercase letter");
+      passwordErrors.push(t.oneUppercaseLetter);
     }
 
     if (!/[0-9]/.test(passwordData.newPassword)) {
-      passwordErrors.push("One number");
+      passwordErrors.push(t.oneNumber);
     }
 
     // Check if password contains only numbers
@@ -256,24 +258,21 @@ export default function ProfileScreen() {
 
     if (passwordErrors.length > 0) {
       Alert.alert(
-        "Password Requirements Not Met",
-        `Your password must contain:\n\n• ${passwordErrors.join("\n• ")}`
+        t.passwordRequirementsNotMet,
+        `${t.yourPasswordMustContain}\n\n• ${passwordErrors.join("\n• ")}`
       );
       return;
     }
 
     // Check if new password matches confirmation
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      Alert.alert("Error", "New passwords don't match");
+      Alert.alert(t.error, t.newPasswordsDontMatch);
       return;
     }
 
     // Check if new password is same as current
     if (passwordData.newPassword === passwordData.currentPassword) {
-      Alert.alert(
-        "Error",
-        "New password must be different from current password"
-      );
+      Alert.alert(t.error, t.newPasswordMustBeDifferent);
       return;
     }
 
@@ -287,7 +286,7 @@ export default function ProfileScreen() {
       });
 
       if (signInError) {
-        throw new Error("Current password is incorrect");
+        throw new Error(t.currentPasswordIncorrect);
       }
 
       // If current password is correct, update to new password
@@ -297,7 +296,7 @@ export default function ProfileScreen() {
 
       if (updateError) throw updateError;
 
-      Alert.alert("Success", "Password updated successfully");
+      Alert.alert(t.success, t.passwordUpdatedSuccessfully);
       setShowChangePassword(false);
       setPasswordData({
         currentPassword: "",
@@ -306,10 +305,7 @@ export default function ProfileScreen() {
       });
     } catch (error: any) {
       console.error("Password change error:", error);
-      Alert.alert(
-        "Error",
-        error.message || "Failed to update password. Please try again."
-      );
+      Alert.alert(t.error, error.message || t.failedToUpdatePassword);
     } finally {
       setLoading(false);
     }
@@ -350,7 +346,7 @@ export default function ProfileScreen() {
             }}
             className=" text-2xl font-bold"
           >
-            Profile
+            {t.profile}
           </Text>
           <TouchableOpacity
             className="p-2"
@@ -408,12 +404,10 @@ export default function ProfileScreen() {
               }}
               className=" text-2xl font-bold mb-1"
             >
-              {loading
-                ? "Loading..."
-                : userProfile.fullName || "No name provided"}
+              {loading ? t.loading : userProfile.fullName || t.noNameProvided}
             </Text>
             <Text className="text-emerald-500 text-base mb-2">
-              {loading ? "Loading..." : userProfile.email}
+              {loading ? t.loading : userProfile.email}
             </Text>
           </View>
         </View>
@@ -427,7 +421,7 @@ export default function ProfileScreen() {
             }}
             className=" text-lg font-bold mb-4"
           >
-            Contact Information
+            {t.contactInformation}
           </Text>
 
           <View
@@ -441,7 +435,9 @@ export default function ProfileScreen() {
             <View className="flex-row items-center p-4">
               <User size={20} color="#64748b" />
               <View className="ml-4 flex-1">
-                <Text className="text-slate-400 text-xs mb-1">Full Name</Text>
+                <Text className="text-slate-400 text-xs mb-1">
+                  {t.fullName}
+                </Text>
                 <Text
                   style={{
                     color: theme.text,
@@ -449,8 +445,8 @@ export default function ProfileScreen() {
                   className="text-base font-medium"
                 >
                   {loading
-                    ? "Loading..."
-                    : userProfile.fullName || "No name provided"}
+                    ? t.loading
+                    : userProfile.fullName || t.noNameProvided}
                 </Text>
               </View>
             </View>
@@ -463,7 +459,7 @@ export default function ProfileScreen() {
               <Phone size={20} color="#64748b" />
               <View className="ml-4 flex-1">
                 <Text className="text-slate-400 text-xs mb-1">
-                  Phone Number
+                  {t.phoneNumber}
                 </Text>
                 <Text
                   style={{
@@ -471,9 +467,7 @@ export default function ProfileScreen() {
                   }}
                   className=" text-base font-medium"
                 >
-                  {loading
-                    ? "Loading..."
-                    : userProfile.phone || "No phone provided"}
+                  {loading ? t.loading : userProfile.phone || t.noPhoneProvided}
                 </Text>
               </View>
             </View>
@@ -486,7 +480,7 @@ export default function ProfileScreen() {
               <Mail size={20} color="#64748b" />
               <View className="ml-4 flex-1">
                 <Text className="text-slate-400 text-xs mb-1">
-                  Email Address
+                  {t.emailAddress}
                 </Text>
                 <Text
                   style={{
@@ -494,9 +488,7 @@ export default function ProfileScreen() {
                   }}
                   className=" text-base font-medium"
                 >
-                  {loading
-                    ? "Loading..."
-                    : userProfile.email || "No phone provided"}
+                  {loading ? t.loading : userProfile.email || t.noPhoneProvided}
                 </Text>
               </View>
             </View>
@@ -509,7 +501,7 @@ export default function ProfileScreen() {
             style={{ color: theme.text }}
             className="text-lg font-bold mb-4"
           >
-            Security
+            {t.security}
           </Text>
 
           {/* Change Password */}
@@ -532,10 +524,10 @@ export default function ProfileScreen() {
                 style={{ color: theme.text }}
                 className=" text-base font-semibold mb-1"
               >
-                Change Password
+                {t.changePassword}
               </Text>
               <Text className="text-slate-400 text-sm">
-                Update your account password
+                {t.updateAccountPassword}
               </Text>
             </View>
             <ChevronRight size={20} color="#64748b" />
@@ -550,7 +542,7 @@ export default function ProfileScreen() {
           <LogOut size={20} color="#ef4444" />
 
           <Text className="text-red-500 text-base font-light ml-2">
-            Sign out
+            {t.signOut}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -571,7 +563,7 @@ export default function ProfileScreen() {
             style={{ borderBottomColor: theme.border }}
           >
             <Text style={{ color: theme.text }} className="text-xl font-bold">
-              Change Password
+              {t.changePassword}
             </Text>
             <TouchableOpacity
               className="p-2"
@@ -590,7 +582,7 @@ export default function ProfileScreen() {
                   style={{ color: theme.text }}
                   className=" text-sm font-semibold mb-2"
                 >
-                  Current Password
+                  {t.currentPassword}
                 </Text>
                 <View
                   className="flex-row items-center  rounded-xl border  px-4"
@@ -602,7 +594,7 @@ export default function ProfileScreen() {
                   <Lock size={20} color="#64748b" className="mr-3" />
                   <TextInput
                     className="flex-1 py-4 text-white text-base"
-                    placeholder="Enter current password"
+                    placeholder={t.enterCurrentPassword}
                     placeholderTextColor="#64748b"
                     value={passwordData.currentPassword}
                     onChangeText={(value) =>
@@ -636,7 +628,7 @@ export default function ProfileScreen() {
                   style={{ color: theme.text }}
                   className=" text-sm font-semibold mb-2"
                 >
-                  New Password
+                  {t.newPassword}
                 </Text>
                 <View
                   className="flex-row items-center  rounded-xl border  px-4"
@@ -647,7 +639,7 @@ export default function ProfileScreen() {
                 >
                   <TextInput
                     className="flex-1 py-4 text-white text-base"
-                    placeholder="Enter new password"
+                    placeholder={t.enterNewPassword}
                     placeholderTextColor="#64748b"
                     value={passwordData.newPassword}
                     onChangeText={(value) =>
@@ -678,7 +670,7 @@ export default function ProfileScreen() {
                   style={{ color: theme.text }}
                   className=" text-sm font-semibold mb-2"
                 >
-                  Confirm New Password
+                  {t.confirmNewPassword}
                 </Text>
                 <View
                   className="flex-row items-center  rounded-xl border  px-4"
@@ -690,7 +682,7 @@ export default function ProfileScreen() {
                   <Lock size={20} color="#64748b" className="mr-3" />
                   <TextInput
                     className="flex-1 py-4 text-white text-base"
-                    placeholder="Confirm new password"
+                    placeholder={t.confirmNewPasswordPlaceholder}
                     placeholderTextColor="#64748b"
                     value={passwordData.confirmPassword}
                     onChangeText={(value) =>
@@ -732,7 +724,7 @@ export default function ProfileScreen() {
                   }}
                   className=" text-xs font-medium mb-2"
                 >
-                  Password Requirements:
+                  {t.passwordRequirements}
                 </Text>
 
                 <View className="flex-row items-center mb-1">
@@ -750,7 +742,7 @@ export default function ProfileScreen() {
                     }}
                     className=" text-xs ml-2"
                   >
-                    At least 8 characters
+                    {t.atLeast8Characters}
                   </Text>
                 </View>
 
@@ -769,7 +761,7 @@ export default function ProfileScreen() {
                     }}
                     className="text-xs ml-2"
                   >
-                    One uppercase letter
+                    {t.oneUppercaseLetter}
                   </Text>
                 </View>
 
@@ -788,7 +780,7 @@ export default function ProfileScreen() {
                     }}
                     className=" text-xs ml-2"
                   >
-                    One number
+                    {t.oneNumber}
                   </Text>
                 </View>
               </View>
@@ -800,7 +792,7 @@ export default function ProfileScreen() {
                 disabled={loading}
               >
                 <Text className="text-white text-base font-bold">
-                  {loading ? "Updating..." : "Update Password"}
+                  {loading ? t.updating : t.updatePassword}
                 </Text>
               </TouchableOpacity>
             </View>
