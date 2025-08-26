@@ -15,6 +15,7 @@ import AddAccount from "../account-details/add-account";
 import { useAccount } from "~/lib/AccountContext";
 import { useFocusEffect } from "@react-navigation/native";
 import { useTheme } from "~/lib/theme";
+import { useLanguage } from "~/lib/LanguageProvider";
 
 interface AccountGroup {
   id: string;
@@ -44,6 +45,7 @@ const Accounts = () => {
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const theme = useTheme();
+  const { t } = useLanguage();
 
   const loadAccounts = async () => {
     try {
@@ -189,13 +191,13 @@ const Accounts = () => {
       {/* Header */}
       <View className="flex-row justify-between items-center p-6">
         <Text className="text-2xl font-bold" style={{ color: theme.text }}>
-          Accounts
+          {t.accounts}
         </Text>
         <TouchableOpacity
           className="bg-blue-500 rounded-lg py-3 px-3 items-center"
           onPress={() => setShowAddAccount(true)}
         >
-          <Text className="text-white">Add Acount</Text>
+          <Text className="text-white">{t.addAccount}</Text>
         </TouchableOpacity>
       </View>
 
@@ -209,7 +211,7 @@ const Accounts = () => {
           }}
         >
           <Text className="text-sm mb-1" style={{ color: theme.textSecondary }}>
-            Total
+            {t.total}
           </Text>
           <Text className="text-green-600 text-xl font-bold">
             ${total.toFixed(2)}
@@ -230,7 +232,29 @@ const Accounts = () => {
                 className="font-bold text-lg mb-3"
                 style={{ color: theme.text }}
               >
-                {group.name}
+                {group.name === "Cash"
+                  ? t.cash
+                  : group.name === "SIM Card"
+                    ? t.simCard
+                    : group.name === "Debit Card"
+                      ? t.debitCard
+                      : group.name === "Savings"
+                        ? t.savings
+                        : group.name === "Top-Up/Prepaid"
+                          ? t.topup
+                          : group.name === "Investments"
+                            ? t.investments
+                            : group.name === "Overdrafts"
+                              ? t.overdrafts
+                              : group.name === "Loan"
+                                ? t.loan
+                                : group.name === "Insurance"
+                                  ? t.insurance
+                                  : group.name === "Card"
+                                    ? t.card
+                                    : group.name === "Others"
+                                      ? t.others
+                                      : group.name}
               </Text>
               <View className="gap-3">
                 {accounts

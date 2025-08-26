@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { FlatList, Text, TouchableOpacity, View } from "react-native";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react-native";
+import { useLanguage } from "~/lib/LanguageProvider";
 
 const months = [
   "JAN",
@@ -36,7 +37,7 @@ export default function MonthYearScroller({
   const current = new Date();
   const currentYear = current.getFullYear();
   const currentMonth = current.getMonth();
-
+  const { t } = useLanguage();
   const [monthData, setMonthData] = useState<{
     income: number;
     expense: number;
@@ -117,7 +118,7 @@ export default function MonthYearScroller({
       <View className="px-6 mt-6">
         <View className="rounded-2xl">
           <Text className="text-white/80 text-xs text-center mb-1">
-            CURRENT BALANCE
+            {t.currentBalance}
           </Text>
           <Text className="text-white text-3xl font-extrabold text-center mb-6">
             ${monthData.balance.toLocaleString()}
@@ -128,7 +129,7 @@ export default function MonthYearScroller({
             <View className="flex-row items-center gap-2">
               <ArrowUpRight size={18} color="limegreen" />
               <View>
-                <Text className="text-xs text-white/70">INCOMES</Text>
+                <Text className="text-xs text-white/70">{t.income}</Text>
                 <Text className="text-white font-bold">
                   ${monthData.income.toLocaleString()}
                 </Text>
@@ -139,7 +140,7 @@ export default function MonthYearScroller({
             <View className="flex-row items-center gap-2">
               <ArrowDownRight size={18} color="tomato" />
               <View>
-                <Text className="text-xs text-white/70">EXPENSES</Text>
+                <Text className="text-xs text-white/70">{t.expense}</Text>
                 <Text className="text-white font-bold">
                   -${monthData.expense.toLocaleString()}
                 </Text>

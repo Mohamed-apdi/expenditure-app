@@ -72,12 +72,7 @@ import { addTransfer } from "~/lib/transfers";
 import { addSubscription } from "~/lib/subscriptions";
 import type { Account } from "~/lib/accounts";
 import notificationService from "~/lib/notificationService";
-
-const ENTRY_TABS = [
-  { id: "Income", label: "Income" },
-  { id: "Expense", label: "Expense" },
-  { id: "Transfer", label: "Transfer" },
-];
+import { useLanguage } from "~/lib/LanguageProvider";
 
 type Category = {
   id: string;
@@ -86,94 +81,10 @@ type Category = {
   color: string;
 };
 
-type Frequency = "daily" | "weekly" | "monthly" | "yearly";
-type PaymentMethod =
-  | "cash"
-  | "credit_card"
-  | "debit_card"
-  | "digital_wallet"
-  | "EVC";
-
-const expenseCategories: Category[] = [
-  { id: "food", name: "Food & Drinks", icon: Utensils, color: "#059669" },
-  { id: "rent", name: "Home & Rent", icon: Home, color: "#0891b2" },
-  { id: "transport", name: "Travel", icon: Bus, color: "#3b82f6" },
-  { id: "utilities", name: "Bills", icon: Zap, color: "#f97316" },
-  { id: "entertainment", name: "Fun", icon: Film, color: "#8b5cf6" },
-  { id: "healthcare", name: "Health", icon: HeartPulse, color: "#dc2626" },
-  { id: "shopping", name: "Shopping", icon: ShoppingBag, color: "#06b6d4" },
-  { id: "education", name: "Learning", icon: GraduationCap, color: "#84cc16" },
-  { id: "personal_care", name: "Personal Care", icon: Smile, color: "#ec4899" },
-  { id: "insurance", name: "Insurance", icon: Shield, color: "#14b8a6" },
-  { id: "debt", name: "Loans", icon: CreditCard, color: "#f97316" },
-  { id: "gifts", name: "Gifts", icon: Gift, color: "#8b5cf6" },
-  { id: "charity", name: "Donations", icon: HandHeart, color: "#ef4444" },
-  { id: "travel", name: "Vacation", icon: Luggage, color: "#3b82f6" },
-  { id: "pets", name: "Pets", icon: PawPrint, color: "#f59e0b" },
-  { id: "kids", name: "Children", icon: Baby, color: "#ec4899" },
-  {
-    id: "subscriptions",
-    name: "Subscriptions",
-    icon: Repeat,
-    color: "#8b5cf6",
-  },
-  { id: "fitness", name: "Gym & Sports", icon: Dumbbell, color: "#059669" },
-  {
-    id: "electronics",
-    name: "Electronics",
-    icon: Smartphone,
-    color: "#64748b",
-  },
-  { id: "furniture", name: "Furniture", icon: Sofa, color: "#f59e0b" },
-  { id: "repairs", name: "Repairs", icon: Wrench, color: "#3b82f6" },
-  { id: "taxes", name: "Taxes", icon: Receipt, color: "#ef4444" },
-];
-
-const incomeCategories: Category[] = [
-  { id: "salary", name: "Job Salary", icon: DollarSign, color: "#059669" },
-  { id: "bonus", name: "Bonus", icon: Zap, color: "#3b82f6" },
-  { id: "part_time", name: "Part-time Work", icon: Clock, color: "#f97316" },
-  { id: "business", name: "Business", icon: Briefcase, color: "#8b5cf6" },
-  {
-    id: "investments",
-    name: "Investments",
-    icon: TrendingUp,
-    color: "#ef4444",
-  },
-  { id: "interest", name: "Bank Interest", icon: Percent, color: "#06b6d4" },
-  { id: "rental", name: "Rent Income", icon: Home, color: "#84cc16" },
-  { id: "sales", name: "Sales", icon: ShoppingBag, color: "#64748b" },
-  { id: "gambling", name: "Gambling", icon: Dice5, color: "#f43f5e" },
-  { id: "awards", name: "Awards", icon: Award, color: "#8b5cf6" },
-  { id: "refunds", name: "Refunds", icon: RefreshCw, color: "#3b82f6" },
-  { id: "freelance", name: "Freelance", icon: Laptop, color: "#f97316" },
-  { id: "royalties", name: "Royalties", icon: Book, color: "#84cc16" },
-  { id: "grants", name: "Grants", icon: HandCoins, color: "#059669" },
-  { id: "gifts", name: "Gifts Received", icon: Gift, color: "#8b5cf6" },
-  { id: "pension", name: "Pension", icon: User, color: "#64748b" },
-];
-
-const paymentMethods = [
-  { id: "cash", name: "Cash", icon: DollarSign, color: "#059669" },
-  { id: "EVC", name: "EVC Plus", icon: CreditCard, color: "#dc2626" },
-  {
-    id: "credit_card",
-    name: "Credit Card",
-    icon: CreditCard,
-    color: "#3b82f6",
-  },
-  { id: "debit_card", name: "Debit Card", icon: CreditCard, color: "#8b5cf6" },
-  {
-    id: "digital_wallet",
-    name: "Mobile Money",
-    icon: Wallet,
-    color: "#f97316",
-  },
-];
-
 export default function AddExpenseScreen() {
   const router = useRouter();
   const theme = useTheme();
+
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   // States
   const [entryType, setEntryType] = useState("Expense");
@@ -207,6 +118,113 @@ export default function AddExpenseScreen() {
   const [accountSelectionType, setAccountSelectionType] = useState<
     "from" | "to"
   >("from");
+  const { t } = useLanguage();
+
+  // Create dynamic tabs with translations
+  const ENTRY_TABS = [
+    { id: "Income", label: t.income },
+    { id: "Expense", label: t.expense },
+    { id: "Transfer", label: t.transfer },
+  ];
+  type Frequency = "daily" | "weekly" | "monthly" | "yearly";
+  type PaymentMethod =
+    | "cash"
+    | "credit_card"
+    | "debit_card"
+    | "digital_wallet"
+    | "EVC";
+
+  const expenseCategories: Category[] = [
+    { id: "food", name: t.foodAndDrinks, icon: Utensils, color: "#059669" },
+    { id: "rent", name: t.homeAndRent, icon: Home, color: "#0891b2" },
+    { id: "transport", name: t.travel, icon: Bus, color: "#3b82f6" },
+    { id: "utilities", name: t.bills, icon: Zap, color: "#f97316" },
+    { id: "entertainment", name: t.fun, icon: Film, color: "#8b5cf6" },
+    { id: "healthcare", name: t.health, icon: HeartPulse, color: "#dc2626" },
+    { id: "shopping", name: t.shopping, icon: ShoppingBag, color: "#06b6d4" },
+    {
+      id: "education",
+      name: t.learning,
+      icon: GraduationCap,
+      color: "#84cc16",
+    },
+    {
+      id: "personal_care",
+      name: t.personalCare,
+      icon: Smile,
+      color: "#ec4899",
+    },
+    { id: "insurance", name: t.insurance, icon: Shield, color: "#14b8a6" },
+    { id: "debt", name: t.loans, icon: CreditCard, color: "#f97316" },
+    { id: "gifts", name: t.gifts, icon: Gift, color: "#8b5cf6" },
+    { id: "charity", name: t.donations, icon: HandHeart, color: "#ef4444" },
+    { id: "travel", name: t.vacation, icon: Luggage, color: "#3b82f6" },
+    { id: "pets", name: t.pets, icon: PawPrint, color: "#f59e0b" },
+    { id: "kids", name: t.children, icon: Baby, color: "#ec4899" },
+    {
+      id: "subscriptions",
+      name: t.subscriptions,
+      icon: Repeat,
+      color: "#8b5cf6",
+    },
+    { id: "fitness", name: t.gymAndSports, icon: Dumbbell, color: "#059669" },
+    {
+      id: "electronics",
+      name: t.electronics,
+      icon: Smartphone,
+      color: "#64748b",
+    },
+    { id: "furniture", name: t.furniture, icon: Sofa, color: "#f59e0b" },
+    { id: "repairs", name: t.repairs, icon: Wrench, color: "#3b82f6" },
+    { id: "taxes", name: t.taxes, icon: Receipt, color: "#ef4444" },
+  ];
+
+  const incomeCategories: Category[] = [
+    { id: "salary", name: t.jobSalary, icon: DollarSign, color: "#059669" },
+    { id: "bonus", name: t.bonus, icon: Zap, color: "#3b82f6" },
+    { id: "part_time", name: t.partTimeWork, icon: Clock, color: "#f97316" },
+    { id: "business", name: t.business, icon: Briefcase, color: "#8b5cf6" },
+    {
+      id: "investments",
+      name: t.investments,
+      icon: TrendingUp,
+      color: "#ef4444",
+    },
+    { id: "interest", name: t.bankInterest, icon: Percent, color: "#06b6d4" },
+    { id: "rental", name: t.rentIncome, icon: Home, color: "#84cc16" },
+    { id: "sales", name: t.sales, icon: ShoppingBag, color: "#64748b" },
+    { id: "gambling", name: t.gambling, icon: Dice5, color: "#f43f5e" },
+    { id: "awards", name: t.awards, icon: Award, color: "#8b5cf6" },
+    { id: "refunds", name: t.refunds, icon: RefreshCw, color: "#3b82f6" },
+    { id: "freelance", name: t.freelance, icon: Laptop, color: "#f97316" },
+    { id: "royalties", name: t.royalties, icon: Book, color: "#84cc16" },
+    { id: "grants", name: t.grants, icon: HandCoins, color: "#059669" },
+    { id: "gifts", name: t.giftsReceived, icon: Gift, color: "#8b5cf6" },
+    { id: "pension", name: t.pension, icon: User, color: "#64748b" },
+  ];
+
+  const paymentMethods = [
+    { id: "cash", name: t.cash, icon: DollarSign, color: "#059669" },
+    { id: "EVC", name: t.evcPlus, icon: CreditCard, color: "#dc2626" },
+    {
+      id: "credit_card",
+      name: t.creditCard,
+      icon: CreditCard,
+      color: "#3b82f6",
+    },
+    {
+      id: "debit_card",
+      name: t.debitCard,
+      icon: CreditCard,
+      color: "#8b5cf6",
+    },
+    {
+      id: "digital_wallet",
+      name: t.mobileMoney,
+      icon: Wallet,
+      color: "#f97316",
+    },
+  ];
 
   useEffect(() => {
     const loadAccounts = async () => {
@@ -230,7 +248,7 @@ export default function AddExpenseScreen() {
         }
       } catch (error) {
         console.error("Error loading accounts:", error);
-        Alert.alert("Error", "Failed to load accounts");
+        Alert.alert(t.error, t.failedToLoadAccounts);
       } finally {
         setLoadingAccounts(false);
       }
@@ -247,48 +265,39 @@ export default function AddExpenseScreen() {
   const handleSaveExpense = async () => {
     // Basic validation
     if (!amount || !description.trim()) {
-      Alert.alert("Missing Info", "Please fill in the amount and description");
+      Alert.alert(t.missingInfo, t.pleaseFillRequiredFields);
       return;
     }
 
     if (!selectedAccount) {
-      Alert.alert("Select Account", "Please select an account");
+      Alert.alert(t.selectAccount, t.pleaseSelectAccount);
       return;
     }
 
     // Type-specific validation
     if (entryType === "Income" && !selectedCategory) {
-      Alert.alert("Choose Category", "Please select a category for income");
+      Alert.alert(t.chooseCategory, t.pleaseSelectCategoryForIncome);
       return;
     }
 
     if (entryType === "Expense") {
       if (!selectedCategory) {
-        Alert.alert("Choose Category", "Please select a category for expense");
+        Alert.alert(t.chooseCategory, t.pleaseSelectCategoryForExpense);
         return;
       }
       if (!paymentMethod) {
-        Alert.alert(
-          "Payment Method",
-          "Please select a payment method for expense"
-        );
+        Alert.alert(t.paymentMethod, t.pleaseSelectPaymentMethodForExpense);
         return;
       }
     }
 
     if (entryType === "Transfer") {
       if (!fromAccount || !toAccount) {
-        Alert.alert(
-          "Select Accounts",
-          "Please select both from and to accounts for transfer"
-        );
+        Alert.alert(t.selectAccounts, t.pleaseSelectBothAccountsForTransfer);
         return;
       }
       if (fromAccount.id === toAccount.id) {
-        Alert.alert(
-          "Invalid Transfer",
-          "From and to accounts must be different"
-        );
+        Alert.alert(t.invalidTransfer, t.fromAndToAccountsMustBeDifferent);
         return;
       }
     }
@@ -307,8 +316,8 @@ export default function AddExpenseScreen() {
       if (entryType === "Expense") {
         if (amountNum > selectedAccount.amount) {
           Alert.alert(
-            "Insufficient Funds",
-            `Your ${selectedAccount.name} account doesn't have enough balance for this expense.`
+            t.insufficientFunds,
+            `${t.yourAccountDoesntHaveEnoughBalance} ${selectedAccount.name} ${t.forThisExpense}.`
           );
           setIsSubmitting(false);
           return;
@@ -410,8 +419,6 @@ export default function AddExpenseScreen() {
         }
       }
 
-
-
       Alert.alert(
         "Success!",
         `Your ${entryType.toLowerCase()} has been saved!`,
@@ -424,7 +431,7 @@ export default function AddExpenseScreen() {
       );
     } catch (error) {
       console.error(error);
-      Alert.alert("Error", "Something went wrong. Please try again.");
+      Alert.alert(t.error, t.somethingWentWrongPleaseTryAgain);
     } finally {
       setIsSubmitting(false);
     }
@@ -432,7 +439,7 @@ export default function AddExpenseScreen() {
 
   const handleTransfer = async () => {
     if (!transferAmount || Number.parseFloat(transferAmount) <= 0) {
-      Alert.alert("Error", "Please enter a valid transfer amount");
+      Alert.alert(t.error, t.pleaseEnterValidTransferAmount);
       return;
     }
 
@@ -508,8 +515,6 @@ export default function AddExpenseScreen() {
 
       // Refresh real-time balances after transfer
       // await refreshBalances();
-
-
 
       Alert.alert(
         "Transfer Successful!",
@@ -616,7 +621,7 @@ export default function AddExpenseScreen() {
               fontFamily: "Work Sans",
             }}
           >
-            Add Transaction
+            {t.add_transaction}
           </Text>
           <TouchableOpacity
             style={{
@@ -636,7 +641,7 @@ export default function AddExpenseScreen() {
                 color: isFormValid() ? theme.primaryText : theme.textMuted,
               }}
             >
-              {isSubmitting ? "Saving..." : "Save"}
+              {isSubmitting ? t.saving : t.save}
             </Text>
           </TouchableOpacity>
         </View>
@@ -691,7 +696,7 @@ export default function AddExpenseScreen() {
                     fontWeight: "500",
                   }}
                 >
-                  How much?
+                  {t.how_much}
                 </Text>
                 <View
                   style={{
@@ -742,7 +747,7 @@ export default function AddExpenseScreen() {
                       fontFamily: "Work Sans",
                     }}
                   >
-                    Choose Category
+                    {t.choose_category}
                   </Text>
 
                   <View>
@@ -799,7 +804,7 @@ export default function AddExpenseScreen() {
                               color: theme.placeholder,
                             }}
                           >
-                            Select a category
+                            {t.select_category}
                           </Text>
                         )}
                       </View>
@@ -895,7 +900,7 @@ export default function AddExpenseScreen() {
                       fontFamily: "Work Sans",
                     }}
                   >
-                    Choose Category
+                    {t.choose_category}
                   </Text>
 
                   <View>
@@ -952,7 +957,7 @@ export default function AddExpenseScreen() {
                               color: theme.placeholder,
                             }}
                           >
-                            Select a category
+                            {t.select_category}
                           </Text>
                         )}
                       </View>
@@ -1049,7 +1054,7 @@ export default function AddExpenseScreen() {
                       fontFamily: "Work Sans",
                     }}
                   >
-                    Payment Method
+                    {t.payment_method}
                   </Text>
 
                   <TouchableOpacity
@@ -1112,7 +1117,7 @@ export default function AddExpenseScreen() {
                             color: theme.placeholder,
                           }}
                         >
-                          Select payment method
+                          {t.select_payment_method}
                         </Text>
                       )}
                     </View>
@@ -1132,7 +1137,7 @@ export default function AddExpenseScreen() {
                     fontFamily: "Work Sans",
                   }}
                 >
-                  What's this for?
+                  {t.whats_this_for}
                 </Text>
                 <TextInput
                   style={{
@@ -1148,7 +1153,7 @@ export default function AddExpenseScreen() {
                   }}
                   value={description}
                   onChangeText={setDescription}
-                  placeholder="Add a note about this transaction..."
+                  placeholder={t.add_note_about_transaction}
                   placeholderTextColor={theme.placeholder}
                   multiline
                 />
@@ -1165,7 +1170,7 @@ export default function AddExpenseScreen() {
                     fontFamily: "Work Sans",
                   }}
                 >
-                  Select Account
+                  {t.select_account}
                 </Text>
                 {loadingAccounts ? (
                   <ActivityIndicator size="small" color={theme.primary} />
@@ -1210,7 +1215,7 @@ export default function AddExpenseScreen() {
                               color: theme.text,
                             }}
                           >
-                            {selectedAccount?.name || "Select an account"}
+                            {selectedAccount?.name || t.select_account}
                           </Text>
                           {selectedAccount && (
                             <Text
@@ -1329,7 +1334,7 @@ export default function AddExpenseScreen() {
                     fontFamily: "Work Sans",
                   }}
                 >
-                  When?
+                  {t.when}
                 </Text>
                 <TouchableOpacity
                   style={{
@@ -1384,7 +1389,7 @@ export default function AddExpenseScreen() {
                       fontFamily: "Work Sans",
                     }}
                   >
-                    Repeat this?
+                    {t.repeatThis}
                   </Text>
                   <TouchableOpacity
                     style={{
@@ -1420,7 +1425,7 @@ export default function AddExpenseScreen() {
                         color: theme.textSecondary,
                       }}
                     >
-                      How often?
+                      {t.howOften}
                     </Text>
                     <View style={{ flexDirection: "row", gap: 8 }}>
                       {["weekly", "monthly", "yearly"].map((freq) => {
@@ -1453,7 +1458,14 @@ export default function AddExpenseScreen() {
                                   : theme.text,
                               }}
                             >
-                              {freq.charAt(0).toUpperCase() + freq.slice(1)}
+                              {freq === "weekly"
+                                ? t.weekly
+                                : freq === "monthly"
+                                  ? t.monthly
+                                  : freq === "yearly"
+                                    ? t.yearly
+                                    : freq.charAt(0).toUpperCase() +
+                                      freq.slice(1)}
                             </Text>
                           </TouchableOpacity>
                         );
@@ -1483,7 +1495,7 @@ export default function AddExpenseScreen() {
                     fontWeight: "500",
                   }}
                 >
-                  How much?
+                  {t.how_much}
                 </Text>
                 <View
                   style={{
@@ -1683,7 +1695,7 @@ export default function AddExpenseScreen() {
                     fontFamily: "Work Sans",
                   }}
                 >
-                  Select Account
+                  {t.select_account}
                 </Text>
                 {loadingAccounts ? (
                   <ActivityIndicator size="small" color={theme.primary} />
@@ -1840,14 +1852,14 @@ export default function AddExpenseScreen() {
               <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
                 <Text
                   style={{
-                    fontSize: 18,
-                    fontWeight: "700",
+                    fontSize: 16,
+                    fontWeight: "600",
                     marginBottom: 16,
                     color: theme.text,
                     fontFamily: "Work Sans",
                   }}
                 >
-                  What's this for?
+                  {t.whats_this_for}
                 </Text>
                 <TextInput
                   style={{
@@ -1863,7 +1875,7 @@ export default function AddExpenseScreen() {
                   }}
                   value={description}
                   onChangeText={setDescription}
-                  placeholder="Add a note about this income..."
+                  placeholder={t.addNoteAboutIncome}
                   placeholderTextColor={theme.placeholder}
                   multiline
                 />
@@ -1880,7 +1892,7 @@ export default function AddExpenseScreen() {
                     fontFamily: "Work Sans",
                   }}
                 >
-                  When?
+                  {t.when}
                 </Text>
                 <TouchableOpacity
                   style={{
@@ -1933,7 +1945,7 @@ export default function AddExpenseScreen() {
                     marginBottom: 8,
                   }}
                 >
-                  Transfer Money
+                  {t.transferMoney}
                 </Text>
                 <Text
                   style={{
@@ -1942,7 +1954,7 @@ export default function AddExpenseScreen() {
                     textAlign: "center",
                   }}
                 >
-                  Move funds between your accounts
+                  {t.moveFundsBetweenAccounts}
                 </Text>
               </View>
 
@@ -1966,9 +1978,9 @@ export default function AddExpenseScreen() {
                     textAlign: "center",
                   }}
                 >
-                  How much do you want to transfer?
+                  {t.howMuchDoYouWantToTransfer}
                 </Text>
-                
+
                 <View
                   style={{
                     flexDirection: "row",
@@ -1986,8 +1998,8 @@ export default function AddExpenseScreen() {
                     }}
                   >
                     $
-                </Text>
-                <TextInput
+                  </Text>
+                  <TextInput
                     style={{
                       fontSize: 40,
                       fontWeight: "700",
@@ -1998,13 +2010,13 @@ export default function AddExpenseScreen() {
                       borderBottomColor: theme.primary,
                       paddingVertical: 8,
                     }}
-                  placeholder="0.00"
+                    placeholder="0.00"
                     placeholderTextColor={theme.placeholder}
-                  value={transferAmount}
-                  onChangeText={setTransferAmount}
-                  keyboardType="numeric"
-                />
-              </View>
+                    value={transferAmount}
+                    onChangeText={setTransferAmount}
+                    keyboardType="numeric"
+                  />
+                </View>
 
                 {/* Quick Amount Buttons */}
                 <View
@@ -2035,7 +2047,7 @@ export default function AddExpenseScreen() {
                         }}
                       >
                         ${amount}
-                </Text>
+                      </Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -2053,7 +2065,9 @@ export default function AddExpenseScreen() {
                 <TouchableOpacity
                   style={{
                     flex: 1,
-                    backgroundColor: fromAccount ? theme.primary + "10" : theme.cardBackground,
+                    backgroundColor: fromAccount
+                      ? theme.primary + "10"
+                      : theme.cardBackground,
                     borderRadius: 12,
                     padding: 16,
                     borderWidth: 2,
@@ -2068,7 +2082,7 @@ export default function AddExpenseScreen() {
                   <View style={{ alignItems: "center" }}>
                     <Text
                       style={{
-                        fontSize: 12,
+                        fontSize: 10,
                         fontWeight: "600",
                         color: theme.textSecondary,
                         marginBottom: 8,
@@ -2076,9 +2090,9 @@ export default function AddExpenseScreen() {
                         letterSpacing: 0.5,
                       }}
                     >
-                      FROM
+                      {t.from}
                     </Text>
-                    
+
                     <View
                       style={{
                         flexDirection: "row",
@@ -2088,7 +2102,9 @@ export default function AddExpenseScreen() {
                     >
                       <View
                         style={{
-                          backgroundColor: fromAccount ? theme.primary : theme.iconMuted,
+                          backgroundColor: fromAccount
+                            ? theme.primary
+                            : theme.iconMuted,
                           borderRadius: 20,
                           padding: 8,
                           marginRight: 8,
@@ -2106,11 +2122,11 @@ export default function AddExpenseScreen() {
                         }}
                         numberOfLines={1}
                       >
-                    {fromAccount ? fromAccount.name : "Select Account"}
-                  </Text>
+                        {fromAccount ? fromAccount.name : t.select_account}
+                      </Text>
                     </View>
-                    
-                {fromAccount && (
+
+                    {fromAccount && (
                       <View style={{ alignItems: "center" }}>
                         <Text
                           style={{
@@ -2120,18 +2136,18 @@ export default function AddExpenseScreen() {
                           }}
                         >
                           ${fromAccount.amount.toFixed(2)}
-                  </Text>
+                        </Text>
                         <Text
                           style={{
                             fontSize: 12,
                             color: theme.textSecondary,
                           }}
                         >
-                          Available
+                          {t.available}
                         </Text>
                       </View>
-                )}
-              </View>
+                    )}
+                  </View>
                 </TouchableOpacity>
 
                 {/* Arrow */}
@@ -2150,7 +2166,9 @@ export default function AddExpenseScreen() {
                 <TouchableOpacity
                   style={{
                     flex: 1,
-                    backgroundColor: toAccount ? theme.success + "10" : theme.cardBackground,
+                    backgroundColor: toAccount
+                      ? theme.success + "10"
+                      : theme.cardBackground,
                     borderRadius: 12,
                     padding: 16,
                     borderWidth: 2,
@@ -2165,7 +2183,7 @@ export default function AddExpenseScreen() {
                   <View style={{ alignItems: "center" }}>
                     <Text
                       style={{
-                        fontSize: 12,
+                        fontSize: 10,
                         fontWeight: "600",
                         color: theme.textSecondary,
                         marginBottom: 8,
@@ -2173,9 +2191,9 @@ export default function AddExpenseScreen() {
                         letterSpacing: 0.5,
                       }}
                     >
-                      TO
+                      {t.to}
                     </Text>
-                    
+
                     <View
                       style={{
                         flexDirection: "row",
@@ -2185,7 +2203,9 @@ export default function AddExpenseScreen() {
                     >
                       <View
                         style={{
-                          backgroundColor: toAccount ? theme.success : theme.iconMuted,
+                          backgroundColor: toAccount
+                            ? theme.success
+                            : theme.iconMuted,
                           borderRadius: 20,
                           padding: 8,
                           marginRight: 8,
@@ -2203,11 +2223,11 @@ export default function AddExpenseScreen() {
                         }}
                         numberOfLines={1}
                       >
-                    {toAccount ? toAccount.name : "Select Account"}
-                  </Text>
+                        {toAccount ? toAccount.name : t.select_account}
+                      </Text>
                     </View>
-                    
-                {toAccount && (
+
+                    {toAccount && (
                       <View style={{ alignItems: "center" }}>
                         <Text
                           style={{
@@ -2217,14 +2237,14 @@ export default function AddExpenseScreen() {
                           }}
                         >
                           ${toAccount.amount.toFixed(2)}
-                  </Text>
+                        </Text>
                         <Text
                           style={{
                             fontSize: 12,
                             color: theme.textSecondary,
                           }}
                         >
-                          Current
+                          {t.current}
                         </Text>
                       </View>
                     )}
@@ -2262,147 +2282,167 @@ export default function AddExpenseScreen() {
                       fontSize: 14,
                     }}
                   >
-                    Swap Accounts
+                    {t.swapAccounts}
                   </Text>
                 </TouchableOpacity>
               )}
 
               {/* Transfer Preview */}
-              {fromAccount && toAccount && transferAmount && Number.parseFloat(transferAmount) > 0 && (
-                <View
-                  style={{
-                    backgroundColor: theme.cardBackground,
-                    borderRadius: 12,
-                    padding: 20,
-                    marginBottom: 24,
-                    borderWidth: 1,
-                    borderColor: theme.border,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: "600",
-                      color: theme.text,
-                      marginBottom: 16,
-                      textAlign: "center",
-                    }}
-                  >
-                    Transfer Preview
-                  </Text>
-
-                  <View style={{ marginBottom: 12 }}>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        marginBottom: 8,
-                      }}
-                    >
-                      <Text style={{ color: theme.textSecondary }}>From</Text>
-                      <Text
-                        style={{
-                          color: theme.text,
-                          fontWeight: "500",
-                        }}
-                      >
-                        {fromAccount.name}
-                      </Text>
-                    </View>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        marginBottom: 8,
-                      }}
-                    >
-                      <Text style={{ color: theme.textSecondary }}>To</Text>
-                      <Text
-                        style={{
-                          color: theme.text,
-                          fontWeight: "500",
-                        }}
-                      >
-                        {toAccount.name}
-                      </Text>
-                    </View>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        marginBottom: 8,
-                      }}
-                    >
-                      <Text style={{ color: theme.textSecondary }}>Amount</Text>
-                      <Text
-                        style={{
-                          color: theme.primary,
-                          fontWeight: "700",
-                          fontSize: 16,
-                        }}
-                      >
-                        ${Number.parseFloat(transferAmount).toFixed(2)}
-                      </Text>
-                    </View>
-                  </View>
-
+              {fromAccount &&
+                toAccount &&
+                transferAmount &&
+                Number.parseFloat(transferAmount) > 0 && (
                   <View
                     style={{
-                      borderTopWidth: 1,
-                      borderTopColor: theme.border,
-                      paddingTop: 12,
+                      backgroundColor: theme.cardBackground,
+                      borderRadius: 12,
+                      padding: 20,
+                      marginBottom: 24,
+                      borderWidth: 1,
+                      borderColor: theme.border,
                     }}
                   >
-                    <View
+                    <Text
                       style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        marginBottom: 4,
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: theme.text,
+                        marginBottom: 16,
+                        textAlign: "center",
                       }}
                     >
-                      <Text style={{ color: theme.textSecondary, fontSize: 12 }}>
-                        {fromAccount.name} new balance
-                      </Text>
-                      <Text
+                      {t.transferPreview}
+                    </Text>
+
+                    <View style={{ marginBottom: 12 }}>
+                      <View
                         style={{
-                          color: theme.text,
-                          fontWeight: "500",
-                          fontSize: 12,
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          marginBottom: 8,
                         }}
                       >
-                        ${(fromAccount.amount - Number.parseFloat(transferAmount)).toFixed(2)}
-                      </Text>
+                        <Text style={{ color: theme.textSecondary }}>
+                          {t.from}
+                        </Text>
+                        <Text
+                          style={{
+                            color: theme.text,
+                            fontWeight: "500",
+                          }}
+                        >
+                          {fromAccount.name}
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          marginBottom: 8,
+                        }}
+                      >
+                        <Text style={{ color: theme.textSecondary }}>
+                          {t.to}
+                        </Text>
+                        <Text
+                          style={{
+                            color: theme.text,
+                            fontWeight: "500",
+                          }}
+                        >
+                          {toAccount.name}
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          marginBottom: 8,
+                        }}
+                      >
+                        <Text style={{ color: theme.textSecondary }}>
+                          {t.amount}
+                        </Text>
+                        <Text
+                          style={{
+                            color: theme.primary,
+                            fontWeight: "700",
+                            fontSize: 16,
+                          }}
+                        >
+                          ${Number.parseFloat(transferAmount).toFixed(2)}
+                        </Text>
+                      </View>
                     </View>
+
                     <View
                       style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
+                        borderTopWidth: 1,
+                        borderTopColor: theme.border,
+                        paddingTop: 12,
                       }}
                     >
-                      <Text style={{ color: theme.textSecondary, fontSize: 12 }}>
-                        {toAccount.name} new balance
-                      </Text>
-                      <Text
+                      <View
                         style={{
-                          color: theme.success,
-                          fontWeight: "500",
-                          fontSize: 12,
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          marginBottom: 4,
                         }}
                       >
-                        ${(toAccount.amount + Number.parseFloat(transferAmount)).toFixed(2)}
-                      </Text>
+                        <Text
+                          style={{ color: theme.textSecondary, fontSize: 12 }}
+                        >
+                          {t.newBalance} {fromAccount.name}
+                        </Text>
+                        <Text
+                          style={{
+                            color: theme.text,
+                            fontWeight: "500",
+                            fontSize: 12,
+                          }}
+                        >
+                          $
+                          {(
+                            fromAccount.amount -
+                            Number.parseFloat(transferAmount)
+                          ).toFixed(2)}
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <Text
+                          style={{ color: theme.textSecondary, fontSize: 12 }}
+                        >
+                          {t.newBalance} {toAccount.name}
+                        </Text>
+                        <Text
+                          style={{
+                            color: theme.success,
+                            fontWeight: "500",
+                            fontSize: 12,
+                          }}
+                        >
+                          $
+                          {(
+                            toAccount.amount + Number.parseFloat(transferAmount)
+                          ).toFixed(2)}
+                        </Text>
+                      </View>
                     </View>
                   </View>
-                </View>
-              )}
+                )}
 
               {/* Transfer Button */}
               <TouchableOpacity
                 style={{
                   backgroundColor:
-                  fromAccount &&
-                  toAccount &&
-                  transferAmount &&
+                    fromAccount &&
+                    toAccount &&
+                    transferAmount &&
                     Number.parseFloat(transferAmount) > 0 &&
                     Number.parseFloat(transferAmount) <= fromAccount.amount
                       ? theme.primary
@@ -2432,13 +2472,13 @@ export default function AddExpenseScreen() {
                     <Text
                       style={{
                         color: "white",
-                        fontSize: 18,
+                        fontSize: 10,
                         fontWeight: "600",
                         marginLeft: 12,
                       }}
                     >
-                      Processing Transfer...
-                </Text>
+                      {t.processingTransfer}
+                    </Text>
                   </View>
                 ) : (
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -2446,69 +2486,71 @@ export default function AddExpenseScreen() {
                     <Text
                       style={{
                         color: "white",
-                        fontSize: 18,
+                        fontSize: 12,
                         fontWeight: "600",
                         marginLeft: 8,
                       }}
                     >
-                      Complete Transfer
+                      {t.completeTransfer}
                     </Text>
                   </View>
                 )}
               </TouchableOpacity>
 
               {/* Transfer Info */}
-              {transferAmount && Number.parseFloat(transferAmount) > 0 && fromAccount && (
-                <View style={{ marginTop: 16, alignItems: "center" }}>
-                  {Number.parseFloat(transferAmount) > fromAccount.amount ? (
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        backgroundColor: theme.error + "20",
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
-                        borderRadius: 20,
-                      }}
-                    >
-                      <X size={16} color={theme.error} />
-                      <Text
+              {transferAmount &&
+                Number.parseFloat(transferAmount) > 0 &&
+                fromAccount && (
+                  <View style={{ marginTop: 16, alignItems: "center" }}>
+                    {Number.parseFloat(transferAmount) > fromAccount.amount ? (
+                      <View
                         style={{
-                          color: theme.error,
-                          fontSize: 14,
-                          marginLeft: 6,
-                          fontWeight: "500",
+                          flexDirection: "row",
+                          alignItems: "center",
+                          backgroundColor: theme.error + "20",
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          borderRadius: 20,
                         }}
                       >
-                        Insufficient funds
-                      </Text>
-                    </View>
-                  ) : (
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        backgroundColor: theme.success + "20",
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
-                        borderRadius: 20,
-                      }}
-                    >
-                      <Check size={16} color={theme.success} />
-                      <Text
+                        <X size={16} color={theme.error} />
+                        <Text
+                          style={{
+                            color: theme.error,
+                            fontSize: 12,
+                            marginLeft: 6,
+                            fontWeight: "500",
+                          }}
+                        >
+                          {t.insufficientFunds}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View
                         style={{
-                          color: theme.success,
-                          fontSize: 14,
-                          marginLeft: 6,
-                          fontWeight: "500",
+                          flexDirection: "row",
+                          alignItems: "center",
+                          backgroundColor: theme.success + "20",
+                          paddingHorizontal: 12,
+                          paddingVertical: 8,
+                          borderRadius: 20,
                         }}
                       >
-                        Transfer ready
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              )}
+                        <Check size={16} color={theme.success} />
+                        <Text
+                          style={{
+                            color: theme.success,
+                            fontSize: 12,
+                            marginLeft: 6,
+                            fontWeight: "500",
+                          }}
+                        >
+                          {t.transferReady}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
             </View>
           )}
 
@@ -2523,7 +2565,7 @@ export default function AddExpenseScreen() {
               <View className="bg-white rounded-2xl p-6 w-full max-w-md">
                 <View className="flex-row justify-between items-center mb-6">
                   <Text className="font-bold text-xl text-gray-900">
-                    Select Category
+                    {t.selectCategory}
                   </Text>
                   <TouchableOpacity
                     onPress={() => setShowCategoryDropdown(false)}
@@ -2573,7 +2615,7 @@ export default function AddExpenseScreen() {
               <View className="bg-white rounded-2xl p-6 w-full max-w-md">
                 <View className="flex-row justify-between items-center mb-6">
                   <Text className="font-bold text-xl text-gray-900">
-                    Select Payment Method
+                    {t.selectPaymentMethod}
                   </Text>
                   <TouchableOpacity
                     onPress={() => setShowPaymentMethodModal(false)}
@@ -2624,8 +2666,8 @@ export default function AddExpenseScreen() {
               <View className="bg-white rounded-2xl p-6 w-full max-w-md">
                 <View className="flex-row justify-between items-center mb-6">
                   <Text className="font-bold text-xl text-gray-900">
-                    Select {accountSelectionType === "from" ? "From" : "To"}{" "}
-                    Account
+                    {t.select} {accountSelectionType === "from" ? t.from : t.to}{" "}
+                    {t.account}
                   </Text>
                   <TouchableOpacity
                     onPress={() => setShowAccountSelectionModal(false)}
