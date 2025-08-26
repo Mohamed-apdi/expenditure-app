@@ -13,6 +13,7 @@ import { ChevronLeft, Pen, Trash2 } from "lucide-react-native";
 import { supabase } from "~/lib/supabase";
 import { format } from "date-fns";
 import { useTheme } from "~/lib/theme";
+import { useLanguage } from "~/lib/LanguageProvider";
 
 type Transaction = {
   id: string;
@@ -36,6 +37,7 @@ const AccountDetails = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const theme = useTheme();
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (id) {
@@ -82,15 +84,15 @@ const AccountDetails = () => {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      "Delete Account",
-      `Are you sure you want to delete "${account?.name}"? This action cannot be undone and will also delete all associated transactions, transfers, and budgets.`,
+      t.deleteAccount,
+      `${t.deleteAccountConfirm} "${account?.name}"? ${t.deleteAccountWarning}`,
       [
         {
-          text: "Cancel",
+          text: t.cancel,
           style: "cancel",
         },
         {
-          text: "Delete",
+          text: t.delete,
           style: "destructive",
           onPress: async () => {
             try {
@@ -104,7 +106,7 @@ const AccountDetails = () => {
 
               if (budgetsError) {
                 console.error("Error deleting budgets:", budgetsError);
-                Alert.alert("Error", "Failed to delete account budgets");
+                Alert.alert(t.error, t.failedToDeleteBudgets);
                 return;
               }
 
@@ -119,7 +121,7 @@ const AccountDetails = () => {
                   "Error deleting transfers from account:",
                   transfersFromError
                 );
-                Alert.alert("Error", "Failed to delete transfers from account");
+                Alert.alert(t.error, t.failedToDeleteTransfersFrom);
                 return;
               }
 
@@ -133,7 +135,7 @@ const AccountDetails = () => {
                   "Error deleting transfers to account:",
                   transfersToError
                 );
-                Alert.alert("Error", "Failed to delete transfers to account");
+                Alert.alert(t.error, t.failedToDeleteTransfersTo);
                 return;
               }
 
@@ -148,7 +150,7 @@ const AccountDetails = () => {
                   "Error deleting transactions:",
                   transactionsError
                 );
-                Alert.alert("Error", "Failed to delete account transactions");
+                Alert.alert(t.error, t.failedToDeleteTransactions);
                 return;
               }
 
@@ -160,19 +162,19 @@ const AccountDetails = () => {
 
               if (accountError) {
                 console.error("Error deleting account:", accountError);
-                Alert.alert("Error", "Failed to delete account");
+                Alert.alert(t.error, t.failedToDeleteAccount);
                 return;
               }
 
-              Alert.alert("Success", "Account deleted successfully", [
+              Alert.alert(t.success, t.accountDeletedSuccessfully, [
                 {
-                  text: "OK",
+                  text: t.ok,
                   onPress: () => router.back(),
                 },
               ]);
             } catch (error) {
               console.error("Error deleting account:", error);
-              Alert.alert("Error", "An unexpected error occurred");
+              Alert.alert(t.error, t.unexpectedError);
             } finally {
               setLoading(false);
             }
@@ -225,7 +227,7 @@ const AccountDetails = () => {
             className="bg-blue-500 rounded-lg py-3 px-3 items-center"
             onPress={() => router.push(`/account-details/edit/${id}`)}
           >
-            <Text className="text-white">Edit Account</Text>
+            <Text className="text-white">{t.editAccount}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             className="bg-red-500 rounded-lg py-3 px-3 items-center"
@@ -246,7 +248,7 @@ const AccountDetails = () => {
         }}
       >
         <Text className="text-sm mb-1" style={{ color: theme.textSecondary }}>
-          Current Balance
+          {t.currentBalance}
         </Text>
         <Text
           className={`text-2xl font-bold ${
@@ -271,7 +273,7 @@ const AccountDetails = () => {
               className="text-sm mb-1"
               style={{ color: theme.textSecondary }}
             >
-              Income
+              {t.income}
             </Text>
             <Text className="text-green-600 font-bold">
               ${summary.income.toFixed(2)}
@@ -282,7 +284,7 @@ const AccountDetails = () => {
               className="text-sm mb-1"
               style={{ color: theme.textSecondary }}
             >
-              Expense
+              {t.expense}
             </Text>
             <Text className="text-red-600 font-bold">
               ${summary.expense.toFixed(2)}
@@ -293,7 +295,7 @@ const AccountDetails = () => {
               className="text-sm mb-1"
               style={{ color: theme.textSecondary }}
             >
-              Balance
+              {t.balance}
             </Text>
             <Text className="font-bold" style={{ color: theme.text }}>
               ${summary.balance.toFixed(2)}
@@ -312,7 +314,7 @@ const AccountDetails = () => {
       >
         <View className="flex-row justify-between items-center">
           <Text className="font-bold text-lg" style={{ color: theme.text }}>
-            Recent Transactions
+            {t.recentTransactions}
           </Text>
           <TouchableOpacity
             onPress={() => loadAccountData(true)}
@@ -322,7 +324,7 @@ const AccountDetails = () => {
             <Text
               className={`text-sm ${refreshing ? "text-blue-400" : "text-blue-600"}`}
             >
-              {refreshing ? "Refreshing..." : "Refresh"}
+              {refreshing ? t.refreshing : t.refresh}
             </Text>
           </TouchableOpacity>
         </View>
@@ -337,14 +339,14 @@ const AccountDetails = () => {
               className="text-sm mt-2"
               style={{ color: theme.textSecondary }}
             >
-              Refreshing transactions...
+              {t.refreshingTransactions}
             </Text>
           </View>
         )}
         {transactions.length === 0 ? (
           <View className="py-8 items-center">
             <Text style={{ color: theme.textSecondary }}>
-              No transactions yet
+              {t.noTransactionsYet}
             </Text>
           </View>
         ) : (
@@ -361,7 +363,7 @@ const AccountDetails = () => {
                 <Text className="font-medium" style={{ color: theme.text }}>
                   {transaction.description ||
                     transaction.category ||
-                    "No description"}
+                    t.noDescription}
                 </Text>
                 <Text
                   className="text-sm mt-1"

@@ -410,9 +410,30 @@ export default function SavingsScreen() {
         }
       >
         {/* Total Savings Summary */}
-        <View style={{ backgroundColor: theme.primary, padding: 24, borderRadius: 16, marginBottom: 24 }}>
-          <Text style={{ color: theme.primaryText, fontSize: 18, fontWeight: '500' }}>Total Savings</Text>
-          <Text style={{ color: theme.primaryText, fontSize: 30, fontWeight: 'bold' }}>
+        <View
+          style={{
+            backgroundColor: theme.primary,
+            padding: 24,
+            borderRadius: 16,
+            marginBottom: 24,
+          }}
+        >
+          <Text
+            style={{
+              color: theme.primaryText,
+              fontSize: 18,
+              fontWeight: "500",
+            }}
+          >
+            Total Savings
+          </Text>
+          <Text
+            style={{
+              color: theme.primaryText,
+              fontSize: 30,
+              fontWeight: "bold",
+            }}
+          >
             ${totalSavings.toFixed(2)}
           </Text>
           <Text style={{ color: `${theme.primaryText}80`, fontSize: 14 }}>
@@ -423,11 +444,19 @@ export default function SavingsScreen() {
         {/* Active Goals */}
         <View style={{ marginBottom: 24 }}>
           <View className="flex-row justify-between items-center mb-4">
-            <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 20 }}>
+            <Text
+              style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
+            >
               Active Goals
             </Text>
             <TouchableOpacity
-              style={{ backgroundColor: theme.primary, borderRadius: 8, paddingVertical: 12, paddingHorizontal: 12, alignItems: 'center' }}
+              style={{
+                backgroundColor: theme.primary,
+                borderRadius: 8,
+                paddingVertical: 12,
+                paddingHorizontal: 12,
+                alignItems: "center",
+              }}
               onPress={openAddModal}
             >
               <Text style={{ color: theme.primaryText }}>Add Goal</Text>
@@ -435,15 +464,19 @@ export default function SavingsScreen() {
           </View>
 
           {loading ? (
-            <View style={{ paddingVertical: 32, alignItems: 'center' }}>
-              <Text style={{ color: theme.textSecondary, fontSize: 18 }}>Loading goals...</Text>
+            <View style={{ paddingVertical: 32, alignItems: "center" }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 18 }}>
+                Loading goals...
+              </Text>
             </View>
           ) : goals.filter((goal) => goal.is_active).length === 0 ? (
-            <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+            <View style={{ paddingVertical: 32, alignItems: "center" }}>
               <Text style={{ color: theme.textSecondary, fontSize: 18 }}>
                 No active savings goals
               </Text>
-              <Text style={{ color: theme.textMuted, fontSize: 14, marginTop: 8 }}>
+              <Text
+                style={{ color: theme.textMuted, fontSize: 14, marginTop: 8 }}
+              >
                 Create your first goal to start saving!
               </Text>
             </View>
@@ -464,7 +497,19 @@ export default function SavingsScreen() {
                 return (
                   <Pressable
                     key={goal.id}
-                    style={{ marginBottom: 16, padding: 16, backgroundColor: theme.cardBackground, borderRadius: 12, borderWidth: 1, borderColor: theme.border, shadowColor: theme.border, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 }}
+                    style={{
+                      marginBottom: 16,
+                      padding: 16,
+                      backgroundColor: theme.cardBackground,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      shadowColor: theme.border,
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 2,
+                      elevation: 1,
+                    }}
                     onPress={() => openEditModal(goal)}
                   >
                     <View className="flex-row justify-between items-start mb-3">
@@ -479,10 +524,18 @@ export default function SavingsScreen() {
                           )}
                         </View>
                         <View className="flex-1">
-                          <Text style={{ color: theme.text, fontWeight: '600', fontSize: 18 }}>
+                          <Text
+                            style={{
+                              color: theme.text,
+                              fontWeight: "600",
+                              fontSize: 18,
+                            }}
+                          >
                             {goal.name}
                           </Text>
-                          <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
+                          <Text
+                            style={{ color: theme.textSecondary, fontSize: 14 }}
+                          >
                             {goal.category}
                           </Text>
                         </View>
@@ -500,15 +553,30 @@ export default function SavingsScreen() {
                     {/* Progress Bar */}
                     <View style={{ marginBottom: 12 }}>
                       <View className="flex-row justify-between items-center mb-2">
-                        <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
+                        <Text
+                          style={{ color: theme.textSecondary, fontSize: 14 }}
+                        >
                           ${goal.current_amount.toFixed(2)} of $
                           {goal.target_amount.toFixed(2)}
                         </Text>
-                        <Text style={{ color: theme.textSecondary, fontSize: 14, fontWeight: '500' }}>
+                        <Text
+                          style={{
+                            color: theme.textSecondary,
+                            fontSize: 14,
+                            fontWeight: "500",
+                          }}
+                        >
                           {Math.round(progress)}%
                         </Text>
                       </View>
-                      <View style={{ height: 8, backgroundColor: theme.border, borderRadius: 4, overflow: 'hidden' }}>
+                      <View
+                        style={{
+                          height: 8,
+                          backgroundColor: theme.border,
+                          borderRadius: 4,
+                          overflow: "hidden",
+                        }}
+                      >
                         <View
                           style={{
                             height: 8,
@@ -524,20 +592,38 @@ export default function SavingsScreen() {
                     <View className="flex-row justify-between items-center mb-3">
                       <View className="flex-row items-center">
                         <Calendar size={14} color={theme.textMuted} />
-                        <Text style={{ color: theme.textSecondary, fontSize: 14, marginLeft: 8 }}>
+                        <Text
+                          style={{
+                            color: theme.textSecondary,
+                            fontSize: 14,
+                            marginLeft: 8,
+                          }}
+                        >
                           Target: {formatDate(goal.target_date)}
                         </Text>
                       </View>
                       <View className="flex-row items-center">
                         <Clock size={14} color={theme.textMuted} />
-                        <Text style={{ color: theme.textSecondary, fontSize: 14, marginLeft: 8 }}>
+                        <Text
+                          style={{
+                            color: theme.textSecondary,
+                            fontSize: 14,
+                            marginLeft: 8,
+                          }}
+                        >
                           {daysLeft > 0 ? `${daysLeft} days left` : "Overdue"}
                         </Text>
                       </View>
                     </View>
 
                     {goal.account && (
-                      <Text style={{ color: theme.textSecondary, fontSize: 14, marginBottom: 12 }}>
+                      <Text
+                        style={{
+                          color: theme.textSecondary,
+                          fontSize: 14,
+                          marginBottom: 12,
+                        }}
+                      >
                         Account: {goal.account.name}
                       </Text>
                     )}
@@ -545,18 +631,32 @@ export default function SavingsScreen() {
                     {/* Action Buttons */}
                     <View className="flex-row space-x-2">
                       <TouchableOpacity
-                        style={{ flex: 1, backgroundColor: "#10b981", paddingVertical: 8, borderRadius: 8, alignItems: 'center' }}
+                        style={{
+                          flex: 1,
+                          backgroundColor: "#10b981",
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          alignItems: "center",
+                        }}
                         onPress={() => openAddAmountModal(goal, "add")}
                       >
-                        <Text style={{ color: "white", fontWeight: '500' }}>
+                        <Text style={{ color: "white", fontWeight: "500" }}>
                           Add Money
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        style={{ flex: 1, backgroundColor: "#f59e0b", paddingVertical: 8, borderRadius: 8, alignItems: 'center' }}
+                        style={{
+                          flex: 1,
+                          backgroundColor: "#f59e0b",
+                          paddingVertical: 8,
+                          borderRadius: 8,
+                          alignItems: "center",
+                        }}
                         onPress={() => openAddAmountModal(goal, "withdraw")}
                       >
-                        <Text style={{ color: "white", fontWeight: '500' }}>Withdraw</Text>
+                        <Text style={{ color: "white", fontWeight: "500" }}>
+                          Withdraw
+                        </Text>
                       </TouchableOpacity>
                     </View>
                   </Pressable>
@@ -566,13 +666,33 @@ export default function SavingsScreen() {
         </View>
 
         {/* Inactive Goals */}
-        <View style={{ backgroundColor: theme.cardBackground, padding: 24, borderRadius: 16, shadowColor: theme.border, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1 }}>
-          <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 20, marginBottom: 24 }}>
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            padding: 24,
+            borderRadius: 16,
+            shadowColor: theme.border,
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05,
+            shadowRadius: 2,
+            elevation: 1,
+          }}
+        >
+          <Text
+            style={{
+              color: theme.text,
+              fontWeight: "bold",
+              fontSize: 20,
+              marginBottom: 24,
+            }}
+          >
             Inactive Goals
           </Text>
           {goals.filter((goal) => !goal.is_active).length === 0 ? (
-            <View style={{ paddingVertical: 16, alignItems: 'center' }}>
-              <Text style={{ color: theme.textSecondary, fontSize: 18 }}>No inactive goals</Text>
+            <View style={{ paddingVertical: 16, alignItems: "center" }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 18 }}>
+                No inactive goals
+              </Text>
             </View>
           ) : (
             goals
@@ -580,7 +700,15 @@ export default function SavingsScreen() {
               .map((goal) => (
                 <Pressable
                   key={goal.id}
-                  style={{ marginBottom: 16, padding: 16, backgroundColor: theme.background, borderRadius: 12, borderWidth: 1, borderColor: theme.border, opacity: 0.8 }}
+                  style={{
+                    marginBottom: 16,
+                    padding: 16,
+                    backgroundColor: theme.background,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    opacity: 0.8,
+                  }}
                   onPress={() => openEditModal(goal)}
                 >
                   <View className="flex-row justify-between items-start">
@@ -595,10 +723,18 @@ export default function SavingsScreen() {
                         )}
                       </View>
                       <View className="flex-1">
-                        <Text style={{ color: theme.text, fontWeight: '600', fontSize: 18 }}>
+                        <Text
+                          style={{
+                            color: theme.text,
+                            fontWeight: "600",
+                            fontSize: 18,
+                          }}
+                        >
                           {goal.name}
                         </Text>
-                        <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
+                        <Text
+                          style={{ color: theme.textSecondary, fontSize: 14 }}
+                        >
                           {goal.category} • Paused
                         </Text>
                       </View>
@@ -625,11 +761,34 @@ export default function SavingsScreen() {
         transparent={true}
         onRequestClose={() => setIsModalVisible(false)}
       >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: 16 }}>
-          <View style={{ backgroundColor: theme.cardBackground, borderRadius: 16, padding: 24, width: '100%', maxWidth: 400, maxHeight: '90%' }}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            padding: 16,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderRadius: 16,
+              padding: 24,
+              width: "100%",
+              maxWidth: 400,
+              maxHeight: "90%",
+            }}
+          >
             <ScrollView showsVerticalScrollIndicator={false}>
               <View className="flex-row justify-between items-center mb-6">
-                <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 20 }}>
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontWeight: "bold",
+                    fontSize: 20,
+                  }}
+                >
                   {isEditMode ? "Edit Goal" : "New Savings Goal"}
                 </Text>
                 <View className="flex-row justify-center items-center gap-2">
@@ -651,9 +810,25 @@ export default function SavingsScreen() {
                 {/* Icon and Color Selection */}
                 <View className="flex-row space-x-4 gap-2 items-center">
                   <View className="flex-1">
-                    <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>Icon</Text>
+                    <Text
+                      style={{
+                        color: theme.text,
+                        marginBottom: 8,
+                        fontWeight: "500",
+                      }}
+                    >
+                      Icon
+                    </Text>
                     <TouchableOpacity
-                      style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 12, padding: 16, backgroundColor: theme.background, flexDirection: 'row', alignItems: 'center' }}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        borderRadius: 12,
+                        padding: 16,
+                        backgroundColor: theme.background,
+                        flexDirection: "row",
+                        alignItems: "center",
+                      }}
                       onPress={() => setIsIconModalVisible(true)}
                     >
                       <View
@@ -669,11 +844,25 @@ export default function SavingsScreen() {
                     </TouchableOpacity>
                   </View>
                   <View className="flex-1">
-                    <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
+                    <Text
+                      style={{
+                        color: theme.text,
+                        marginBottom: 8,
+                        fontWeight: "500",
+                      }}
+                    >
                       Color
                     </Text>
                     <TouchableOpacity
-                      style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 12, padding: 16, backgroundColor: theme.background, flexDirection: 'row', alignItems: 'center' }}
+                      style={{
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        borderRadius: 12,
+                        padding: 16,
+                        backgroundColor: theme.background,
+                        flexDirection: "row",
+                        alignItems: "center",
+                      }}
                       onPress={() => setIsColorModalVisible(true)}
                     >
                       <View
@@ -686,11 +875,24 @@ export default function SavingsScreen() {
                 </View>
 
                 <View>
-                  <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      marginBottom: 8,
+                      fontWeight: "500",
+                    }}
+                  >
                     Goal Name
                   </Text>
                   <TextInput
-                    style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 12, padding: 16, backgroundColor: theme.background, color: theme.text }}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 12,
+                      padding: 16,
+                      backgroundColor: theme.background,
+                      color: theme.text,
+                    }}
                     placeholder="e.g., New Car, Vacation"
                     placeholderTextColor={theme.textMuted}
                     value={formData.name}
@@ -701,17 +903,33 @@ export default function SavingsScreen() {
                 </View>
 
                 <View>
-                  <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      marginBottom: 8,
+                      fontWeight: "500",
+                    }}
+                  >
                     Category
                   </Text>
                   <TouchableOpacity
-                    style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 8, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 8,
+                      padding: 12,
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
                     onPress={() =>
                       setShowCategoryDropdown(!showCategoryDropdown)
                     }
                   >
                     <Text
-                      style={{ color: formData.category ? theme.text : theme.textMuted }}
+                      style={{
+                        color: formData.category ? theme.text : theme.textMuted,
+                      }}
                     >
                       {formData.category || "Select a category"}
                     </Text>
@@ -719,23 +937,39 @@ export default function SavingsScreen() {
                   </TouchableOpacity>
 
                   {showCategoryDropdown && (
-                    <View style={{ marginTop: 8, borderWidth: 1, borderColor: theme.border, borderRadius: 8, backgroundColor: theme.cardBackground, maxHeight: 160 }}>
+                    <View
+                      style={{
+                        marginTop: 8,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        borderRadius: 8,
+                        backgroundColor: theme.cardBackground,
+                        maxHeight: 160,
+                      }}
+                    >
                       <ScrollView>
                         {goalCategories.map((category) => (
                           <TouchableOpacity
                             key={category}
-                            style={{ 
-                              padding: 12, 
-                              borderBottomWidth: 1, 
+                            style={{
+                              padding: 12,
+                              borderBottomWidth: 1,
                               borderBottomColor: theme.border,
-                              backgroundColor: formData.category === category ? `${theme.primary}20` : 'transparent'
+                              backgroundColor:
+                                formData.category === category
+                                  ? `${theme.primary}20`
+                                  : "transparent",
                             }}
                             onPress={() => {
                               setFormData({ ...formData, category });
                               setShowCategoryDropdown(false);
                             }}
                           >
-                            <Text style={{ color: theme.text, fontWeight: '500' }}>{category}</Text>
+                            <Text
+                              style={{ color: theme.text, fontWeight: "500" }}
+                            >
+                              {category}
+                            </Text>
                           </TouchableOpacity>
                         ))}
                       </ScrollView>
@@ -744,15 +978,31 @@ export default function SavingsScreen() {
                 </View>
 
                 <View>
-                  <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      marginBottom: 8,
+                      fontWeight: "500",
+                    }}
+                  >
                     Account
                   </Text>
                   <TouchableOpacity
-                    style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 8, padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 8,
+                      padding: 12,
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
                     onPress={() => setShowAccountDropdown(!showAccountDropdown)}
                   >
                     <Text
-                      style={{ color: selectedAccount ? theme.text : theme.textMuted }}
+                      style={{
+                        color: selectedAccount ? theme.text : theme.textMuted,
+                      }}
                     >
                       {selectedAccount
                         ? selectedAccount.name
@@ -762,24 +1012,45 @@ export default function SavingsScreen() {
                   </TouchableOpacity>
 
                   {showAccountDropdown && (
-                    <View style={{ marginTop: 8, borderWidth: 1, borderColor: theme.border, borderRadius: 8, backgroundColor: theme.cardBackground, maxHeight: 160 }}>
+                    <View
+                      style={{
+                        marginTop: 8,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        borderRadius: 8,
+                        backgroundColor: theme.cardBackground,
+                        maxHeight: 160,
+                      }}
+                    >
                       <ScrollView>
                         {accounts.map((account) => (
                           <TouchableOpacity
                             key={account.id}
-                            style={{ 
-                              padding: 12, 
-                              borderBottomWidth: 1, 
+                            style={{
+                              padding: 12,
+                              borderBottomWidth: 1,
                               borderBottomColor: theme.border,
-                              backgroundColor: selectedAccount?.id === account.id ? `${theme.primary}20` : 'transparent'
+                              backgroundColor:
+                                selectedAccount?.id === account.id
+                                  ? `${theme.primary}20`
+                                  : "transparent",
                             }}
                             onPress={() => {
                               setSelectedAccount(account);
                               setShowAccountDropdown(false);
                             }}
                           >
-                            <Text style={{ color: theme.text, fontWeight: '500' }}>{account.name}</Text>
-                            <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
+                            <Text
+                              style={{ color: theme.text, fontWeight: "500" }}
+                            >
+                              {account.name}
+                            </Text>
+                            <Text
+                              style={{
+                                color: theme.textSecondary,
+                                fontSize: 14,
+                              }}
+                            >
                               {account.account_type}
                             </Text>
                           </TouchableOpacity>
@@ -790,10 +1061,25 @@ export default function SavingsScreen() {
                 </View>
 
                 <View>
-                  <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      marginBottom: 8,
+                      fontWeight: "500",
+                    }}
+                  >
                     Target Amount ($)
                   </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.border, borderRadius: 12, backgroundColor: theme.background }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 12,
+                      backgroundColor: theme.background,
+                    }}
+                  >
                     <View style={{ paddingHorizontal: 16 }}>
                       <DollarSign size={18} color={theme.textMuted} />
                     </View>
@@ -812,10 +1098,25 @@ export default function SavingsScreen() {
 
                 {isEditMode && (
                   <View>
-                    <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
+                    <Text
+                      style={{
+                        color: theme.text,
+                        marginBottom: 8,
+                        fontWeight: "500",
+                      }}
+                    >
                       Current Amount ($)
                     </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.border, borderRadius: 12, backgroundColor: theme.background }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        borderRadius: 12,
+                        backgroundColor: theme.background,
+                      }}
+                    >
                       <View style={{ paddingHorizontal: 16 }}>
                         <DollarSign size={18} color={theme.textMuted} />
                       </View>
@@ -834,15 +1135,34 @@ export default function SavingsScreen() {
                 )}
 
                 <View>
-                  <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      marginBottom: 8,
+                      fontWeight: "500",
+                    }}
+                  >
                     Target Date
                   </Text>
                   <TouchableOpacity
-                    style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 12, padding: 16, backgroundColor: theme.background, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 12,
+                      padding: 16,
+                      backgroundColor: theme.background,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
                     onPress={() => setShowDatePicker(true)}
                   >
                     <Text
-                      style={{ color: formData.target_date ? theme.text : theme.textMuted }}
+                      style={{
+                        color: formData.target_date
+                          ? theme.text
+                          : theme.textMuted,
+                      }}
                     >
                       {formData.target_date
                         ? formatDate(formData.target_date)
@@ -853,11 +1173,24 @@ export default function SavingsScreen() {
                 </View>
 
                 <View>
-                  <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      marginBottom: 8,
+                      fontWeight: "500",
+                    }}
+                  >
                     Description
                   </Text>
                   <TextInput
-                    style={{ borderWidth: 1, borderColor: theme.border, borderRadius: 12, padding: 16, backgroundColor: theme.background, color: theme.text }}
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 12,
+                      padding: 16,
+                      backgroundColor: theme.background,
+                      color: theme.text,
+                    }}
                     placeholder="Optional description"
                     placeholderTextColor={theme.textMuted}
                     value={formData.description}
@@ -869,7 +1202,9 @@ export default function SavingsScreen() {
                 </View>
 
                 <View className="flex-row justify-between items-center">
-                  <Text style={{ color: theme.text, fontWeight: '500' }}>Active</Text>
+                  <Text style={{ color: theme.text, fontWeight: "500" }}>
+                    Active
+                  </Text>
                   <Switch
                     value={formData.is_active}
                     onValueChange={(value) =>
@@ -881,10 +1216,22 @@ export default function SavingsScreen() {
                 </View>
 
                 <TouchableOpacity
-                  style={{ backgroundColor: theme.primary, padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 8 }}
+                  style={{
+                    backgroundColor: theme.primary,
+                    padding: 16,
+                    borderRadius: 12,
+                    alignItems: "center",
+                    marginTop: 8,
+                  }}
                   onPress={handleSave}
                 >
-                  <Text style={{ color: theme.primaryText, fontWeight: '500', fontSize: 18 }}>
+                  <Text
+                    style={{
+                      color: theme.primaryText,
+                      fontWeight: "500",
+                      fontSize: 18,
+                    }}
+                  >
                     {isEditMode ? "Update Goal" : "Create Goal"}
                   </Text>
                 </TouchableOpacity>
@@ -901,10 +1248,28 @@ export default function SavingsScreen() {
         transparent={true}
         onRequestClose={() => setIsAddAmountModalVisible(false)}
       >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: 16 }}>
-          <View style={{ backgroundColor: theme.cardBackground, borderRadius: 16, padding: 24, width: '100%', maxWidth: 400 }}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            padding: 16,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderRadius: 16,
+              padding: 24,
+              width: "100%",
+              maxWidth: 400,
+            }}
+          >
             <View className="flex-row justify-between items-center mb-6">
-              <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 20 }}>
+              <Text
+                style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
+              >
                 Add Money to Goal
               </Text>
               <TouchableOpacity
@@ -916,10 +1281,25 @@ export default function SavingsScreen() {
 
             <View className="space-y-5">
               <View>
-                <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
+                <Text
+                  style={{
+                    color: theme.text,
+                    marginBottom: 8,
+                    fontWeight: "500",
+                  }}
+                >
                   Amount ($)
                 </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.border, borderRadius: 12, backgroundColor: theme.background }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 12,
+                    backgroundColor: theme.background,
+                  }}
+                >
                   <View style={{ paddingHorizontal: 16 }}>
                     <DollarSign size={18} color={theme.textMuted} />
                   </View>
@@ -937,10 +1317,17 @@ export default function SavingsScreen() {
               </View>
 
               <TouchableOpacity
-                style={{ backgroundColor: "#10b981", padding: 16, borderRadius: 12, alignItems: 'center' }}
+                style={{
+                  backgroundColor: "#10b981",
+                  padding: 16,
+                  borderRadius: 12,
+                  alignItems: "center",
+                }}
                 onPress={handleAddAmount}
               >
-                <Text style={{ color: "white", fontWeight: '500', fontSize: 18 }}>
+                <Text
+                  style={{ color: "white", fontWeight: "500", fontSize: 18 }}
+                >
                   Add Money
                 </Text>
               </TouchableOpacity>
@@ -956,10 +1343,28 @@ export default function SavingsScreen() {
         transparent={true}
         onRequestClose={() => setIsWithdrawModalVisible(false)}
       >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: 16 }}>
-          <View style={{ backgroundColor: theme.cardBackground, borderRadius: 16, padding: 24, width: '100%', maxWidth: 400 }}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            padding: 16,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderRadius: 16,
+              padding: 24,
+              width: "100%",
+              maxWidth: 400,
+            }}
+          >
             <View className="flex-row justify-between items-center mb-6">
-              <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 20 }}>
+              <Text
+                style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
+              >
                 Withdraw from Goal
               </Text>
               <TouchableOpacity
@@ -971,10 +1376,25 @@ export default function SavingsScreen() {
 
             <View className="space-y-5">
               <View>
-                <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500' }}>
+                <Text
+                  style={{
+                    color: theme.text,
+                    marginBottom: 8,
+                    fontWeight: "500",
+                  }}
+                >
                   Amount ($)
                 </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: theme.border, borderRadius: 12, backgroundColor: theme.background }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 12,
+                    backgroundColor: theme.background,
+                  }}
+                >
                   <View style={{ paddingHorizontal: 16 }}>
                     <DollarSign size={18} color={theme.textMuted} />
                   </View>
@@ -992,10 +1412,17 @@ export default function SavingsScreen() {
               </View>
 
               <TouchableOpacity
-                style={{ backgroundColor: "#f59e0b", padding: 16, borderRadius: 12, alignItems: 'center' }}
+                style={{
+                  backgroundColor: "#f59e0b",
+                  padding: 16,
+                  borderRadius: 12,
+                  alignItems: "center",
+                }}
                 onPress={handleAddAmount}
               >
-                <Text style={{ color: "white", fontWeight: '500', fontSize: 18 }}>
+                <Text
+                  style={{ color: "white", fontWeight: "500", fontSize: 18 }}
+                >
                   Withdraw Money
                 </Text>
               </TouchableOpacity>
@@ -1011,10 +1438,28 @@ export default function SavingsScreen() {
         transparent={true}
         onRequestClose={() => setIsIconModalVisible(false)}
       >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: 16 }}>
-          <View style={{ backgroundColor: theme.cardBackground, borderRadius: 16, padding: 24, width: '100%', maxWidth: 400 }}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            padding: 16,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderRadius: 16,
+              padding: 24,
+              width: "100%",
+              maxWidth: 400,
+            }}
+          >
             <View className="flex-row justify-between items-center mb-6">
-              <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 20 }}>
+              <Text
+                style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
+              >
                 Select Icon
               </Text>
               <TouchableOpacity onPress={() => setIsIconModalVisible(false)}>
@@ -1026,12 +1471,15 @@ export default function SavingsScreen() {
               {Object.keys(goalIcons).map((icon) => (
                 <TouchableOpacity
                   key={icon}
-                  style={{ 
-                    width: '25%', 
-                    padding: 16, 
-                    alignItems: 'center',
-                    backgroundColor: formData.icon === icon ? `${theme.primary}20` : 'transparent',
-                    borderRadius: 8
+                  style={{
+                    width: "25%",
+                    padding: 16,
+                    alignItems: "center",
+                    backgroundColor:
+                      formData.icon === icon
+                        ? `${theme.primary}20`
+                        : "transparent",
+                    borderRadius: 8,
                   }}
                   onPress={() => selectIcon(icon as GoalIcon)}
                 >
@@ -1044,7 +1492,13 @@ export default function SavingsScreen() {
                       color: formData.icon_color,
                     })}
                   </View>
-                  <Text style={{ color: theme.text, fontSize: 12, textTransform: 'capitalize' }}>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontSize: 12,
+                      textTransform: "capitalize",
+                    }}
+                  >
                     {icon}
                   </Text>
                 </TouchableOpacity>
@@ -1061,10 +1515,28 @@ export default function SavingsScreen() {
         transparent={true}
         onRequestClose={() => setIsColorModalVisible(false)}
       >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: 16 }}>
-          <View style={{ backgroundColor: theme.cardBackground, borderRadius: 16, padding: 24, width: '100%', maxWidth: 400 }}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            padding: 16,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderRadius: 16,
+              padding: 24,
+              width: "100%",
+              maxWidth: 400,
+            }}
+          >
             <View className="flex-row justify-between items-center mb-6">
-              <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 20 }}>
+              <Text
+                style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
+              >
                 Select Color
               </Text>
               <TouchableOpacity onPress={() => setIsColorModalVisible(false)}>
@@ -1076,12 +1548,15 @@ export default function SavingsScreen() {
               {colors.map((color) => (
                 <TouchableOpacity
                   key={color}
-                  style={{ 
-                    width: '25%', 
-                    padding: 16, 
-                    alignItems: 'center',
-                    backgroundColor: formData.icon_color === color ? `${theme.primary}20` : 'transparent',
-                    borderRadius: 8
+                  style={{
+                    width: "25%",
+                    padding: 16,
+                    alignItems: "center",
+                    backgroundColor:
+                      formData.icon_color === color
+                        ? `${theme.primary}20`
+                        : "transparent",
+                    borderRadius: 8,
                   }}
                   onPress={() => selectColor(color)}
                 >

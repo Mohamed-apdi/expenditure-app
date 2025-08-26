@@ -14,6 +14,7 @@ import { X, ChevronDown, Check, DollarSign } from "lucide-react-native";
 import { supabase } from "~/lib/supabase";
 import { updateAccount, fetchAccounts } from "~/lib/accounts";
 import { useTheme } from "~/lib/theme";
+import { useLanguage } from "~/lib/LanguageProvider";
 
 type AccountGroup = {
   id: string;
@@ -58,6 +59,7 @@ export default function EditAccount() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const theme = useTheme();
+  const { t } = useLanguage();
 
   const [formData, setFormData] = useState({
     account_type: "",
@@ -102,7 +104,7 @@ export default function EditAccount() {
       });
     } catch (error) {
       console.error("Error loading account:", error);
-      setError("Failed to load account data");
+      setError(t.failedToLoadAccount);
     } finally {
       setLoading(false);
     }
@@ -110,7 +112,7 @@ export default function EditAccount() {
 
   const handleSave = async () => {
     if (!formData.account_type || !formData.name) {
-      setError("Please fill in all required fields");
+      setError(t.pleaseFillRequiredFields);
       return;
     }
 
@@ -131,7 +133,7 @@ export default function EditAccount() {
       router.back();
     } catch (error) {
       console.error("Error updating account:", error);
-      setError("Failed to update account");
+      setError(t.failedToUpdateAccount);
     } finally {
       setSaving(false);
     }
@@ -143,7 +145,7 @@ export default function EditAccount() {
         className="flex-1 items-center justify-center"
         style={{ backgroundColor: theme.background }}
       >
-        <Text style={{ color: theme.textSecondary }}>Loading account...</Text>
+        <Text style={{ color: theme.textSecondary }}>{t.loadingAccount}</Text>
       </SafeAreaView>
     );
   }
@@ -154,7 +156,7 @@ export default function EditAccount() {
         className="flex-1 items-center justify-center"
         style={{ backgroundColor: theme.background }}
       >
-        <Text style={{ color: theme.textSecondary }}>Account not found</Text>
+        <Text style={{ color: theme.textSecondary }}>{t.accountNotFound}</Text>
       </SafeAreaView>
     );
   }
@@ -169,7 +171,7 @@ export default function EditAccount() {
         style={{ borderColor: theme.border }}
       >
         <Text className="text-xl font-bold" style={{ color: theme.text }}>
-          Edit Account
+          {t.editAccount}
         </Text>
         <TouchableOpacity onPress={() => router.back()}>
           <X size={24} color="#6b7280" />
@@ -192,7 +194,7 @@ export default function EditAccount() {
         {/* Group Input */}
         <View className="mb-5">
           <Text className="mb-2 font-medium" style={{ color: theme.text }}>
-            Group
+            {t.group}
           </Text>
           <TouchableOpacity
             className="border rounded-xl p-4 flex-row justify-between items-center"
@@ -208,7 +210,7 @@ export default function EditAccount() {
                 color: formData.account_type ? theme.text : theme.textMuted,
               }}
             >
-              {formData.account_type || "Select group"}
+              {formData.account_type || t.selectGroup}
             </Text>
             <ChevronDown size={18} color="#6b7280" />
           </TouchableOpacity>
@@ -217,7 +219,7 @@ export default function EditAccount() {
         {/* Name Input */}
         <View className="mb-5">
           <Text className="mb-2 font-medium" style={{ color: theme.text }}>
-            Name
+            {t.name}
           </Text>
           <TextInput
             className="border rounded-xl p-4"
@@ -226,7 +228,7 @@ export default function EditAccount() {
               borderColor: theme.border,
               color: theme.text,
             }}
-            placeholder="Account name"
+            placeholder={t.accountName}
             placeholderTextColor={theme.placeholder}
             value={formData.name}
             onChangeText={(text) => setFormData({ ...formData, name: text })}
@@ -236,7 +238,7 @@ export default function EditAccount() {
         {/* Amount Input */}
         <View className="mb-5">
           <Text className="mb-2 font-medium" style={{ color: theme.text }}>
-            Amount
+            {t.amount}
           </Text>
           <View
             className="flex-row items-center border rounded-xl"
@@ -277,7 +279,7 @@ export default function EditAccount() {
         {/* Description Input */}
         <View className="mb-5">
           <Text className="mb-2 font-medium" style={{ color: theme.text }}>
-            Description
+            {t.description}
           </Text>
           <TextInput
             className="border rounded-xl p-4"
@@ -286,7 +288,7 @@ export default function EditAccount() {
               borderColor: theme.border,
               color: theme.text,
             }}
-            placeholder="Optional description"
+            placeholder={t.optionalDescription}
             placeholderTextColor={theme.placeholder}
             value={formData.description}
             onChangeText={(text) =>
@@ -302,7 +304,7 @@ export default function EditAccount() {
           disabled={saving}
         >
           <Text className="text-white font-medium text-lg">
-            {saving ? "Updating..." : "Update Account"}
+            {saving ? t.updating : t.updateAccount}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -324,7 +326,7 @@ export default function EditAccount() {
               style={{ borderColor: theme.border }}
             >
               <Text className="font-bold text-lg" style={{ color: theme.text }}>
-                Select Group
+                {t.selectGroup}
               </Text>
             </View>
             <FlatList
@@ -340,7 +342,31 @@ export default function EditAccount() {
                     setShowGroupModal(false);
                   }}
                 >
-                  <Text style={{ color: theme.text }}>{item.name}</Text>
+                  <Text style={{ color: theme.text }}>
+                    {item.name === "Cash"
+                      ? t.cash
+                      : item.name === "SIM Card"
+                        ? t.simCard
+                        : item.name === "Debit Card"
+                          ? t.debitCard
+                          : item.name === "Savings"
+                            ? t.savings
+                            : item.name === "Top-Up/Prepaid"
+                              ? t.topup
+                              : item.name === "Investments"
+                                ? t.investments
+                                : item.name === "Overdrafts"
+                                  ? t.overdrafts
+                                  : item.name === "Loan"
+                                    ? t.loan
+                                    : item.name === "Insurance"
+                                      ? t.insurance
+                                      : item.name === "Card"
+                                        ? t.card
+                                        : item.name === "Others"
+                                          ? t.others
+                                          : item.name}
+                  </Text>
                   {formData.account_type === item.name && (
                     <Check size={20} color="#3b82f6" />
                   )}
