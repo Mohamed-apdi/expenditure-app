@@ -37,44 +37,7 @@ import { fetchAccounts, type Account } from "~/lib/accounts";
 import notificationService from "~/lib/notificationService";
 import ExpoGoWarning from "~/components/ExpoGoWarning";
 import { useTheme } from "~/lib/theme";
-
-// Use the exact same expense categories as BudgetScreen and AddExpense
-const expenseCategories = [
-  "Food & Drinks",
-  "Home & Rent",
-  "Travel",
-  "Bills",
-  "Fun",
-  "Health",
-  "Shopping",
-  "Learning",
-  "Personal Care",
-  "Insurance",
-  "Loans",
-  "Gifts",
-  "Donations",
-  "Vacation",
-  "Pets",
-  "Children",
-  "Subscriptions",
-  "Gym & Sports",
-  "Electronics",
-  "Furniture",
-  "Repairs",
-  "Taxes",
-];
-
-// Define service icons
-type ServiceIcon =
-  | "streaming"
-  | "fitness"
-  | "music"
-  | "software"
-  | "cloud"
-  | "education"
-  | "gaming"
-  | "subscriptions"
-  | "other";
+import { useLanguage } from "~/lib/LanguageProvider";
 
 // Mock the icons - replace with your actual assets
 const serviceIcons = {
@@ -100,25 +63,9 @@ const colors = [
   "#B0E0E6",
 ];
 
-const getDefaultIcon = (serviceName: string): ServiceIcon => {
-  const name = serviceName.toLowerCase();
-  if (
-    name.includes("netflix") ||
-    name.includes("hulu") ||
-    name.includes("disney")
-  )
-    return "streaming";
-  if (name.includes("gym") || name.includes("fitness")) return "fitness";
-  if (name.includes("spotify") || name.includes("apple music")) return "music";
-  if (name.includes("adobe") || name.includes("microsoft")) return "software";
-  if (name.includes("dropbox") || name.includes("google")) return "cloud";
-  if (name.includes("subscription") || name.includes("recurring"))
-    return "subscriptions";
-  return "other";
-};
-
 export default function SubscriptionsScreen() {
   const theme = useTheme();
+  const { t } = useLanguage();
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -148,8 +95,66 @@ export default function SubscriptionsScreen() {
     description: "",
   });
 
-  const billingCycles = ["weekly", "monthly", "yearly"];
+  const billingCycles = [
+    { key: "weekly", label: t.weekly },
+    { key: "monthly", label: t.monthly },
+    { key: "yearly", label: t.yearly },
+  ];
+  // Use the exact same expense categories as BudgetScreen and AddExpense
 
+  const expenseCategories = [
+    { key: "Food & Drinks", label: t.foodAndDrinks },
+    { key: "Home & Rent", label: t.homeAndRent },
+    { key: "Travel", label: t.travel },
+    { key: "Bills", label: t.bills },
+    { key: "Fun", label: t.fun },
+    { key: "Health", label: t.health },
+    { key: "Shopping", label: t.shopping },
+    { key: "Learning", label: t.learning },
+    { key: "Personal Care", label: t.personalCare },
+    { key: "Insurance", label: t.insurance },
+    { key: "Loans", label: t.loans },
+    { key: "Gifts", label: t.gifts },
+    { key: "Donations", label: t.donations },
+    { key: "Vacation", label: t.vacation },
+    { key: "Pets", label: t.pets },
+    { key: "Children", label: t.children },
+    { key: "Subscriptions", label: t.subscriptions },
+    { key: "Gym & Sports", label: t.gymAndSports },
+    { key: "Electronics", label: t.electronics },
+    { key: "Furniture", label: t.furniture },
+    { key: "Repairs", label: t.repairs },
+    { key: "Taxes", label: t.taxes },
+  ];
+
+  // Define service icons
+  type ServiceIcon =
+    | "streaming"
+    | "fitness"
+    | "music"
+    | "software"
+    | "cloud"
+    | "education"
+    | "gaming"
+    | "subscriptions"
+    | "other";
+  const getDefaultIcon = (serviceName: string): ServiceIcon => {
+    const name = serviceName.toLowerCase();
+    if (
+      name.includes("netflix") ||
+      name.includes("hulu") ||
+      name.includes("disney")
+    )
+      return "streaming";
+    if (name.includes("gym") || name.includes("fitness")) return "fitness";
+    if (name.includes("spotify") || name.includes("apple music"))
+      return "music";
+    if (name.includes("adobe") || name.includes("microsoft")) return "software";
+    if (name.includes("dropbox") || name.includes("google")) return "cloud";
+    if (name.includes("subscription") || name.includes("recurring"))
+      return "subscriptions";
+    return "other";
+  };
   // Fetch subscriptions and accounts from database
   const fetchData = async () => {
     try {
@@ -185,7 +190,7 @@ export default function SubscriptionsScreen() {
       }
     } catch (error) {
       console.error("Error fetching data:", error);
-      Alert.alert("Error", "Failed to fetch data");
+      Alert.alert(t.error, t.failedToFetchData);
     } finally {
       setLoading(false);
     }
@@ -256,15 +261,15 @@ export default function SubscriptionsScreen() {
       await notificationService.scheduleAllUpcomingNotifications();
     } catch (error) {
       console.error("Error toggling subscription:", error);
-      Alert.alert("Error", "Failed to toggle subscription status");
+      Alert.alert(t.error, t.subscriptionToggleError);
     }
   };
 
   const openAddModal = () => {
     if (accounts.length === 0) {
       Alert.alert(
-        "No Accounts",
-        "Please create an account first before setting up subscriptions."
+        t.noAccountsForSubscription,
+        t.createAccountFirstForSubscription
       );
       return;
     }
@@ -311,20 +316,17 @@ export default function SubscriptionsScreen() {
 
   const handleSave = async () => {
     if (!formData.name || !formData.amount) {
-      Alert.alert("Error", "Please fill in all required fields");
+      Alert.alert(t.error, t.pleaseFillSubscriptionNameAndAmount);
       return;
     }
 
     if (!selectedAccount) {
-      Alert.alert(
-        "Select Account",
-        "Please select an account for this subscription"
-      );
+      Alert.alert(t.selectAccount, t.selectAccountForSubscription);
       return;
     }
 
     if (!userId) {
-      Alert.alert("Error", "User not authenticated");
+      Alert.alert(t.error, t.userNotAuthenticatedForSubscription);
       return;
     }
 
@@ -348,10 +350,10 @@ export default function SubscriptionsScreen() {
 
       if (isEditMode && currentSubscription) {
         await updateSubscription(currentSubscription.id, subscriptionData);
-        Alert.alert("Success", "Subscription updated successfully");
+        Alert.alert(t.success, t.subscriptionUpdated);
       } else {
         await addSubscription(subscriptionData);
-        Alert.alert("Success", "Subscription added successfully");
+        Alert.alert(t.success, t.subscriptionAdded);
       }
 
       setIsModalVisible(false);
@@ -362,36 +364,32 @@ export default function SubscriptionsScreen() {
       await notificationService.scheduleAllUpcomingNotifications();
     } catch (error) {
       console.error("Error saving subscription:", error);
-      Alert.alert("Error", "Failed to save subscription");
+      Alert.alert(t.error, t.subscriptionSaveError);
     }
   };
 
   const handleDelete = async (id: string) => {
-    Alert.alert(
-      "Delete Subscription",
-      "Are you sure you want to delete this subscription?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteSubscription(id);
-              Alert.alert("Success", "Subscription deleted successfully");
-              // Refresh data to get updated subscriptions
-              fetchData();
+    Alert.alert(t.deleteSubscription, t.deleteSubscriptionConfirmation, [
+      { text: t.cancel, style: "cancel" },
+      {
+        text: t.delete,
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteSubscription(id);
+            Alert.alert(t.success, t.subscriptionDeleted);
+            // Refresh data to get updated subscriptions
+            fetchData();
 
-              // Reschedule notifications for remaining subscriptions
-              await notificationService.scheduleAllUpcomingNotifications();
-            } catch (error) {
-              console.error("Error deleting subscription:", error);
-              Alert.alert("Error", "Failed to delete subscription");
-            }
-          },
+            // Reschedule notifications for remaining subscriptions
+            await notificationService.scheduleAllUpcomingNotifications();
+          } catch (error) {
+            console.error("Error deleting subscription:", error);
+            Alert.alert(t.error, t.subscriptionDeleteError);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const formatDate = (dateString: string) => {
@@ -420,6 +418,14 @@ export default function SubscriptionsScreen() {
     setShowDatePicker(true);
   };
 
+  // Get translated category label
+  const getCategoryLabel = (categoryKey: string) => {
+    const categoryObj = expenseCategories.find(
+      (cat) => cat.key === categoryKey
+    );
+    return categoryObj ? categoryObj.label : categoryKey;
+  };
+
   // Calculate total monthly cost
   const totalMonthlyCost = subscriptions
     .filter((sub) => sub.is_active)
@@ -444,7 +450,7 @@ export default function SubscriptionsScreen() {
         }}
       >
         <Text style={{ color: theme.textSecondary }}>
-          Loading subscriptions...
+          {t.loadingSubscriptions}
         </Text>
       </SafeAreaView>
     );
@@ -468,7 +474,7 @@ export default function SubscriptionsScreen() {
           }}
         >
           <Text style={{ color: theme.text, fontSize: 24, fontWeight: "bold" }}>
-            Subscriptions
+            {t.subscriptions}
           </Text>
           <View className="flex-row gap-2">
             <TouchableOpacity
@@ -481,7 +487,9 @@ export default function SubscriptionsScreen() {
               }}
               onPress={openAddModal}
             >
-              <Text style={{ color: theme.primaryText }}>Add Subscription</Text>
+              <Text style={{ color: theme.primaryText }}>
+                {t.addSubscription}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -514,7 +522,7 @@ export default function SubscriptionsScreen() {
                     marginBottom: 4,
                   }}
                 >
-                  Total Monthly Cost
+                  {t.totalMonthlyCost}
                 </Text>
                 <Text
                   style={{
@@ -540,12 +548,12 @@ export default function SubscriptionsScreen() {
               marginBottom: 12,
             }}
           >
-            Active Subscriptions
+            {t.activeSubscriptions}
           </Text>
           {subscriptions.filter((sub) => sub.is_active).length === 0 ? (
             <View style={{ paddingVertical: 16, alignItems: "center" }}>
               <Text style={{ color: theme.textSecondary, fontSize: 18 }}>
-                No active subscriptions
+                {t.noActiveSubscriptions}
               </Text>
             </View>
           ) : (
@@ -672,12 +680,12 @@ export default function SubscriptionsScreen() {
               marginBottom: 12,
             }}
           >
-            Inactive Subscriptions
+            {t.InactiveSubscriptions}
           </Text>
           {subscriptions.filter((sub) => !sub.is_active).length === 0 ? (
             <View style={{ paddingVertical: 16, alignItems: "center" }}>
               <Text style={{ color: theme.textSecondary, fontSize: 18 }}>
-                No inactive subscriptions
+                {t.no} {t.InactiveSubscriptions}
               </Text>
             </View>
           ) : (
@@ -809,7 +817,7 @@ export default function SubscriptionsScreen() {
               <Text
                 style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
               >
-                {isEditMode ? "Edit Subscription" : "New Subscription"}
+                {isEditMode ? t.editSubscription : t.addSubscription}
               </Text>
               <View className="flex-row justify-center items-center gap-2">
                 {isEditMode && currentSubscription ? (
@@ -837,7 +845,7 @@ export default function SubscriptionsScreen() {
                       fontWeight: "500",
                     }}
                   >
-                    Icon
+                    {t.icon}
                   </Text>
                   <TouchableOpacity
                     style={{
@@ -860,7 +868,7 @@ export default function SubscriptionsScreen() {
                         className="w-6 h-6"
                       />
                     </View>
-                    <Text style={{ color: theme.text }}>Change Icon</Text>
+                    <Text style={{ color: theme.text }}>{t.selectIcon}</Text>
                   </TouchableOpacity>
                 </View>
                 <View className="flex-1">
@@ -871,7 +879,7 @@ export default function SubscriptionsScreen() {
                       fontWeight: "500",
                     }}
                   >
-                    Color
+                    {t.color}
                   </Text>
                   <TouchableOpacity
                     style={{
@@ -889,7 +897,7 @@ export default function SubscriptionsScreen() {
                       className="w-6 h-6 rounded-full mr-3"
                       style={{ backgroundColor: formData.icon_color }}
                     />
-                    <Text style={{ color: theme.text }}>Change Color</Text>
+                    <Text style={{ color: theme.text }}>{t.selectColor}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -902,7 +910,7 @@ export default function SubscriptionsScreen() {
                     fontWeight: "500",
                   }}
                 >
-                  Service Name
+                  {t.subscriptionName}
                 </Text>
                 <TextInput
                   style={{
@@ -913,7 +921,7 @@ export default function SubscriptionsScreen() {
                     backgroundColor: theme.background,
                     color: theme.text,
                   }}
-                  placeholder="e.g., Netflix, Spotify"
+                  placeholder={t.enterSubscriptionName}
                   placeholderTextColor={theme.textMuted}
                   value={formData.name}
                   onChangeText={(text) =>
@@ -930,7 +938,7 @@ export default function SubscriptionsScreen() {
                     fontWeight: "500",
                   }}
                 >
-                  Category
+                  {t.category}
                 </Text>
                 <TouchableOpacity
                   style={{
@@ -949,7 +957,9 @@ export default function SubscriptionsScreen() {
                       color: formData.category ? theme.text : theme.textMuted,
                     }}
                   >
-                    {formData.category || "Select a category"}
+                    {formData.category
+                      ? getCategoryLabel(formData.category)
+                      : t.selectCategory}
                   </Text>
                   <ChevronDown size={16} color={theme.textMuted} />
                 </TouchableOpacity>
@@ -968,25 +978,28 @@ export default function SubscriptionsScreen() {
                     <ScrollView>
                       {expenseCategories.map((category) => (
                         <TouchableOpacity
-                          key={category}
+                          key={category.key}
                           style={{
                             padding: 12,
                             borderBottomWidth: 1,
                             borderBottomColor: theme.border,
                             backgroundColor:
-                              formData.category === category
+                              formData.category === category.key
                                 ? `${theme.primary}20`
                                 : "transparent",
                           }}
                           onPress={() => {
-                            setFormData({ ...formData, category });
+                            setFormData({
+                              ...formData,
+                              category: category.key,
+                            });
                             setShowCategoryDropdown(false);
                           }}
                         >
                           <Text
                             style={{ color: theme.text, fontWeight: "500" }}
                           >
-                            {category}
+                            {category.label}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -1003,7 +1016,7 @@ export default function SubscriptionsScreen() {
                     fontWeight: "500",
                   }}
                 >
-                  Account
+                  {t.account}
                 </Text>
                 <TouchableOpacity
                   style={{
@@ -1022,9 +1035,7 @@ export default function SubscriptionsScreen() {
                       color: selectedAccount ? theme.text : theme.textMuted,
                     }}
                   >
-                    {selectedAccount
-                      ? selectedAccount.name
-                      : "Select an account"}
+                    {selectedAccount ? selectedAccount.name : t.selectAccount}
                   </Text>
                   <ChevronDown size={16} color={theme.textMuted} />
                 </TouchableOpacity>
@@ -1083,7 +1094,7 @@ export default function SubscriptionsScreen() {
                     fontWeight: "500",
                   }}
                 >
-                  Amount
+                  {t.amount}
                 </Text>
                 <View
                   style={{
@@ -1100,7 +1111,7 @@ export default function SubscriptionsScreen() {
                   </View>
                   <TextInput
                     style={{ flex: 1, padding: 16, color: theme.text }}
-                    placeholder="0.00"
+                    placeholder={t.enterAmount}
                     placeholderTextColor={theme.textMuted}
                     keyboardType="numeric"
                     value={formData.amount}
@@ -1119,25 +1130,25 @@ export default function SubscriptionsScreen() {
                     fontWeight: "500",
                   }}
                 >
-                  Billing Cycle
+                  {t.billingCycle}
                 </Text>
                 <View className="flex-row gap-2 mb-1">
                   {billingCycles.map((cycle) => (
                     <TouchableOpacity
-                      key={cycle}
+                      key={cycle.key}
                       style={{
                         paddingHorizontal: 16,
                         paddingVertical: 8,
                         borderRadius: 8,
                         backgroundColor:
-                          formData.billing_cycle === cycle
+                          formData.billing_cycle === cycle.key
                             ? theme.primary
                             : theme.background,
                       }}
                       onPress={() =>
                         setFormData({
                           ...formData,
-                          billing_cycle: cycle as
+                          billing_cycle: cycle.key as
                             | "weekly"
                             | "monthly"
                             | "yearly",
@@ -1147,14 +1158,16 @@ export default function SubscriptionsScreen() {
                       <Text
                         style={{
                           color:
-                            formData.billing_cycle === cycle
+                            formData.billing_cycle === cycle.key
                               ? theme.primaryText
                               : theme.text,
                           fontWeight:
-                            formData.billing_cycle === cycle ? "500" : "normal",
+                            formData.billing_cycle === cycle.key
+                              ? "500"
+                              : "normal",
                         }}
                       >
-                        {cycle.charAt(0).toUpperCase() + cycle.slice(1)}
+                        {cycle.label}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -1169,7 +1182,7 @@ export default function SubscriptionsScreen() {
                     fontWeight: "500",
                   }}
                 >
-                  Next Payment Date
+                  {t.nextPaymentDate}
                 </Text>
                 <TouchableOpacity
                   style={{
@@ -1199,7 +1212,7 @@ export default function SubscriptionsScreen() {
                     fontWeight: "500",
                   }}
                 >
-                  Description
+                  {t.description}
                 </Text>
                 <TextInput
                   style={{
@@ -1210,7 +1223,7 @@ export default function SubscriptionsScreen() {
                     backgroundColor: theme.background,
                     color: theme.text,
                   }}
-                  placeholder="Optional description"
+                  placeholder={t.enterDescription}
                   placeholderTextColor={theme.textMuted}
                   value={formData.description}
                   onChangeText={(text) =>
@@ -1222,7 +1235,7 @@ export default function SubscriptionsScreen() {
 
               <View className="flex-row justify-between items-center">
                 <Text style={{ color: theme.text, fontWeight: "500" }}>
-                  Active
+                  {t.active}
                 </Text>
                 <Switch
                   value={formData.is_active}
@@ -1251,7 +1264,7 @@ export default function SubscriptionsScreen() {
                     fontSize: 18,
                   }}
                 >
-                  {isEditMode ? "Update" : "Add Subscription"}
+                  {isEditMode ? t.updateSubscription : t.addSubscription}
                 </Text>
               </TouchableOpacity>
             </View>

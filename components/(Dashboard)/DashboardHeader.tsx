@@ -111,12 +111,12 @@ export default function DashboardHeader({
   const menuItems = [
     {
       icon: Settings,
-      label: "Settings",
+      label: t.settings,
       onPress: onSettingsPress,
     },
     {
       icon: LogOut,
-      label: "Sign Out",
+      label: t.signOut,
       onPress: onLogoutPress,
       isDestructive: true,
     },

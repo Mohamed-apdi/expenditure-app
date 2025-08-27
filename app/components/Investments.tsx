@@ -25,18 +25,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "~/lib/supabase";
 import { fetchAccounts, type Account } from "~/lib/accounts";
 import { useTheme } from "~/lib/theme";
-
-// Investment types
-const investmentTypes = [
-  "Stock",
-  "Crypto",
-  "Real Estate",
-  "Bonds",
-  "Mutual Funds",
-  "ETF",
-  "Commodities",
-  "Other",
-];
+import { useLanguage } from "~/lib/LanguageProvider";
 
 // Investment interface based on your Supabase table
 interface Investment {
@@ -55,6 +44,7 @@ interface Investment {
 
 const Investments = () => {
   const theme = useTheme();
+  const { t } = useLanguage();
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +65,23 @@ const Investments = () => {
   const [newInvestedAmount, setNewInvestedAmount] = useState("");
   const [newCurrentValue, setNewCurrentValue] = useState("");
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
+  // Investment types
+  const investmentTypes = [
+    { key: "Stock", label: t.stock },
+    { key: "Crypto", label: t.crypto },
+    { key: "Real Estate", label: t.realEstate },
+    { key: "Bonds", label: t.bonds },
+    { key: "Mutual Funds", label: t.mutualFunds },
+    { key: "ETF", label: t.etf },
+    { key: "Commodities", label: t.commodities },
+    { key: "Other", label: t.other },
+  ];
+
+  // Get translated investment type label
+  const getInvestmentTypeLabel = (typeKey: string) => {
+    const typeObj = investmentTypes.find((type) => type.key === typeKey);
+    return typeObj ? typeObj.label : typeKey;
+  };
 
   // Fetch investments and accounts
   const fetchData = async () => {
@@ -105,7 +112,7 @@ const Investments = () => {
       }
     } catch (error) {
       console.error("Error fetching data:", error);
-      Alert.alert("Error", "Failed to fetch data");
+      Alert.alert(t.error, t.failedToFetchData);
     } finally {
       setLoading(false);
     }
@@ -146,10 +153,7 @@ const Investments = () => {
 
   const openAddModal = () => {
     if (accounts.length === 0) {
-      Alert.alert(
-        "No Accounts",
-        "Please create an account first before adding investments."
-      );
+      Alert.alert(t.noAccountsForInvestment, t.createAccountFirstForInvestment);
       return;
     }
     setCurrentInvestment(null);
@@ -183,20 +187,17 @@ const Investments = () => {
       !newInvestedAmount.trim() ||
       !newCurrentValue.trim()
     ) {
-      Alert.alert("Missing Info", "Please fill in all fields");
+      Alert.alert(t.missingInvestmentInfo, t.pleaseFillAllInvestmentFields);
       return;
     }
 
     if (!selectedAccount) {
-      Alert.alert(
-        "Select Account",
-        "Please select an account for this investment"
-      );
+      Alert.alert(t.selectAccount, t.selectAccountForInvestment);
       return;
     }
 
     if (!userId) {
-      Alert.alert("Error", "User not authenticated");
+      Alert.alert(t.error, t.userNotAuthenticatedForInvestment);
       return;
     }
 
@@ -222,7 +223,7 @@ const Investments = () => {
         setInvestments((prev) =>
           prev.map((inv) => (inv.id === currentInvestment.id ? data : inv))
         );
-        Alert.alert("Success", "Investment updated successfully");
+        Alert.alert(t.success, t.investmentUpdated);
       } else {
         // Add new investment
         const { data, error } = await supabase
@@ -241,46 +242,42 @@ const Investments = () => {
         if (error) throw error;
 
         setInvestments((prev) => [data, ...prev]);
-        Alert.alert("Success", "Investment added successfully");
+        Alert.alert(t.success, t.investmentAdded);
       }
       setIsModalVisible(false);
       fetchData(); // Refresh to get updated data
     } catch (error) {
       console.error("Error saving investment:", error);
-      Alert.alert("Error", "Failed to save investment");
+      Alert.alert(t.error, t.investmentSaveError);
     }
   };
 
   const handleDeleteInvestment = async (investmentId: string) => {
-    Alert.alert(
-      "Delete Investment",
-      "Are you sure you want to delete this investment?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const { error } = await supabase
-                .from("investments")
-                .delete()
-                .eq("id", investmentId);
+    Alert.alert(t.deleteInvestment, t.deleteInvestmentConfirmation, [
+      { text: t.cancel, style: "cancel" },
+      {
+        text: t.delete,
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const { error } = await supabase
+              .from("investments")
+              .delete()
+              .eq("id", investmentId);
 
-              if (error) throw error;
+            if (error) throw error;
 
-              setInvestments((prev) =>
-                prev.filter((inv) => inv.id !== investmentId)
-              );
-              Alert.alert("Success", "Investment deleted successfully");
-            } catch (error) {
-              console.error("Error deleting investment:", error);
-              Alert.alert("Error", "Failed to delete investment");
-            }
-          },
+            setInvestments((prev) =>
+              prev.filter((inv) => inv.id !== investmentId)
+            );
+            Alert.alert(t.success, t.investmentDeleted);
+          } catch (error) {
+            console.error("Error deleting investment:", error);
+            Alert.alert(t.error, t.investmentDeleteError);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const getProfitLossColor = (profitLoss: number) => {
@@ -327,7 +324,7 @@ const Investments = () => {
                 marginBottom: 16,
               }}
             >
-              Investments
+              {t.investments}
             </Text>
             <TouchableOpacity
               style={{
@@ -348,7 +345,7 @@ const Investments = () => {
                   marginLeft: 8,
                 }}
               >
-                Add Investment
+                {t.addInvestment}
               </Text>
             </TouchableOpacity>
           </View>
@@ -362,7 +359,7 @@ const Investments = () => {
             <View className="flex-row justify-between mb-4">
               <View className="flex-1 items-center">
                 <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
-                  Total Invested
+                  {t.totalInvested}
                 </Text>
                 <Text
                   style={{
@@ -376,7 +373,7 @@ const Investments = () => {
               </View>
               <View className="flex-1 items-center">
                 <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
-                  Current Value
+                  {t.totalCurrentValue}
                 </Text>
                 <Text
                   style={{
@@ -390,7 +387,7 @@ const Investments = () => {
               </View>
               <View className="flex-1 items-center">
                 <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
-                  Total P&L
+                  {t.totalProfitLoss}
                 </Text>
                 <Text
                   style={{
@@ -426,25 +423,25 @@ const Investments = () => {
               <Text
                 style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
               >
-                My Investments
+                {t.myInvestments}
               </Text>
             </View>
 
             {loading ? (
               <View style={{ paddingVertical: 32, alignItems: "center" }}>
                 <Text style={{ color: theme.textSecondary }}>
-                  Loading investments...
+                  {t.loadingInvestments}
                 </Text>
               </View>
             ) : investments.length === 0 ? (
               <View style={{ paddingVertical: 32, alignItems: "center" }}>
                 <Text style={{ color: theme.textSecondary }}>
-                  No investments yet
+                  {t.noInvestmentsYet}
                 </Text>
                 <Text
                   style={{ color: theme.textMuted, fontSize: 14, marginTop: 8 }}
                 >
-                  Add your first investment to get started
+                  {t.addFirstInvestment}
                 </Text>
               </View>
             ) : (
@@ -475,7 +472,7 @@ const Investments = () => {
                         <Text
                           style={{ color: theme.textSecondary, fontSize: 14 }}
                         >
-                          {investment.type}
+                          {getInvestmentTypeLabel(investment.type)}
                         </Text>
                         {investment.account && (
                           <Text
@@ -489,7 +486,7 @@ const Investments = () => {
                           </Text>
                         )}
                       </View>
-                      <View className="flex-row space-x-2">
+                      <View className="flex-row space-x-2 gap-2">
                         <TouchableOpacity
                           onPress={() => openEditModal(investment)}
                           style={{
@@ -612,9 +609,7 @@ const Investments = () => {
                       fontSize: 18,
                     }}
                   >
-                    {currentInvestment
-                      ? "Edit Investment"
-                      : "Add New Investment"}
+                    {currentInvestment ? t.editInvestment : t.addInvestment}
                   </Text>
                   <TouchableOpacity onPress={() => setIsModalVisible(false)}>
                     <X size={24} color={theme.textMuted} />
@@ -623,7 +618,7 @@ const Investments = () => {
 
                 <View className="mb-4">
                   <Text style={{ color: theme.text, marginBottom: 4 }}>
-                    Investment Type
+                    {t.investmentType}
                   </Text>
                   <TouchableOpacity
                     style={{
@@ -640,7 +635,9 @@ const Investments = () => {
                     <Text
                       style={{ color: newType ? theme.text : theme.textMuted }}
                     >
-                      {newType || "Select investment type"}
+                      {newType
+                        ? getInvestmentTypeLabel(newType)
+                        : t.selectInvestmentType}
                     </Text>
                     <ChevronDown size={16} color={theme.textMuted} />
                   </TouchableOpacity>
@@ -659,25 +656,25 @@ const Investments = () => {
                       <ScrollView>
                         {investmentTypes.map((type) => (
                           <TouchableOpacity
-                            key={type}
+                            key={type.key}
                             style={{
                               padding: 12,
                               borderBottomWidth: 1,
                               borderBottomColor: theme.border,
                               backgroundColor:
-                                newType === type
+                                newType === type.key
                                   ? `${theme.primary}20`
                                   : "transparent",
                             }}
                             onPress={() => {
-                              setNewType(type);
+                              setNewType(type.key);
                               setShowTypeDropdown(false);
                             }}
                           >
                             <Text
                               style={{ color: theme.text, fontWeight: "500" }}
                             >
-                              {type}
+                              {type.label}
                             </Text>
                           </TouchableOpacity>
                         ))}
@@ -688,7 +685,7 @@ const Investments = () => {
 
                 <View className="mb-4">
                   <Text style={{ color: theme.text, marginBottom: 4 }}>
-                    Investment Name
+                    {t.investmentName}
                   </Text>
                   <TextInput
                     style={{
@@ -699,7 +696,7 @@ const Investments = () => {
                       color: theme.text,
                       backgroundColor: theme.background,
                     }}
-                    placeholder="e.g., Apple Inc., Bitcoin, Rental House"
+                    placeholder={t.enterInvestmentName}
                     placeholderTextColor={theme.textMuted}
                     value={newName}
                     onChangeText={setNewName}
@@ -708,7 +705,7 @@ const Investments = () => {
 
                 <View className="mb-4">
                   <Text style={{ color: theme.text, marginBottom: 4 }}>
-                    Account
+                    {t.account}
                   </Text>
                   <TouchableOpacity
                     style={{
@@ -727,9 +724,7 @@ const Investments = () => {
                         color: selectedAccount ? theme.text : theme.textMuted,
                       }}
                     >
-                      {selectedAccount
-                        ? selectedAccount.name
-                        : "Select an account"}
+                      {selectedAccount ? selectedAccount.name : t.selectAccount}
                     </Text>
                     <ChevronDown size={16} color={theme.textMuted} />
                   </TouchableOpacity>
@@ -785,7 +780,7 @@ const Investments = () => {
 
                 <View className="mb-4">
                   <Text style={{ color: theme.text, marginBottom: 4 }}>
-                    Amount Invested ($)
+                    {t.investedAmount}
                   </Text>
                   <TextInput
                     style={{
@@ -796,7 +791,7 @@ const Investments = () => {
                       color: theme.text,
                       backgroundColor: theme.background,
                     }}
-                    placeholder="Enter amount invested"
+                    placeholder={t.enterAmount}
                     placeholderTextColor={theme.textMuted}
                     keyboardType="numeric"
                     value={newInvestedAmount}
@@ -806,7 +801,7 @@ const Investments = () => {
 
                 <View className="mb-6">
                   <Text style={{ color: theme.text, marginBottom: 4 }}>
-                    Current Value ($)
+                    {t.currentValue}
                   </Text>
                   <TextInput
                     style={{
@@ -817,7 +812,7 @@ const Investments = () => {
                       color: theme.text,
                       backgroundColor: theme.background,
                     }}
-                    placeholder="Enter current value"
+                    placeholder={t.enterAmount}
                     placeholderTextColor={theme.textMuted}
                     keyboardType="numeric"
                     value={newCurrentValue}
@@ -835,7 +830,7 @@ const Investments = () => {
                   onPress={handleSaveInvestment}
                 >
                   <Text style={{ color: theme.primaryText, fontWeight: "500" }}>
-                    {currentInvestment ? "Update Investment" : "Add Investment"}
+                    {currentInvestment ? t.updateInvestment : t.addInvestment}
                   </Text>
                 </TouchableOpacity>
               </ScrollView>

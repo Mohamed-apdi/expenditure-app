@@ -3,10 +3,12 @@ import { View, TouchableOpacity, Text } from "react-native";
 import { Home, BarChart2, Wallet, Plus, Banknote } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useTheme } from "~/lib/theme";
+import { useLanguage } from "~/lib/LanguageProvider";
 
 export default function CustomTabBar({ state, descriptors, navigation }: any) {
   const router = useRouter();
   const theme = useTheme();
+  const { t } = useLanguage();
 
   return (
     <View
@@ -24,7 +26,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
         <Text
           className={`text-xs mt-0.5 ${state.index === 0 ? "text-[#3b82f6] font-medium" : "text-slate-500"}`}
         >
-          Home
+          {t.home}
         </Text>
       </TouchableOpacity>
 
@@ -40,7 +42,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
         <Text
           className={`text-xs mt-0.5 ${state.index === 1 ? "text-[#3b82f6] font-medium" : "text-slate-500"}`}
         >
-          Reports
+          {t.reports}
         </Text>
       </TouchableOpacity>
 
@@ -61,7 +63,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
         <Text
           className={`text-xs mt-0.5 ${state.index === 2 ? "text-[#3b82f6] font-medium" : "text-slate-500"}`}
         >
-          Budgets
+          {t.budgets}
         </Text>
       </TouchableOpacity>
 
@@ -74,7 +76,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
         <Text
           className={`text-xs mt-0.5 ${state.index === 3 ? "text-[#3b82f6] font-medium" : "text-slate-500"}`}
         >
-          Accounts
+          {t.accounts}
         </Text>
       </TouchableOpacity>
     </View>

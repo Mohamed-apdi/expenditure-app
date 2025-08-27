@@ -7,11 +7,24 @@ import { useAccount } from "~/lib/AccountContext";
 export function WalletDropdown() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSelecting, setIsSelecting] = useState(false);
-  const { selectedAccount, setSelectedAccount, accounts, loading, refreshAccounts } = useAccount();
+  const {
+    selectedAccount,
+    setSelectedAccount,
+    accounts,
+    loading,
+    refreshAccounts,
+  } = useAccount();
   const theme = useTheme();
 
   // Debug logging
-  console.log("WalletDropdown - loading:", loading, "accounts:", accounts.length, "selectedAccount:", selectedAccount?.name);
+  console.log(
+    "WalletDropdown - loading:",
+    loading,
+    "accounts:",
+    accounts.length,
+    "selectedAccount:",
+    selectedAccount?.name
+  );
 
   // Auto-refresh accounts when component mounts or when accounts are empty
   useEffect(() => {
@@ -27,7 +40,7 @@ export function WalletDropdown() {
     if (accounts.length === 0 && !loading) {
       console.log("WalletDropdown - Auto-refreshing accounts");
       refreshAccounts();
-      
+
       // Set up a timer to keep trying if accounts are still empty
       const timer = setTimeout(() => {
         if (accounts.length === 0 && !loading) {
@@ -35,7 +48,7 @@ export function WalletDropdown() {
           refreshAccounts();
         }
       }, 2000); // Wait 2 seconds before retrying
-      
+
       return () => clearTimeout(timer);
     }
   }, [accounts.length, loading, refreshAccounts]);
@@ -55,8 +68,6 @@ export function WalletDropdown() {
     }
   };
 
-
-
   // Show loading state while accounts are being fetched
   if (loading) {
     return (
@@ -65,8 +76,6 @@ export function WalletDropdown() {
       </View>
     );
   }
-
- 
 
   // If we have accounts but no selected account, show the first account
   const displayAccount = selectedAccount || accounts[0];
@@ -91,18 +100,17 @@ export function WalletDropdown() {
           <Text className="text-xl font-bold text-white pr-2">
             {isSelecting ? (
               <Loader size={20} color="white" className="animate-spin" />
-            ) : (displayAccount?.name || "Select Account")}
+            ) : (
+              displayAccount?.name || "Select Account"
+            )}
           </Text>
-          <ChevronDown size={16} color={theme.icon} className="ml-1" />
+          <ChevronDown size={16} color="#fff" className="ml-1" />
         </TouchableOpacity>
-        
-
       </View>
 
-      
       {/* Dropdown list */}
       {isDropdownOpen && (
-        <View className="absolute top-10 left-3 right-3 bg-white rounded-lg shadow-lg z-50 max-h-60 w-48">
+        <View className="absolute top-10 left-3 right-10 bg-white rounded-lg shadow-lg z-50 max-h-60 w-48">
           <FlatList
             data={accounts}
             keyExtractor={(item) => item.id}
@@ -125,9 +133,7 @@ export function WalletDropdown() {
                 </View>
               </TouchableOpacity>
             )}
-            ListFooterComponent={() => (
-              <View className="h-2" />
-            )}
+            ListFooterComponent={() => <View className="h-2" />}
           />
         </View>
       )}
