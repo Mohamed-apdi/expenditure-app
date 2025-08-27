@@ -27,9 +27,11 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAccount } from "~/lib/AccountContext";
 import { ChevronDown } from "lucide-react-native";
 import { useTheme } from "~/lib/theme";
+import { useLanguage } from "~/lib/LanguageProvider";
 
 const Debt_Loan = () => {
   const { refreshAccounts } = useAccount();
+  const { t } = useLanguage();
   const [loans, setLoans] = useState<PersonalLoan[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(false);
@@ -131,7 +133,7 @@ const Debt_Loan = () => {
       setAccounts(accountsData);
     } catch (error) {
       console.error("Error loading data:", error);
-      Alert.alert("Error", "Failed to load data");
+      Alert.alert(t.error, t.failedToLoadData);
     } finally {
       setLoading(false);
     }
@@ -188,10 +190,7 @@ const Debt_Loan = () => {
       !formData.principal_amount ||
       !formData.account_id
     ) {
-      Alert.alert(
-        "Error",
-        "Please fill in all required fields including account selection"
-      );
+      Alert.alert(t.error, t.pleaseFillAllLoanFields);
       return;
     }
 
@@ -203,15 +202,12 @@ const Debt_Loan = () => {
       const loanAmount = parseFloat(formData.principal_amount);
 
       if (!selectedAccount) {
-        Alert.alert("Error", "Selected account not found");
+        Alert.alert(t.error, t.selectedAccountNotFound);
         return;
       }
 
       if (selectedAccount.amount < loanAmount) {
-        Alert.alert(
-          "Insufficient Balance",
-          `You don't have enough money in this account to give this loan.\n\nAccount Balance: $${selectedAccount.amount.toFixed(2)}\nLoan Amount: $${loanAmount.toFixed(2)}\nShortfall: $${(loanAmount - selectedAccount.amount).toFixed(2)}\n\nPlease either:\n- Reduce the loan amount\n- Transfer money to this account\n- Choose a different account with sufficient balance`
-        );
+        Alert.alert(t.insufficientBalance, t.insufficientBalanceMessage);
         return;
       }
     }
@@ -239,10 +235,10 @@ const Debt_Loan = () => {
       await loadData();
       refreshAccounts();
 
-      Alert.alert("Success", "Loan created successfully");
+      Alert.alert(t.success, t.loanAdded);
     } catch (error) {
       console.error("Error creating loan:", error);
-      Alert.alert("Error", "Failed to create loan");
+      Alert.alert(t.error, t.loanSaveError);
     }
   };
 
@@ -253,10 +249,7 @@ const Debt_Loan = () => {
       !formData.principal_amount ||
       !formData.account_id
     ) {
-      Alert.alert(
-        "Error",
-        "Please fill in all required fields including account selection"
-      );
+      Alert.alert(t.error, t.pleaseFillAllLoanFields);
       return;
     }
 
@@ -268,7 +261,7 @@ const Debt_Loan = () => {
       const loanAmount = parseFloat(formData.principal_amount);
 
       if (!selectedAccount) {
-        Alert.alert("Error", "Selected account not found");
+        Alert.alert(t.error, t.selectedAccountNotFound);
         return;
       }
 
@@ -309,10 +302,10 @@ const Debt_Loan = () => {
       await loadData();
       refreshAccounts();
 
-      Alert.alert("Success", "Loan updated successfully");
+      Alert.alert(t.success, t.loanUpdated);
     } catch (error) {
       console.error("Error updating loan:", error);
-      Alert.alert("Error", "Failed to update loan");
+      Alert.alert(t.error, t.loanSaveError);
     }
   };
 
@@ -334,10 +327,10 @@ const Debt_Loan = () => {
               await loadData();
               refreshAccounts();
 
-              Alert.alert("Success", "Loan deleted successfully");
+              Alert.alert(t.success, t.loanDeleted);
             } catch (error) {
               console.error("Error deleting loan:", error);
-              Alert.alert("Error", "Failed to delete loan");
+              Alert.alert(t.error, t.loanDeleteError);
             }
           },
         },
@@ -347,13 +340,13 @@ const Debt_Loan = () => {
 
   const handleAddRepayment = async () => {
     if (!selectedLoan || !repaymentData.amount) {
-      Alert.alert("Error", "Please enter repayment amount");
+      Alert.alert(t.error, t.pleaseEnterRepaymentAmount);
       return;
     }
 
     // Check if loan is already fully repaid
     if (selectedLoan.remaining_amount <= 0) {
-      Alert.alert("Error", "This loan is already fully repaid");
+      Alert.alert(t.error, t.loanAlreadyFullyRepaid);
       return;
     }
 
@@ -384,10 +377,10 @@ const Debt_Loan = () => {
       // Refresh data to get updated remaining amount and account balances
       await loadData();
       refreshAccounts();
-      Alert.alert("Success", "Repayment added successfully");
+      Alert.alert(t.success, t.repaymentAdded);
     } catch (error: any) {
       console.error("Error adding repayment:", error);
-      Alert.alert("Error", error.message || "Failed to add repayment");
+      Alert.alert(t.error, error.message || t.repaymentSaveError);
     }
   };
 
@@ -400,7 +393,7 @@ const Debt_Loan = () => {
       setShowRepaymentModal(true);
     } catch (error) {
       console.error("Error loading repayments:", error);
-      Alert.alert("Error", "Failed to load repayments");
+      Alert.alert(t.error, t.failedToLoadRepayments);
     }
   };
 
@@ -509,7 +502,7 @@ const Debt_Loan = () => {
       >
         <View className="flex-1 justify-center items-center">
           <Text className="text-lg" style={{ color: theme.textSecondary }}>
-            Loading loans...
+            {t.loadingLoans}
           </Text>
         </View>
       </SafeAreaView>
@@ -534,22 +527,19 @@ const Debt_Loan = () => {
               className="font-bold text-xl mb-4"
               style={{ color: theme.text }}
             >
-              Loans & Debt
+              {t.debtLoan}
             </Text>
             <TouchableOpacity
               className="bg-blue-500 rounded-lg py-3 px-4 items-center flex-row"
               onPress={() => {
                 if (accounts.length === 0) {
-                  Alert.alert(
-                    "No Accounts",
-                    "Please create an account first before adding loans. You can create accounts in the Accounts section."
-                  );
+                  Alert.alert(t.noAccountsForLoan, t.createAccountFirstForLoan);
                   return;
                 }
                 setShowAddModal(true);
               }}
             >
-              <Text className="text-white font-medium">Add Loan</Text>
+              <Text className="text-white font-medium">{t.addLoan}</Text>
             </TouchableOpacity>
           </View>
 
@@ -564,7 +554,7 @@ const Debt_Loan = () => {
                   className="text-sm"
                   style={{ color: theme.textSecondary }}
                 >
-                  Total Loans Given
+                  {t.totalLoans}
                 </Text>
                 <Text className="font-bold text-lg text-blue-600">
                   {formatCurrencyText(
@@ -579,7 +569,7 @@ const Debt_Loan = () => {
                   className="text-sm"
                   style={{ color: theme.textSecondary }}
                 >
-                  Total Debt
+                  {t.totalDebts}
                 </Text>
                 <Text className="font-bold text-lg text-red-600">
                   {formatCurrencyText(
@@ -594,15 +584,15 @@ const Debt_Loan = () => {
                   className="text-sm"
                   style={{ color: theme.textSecondary }}
                 >
-                  Available Accounts
+                  {t.availableAccounts}
                 </Text>
                 <Text className="font-bold text-lg text-green-600">
                   {accounts.length}
                 </Text>
                 <Text className="text-xs" style={{ color: theme.textMuted }}>
                   {accounts.length === 0
-                    ? "Create accounts first"
-                    : "Ready for loans"}
+                    ? t.createAccountsFirst
+                    : t.readyForLoans}
                 </Text>
               </View>
             </View>
@@ -617,7 +607,7 @@ const Debt_Loan = () => {
                   className="text-sm font-medium mb-2 text-center"
                   style={{ color: theme.textSecondary }}
                 >
-                  Account Balance Impact
+                  {t.accountBalanceImpact}
                 </Text>
                 <View className="flex-row justify-between">
                   <View className="flex-1 items-center">
@@ -625,7 +615,7 @@ const Debt_Loan = () => {
                       className="text-xs"
                       style={{ color: theme.textSecondary }}
                     >
-                      Money In Accounts
+                      {t.moneyInAccounts}
                     </Text>
                     <Text className="font-bold text-sm text-green-600">
                       {formatCurrencyText(
@@ -641,7 +631,7 @@ const Debt_Loan = () => {
                       className="text-xs"
                       style={{ color: theme.textSecondary }}
                     >
-                      Net Loan Impact
+                      {t.netLoanImpact}
                     </Text>
                     <Text
                       className={`font-bold text-sm ${
@@ -679,18 +669,20 @@ const Debt_Loan = () => {
           >
             <View className="flex-row justify-between items-center">
               <Text className="font-bold text-xl" style={{ color: theme.text }}>
-                My Loans
+                {t.myLoans}
               </Text>
             </View>
 
             {loans.length === 0 ? (
               <View className="py-8 items-center">
-                <Text style={{ color: theme.textSecondary }}>No loans yet</Text>
+                <Text style={{ color: theme.textSecondary }}>
+                  {t.noLoansYet}
+                </Text>
                 <Text
                   className="text-sm mt-2"
                   style={{ color: theme.textMuted }}
                 >
-                  Add your first loan to get started
+                  {t.addFirstLoan}
                 </Text>
               </View>
             ) : (
@@ -718,16 +710,17 @@ const Debt_Loan = () => {
                             style={{ color: getTypeColor(loan.type) }}
                           >
                             {loan.type === "loan_given"
-                              ? "Loan Given"
-                              : "Loan Taken"}
+                              ? t.loanGiven
+                              : t.loanTaken}
                           </Text>
                           <Text style={{ color: theme.textMuted }}>•</Text>
                           <Text
                             className="text-sm font-medium"
                             style={{ color: getStatusColor(loan.status) }}
                           >
-                            {loan.status.charAt(0).toUpperCase() +
-                              loan.status.slice(1)}
+                            {t[loan.status] ||
+                              loan.status.charAt(0).toUpperCase() +
+                                loan.status.slice(1)}
                           </Text>
                         </View>
                         {loan.account_id && (
@@ -761,7 +754,7 @@ const Debt_Loan = () => {
                           className="p-2 bg-blue-100 rounded-lg"
                         >
                           <Text className="text-blue-600 font-medium text-xs">
-                            Repayments
+                            {t.repayments}
                           </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -769,7 +762,7 @@ const Debt_Loan = () => {
                           className="p-2 bg-blue-100 rounded-lg"
                         >
                           <Text className="text-blue-600 font-medium text-xs">
-                            Edit
+                            {t.Edit}
                           </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
@@ -777,7 +770,7 @@ const Debt_Loan = () => {
                           className="p-2 bg-red-100 rounded-lg"
                         >
                           <Text className="text-red-600 font-medium text-xs">
-                            Delete
+                            {t.delete}
                           </Text>
                         </TouchableOpacity>
                       </View>
@@ -790,7 +783,7 @@ const Debt_Loan = () => {
                             className="text-sm"
                             style={{ color: theme.textSecondary }}
                           >
-                            Principal
+                            {t.Principal}
                           </Text>
                           <Text
                             className="font-medium"
@@ -804,7 +797,7 @@ const Debt_Loan = () => {
                             className="text-sm"
                             style={{ color: theme.textSecondary }}
                           >
-                            Remaining
+                            {t.remaining}
                           </Text>
                           <Text
                             className="font-medium"
@@ -819,7 +812,7 @@ const Debt_Loan = () => {
                               className="text-sm"
                               style={{ color: theme.textSecondary }}
                             >
-                              Interest
+                              {t.interest}
                             </Text>
                             <Text
                               className="font-medium"
@@ -835,7 +828,7 @@ const Debt_Loan = () => {
                               className="text-sm"
                               style={{ color: theme.textSecondary }}
                             >
-                              Due Date
+                              {t.dueDate}
                             </Text>
                             <Text
                               className="font-medium"
@@ -847,7 +840,7 @@ const Debt_Loan = () => {
                         )}
                       </View>
 
-                      <View className="items-end">
+                      <View className="items-end ml-2">
                         <View className="flex-row items-center mb-1">
                           <Text
                             className="font-bold text-lg ml-1"
@@ -867,7 +860,7 @@ const Debt_Loan = () => {
                                 100
                               ).toFixed(1)
                             : "0.0"}
-                          % remaining
+                          % {t.remaining}
                         </Text>
                       </View>
                     </View>
@@ -896,7 +889,7 @@ const Debt_Loan = () => {
                     className="font-bold text-lg"
                     style={{ color: theme.text }}
                   >
-                    Add New Loan
+                    {t.addLoan}
                   </Text>
                   <TouchableOpacity onPress={() => setShowAddModal(false)}>
                     <Text
@@ -910,7 +903,7 @@ const Debt_Loan = () => {
 
                 <View className="mb-4">
                   <Text className="mb-1" style={{ color: theme.text }}>
-                    Loan Type
+                    {t.loanType}
                   </Text>
                   <View className="flex-row space-x-2">
                     <TouchableOpacity
@@ -932,7 +925,7 @@ const Debt_Loan = () => {
                               : theme.textSecondary,
                         }}
                       >
-                        Loan Taken (Debt)
+                        {t.loanTaken}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -954,7 +947,7 @@ const Debt_Loan = () => {
                               : theme.textSecondary,
                         }}
                       >
-                        Loan Given
+                        {t.loanGiven}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -962,7 +955,7 @@ const Debt_Loan = () => {
 
                 <View className="mb-4">
                   <Text className="mb-1" style={{ color: theme.text }}>
-                    Party Name *
+                    {t.partyName} *
                   </Text>
                   <TextInput
                     className="border rounded-lg p-3"
@@ -971,7 +964,7 @@ const Debt_Loan = () => {
                       borderColor: theme.border,
                       color: theme.text,
                     }}
-                    placeholder="Person or institution name"
+                    placeholder={t.enterPartyName}
                     placeholderTextColor={theme.placeholder}
                     value={formData.party_name}
                     onChangeText={(text) =>
@@ -982,7 +975,7 @@ const Debt_Loan = () => {
 
                 <View className="mb-4">
                   <Text className="mb-1" style={{ color: theme.text }}>
-                    Principal Amount ($) *
+                    {t.principalAmount} *
                   </Text>
                   <TextInput
                     className="border rounded-lg p-3"
@@ -991,7 +984,7 @@ const Debt_Loan = () => {
                       borderColor: theme.border,
                       color: theme.text,
                     }}
-                    placeholder="0.00"
+                    placeholder={t.enterAmount}
                     placeholderTextColor={theme.placeholder}
                     value={formData.principal_amount}
                     onChangeText={(text) =>
@@ -1005,27 +998,23 @@ const Debt_Loan = () => {
                     ? checkInsufficientBalanceForEdit() && (
                         <View className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
                           <Text className="text-red-800 font-medium text-sm">
-                            Insufficient Balance for Edit
+                            {t.insufficientBalanceForEdit}:
                           </Text>
                           <Text className="text-red-600 text-sm mt-1">
-                            Effective Balance:{" "}
+                            {t.effectiveBalance}:{" "}
                             {formatCurrencyText(
                               (getSelectedAccount()?.amount || 0) +
                                 (selectedLoan?.principal_amount || 0)
                             )}
                           </Text>
-                          <Text className="text-gray-500 text-xs">
-                            (Current balance + current loan amount being
-                            refunded)
-                          </Text>
                           <Text className="text-red-600 text-sm">
-                            New Loan Amount:{" "}
+                            {t.newLoanAmount}:{" "}
                             {formatCurrencyText(
                               parseFloat(formData.principal_amount) || 0
                             )}
                           </Text>
                           <Text className="text-red-600 text-sm">
-                            Shortfall:{" "}
+                            {t.shortfall}:{" "}
                             {formatCurrencyText(
                               (parseFloat(formData.principal_amount) || 0) -
                                 (getSelectedAccount()?.amount || 0)
@@ -1036,22 +1025,22 @@ const Debt_Loan = () => {
                     : checkInsufficientBalance() && (
                         <View className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
                           <Text className="text-red-800 font-medium text-sm">
-                            Insufficient Balance
+                            {t.insufficientBalance}
                           </Text>
                           <Text className="text-red-600 text-sm mt-1">
-                            Account Balance:{" "}
+                            {Text.AccountBalance}:{" "}
                             {formatCurrencyText(
                               getSelectedAccount()?.amount || 0
                             )}
                           </Text>
                           <Text className="text-red-600 text-sm">
-                            Loan Amount:{" "}
+                            {t.LoanAmount}:{" "}
                             {formatCurrencyText(
                               parseFloat(formData.principal_amount) || 0
                             )}
                           </Text>
                           <Text className="text-red-600 text-sm">
-                            Shortfall:{" "}
+                            {t.shortfall}:{" "}
                             {formatCurrencyText(
                               (parseFloat(formData.principal_amount) || 0) -
                                 (getSelectedAccount()?.amount || 0)
@@ -1063,7 +1052,7 @@ const Debt_Loan = () => {
 
                 <View className="mb-4">
                   <Text className="mb-1" style={{ color: theme.text }}>
-                    Interest Rate (%)
+                    {t.interestRate} (%)
                   </Text>
                   <TextInput
                     className="border rounded-lg p-3"
@@ -1072,7 +1061,7 @@ const Debt_Loan = () => {
                       borderColor: theme.border,
                       color: theme.text,
                     }}
-                    placeholder="0.00"
+                    placeholder={t.enterInterestRate}
                     placeholderTextColor={theme.placeholder}
                     value={formData.interest_rate}
                     onChangeText={(text) =>
@@ -1084,7 +1073,7 @@ const Debt_Loan = () => {
 
                 <View className="mb-4">
                   <Text className="mb-1" style={{ color: theme.text }}>
-                    Due Date
+                    {t.dueDate}
                   </Text>
                   <TouchableOpacity
                     className="border rounded-lg p-3"
@@ -1112,7 +1101,7 @@ const Debt_Loan = () => {
 
                 <View className="mb-6">
                   <Text className="mb-1" style={{ color: theme.text }}>
-                    Account *
+                    {t.account} *
                   </Text>
                   <TouchableOpacity
                     className={`border rounded-lg p-3 flex-row justify-between items-center ${
@@ -1146,7 +1135,7 @@ const Debt_Loan = () => {
                       {formData.account_id
                         ? accounts.find((acc) => acc.id === formData.account_id)
                             ?.name
-                        : "Select an account *"}
+                        : `${t.selectAccount} *`}
                     </Text>
                     <Text style={{ color: theme.textMuted }}>V</Text>
                   </TouchableOpacity>
@@ -1156,7 +1145,7 @@ const Debt_Loan = () => {
                       className="text-sm mt-1"
                       style={{ color: theme.textSecondary }}
                     >
-                      Account selection is required
+                      {t.selectAccount} {t.isRequired}
                     </Text>
                   )}
 
@@ -1220,8 +1209,8 @@ const Debt_Loan = () => {
                     }`}
                   >
                     {checkInsufficientBalance()
-                      ? "Insufficient Balance"
-                      : "Create Loan"}
+                      ? t.insufficientBalance
+                      : t.addLoan}
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
@@ -1247,7 +1236,7 @@ const Debt_Loan = () => {
                     className="font-bold text-lg"
                     style={{ color: theme.text }}
                   >
-                    Edit Loan
+                    {t.editLoan}
                   </Text>
                   <TouchableOpacity onPress={() => setShowEditModal(false)}>
                     <Text
@@ -1261,7 +1250,7 @@ const Debt_Loan = () => {
 
                 <View className="mb-4">
                   <Text className="mb-1" style={{ color: theme.text }}>
-                    Loan Type
+                    {t.loanType}
                   </Text>
                   <View className="flex-row space-x-2">
                     <TouchableOpacity
@@ -1283,7 +1272,7 @@ const Debt_Loan = () => {
                               : theme.textSecondary,
                         }}
                       >
-                        Loan Taken (Debt)
+                        {t.loanTaken}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -1305,7 +1294,7 @@ const Debt_Loan = () => {
                               : theme.textSecondary,
                         }}
                       >
-                        Loan Given
+                        {t.loanGiven}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -1313,7 +1302,7 @@ const Debt_Loan = () => {
 
                 <View className="mb-4">
                   <Text className="mb-1" style={{ color: theme.text }}>
-                    Party Name *
+                    {t.partyName} *
                   </Text>
                   <TextInput
                     className="border rounded-lg p-3"
@@ -1322,7 +1311,7 @@ const Debt_Loan = () => {
                       borderColor: theme.border,
                       color: theme.text,
                     }}
-                    placeholder="Person or institution name"
+                    placeholder={t.enterPartyName}
                     placeholderTextColor={theme.placeholder}
                     value={formData.party_name}
                     onChangeText={(text) =>
@@ -1415,7 +1404,7 @@ const Debt_Loan = () => {
 
                 <View className="mb-4">
                   <Text className="mb-1" style={{ color: theme.text }}>
-                    Interest Rate (%)
+                    {t.interestRate} (%)
                   </Text>
                   <TextInput
                     className="border rounded-lg p-3"
@@ -1436,7 +1425,7 @@ const Debt_Loan = () => {
 
                 <View className="mb-4">
                   <Text className="mb-1" style={{ color: theme.text }}>
-                    Due Date
+                    {t.dueDate}
                   </Text>
                   <TouchableOpacity
                     className="border rounded-lg p-3"
@@ -1464,7 +1453,7 @@ const Debt_Loan = () => {
 
                 <View className="mb-6">
                   <Text className="mb-1" style={{ color: theme.text }}>
-                    Account
+                    {t.account}
                   </Text>
                   <TouchableOpacity
                     className={`border rounded-lg p-3 flex-row justify-between items-center ${
@@ -1574,8 +1563,8 @@ const Debt_Loan = () => {
                     }`}
                   >
                     {checkInsufficientBalanceForEdit()
-                      ? "Insufficient Balance"
-                      : "Update Loan"}
+                      ? t.insufficientBalance
+                      : t.updateLoan}
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
@@ -1600,7 +1589,7 @@ const Debt_Loan = () => {
                   className="font-bold text-lg"
                   style={{ color: theme.text }}
                 >
-                  Repayments - {selectedLoan?.party_name}
+                  {t.repayments} - {selectedLoan?.party_name}
                 </Text>
                 <TouchableOpacity onPress={() => setShowRepaymentModal(false)}>
                   <Text
@@ -1622,7 +1611,7 @@ const Debt_Loan = () => {
                     className="font-bold text-lg mb-4"
                     style={{ color: theme.text }}
                   >
-                    Add Repayment
+                    {t.addRepayment}
                   </Text>
 
                   {/* Show remaining amount and status */}
@@ -1638,7 +1627,7 @@ const Debt_Loan = () => {
                         className="text-gray-600"
                         style={{ color: theme.textSecondary }}
                       >
-                        Remaining Amount:
+                        {t.remainingAmount}:
                       </Text>
                       <Text className="font-bold text-lg">
                         {formatCurrencyText(
@@ -1651,7 +1640,7 @@ const Debt_Loan = () => {
                         className="text-gray-600"
                         style={{ color: theme.textSecondary }}
                       >
-                        Status:
+                        {t.status}:
                       </Text>
                       <Text
                         className="font-medium"
@@ -1661,8 +1650,13 @@ const Debt_Loan = () => {
                           ),
                         }}
                       >
-                        {selectedLoan?.status?.charAt(0).toUpperCase() +
-                          selectedLoan?.status?.slice(1) || "Active"}
+                        {selectedLoan?.status === "active"
+                          ? t.active
+                          : selectedLoan?.status === "partial"
+                            ? t.partial
+                            : selectedLoan?.status === "settled"
+                              ? t.settled
+                              : t.active}
                       </Text>
                     </View>
                   </View>
@@ -1670,14 +1664,14 @@ const Debt_Loan = () => {
                   {selectedLoan && selectedLoan.remaining_amount <= 0 ? (
                     <View className="p-3 bg-green-50 border border-green-200 rounded-lg">
                       <Text className="text-green-800 text-center font-medium">
-                        This loan is fully repaid!
+                        {t.loanAlreadyFullyRepaid}
                       </Text>
                     </View>
                   ) : (
                     <View className="space-y-4">
                       <View>
                         <Text className="mb-1" style={{ color: theme.text }}>
-                          Amount ($)
+                          {t.repaymentAmount} ($)
                         </Text>
                         <TextInput
                           className="border rounded-lg p-3"
@@ -1707,7 +1701,7 @@ const Debt_Loan = () => {
                       </View>
                       <View>
                         <Text className="mb-1" style={{ color: theme.text }}>
-                          Payment Date
+                          {t.paymentDate}
                         </Text>
                         <TouchableOpacity
                           className="border rounded-lg p-3"
@@ -1718,7 +1712,7 @@ const Debt_Loan = () => {
                           onPress={showRepaymentDatepicker}
                         >
                           <Text style={{ color: theme.text }}>
-                            {repaymentData.payment_date || "Select date"}
+                            {repaymentData.payment_date || t.selectPaymentDate}
                           </Text>
                         </TouchableOpacity>
                         {showRepaymentDatePicker && (
@@ -1757,7 +1751,7 @@ const Debt_Loan = () => {
                               : "text-white"
                           }`}
                         >
-                          Add Repayment
+                          {t.addRepayment}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -1773,7 +1767,7 @@ const Debt_Loan = () => {
                     className="font-bold text-lg mb-4"
                     style={{ color: theme.text }}
                   >
-                    Payment History
+                    {t.paymentHistory}
                   </Text>
 
                   {/* Summary of repayments */}
@@ -1790,7 +1784,7 @@ const Debt_Loan = () => {
                           className="text-gray-600"
                           style={{ color: theme.textSecondary }}
                         >
-                          Total Repaid:
+                          {t.totalRepaid}:
                         </Text>
                         <Text className="font-bold text-lg text-green-600">
                           {formatCurrencyText(
@@ -1804,7 +1798,7 @@ const Debt_Loan = () => {
                           className="text-gray-600"
                           style={{ color: theme.textSecondary }}
                         >
-                          Principal Amount:
+                          {t.principalAmount}:
                         </Text>
                         <Text
                           className="font-medium"
@@ -1818,7 +1812,7 @@ const Debt_Loan = () => {
                           className="text-gray-600"
                           style={{ color: theme.textSecondary }}
                         >
-                          Remaining Balance:
+                          {t.remainingAmount}:
                         </Text>
                         <Text
                           className={`font-bold ${
@@ -1838,7 +1832,7 @@ const Debt_Loan = () => {
                       className="text-center py-4"
                       style={{ color: theme.textSecondary }}
                     >
-                      No repayments yet
+                      {t.noRepaymentsYet}
                     </Text>
                   ) : (
                     repayments.map((repayment) => (

@@ -22,6 +22,14 @@ import {
   Target,
   TrendingUp,
   PiggyBank,
+  Home,
+  Car,
+  Plane,
+  GraduationCap,
+  Heart,
+  Briefcase,
+  Shield,
+  User,
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -40,6 +48,7 @@ import {
 } from "~/lib/goals";
 import { fetchAccounts, type Account } from "~/lib/accounts";
 import { useTheme } from "~/lib/theme";
+import { useLanguage } from "~/lib/LanguageProvider";
 
 // Define goal icons
 type GoalIcon =
@@ -56,14 +65,19 @@ type GoalIcon =
 // Use Lucide icons instead of image assets
 const goalIcons = {
   goal: Target,
-  house: TrendingUp,
-  car: TrendingUp,
-  vacation: TrendingUp,
-  education: TrendingUp,
-  wedding: TrendingUp,
-  business: TrendingUp,
-  emergency: TrendingUp,
-  other: TrendingUp,
+  house: Home,
+  car: Car,
+  vacation: Plane,
+  education: GraduationCap,
+  wedding: Heart,
+  business: Briefcase,
+  emergency: Shield,
+  other: User,
+};
+
+// Helper function to get icon with fallback
+const getGoalIcon = (iconType: string) => {
+  return goalIcons[iconType as GoalIcon] || goalIcons.other;
 };
 
 const colors = [
@@ -77,20 +91,9 @@ const colors = [
   "#ec4899",
 ];
 
-const goalCategories = [
-  "House",
-  "Car",
-  "Vacation",
-  "Education",
-  "Wedding",
-  "Business",
-  "Emergency Fund",
-  "Retirement",
-  "Other",
-];
-
 export default function SavingsScreen() {
   const theme = useTheme();
+  const { t } = useLanguage();
   const [goals, setGoals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -121,6 +124,17 @@ export default function SavingsScreen() {
     icon_color: colors[0],
     description: "",
   });
+  const goalCategories = [
+    { key: "House", label: t.house },
+    { key: "Car", label: t.car },
+    { key: "Vacation", label: t.vacation },
+    { key: "Education", label: t.education },
+    { key: "Wedding", label: t.wedding },
+    { key: "Business", label: t.business },
+    { key: "Emergency Fund", label: t.emergencyFund },
+    { key: "Retirement", label: t.retirement },
+    { key: "Other", label: t.other },
+  ];
 
   // Amount modal state
   const [amountModalData, setAmountModalData] = useState({
@@ -165,7 +179,7 @@ export default function SavingsScreen() {
       }
     } catch (error) {
       console.error("Error fetching data:", error);
-      Alert.alert("Error", "Failed to fetch data");
+      Alert.alert(t.error, t.failedToFetchData);
     } finally {
       setLoading(false);
     }
@@ -189,16 +203,13 @@ export default function SavingsScreen() {
       fetchData();
     } catch (error) {
       console.error("Error toggling goal status:", error);
-      Alert.alert("Error", "Failed to toggle goal status");
+      Alert.alert(t.error, t.goalToggleError);
     }
   };
 
   const openAddModal = () => {
     if (accounts.length === 0) {
-      Alert.alert(
-        "No Accounts",
-        "Please create an account first before setting up savings goals."
-      );
+      Alert.alert(t.noAccountsForGoal, t.createAccountFirstForGoal);
       return;
     }
     setCurrentGoal(null);
@@ -261,17 +272,17 @@ export default function SavingsScreen() {
       !formData.target_date ||
       !formData.category
     ) {
-      Alert.alert("Error", "Please fill in all required fields");
+      Alert.alert(t.error, t.pleaseFillGoalNameAndTargetAmount);
       return;
     }
 
     if (!selectedAccount) {
-      Alert.alert("Select Account", "Please select an account for this goal");
+      Alert.alert(t.selectAccount, t.selectAccountForGoal);
       return;
     }
 
     if (!userId) {
-      Alert.alert("Error", "User not authenticated");
+      Alert.alert(t.error, t.userNotAuthenticatedForGoal);
       return;
     }
 
@@ -295,10 +306,10 @@ export default function SavingsScreen() {
 
       if (isEditMode && currentGoal) {
         await updateGoal(currentGoal.id, goalData);
-        Alert.alert("Success", "Goal updated successfully");
+        Alert.alert(t.success, t.goalUpdated);
       } else {
         await addGoal(goalData);
-        Alert.alert("Success", "Goal added successfully");
+        Alert.alert(t.success, t.goalAdded);
       }
 
       setIsModalVisible(false);
@@ -306,13 +317,13 @@ export default function SavingsScreen() {
       fetchData();
     } catch (error) {
       console.error("Error saving goal:", error);
-      Alert.alert("Error", "Failed to save goal");
+      Alert.alert(t.error, t.goalSaveError);
     }
   };
 
   const handleAddAmount = async () => {
     if (!amountModalData.amount || parseFloat(amountModalData.amount) <= 0) {
-      Alert.alert("Error", "Please enter a valid amount");
+      Alert.alert(t.error, t.enterAmount);
       return;
     }
 
@@ -321,16 +332,10 @@ export default function SavingsScreen() {
 
       if (amountModalData.type === "add") {
         await addAmountToGoal(currentGoal.id, amount);
-        Alert.alert(
-          "Success",
-          `$${amount.toFixed(2)} added to goal successfully`
-        );
+        Alert.alert(t.success, t.amountAdded);
       } else {
         await withdrawAmountFromGoal(currentGoal.id, amount);
-        Alert.alert(
-          "Success",
-          `$${amount.toFixed(2)} withdrawn from goal successfully`
-        );
+        Alert.alert(t.success, t.amountWithdrawn);
       }
 
       setIsAddAmountModalVisible(false);
@@ -339,25 +344,25 @@ export default function SavingsScreen() {
       fetchData();
     } catch (error) {
       console.error("Error updating goal amount:", error);
-      Alert.alert("Error", "Failed to update goal amount");
+      Alert.alert(t.error, t.amountSaveError);
     }
   };
 
   const handleDelete = async (id: string) => {
-    Alert.alert("Delete Goal", "Are you sure you want to delete this goal?", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(t.deleteGoal, t.deleteGoalConfirmation, [
+      { text: t.cancel, style: "cancel" },
       {
-        text: "Delete",
+        text: t.delete,
         style: "destructive",
         onPress: async () => {
           try {
             await deleteGoal(id);
-            Alert.alert("Success", "Goal deleted successfully");
+            Alert.alert(t.success, t.goalDeleted);
             // Refresh data to get updated goals
             fetchData();
           } catch (error) {
             console.error("Error deleting goal:", error);
-            Alert.alert("Error", "Failed to delete goal");
+            Alert.alert(t.error, t.goalDeleteError);
           }
         },
       },
@@ -394,6 +399,12 @@ export default function SavingsScreen() {
     return Math.min((current / target) * 100, 100);
   };
 
+  // Get translated goal category label
+  const getGoalCategoryLabel = (categoryKey: string) => {
+    const categoryObj = goalCategories.find((cat) => cat.key === categoryKey);
+    return categoryObj ? categoryObj.label : categoryKey;
+  };
+
   const getProgressColor = (progress: number) => {
     if (progress >= 100) return theme.success; // Green when completed
     if (progress >= 75) return theme.primary; // Blue when close
@@ -425,7 +436,7 @@ export default function SavingsScreen() {
               fontWeight: "500",
             }}
           >
-            Total Savings
+            {t.totalSavings}
           </Text>
           <Text
             style={{
@@ -437,7 +448,10 @@ export default function SavingsScreen() {
             ${totalSavings.toFixed(2)}
           </Text>
           <Text style={{ color: `${theme.primaryText}80`, fontSize: 14 }}>
-            Across {goals.filter((g) => g.is_active).length} active goals
+            {t.acrossActiveGoals.replace(
+              "{count}",
+              goals.filter((g) => g.is_active).length.toString()
+            )}
           </Text>
         </View>
 
@@ -447,7 +461,7 @@ export default function SavingsScreen() {
             <Text
               style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
             >
-              Active Goals
+              {t.activeGoals}
             </Text>
             <TouchableOpacity
               style={{
@@ -459,25 +473,25 @@ export default function SavingsScreen() {
               }}
               onPress={openAddModal}
             >
-              <Text style={{ color: theme.primaryText }}>Add Goal</Text>
+              <Text style={{ color: theme.primaryText }}>{t.addGoal}</Text>
             </TouchableOpacity>
           </View>
 
           {loading ? (
             <View style={{ paddingVertical: 32, alignItems: "center" }}>
               <Text style={{ color: theme.textSecondary, fontSize: 18 }}>
-                Loading goals...
+                {t.loadingGoals}
               </Text>
             </View>
           ) : goals.filter((goal) => goal.is_active).length === 0 ? (
             <View style={{ paddingVertical: 32, alignItems: "center" }}>
               <Text style={{ color: theme.textSecondary, fontSize: 18 }}>
-                No active savings goals
+                {t.noActiveSavingsGoals}
               </Text>
               <Text
                 style={{ color: theme.textMuted, fontSize: 14, marginTop: 8 }}
               >
-                Create your first goal to start saving!
+                {t.createFirstGoal}
               </Text>
             </View>
           ) : (
@@ -515,13 +529,17 @@ export default function SavingsScreen() {
                     <View className="flex-row justify-between items-start mb-3">
                       <View className="flex-row items-center flex-1">
                         <View
-                          className="p-2 rounded-full mr-3"
-                          style={{ backgroundColor: goal.icon_color }}
+                          className="rounded-full mr-3 p-2"
+                          style={{
+                            backgroundColor: goal.icon_color,
+                            borderWidth: 2,
+                            borderColor: goal.icon_color,
+                          }}
                         >
-                          {React.createElement(
-                            goalIcons[goal.icon] || goalIcons.other,
-                            { size: 24, color: goal.icon_color }
-                          )}
+                          {React.createElement(getGoalIcon(goal.icon), {
+                            size: 18,
+                            color: "white",
+                          })}
                         </View>
                         <View className="flex-1">
                           <Text
@@ -536,7 +554,7 @@ export default function SavingsScreen() {
                           <Text
                             style={{ color: theme.textSecondary, fontSize: 14 }}
                           >
-                            {goal.category}
+                            {getGoalCategoryLabel(goal.category)}
                           </Text>
                         </View>
                       </View>
@@ -599,7 +617,7 @@ export default function SavingsScreen() {
                             marginLeft: 8,
                           }}
                         >
-                          Target: {formatDate(goal.target_date)}
+                          {t.target}: {formatDate(goal.target_date)}
                         </Text>
                       </View>
                       <View className="flex-row items-center">
@@ -611,7 +629,9 @@ export default function SavingsScreen() {
                             marginLeft: 8,
                           }}
                         >
-                          {daysLeft > 0 ? `${daysLeft} days left` : "Overdue"}
+                          {daysLeft > 0
+                            ? `${daysLeft} ${t.daysLeft}`
+                            : "Overdue"}
                         </Text>
                       </View>
                     </View>
@@ -624,12 +644,12 @@ export default function SavingsScreen() {
                           marginBottom: 12,
                         }}
                       >
-                        Account: {goal.account.name}
+                        {t.account}: {goal.account.name}
                       </Text>
                     )}
 
                     {/* Action Buttons */}
-                    <View className="flex-row space-x-2">
+                    <View className="flex-row space-x-2 gap-2">
                       <TouchableOpacity
                         style={{
                           flex: 1,
@@ -641,7 +661,7 @@ export default function SavingsScreen() {
                         onPress={() => openAddAmountModal(goal, "add")}
                       >
                         <Text style={{ color: "white", fontWeight: "500" }}>
-                          Add Money
+                          {t.addAmount}
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -655,7 +675,7 @@ export default function SavingsScreen() {
                         onPress={() => openAddAmountModal(goal, "withdraw")}
                       >
                         <Text style={{ color: "white", fontWeight: "500" }}>
-                          Withdraw
+                          {t.withdrawAmount}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -686,12 +706,12 @@ export default function SavingsScreen() {
               marginBottom: 24,
             }}
           >
-            Inactive Goals
+            {t.inactiveGoals}
           </Text>
           {goals.filter((goal) => !goal.is_active).length === 0 ? (
             <View style={{ paddingVertical: 16, alignItems: "center" }}>
               <Text style={{ color: theme.textSecondary, fontSize: 18 }}>
-                No inactive goals
+                {t.no} {t.inactiveGoals}
               </Text>
             </View>
           ) : (
@@ -714,13 +734,17 @@ export default function SavingsScreen() {
                   <View className="flex-row justify-between items-start">
                     <View className="flex-row items-center flex-1">
                       <View
-                        className="p-2 rounded-full mr-3"
-                        style={{ backgroundColor: goal.icon_color }}
+                        className=" rounded-full mr-3"
+                        style={{
+                          backgroundColor: goal.icon_color,
+                          borderWidth: 2,
+                          borderColor: goal.icon_color,
+                        }}
                       >
-                        {React.createElement(
-                          goalIcons[goal.icon] || goalIcons.other,
-                          { size: 24, color: goal.icon_color }
-                        )}
+                        {React.createElement(getGoalIcon(goal.icon), {
+                          size: 18,
+                          color: "white",
+                        })}
                       </View>
                       <View className="flex-1">
                         <Text
@@ -735,7 +759,7 @@ export default function SavingsScreen() {
                         <Text
                           style={{ color: theme.textSecondary, fontSize: 14 }}
                         >
-                          {goal.category} • Paused
+                          {getGoalCategoryLabel(goal.category)} • Paused
                         </Text>
                       </View>
                     </View>
@@ -789,7 +813,7 @@ export default function SavingsScreen() {
                     fontSize: 20,
                   }}
                 >
-                  {isEditMode ? "Edit Goal" : "New Savings Goal"}
+                  {isEditMode ? t.editGoal : t.addGoal}
                 </Text>
                 <View className="flex-row justify-center items-center gap-2">
                   {isEditMode && currentGoal ? (
@@ -817,7 +841,7 @@ export default function SavingsScreen() {
                         fontWeight: "500",
                       }}
                     >
-                      Icon
+                      {t.goalIcon}
                     </Text>
                     <TouchableOpacity
                       style={{
@@ -832,15 +856,21 @@ export default function SavingsScreen() {
                       onPress={() => setIsIconModalVisible(true)}
                     >
                       <View
-                        className="rounded-full mr-3"
-                        style={{ backgroundColor: formData.icon_color }}
+                        className="rounded-full mr-2"
+                        style={{
+                          backgroundColor: formData.icon_color,
+                          borderWidth: 2,
+                          borderColor: formData.icon_color,
+                        }}
                       >
-                        {React.createElement(goalIcons[formData.icon], {
-                          size: 24,
-                          color: formData.icon_color,
+                        {React.createElement(getGoalIcon(formData.icon), {
+                          size: 18,
+                          color: "white",
                         })}
                       </View>
-                      <Text style={{ color: theme.text }}>Change Icon</Text>
+                      <Text style={{ color: theme.text }}>
+                        {t.selectGoalIcon}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                   <View className="flex-1">
@@ -851,7 +881,7 @@ export default function SavingsScreen() {
                         fontWeight: "500",
                       }}
                     >
-                      Color
+                      {t.goalColor}
                     </Text>
                     <TouchableOpacity
                       style={{
@@ -866,15 +896,17 @@ export default function SavingsScreen() {
                       onPress={() => setIsColorModalVisible(true)}
                     >
                       <View
-                        className="w-6 h-6 rounded-full mr-3"
+                        className="w-6 h-6 rounded-full mr-3 "
                         style={{ backgroundColor: formData.icon_color }}
                       />
-                      <Text style={{ color: theme.text }}>Change Color</Text>
+                      <Text style={{ color: theme.text }}>
+                        {t.selectGoalColor}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
 
-                <View>
+                <View className="mt-2">
                   <Text
                     style={{
                       color: theme.text,
@@ -882,7 +914,7 @@ export default function SavingsScreen() {
                       fontWeight: "500",
                     }}
                   >
-                    Goal Name
+                    {t.goalName}
                   </Text>
                   <TextInput
                     style={{
@@ -893,7 +925,7 @@ export default function SavingsScreen() {
                       backgroundColor: theme.background,
                       color: theme.text,
                     }}
-                    placeholder="e.g., New Car, Vacation"
+                    placeholder={t.enterGoalName}
                     placeholderTextColor={theme.textMuted}
                     value={formData.name}
                     onChangeText={(text) =>
@@ -902,7 +934,7 @@ export default function SavingsScreen() {
                   />
                 </View>
 
-                <View>
+                <View className="mt-2">
                   <Text
                     style={{
                       color: theme.text,
@@ -910,7 +942,7 @@ export default function SavingsScreen() {
                       fontWeight: "500",
                     }}
                   >
-                    Category
+                    {t.goalCategory}
                   </Text>
                   <TouchableOpacity
                     style={{
@@ -931,7 +963,9 @@ export default function SavingsScreen() {
                         color: formData.category ? theme.text : theme.textMuted,
                       }}
                     >
-                      {formData.category || "Select a category"}
+                      {formData.category
+                        ? getGoalCategoryLabel(formData.category)
+                        : t.selectGoalCategory}
                     </Text>
                     <ChevronDown size={16} color={theme.textMuted} />
                   </TouchableOpacity>
@@ -950,25 +984,28 @@ export default function SavingsScreen() {
                       <ScrollView>
                         {goalCategories.map((category) => (
                           <TouchableOpacity
-                            key={category}
+                            key={category.key}
                             style={{
                               padding: 12,
                               borderBottomWidth: 1,
                               borderBottomColor: theme.border,
                               backgroundColor:
-                                formData.category === category
+                                formData.category === category.key
                                   ? `${theme.primary}20`
                                   : "transparent",
                             }}
                             onPress={() => {
-                              setFormData({ ...formData, category });
+                              setFormData({
+                                ...formData,
+                                category: category.key,
+                              });
                               setShowCategoryDropdown(false);
                             }}
                           >
                             <Text
                               style={{ color: theme.text, fontWeight: "500" }}
                             >
-                              {category}
+                              {category.label}
                             </Text>
                           </TouchableOpacity>
                         ))}
@@ -977,7 +1014,7 @@ export default function SavingsScreen() {
                   )}
                 </View>
 
-                <View>
+                <View className="mt-2">
                   <Text
                     style={{
                       color: theme.text,
@@ -985,7 +1022,7 @@ export default function SavingsScreen() {
                       fontWeight: "500",
                     }}
                   >
-                    Account
+                    {t.account}
                   </Text>
                   <TouchableOpacity
                     style={{
@@ -1004,9 +1041,7 @@ export default function SavingsScreen() {
                         color: selectedAccount ? theme.text : theme.textMuted,
                       }}
                     >
-                      {selectedAccount
-                        ? selectedAccount.name
-                        : "Select an account"}
+                      {selectedAccount ? selectedAccount.name : t.selectAccount}
                     </Text>
                     <ChevronDown size={16} color={theme.textMuted} />
                   </TouchableOpacity>
@@ -1060,7 +1095,7 @@ export default function SavingsScreen() {
                   )}
                 </View>
 
-                <View>
+                <View className="mt-2">
                   <Text
                     style={{
                       color: theme.text,
@@ -1068,7 +1103,7 @@ export default function SavingsScreen() {
                       fontWeight: "500",
                     }}
                   >
-                    Target Amount ($)
+                    {t.targetAmount}
                   </Text>
                   <View
                     style={{
@@ -1085,7 +1120,7 @@ export default function SavingsScreen() {
                     </View>
                     <TextInput
                       style={{ flex: 1, padding: 16, color: theme.text }}
-                      placeholder="0.00"
+                      placeholder={t.enterAmount}
                       placeholderTextColor={theme.textMuted}
                       keyboardType="numeric"
                       value={formData.target_amount}
@@ -1105,7 +1140,7 @@ export default function SavingsScreen() {
                         fontWeight: "500",
                       }}
                     >
-                      Current Amount ($)
+                      {t.currentAmount}
                     </Text>
                     <View
                       style={{
@@ -1122,7 +1157,7 @@ export default function SavingsScreen() {
                       </View>
                       <TextInput
                         style={{ flex: 1, padding: 16, color: theme.text }}
-                        placeholder="0.00"
+                        placeholder={t.enterAmount}
                         placeholderTextColor={theme.textMuted}
                         keyboardType="numeric"
                         value={formData.current_amount}
@@ -1134,7 +1169,7 @@ export default function SavingsScreen() {
                   </View>
                 )}
 
-                <View>
+                <View className="mt-2">
                   <Text
                     style={{
                       color: theme.text,
@@ -1142,7 +1177,7 @@ export default function SavingsScreen() {
                       fontWeight: "500",
                     }}
                   >
-                    Target Date
+                    {t.targetDate}
                   </Text>
                   <TouchableOpacity
                     style={{
@@ -1166,13 +1201,13 @@ export default function SavingsScreen() {
                     >
                       {formData.target_date
                         ? formatDate(formData.target_date)
-                        : "Select target date"}
+                        : t.selectTargetDate}
                     </Text>
                     <Calendar size={20} color={theme.textMuted} />
                   </TouchableOpacity>
                 </View>
 
-                <View>
+                <View className="mt-2">
                   <Text
                     style={{
                       color: theme.text,
@@ -1180,7 +1215,7 @@ export default function SavingsScreen() {
                       fontWeight: "500",
                     }}
                   >
-                    Description
+                    {t.goalDescription}
                   </Text>
                   <TextInput
                     style={{
@@ -1191,7 +1226,7 @@ export default function SavingsScreen() {
                       backgroundColor: theme.background,
                       color: theme.text,
                     }}
-                    placeholder="Optional description"
+                    placeholder={t.enterGoalDescription}
                     placeholderTextColor={theme.textMuted}
                     value={formData.description}
                     onChangeText={(text) =>
@@ -1203,7 +1238,7 @@ export default function SavingsScreen() {
 
                 <View className="flex-row justify-between items-center">
                   <Text style={{ color: theme.text, fontWeight: "500" }}>
-                    Active
+                    {t.active}
                   </Text>
                   <Switch
                     value={formData.is_active}
@@ -1232,7 +1267,7 @@ export default function SavingsScreen() {
                       fontSize: 18,
                     }}
                   >
-                    {isEditMode ? "Update Goal" : "Create Goal"}
+                    {isEditMode ? t.updateGoal : t.saveGoal}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1270,7 +1305,7 @@ export default function SavingsScreen() {
               <Text
                 style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
               >
-                Add Money to Goal
+                {t.addAmount}
               </Text>
               <TouchableOpacity
                 onPress={() => setIsAddAmountModalVisible(false)}
@@ -1288,12 +1323,11 @@ export default function SavingsScreen() {
                     fontWeight: "500",
                   }}
                 >
-                  Amount ($)
+                  {t.amount}
                 </Text>
                 <View
+                  className="flex items-center "
                   style={{
-                    flexDirection: "row",
-                    alignItems: "center",
                     borderWidth: 1,
                     borderColor: theme.border,
                     borderRadius: 12,
@@ -1305,7 +1339,7 @@ export default function SavingsScreen() {
                   </View>
                   <TextInput
                     style={{ flex: 1, padding: 16, color: theme.text }}
-                    placeholder="0.00"
+                    placeholder={t.enterAmount}
                     placeholderTextColor={theme.textMuted}
                     keyboardType="numeric"
                     value={amountModalData.amount}
@@ -1328,7 +1362,7 @@ export default function SavingsScreen() {
                 <Text
                   style={{ color: "white", fontWeight: "500", fontSize: 18 }}
                 >
-                  Add Money
+                  {t.addAmount}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1365,7 +1399,7 @@ export default function SavingsScreen() {
               <Text
                 style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
               >
-                Withdraw from Goal
+                {t.withdrawAmount}
               </Text>
               <TouchableOpacity
                 onPress={() => setIsWithdrawModalVisible(false)}
@@ -1383,7 +1417,7 @@ export default function SavingsScreen() {
                     fontWeight: "500",
                   }}
                 >
-                  Amount ($)
+                  {t.amount}
                 </Text>
                 <View
                   style={{
@@ -1400,7 +1434,7 @@ export default function SavingsScreen() {
                   </View>
                   <TextInput
                     style={{ flex: 1, padding: 16, color: theme.text }}
-                    placeholder="0.00"
+                    placeholder={t.enterAmount}
                     placeholderTextColor={theme.textMuted}
                     keyboardType="numeric"
                     value={amountModalData.amount}
@@ -1423,7 +1457,7 @@ export default function SavingsScreen() {
                 <Text
                   style={{ color: "white", fontWeight: "500", fontSize: 18 }}
                 >
-                  Withdraw Money
+                  {t.withdrawAmount}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1458,48 +1492,64 @@ export default function SavingsScreen() {
           >
             <View className="flex-row justify-between items-center mb-6">
               <Text
-                style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
+                style={{ color: theme.text, fontWeight: "bold", fontSize: 12 }}
               >
-                Select Icon
+                {t.selectGoalIcon}
               </Text>
               <TouchableOpacity onPress={() => setIsIconModalVisible(false)}>
                 <X size={24} color={theme.textMuted} />
               </TouchableOpacity>
             </View>
 
-            <View className="flex-row flex-wrap justify-between">
+            <View className="flex-row flex-wrap gap-3">
               {Object.keys(goalIcons).map((icon) => (
                 <TouchableOpacity
                   key={icon}
                   style={{
-                    width: "25%",
+                    width: "30%",
                     padding: 16,
                     alignItems: "center",
                     backgroundColor:
                       formData.icon === icon
                         ? `${theme.primary}20`
-                        : "transparent",
-                    borderRadius: 8,
+                        : theme.background,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor:
+                      formData.icon === icon ? theme.primary : theme.border,
                   }}
                   onPress={() => selectIcon(icon as GoalIcon)}
                 >
                   <View
-                    className="p-3 rounded-full mb-2"
-                    style={{ backgroundColor: formData.icon_color }}
+                    className="rounded-full mb-3"
+                    style={{
+                      backgroundColor:
+                        formData.icon === icon
+                          ? formData.icon_color
+                          : `${theme.primary}20`,
+                      borderWidth: 2,
+                      borderColor:
+                        formData.icon === icon
+                          ? formData.icon_color
+                          : theme.border,
+                    }}
                   >
-                    {React.createElement(goalIcons[icon], {
-                      size: 32,
-                      color: formData.icon_color,
+                    {React.createElement(getGoalIcon(icon), {
+                      size: 18,
+                      color: formData.icon === icon ? "white" : theme.primary,
                     })}
                   </View>
                   <Text
                     style={{
-                      color: theme.text,
+                      color:
+                        formData.icon === icon ? theme.primary : theme.text,
                       fontSize: 12,
+                      fontWeight: formData.icon === icon ? "600" : "400",
                       textTransform: "capitalize",
+                      textAlign: "center",
                     }}
                   >
-                    {icon}
+                    {icon === "goal" ? "General" : icon}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -1537,7 +1587,7 @@ export default function SavingsScreen() {
               <Text
                 style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
               >
-                Select Color
+                {t.selectGoalColor}
               </Text>
               <TouchableOpacity onPress={() => setIsColorModalVisible(false)}>
                 <X size={24} color={theme.textMuted} />
