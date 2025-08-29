@@ -43,11 +43,13 @@ import {
 import { getCategoryColor, getColorByIndex } from "~/lib/chartColors";
 import { sharePDF } from "~/lib/pdfGenerator";
 import { useTheme } from "../../lib/theme";
+import { useLanguage } from "../../lib/LanguageProvider";
 
 const { width: screenWidth } = Dimensions.get("window");
 
 export default function ReportsScreen() {
   const theme = useTheme();
+  const { t } = useLanguage();
   const { selectedAccount, accounts } = useAccount();
 
   // Set default date range to today for both dates
@@ -83,6 +85,52 @@ export default function ReportsScreen() {
   } | null>(null);
   const [segmentModalVisible, setSegmentModalVisible] = useState(false);
 
+  // Helper functions for data aggregation (moved before useMemo to prevent hoisting issues)
+  const aggregateByWeek = (dailyData: any[]) => {
+    const weeklyMap = new Map();
+
+    dailyData.forEach((item) => {
+      const date = new Date(item.date);
+      // Get start of week (Monday)
+      const startOfWeek = new Date(date);
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+      startOfWeek.setDate(diff);
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      const weekKey = startOfWeek.toISOString().split("T")[0];
+
+      if (!weeklyMap.has(weekKey)) {
+        weeklyMap.set(weekKey, { date: weekKey, amount: 0 });
+      }
+
+      weeklyMap.get(weekKey).amount += item.amount;
+    });
+
+    return Array.from(weeklyMap.values()).sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+  };
+
+  const aggregateByMonth = (dailyData: any[]) => {
+    const monthlyMap = new Map();
+
+    dailyData.forEach((item) => {
+      const date = new Date(item.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+
+      if (!monthlyMap.has(monthKey)) {
+        monthlyMap.set(monthKey, { date: monthKey, amount: 0 });
+      }
+
+      monthlyMap.get(monthKey).amount += item.amount;
+    });
+
+    return Array.from(monthlyMap.values()).sort(
+      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    );
+  };
+
   // Memoized data processing functions
   const processedChartData = useMemo(() => {
     if (!transactionData) return null;
@@ -94,22 +142,22 @@ export default function ReportsScreen() {
 
     let chartData = transactionData.daily_trends;
     let dateFormatter: Intl.DateTimeFormatOptions;
-    let chartTitle = "Daily Spending Trends";
+    let chartTitle = t.dailySpendingTrends;
 
     if (daysDiff <= 14) {
       chartData = transactionData.daily_trends;
       dateFormatter = { month: "short", day: "numeric" };
-      chartTitle = "Daily Spending Trends";
+      chartTitle = t.dailySpendingTrends;
     } else if (daysDiff <= 60) {
       const weeklyData = aggregateByWeek(transactionData.daily_trends);
       chartData = weeklyData;
       dateFormatter = { month: "short", day: "numeric" };
-      chartTitle = "Weekly Spending Trends";
+      chartTitle = t.weeklySpendingTrends;
     } else {
       const monthlyData = aggregateByMonth(transactionData.daily_trends);
       chartData = monthlyData;
       dateFormatter = { month: "short", year: "2-digit" };
-      chartTitle = "Monthly Spending Trends";
+      chartTitle = t.monthlySpendingTrends;
     }
 
     // Limit chart data for better readability (max 30 data points)
@@ -130,7 +178,7 @@ export default function ReportsScreen() {
       showingLimited,
       maxDataPoints,
     };
-  }, [transactionData, dateRange]);
+  }, [transactionData, dateRange, t]);
 
   // Memoized pie chart data
   const pieChartData = useMemo(() => {
@@ -200,10 +248,10 @@ export default function ReportsScreen() {
     } catch (error) {
       console.error("Error fetching transaction reports:", error);
       const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
+        error instanceof Error ? error.message : t.unknownError;
       Alert.alert(
-        "Error",
-        `Failed to fetch transaction reports: ${errorMessage}`
+        t.error,
+        t.failedToFetchReports.replace("{errorMessage}", errorMessage)
       );
       setTransactionData(null);
     } finally {
@@ -227,52 +275,6 @@ export default function ReportsScreen() {
     }
   }, [dateRange, selectedAccount, fetchTransactionReports, isInitialLoad]);
 
-  // Helper functions for data aggregation (moved outside component to prevent recreation)
-  const aggregateByWeek = (dailyData: any[]) => {
-    const weeklyMap = new Map();
-
-    dailyData.forEach((item) => {
-      const date = new Date(item.date);
-      // Get start of week (Monday)
-      const startOfWeek = new Date(date);
-      const day = date.getDay();
-      const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-      startOfWeek.setDate(diff);
-      startOfWeek.setHours(0, 0, 0, 0);
-
-      const weekKey = startOfWeek.toISOString().split("T")[0];
-
-      if (!weeklyMap.has(weekKey)) {
-        weeklyMap.set(weekKey, { date: weekKey, amount: 0 });
-      }
-
-      weeklyMap.get(weekKey).amount += item.amount;
-    });
-
-    return Array.from(weeklyMap.values()).sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-  };
-
-  const aggregateByMonth = (dailyData: any[]) => {
-    const monthlyMap = new Map();
-
-    dailyData.forEach((item) => {
-      const date = new Date(item.date);
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
-
-      if (!monthlyMap.has(monthKey)) {
-        monthlyMap.set(monthKey, { date: monthKey, amount: 0 });
-      }
-
-      monthlyMap.get(monthKey).amount += item.amount;
-    });
-
-    return Array.from(monthlyMap.values()).sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-  };
-
   const handleDownload = async (format: "csv" | "pdf") => {
     try {
       setLoading(true);
@@ -280,7 +282,7 @@ export default function ReportsScreen() {
       const endDate = dateRange.endDate.toISOString().split("T")[0];
 
       if (!transactionData) {
-        Alert.alert("Error", "No data available for report generation");
+        Alert.alert(t.error, t.noDataForReport);
         return;
       }
 
@@ -295,41 +297,32 @@ export default function ReportsScreen() {
 
         console.log("PDF generated at:", filePath);
 
-        Alert.alert(
-          "PDF Generated Successfully",
-          "Your transaction report has been saved to your device. What would you like to do?",
-          [
-            {
-              text: "Share",
-              onPress: async () => {
-                try {
-                  const { sharePDF } = await import("~/lib/pdfGenerator");
-                  await sharePDF(filePath);
-                } catch (error) {
-                  console.error("Error sharing PDF:", error);
-                  Alert.alert(
-                    "Error",
-                    "Failed to share PDF. The file has been saved to your device."
-                  );
-                }
-              },
+        Alert.alert(t.pdfGeneratedSuccessfully, t.reportSavedToDevice, [
+          {
+            text: t.share,
+            onPress: async () => {
+              try {
+                const { sharePDF } = await import("~/lib/pdfGenerator");
+                await sharePDF(filePath);
+              } catch (error) {
+                console.error("Error sharing PDF:", error);
+                Alert.alert(t.error, t.failedToShare);
+              }
             },
-            {
-              text: "Open File Manager",
-              onPress: () => {
-                Alert.alert(
-                  "File Location",
-                  "Your PDF has been saved to the Documents folder. You can access it through your device's file manager.",
-                  [{ text: "OK" }]
-                );
-              },
+          },
+          {
+            text: t.openFileManager,
+            onPress: () => {
+              Alert.alert(t.fileLocation, t.pdfSavedToDocuments, [
+                { text: t.ok },
+              ]);
             },
-            {
-              text: "Done",
-              style: "cancel",
-            },
-          ]
-        );
+          },
+          {
+            text: t.done,
+            style: "cancel",
+          },
+        ]);
       } else {
         // Generate CSV locally
         console.log("Generating CSV report...");
@@ -341,47 +334,38 @@ export default function ReportsScreen() {
 
         console.log("CSV generated at:", filePath);
 
-        Alert.alert(
-          "CSV Generated Successfully",
-          "Your transaction report has been saved to your device. What would you like to do?",
-          [
-            {
-              text: "Share",
-              onPress: async () => {
-                try {
-                  const { shareCSV } = await import("~/lib/csvGenerator");
-                  await shareCSV(filePath);
-                } catch (error) {
-                  console.error("Error sharing CSV:", error);
-                  Alert.alert(
-                    "Error",
-                    "Failed to share CSV. The file has been saved to your device."
-                  );
-                }
-              },
+        Alert.alert(t.csvGeneratedSuccessfully, t.reportSavedToDevice, [
+          {
+            text: t.share,
+            onPress: async () => {
+              try {
+                const { shareCSV } = await import("~/lib/csvGenerator");
+                await shareCSV(filePath);
+              } catch (error) {
+                console.error("Error sharing CSV:", error);
+                Alert.alert(t.error, t.failedToShare);
+              }
             },
-            {
-              text: "Open File Manager",
-              onPress: () => {
-                Alert.alert(
-                  "File Location",
-                  "Your CSV has been saved to the Documents folder. You can access it through your device's file manager.",
-                  [{ text: "OK" }]
-                );
-              },
+          },
+          {
+            text: t.openFileManager,
+            onPress: () => {
+              Alert.alert(t.fileLocation, t.csvSavedToDocuments, [
+                { text: t.ok },
+              ]);
             },
-            {
-              text: "Done",
-              style: "cancel",
-            },
-          ]
-        );
+          },
+          {
+            text: t.done,
+            style: "cancel",
+          },
+        ]);
       }
     } catch (error) {
       console.error(`Error generating ${format.toUpperCase()} report:`, error);
       Alert.alert(
-        "Error",
-        `Failed to generate ${format.toUpperCase()} report. Please try again.`
+        t.error,
+        t.errorGeneratingReport.replace("{format}", format.toUpperCase())
       );
     } finally {
       setLoading(false);
@@ -457,7 +441,7 @@ export default function ReportsScreen() {
               textAlign: "center",
             }}
           >
-            No Account Selected
+            {t.noAccountSelected}
           </Text>
           <Text
             style={{
@@ -467,7 +451,7 @@ export default function ReportsScreen() {
               textAlign: "center",
             }}
           >
-            Please select an account to view transaction reports
+            {t.pleaseSelectAccountToViewReports}
           </Text>
         </View>
       );
@@ -478,7 +462,10 @@ export default function ReportsScreen() {
         <View className="flex-1 justify-center items-center p-8">
           <ActivityIndicator size="large" color={theme.primary} />
           <Text style={{ color: theme.textSecondary, marginTop: 16 }}>
-            Loading transaction data for {selectedAccount.name}...
+            {t.loadingTransactionData.replace(
+              "{accountName}",
+              selectedAccount.name
+            )}
           </Text>
         </View>
       );
@@ -488,7 +475,7 @@ export default function ReportsScreen() {
       return (
         <View className="flex-1 justify-center items-center p-8">
           <Text style={{ color: theme.textSecondary }}>
-            Processing chart data...
+            {t.processingChartData}
           </Text>
         </View>
       );
@@ -521,7 +508,7 @@ export default function ReportsScreen() {
                   fontWeight: "500",
                 }}
               >
-                Net Amount
+                {t.netAmount}
               </Text>
               <Text
                 style={{
@@ -538,7 +525,7 @@ export default function ReportsScreen() {
               <Text
                 style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}
               >
-                Income - Expenses
+                {t.incomeExpenses}
               </Text>
             </View>
             <View
@@ -558,7 +545,7 @@ export default function ReportsScreen() {
               <Text
                 style={{ color: "#8b5cf6", fontSize: 14, fontWeight: "500" }}
               >
-                Transactions
+                {t.transactions}
               </Text>
               <Text
                 style={{ fontSize: 24, fontWeight: "bold", color: "#7c3aed" }}
@@ -587,7 +574,7 @@ export default function ReportsScreen() {
               <Text
                 style={{ color: "#059669", fontSize: 14, fontWeight: "500" }}
               >
-                Income
+                {t.income}
               </Text>
               <Text
                 style={{ fontSize: 20, fontWeight: "bold", color: "#047857" }}
@@ -612,7 +599,7 @@ export default function ReportsScreen() {
               <Text
                 style={{ color: "#dc2626", fontSize: 14, fontWeight: "500" }}
               >
-                Expenses
+                {t.expenses}
               </Text>
               <Text
                 style={{ fontSize: 20, fontWeight: "bold", color: "#b91c1c" }}
@@ -641,7 +628,7 @@ export default function ReportsScreen() {
             <Text
               style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}
             >
-              Spending by Category
+              {t.spendingByCategory}
             </Text>
             <PieChart size={20} color="#8b5cf6" />
           </View>
@@ -655,7 +642,7 @@ export default function ReportsScreen() {
                     0
                   );
                   setSelectedSegment({
-                    name: "All Categories",
+                    name: t.allCategories,
                     value: total,
                     color: "#8b5cf6",
                     percentage: 100,
@@ -707,7 +694,7 @@ export default function ReportsScreen() {
                     marginBottom: 8,
                   }}
                 >
-                  Tap a category to see details:
+                  {t.tapCategoryForDetails}
                 </Text>
                 <View className="flex-row flex-wrap">
                   {pieChartData.map((segment, index) => (
@@ -748,7 +735,7 @@ export default function ReportsScreen() {
                 paddingVertical: 32,
               }}
             >
-              No data available
+              {t.noDataAvailable}
             </Text>
           )}
         </View>
@@ -787,7 +774,7 @@ export default function ReportsScreen() {
                 backgroundGradientTo: theme.cardBackground,
                 decimalPlaces: 0,
                 color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(71, 85, 105, ${opacity})`,
+                labelColor: (opacity = 1) => `rgba(156, 163, 175, ${opacity})`,
                 style: { borderRadius: 16 },
                 barPercentage: 0.7,
                 fillShadowGradient: "#8b5cf6",
@@ -807,12 +794,12 @@ export default function ReportsScreen() {
           ) : (
             <Text
               style={{
-                color: theme.textSecondary,
+                color: theme.text,
                 textAlign: "center",
                 paddingVertical: 32,
               }}
             >
-              No trend data available
+              {t.noTrendDataAvailable}
             </Text>
           )}
 
@@ -825,8 +812,12 @@ export default function ReportsScreen() {
                 marginTop: 8,
               }}
             >
-              Showing most recent {processedChartData.maxDataPoints} data points
-              of {processedChartData.chartData.length} total
+              {t.showingMostRecent
+                .replace("{max}", processedChartData.maxDataPoints.toString())
+                .replace(
+                  "{total}",
+                  processedChartData.chartData.length.toString()
+                )}
             </Text>
           )}
         </View>
@@ -848,7 +839,7 @@ export default function ReportsScreen() {
               marginBottom: 16,
             }}
           >
-            Category Breakdown
+            {t.categoryBreakdown}
           </Text>
           {Object.entries(transactionData.category_breakdown).map(
             ([category, data], index) => (
@@ -868,7 +859,7 @@ export default function ReportsScreen() {
                     {category}
                   </Text>
                   <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
-                    {data.count} transactions
+                    {data.count} {t.transactionsCount}
                   </Text>
                 </View>
                 <View style={{ alignItems: "flex-end" }}>
@@ -902,9 +893,9 @@ export default function ReportsScreen() {
           <View className="flex-row justify-between items-center mb-4">
             <View>
               <Text
-                style={{ color: theme.text, fontSize: 24, fontWeight: "bold" }}
+                style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}
               >
-                Transaction Reports
+                {t.transactionReports}
               </Text>
               {selectedAccount && (
                 <Text
@@ -914,12 +905,12 @@ export default function ReportsScreen() {
                     marginTop: 4,
                   }}
                 >
-                  Showing data for: {selectedAccount.name}
+                  {t.showingDataFor} {selectedAccount.name}
                 </Text>
               )}
               {!selectedAccount && (
                 <Text style={{ color: "#d97706", fontSize: 14, marginTop: 4 }}>
-                  ⚠️ Please select an account
+                  {t.pleaseSelectAccountWarning}
                 </Text>
               )}
             </View>
@@ -986,7 +977,8 @@ export default function ReportsScreen() {
                     fontWeight: "500",
                   }}
                 >
-                  From: {formatDate(pendingDateRange.startDate.toISOString())}
+                  {t.from}:{" "}
+                  {formatDate(pendingDateRange.startDate.toISOString())}
                 </Text>
               </TouchableOpacity>
 
@@ -1013,7 +1005,7 @@ export default function ReportsScreen() {
                     fontWeight: "500",
                   }}
                 >
-                  To: {formatDate(pendingDateRange.endDate.toISOString())}
+                  {t.to}: {formatDate(pendingDateRange.endDate.toISOString())}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1040,7 +1032,7 @@ export default function ReportsScreen() {
               <Text
                 style={{ marginLeft: 8, color: "white", fontWeight: "600" }}
               >
-                {loading ? "Loading..." : "Apply Date Range"}
+                {loading ? t.loading : t.applyDateRange}
               </Text>
             </TouchableOpacity>
 
@@ -1061,8 +1053,8 @@ export default function ReportsScreen() {
                   textAlign: "center",
                 }}
               >
-                Showing data: {formatDate(dateRange.startDate.toISOString())} -{" "}
-                {formatDate(dateRange.endDate.toISOString())}
+                {t.showingData} {formatDate(dateRange.startDate.toISOString())}{" "}
+                - {formatDate(dateRange.endDate.toISOString())}
               </Text>
             </View>
           </View>
@@ -1074,7 +1066,7 @@ export default function ReportsScreen() {
             <View className="flex-1 justify-center items-center">
               <ActivityIndicator size="large" color={theme.primary} />
               <Text style={{ marginTop: 16, color: theme.textSecondary }}>
-                Loading reports...
+                {t.loadingReports}
               </Text>
             </View>
           ) : (
@@ -1115,8 +1107,9 @@ export default function ReportsScreen() {
                           fontWeight: "bold",
                         }}
                       >
-                        Select {datePickerMode === "start" ? "Start" : "End"}{" "}
-                        Date
+                        {datePickerMode === "start"
+                          ? t.selectStartDate
+                          : t.selectEndDate}
                       </Text>
                       <TouchableOpacity onPress={onDismiss}>
                         <X size={24} color={theme.textMuted} />
@@ -1161,7 +1154,7 @@ export default function ReportsScreen() {
                           fontWeight: "bold",
                         }}
                       >
-                        Confirm
+                        {t.confirm}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -1265,7 +1258,7 @@ export default function ReportsScreen() {
                         marginBottom: 4,
                       }}
                     >
-                      Amount
+                      {t.amount}
                     </Text>
                     <Text
                       style={{
@@ -1294,7 +1287,7 @@ export default function ReportsScreen() {
                         marginBottom: 4,
                       }}
                     >
-                      Percentage of Total
+                      {t.percentageOfTotal}
                     </Text>
                     <Text
                       style={{
@@ -1309,7 +1302,7 @@ export default function ReportsScreen() {
                 </View>
 
                 {/* Transaction count if available */}
-                {selectedSegment.name !== "All Categories" &&
+                {selectedSegment.name !== t.allCategories &&
                   transactionData?.category_breakdown[selectedSegment.name] && (
                     <View
                       style={{
@@ -1328,7 +1321,7 @@ export default function ReportsScreen() {
                           marginBottom: 4,
                         }}
                       >
-                        Transactions
+                        {t.transactions}
                       </Text>
                       <Text
                         style={{
@@ -1342,7 +1335,7 @@ export default function ReportsScreen() {
                             selectedSegment.name
                           ].count
                         }{" "}
-                        transactions
+                        {t.transactionsCount}
                       </Text>
                     </View>
                   )}
@@ -1364,7 +1357,7 @@ export default function ReportsScreen() {
                       fontWeight: "600",
                     }}
                   >
-                    Close
+                    {t.close}
                   </Text>
                 </TouchableOpacity>
               </View>
