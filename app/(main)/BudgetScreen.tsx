@@ -357,7 +357,7 @@ export default function BudgetScreen() {
             paddingHorizontal: 16,
             borderBottomWidth: 1,
             borderBottomColor: theme.border,
-            backgroundColor: theme.cardBackground,
+            backgroundColor: theme.background,
           }}
           {...panResponder.panHandlers}
         >
@@ -476,7 +476,7 @@ export default function BudgetScreen() {
                 className="px-2"
                 style={{
                   marginBottom: 24,
-                  backgroundColor: theme.cardBackground,
+                  backgroundColor: theme.background,
                   paddingTop: 16,
                 }}
               >

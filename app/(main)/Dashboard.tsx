@@ -632,27 +632,6 @@ export default function DashboardScreen() {
     return colors[category] || "#64748b";
   };
 
-  const quickActions: QuickAction[] = [
-    {
-      title: t.historyExpenses,
-      icon: PieChart,
-      color: "#3b82f6",
-      screen: "../(expense)/ExpenseHistory",
-    },
-    {
-      title: t.generateReport,
-      icon: PieChart,
-      color: "#f43f5e",
-      screen: "../(expense)/ExpenseReport",
-    },
-    {
-      title: t.compareExpenses,
-      icon: TrendingUp,
-      color: "#f43f5e",
-      screen: "../(expense)/ExpenseComparison",
-    },
-  ];
-
   // if (loading && !refreshing) {
   //   return (
   //     <View className="flex-1 bg-[#F6F8FD] justify-center items-center">
@@ -709,7 +688,10 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView className="flex-1 pt-safe bg-[#3b82f6] relative">
-      <StatusBar barStyle="light-content" backgroundColor="#3b82f6" />
+      <StatusBar
+        barStyle={theme.isDark ? "light-content" : "dark-content"}
+        backgroundColor="#3b82f6"
+      />
       {/* Header */}
       <DashboardHeader
         userName={userProfile.fullName}

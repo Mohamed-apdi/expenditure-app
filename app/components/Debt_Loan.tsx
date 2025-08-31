@@ -699,14 +699,14 @@ const Debt_Loan = () => {
                     <View className="flex-row justify-between items-start mb-3">
                       <View className="flex-1">
                         <Text
-                          className="font-bold text-lg"
+                          className="font-bold text-sm"
                           style={{ color: theme.text }}
                         >
                           {loan.party_name}
                         </Text>
                         <View className="flex-row items-center space-x-2 mt-1">
                           <Text
-                            className="text-sm font-medium"
+                            className="text-xs font-medium"
                             style={{ color: getTypeColor(loan.type) }}
                           >
                             {loan.type === "loan_given"
@@ -715,7 +715,7 @@ const Debt_Loan = () => {
                           </Text>
                           <Text style={{ color: theme.textMuted }}>•</Text>
                           <Text
-                            className="text-sm font-medium"
+                            className="text-xs font-medium"
                             style={{ color: getStatusColor(loan.status) }}
                           >
                             {t[loan.status] ||
@@ -751,7 +751,7 @@ const Debt_Loan = () => {
                       <View className="flex-row space-x-2">
                         <TouchableOpacity
                           onPress={() => handleViewRepayments(loan)}
-                          className="p-2 bg-blue-100 rounded-lg"
+                          className="p-2 bg-blue-100 rounded-lg mr-2"
                         >
                           <Text className="text-blue-600 font-medium text-xs">
                             {t.repayments}
@@ -759,7 +759,7 @@ const Debt_Loan = () => {
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => openEditModal(loan)}
-                          className="p-2 bg-blue-100 rounded-lg"
+                          className="p-2 bg-blue-100 rounded-lg mr-2"
                         >
                           <Text className="text-blue-600 font-medium text-xs">
                             {t.Edit}
@@ -767,7 +767,7 @@ const Debt_Loan = () => {
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => handleDeleteLoan(loan)}
-                          className="p-2 bg-red-100 rounded-lg"
+                          className="p-2 bg-red-100 rounded-lg mr-2"
                         >
                           <Text className="text-red-600 font-medium text-xs">
                             {t.delete}

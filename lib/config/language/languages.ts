@@ -571,6 +571,7 @@ export const LANGUAGES = {
     totalDebts: "Total Debts",
     totalAssets: "Total Assets",
     loanTaken: "Loan Taken",
+    Edit: "Edit",
     loanGiven: "Loan Given",
     principalAmount: "Principal Amount",
     interestRate: "Interest Rate",

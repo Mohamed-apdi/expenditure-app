@@ -98,7 +98,7 @@ export default function RootLayout() {
         <AccountProvider>
           <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
             <BottomSheetModalProvider>
-              {/*<StatusBar style={isDarkColorScheme ? "dark" : "light"} />*/}
+              <StatusBar style={isDarkColorScheme ? "dark" : "light"} />
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(onboarding)" />

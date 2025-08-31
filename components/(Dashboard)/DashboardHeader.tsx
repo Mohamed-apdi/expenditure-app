@@ -213,28 +213,9 @@ export default function DashboardHeader({
                     </Text>
                   </View>
                 </View>
-
                 {/* Separator */}
                 <View className="h-px bg-slate-200 my-1" />
 
-                {/* Dark Mode Toggle */}
-                <TouchableOpacity
-                  onPress={toggleColorScheme}
-                  activeOpacity={0.7}
-                  className="flex-row items-center p-3 rounded-lg gap-3 active:bg-slate-50"
-                >
-                  {isDarkColorScheme ? (
-                    <Sun size={18} color="#FFDE21" />
-                  ) : (
-                    <Moon size={18} color="#D2CFDA" />
-                  )}
-                  <Text
-                    className="text-sm font-medium"
-                    style={{ color: theme.text }}
-                  >
-                    {isDarkColorScheme ? t.lightMode : t.darkMode}
-                  </Text>
-                </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setLanguage(language === "en" ? "so" : "en")}
                   activeOpacity={0.7}
@@ -325,11 +306,14 @@ export default function DashboardHeader({
 
         {/* Right Section - Calendar and Search */}
         <View className="flex-row items-center gap-4">
-          {/* Calendar */}
-          {/*<TouchableOpacity onPress={onCalendarPress}>
-            <RefreshCcw size={22} color="#fff" />
-          </TouchableOpacity>*/}
-
+          {/*Dark mode toggle*/}
+          <TouchableOpacity onPress={toggleColorScheme}>
+            {isDarkColorScheme ? (
+              <Sun size={22} color="#fff" />
+            ) : (
+              <Moon size={22} color="#fff" />
+            )}
+          </TouchableOpacity>
           {/* Search */}
           <TouchableOpacity
             onPress={() => router.push("/components/TransactionsScreen")}
