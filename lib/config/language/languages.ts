@@ -118,7 +118,7 @@ export const LANGUAGES = {
     socialSignupFailed: "Social signup failed.",
 
     // DashboardScreen translations
-    recentTransactions: "Recent Transactions",
+    recentTransactions: "Transactions",
     seeMore: "See More",
     noTransactionsForMonth: "No transactions for this month",
     historyExpenses: "History Expenses",
@@ -261,7 +261,6 @@ export const LANGUAGES = {
     income: "Income",
     expense: "Expense",
     balance: "Balance",
-    recentTransactions: "Recent Transactions",
     refreshing: "Refreshing...",
     refresh: "Refresh",
     refreshingTransactions: "Refreshing transactions...",
@@ -1023,7 +1022,6 @@ export const LANGUAGES = {
     income: "Dakhligaga Kusoo galay.",
     expense: "Kharashaadka Kaa baxay.",
     balance: "Lacagta Wadarta",
-    recentTransactions: "Dhaqdhaqaaqaaga",
     refreshing: "Waa la dibinayaa...",
     refresh: "Dib",
     refreshingTransactions: "Waa la dibinayaa kharashaadka...",

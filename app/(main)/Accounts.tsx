@@ -117,7 +117,7 @@ const Accounts = () => {
             amount: newAccount.amount,
             description: `Initial balance for ${newAccount.name}`,
             date: new Date().toISOString().split("T")[0],
-            category: "Job Salary", // Use existing income category
+            category: "Initial Balance", // Use existing income category
             type: "income",
             is_recurring: false,
           });

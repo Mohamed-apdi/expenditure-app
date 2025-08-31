@@ -244,19 +244,10 @@ export default function LoginScreen() {
       {/* Remember / Forgot */}
       {/*<View className="flex-row justify-between items-center mb-6">
         <TouchableOpacity
-          onPress={() => setRememberMe(!rememberMe)}
-          className="flex-row items-center space-x-2"
+          onPress={() => router.push("/(forget)/forgot-password-screen")}
         >
-          <View
-            className={`w-5 h-5 rounded-md border-2 border-slate-600 ${
-              rememberMe ? "bg-emerald-500 border-emerald-500" : ""
-            } items-center justify-center`}
-          >
-            {rememberMe && <Text className="text-white text-xs">✓</Text>}
-          </View>
-          <Text className="text-slate-300 ml-2">Remember me</Text>
+          <Text style={{ color: theme.text }}>Forgot Password?</Text>
         </TouchableOpacity>
-        <Text className="text-emerald-400">Forgot Password?</Text>
       </View>*/}
 
       {/* Login */}

@@ -632,14 +632,6 @@ export default function DashboardScreen() {
     return colors[category] || "#64748b";
   };
 
-  // if (loading && !refreshing) {
-  //   return (
-  //     <View className="flex-1 bg-[#F6F8FD] justify-center items-center">
-  //       <ActivityIndicator size="large" color="#2D6CF6" />
-  //     </View>
-  //   );
-  // }
-
   // Get translated category label
   const getCategoryLabel = (categoryKey: string) => {
     const categoryMap: { [key: string]: string } = {
@@ -685,7 +677,13 @@ export default function DashboardScreen() {
     };
     return categoryMap[categoryKey] || categoryKey;
   };
-
+  // if (loading && !refreshing) {
+  //   return (
+  //     <View className="flex-1 bg-[#F6F8FD] justify-center items-center">
+  //       <ActivityIndicator size="large" color="#2D6CF6" />
+  //     </View>
+  //   );
+  // }
   return (
     <SafeAreaView className="flex-1 pt-safe bg-[#3b82f6] relative">
       <StatusBar
