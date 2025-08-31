@@ -10,10 +10,10 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, Pen, Trash2 } from "lucide-react-native";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import { format } from "date-fns";
-import { useTheme } from "~/lib/theme";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 
 type Transaction = {
   id: string;

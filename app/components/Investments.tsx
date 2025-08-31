@@ -22,10 +22,10 @@ import {
   BarChart3,
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { supabase } from "~/lib/supabase";
-import { fetchAccounts, type Account } from "~/lib/accounts";
-import { useTheme } from "~/lib/theme";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { supabase } from "~/lib";
+import { fetchAccounts, type Account } from "~/lib";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 
 // Investment interface based on your Supabase table
 interface Investment {

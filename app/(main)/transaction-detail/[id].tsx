@@ -39,9 +39,9 @@ import {
   FileText,
   Heart,
 } from "lucide-react-native";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import { format, formatDistanceToNow } from "date-fns";
-import { useTheme } from "~/lib/theme";
+import { useTheme } from "~/lib";
 import Toast from "react-native-toast-message";
 
 type Transaction = {

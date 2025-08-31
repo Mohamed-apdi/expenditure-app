@@ -23,11 +23,11 @@ import {
   Info,
   ChevronRight,
 } from "lucide-react-native";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import * as ImagePicker from "expo-image-picker";
 import { decode } from "base64-arraybuffer";
-import { useTheme } from "~/lib/theme";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 type FormData = {
   fullName: string;
   email: string;

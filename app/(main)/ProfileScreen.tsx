@@ -35,10 +35,10 @@ import {
   EyeOff,
 } from "lucide-react-native";
 import { deleteItemAsync } from "expo-secure-store";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import { UserProfile } from "~/types/userTypes";
-import { useTheme } from "~/lib/theme";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 import {
   fetchProfile,
   updateProfile,
@@ -46,7 +46,7 @@ import {
   updateProfilePhone,
   updateProfileEmail,
   type Profile,
-} from "~/lib/profiles";
+} from "~/lib";
 
 type PasswordData = {
   currentPassword: string;

@@ -10,7 +10,7 @@ import {
   FlatList,
 } from "react-native";
 import { X, ChevronDown, Check, DollarSign } from "lucide-react-native";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { useLanguage } from "~/lib";
 
 type AccountGroup = {
   id: string;

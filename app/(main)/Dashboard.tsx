@@ -14,7 +14,7 @@ import {
   FlatList,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import {
   getFinancialSummary,
   getExpensesByCategory,
@@ -22,11 +22,11 @@ import {
   getAccountBalances,
   type FinancialSummary,
   type CategorySummary,
-} from "~/lib/analytics";
-import { fetchExpenses } from "~/lib/expenses";
-import { fetchTransactions } from "~/lib/transactions";
-import { fetchProfile } from "~/lib/profiles";
-import { useAccount } from "~/lib/AccountContext";
+} from "~/lib";
+import { fetchExpenses } from "~/lib";
+import { fetchTransactions } from "~/lib";
+import { fetchProfile } from "~/lib";
+import { useAccount } from "~/lib";
 
 import {
   PieChart,
@@ -81,10 +81,11 @@ import {
   TrendingUpDown,
   DollarSign,
   Award,
+  ArrowRightLeft,
 } from "lucide-react-native";
 import { formatDistanceToNow } from "date-fns";
-import { useTheme } from "~/lib/theme";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 import DashboardHeader from "~/components/(Dashboard)/DashboardHeader";
 import MonthYearScroller from "~/components/(Dashboard)/MonthYearScroll";
 import NotificationPermissionRequest from "~/components/NotificationPermissionRequest";
@@ -578,6 +579,7 @@ export default function DashboardScreen() {
       Grants: HandCoins,
       "Gifts Received": Gift,
       Pension: User,
+      Transfer: ArrowRightLeft,
     };
     return icons[category] || MoreHorizontal;
   };
@@ -625,6 +627,7 @@ export default function DashboardScreen() {
       Grants: "#059669",
       "Gifts Received": "#8b5cf6",
       Pension: "#64748b",
+      Transfer: "#3b82f6",
     };
     return colors[category] || "#64748b";
   };
@@ -657,6 +660,52 @@ export default function DashboardScreen() {
   //     </View>
   //   );
   // }
+
+  // Get translated category label
+  const getCategoryLabel = (categoryKey: string) => {
+    const categoryMap: { [key: string]: string } = {
+      "Food & Drinks": t.foodAndDrinks,
+      "Home & Rent": t.homeAndRent,
+      Travel: t.travel,
+      Bills: t.bills,
+      Fun: t.fun,
+      Health: t.health,
+      Shopping: t.shopping,
+      Learning: t.learning,
+      "Personal Care": t.personalCare,
+      Insurance: t.insurance,
+      Loans: t.loans,
+      Gifts: t.gifts,
+      Donations: t.donations,
+      Vacation: t.vacation,
+      Pets: t.pets,
+      Children: t.children,
+      Subscriptions: t.subscriptions,
+      "Gym & Sports": t.gymAndSports,
+      Electronics: t.electronics,
+      Furniture: t.furniture,
+      Repairs: t.repairs,
+      Taxes: t.taxes,
+      "Job Salary": t.jobSalary,
+      Bonus: t.bonus,
+      "Part-time Work": t.partTimeWork,
+      Business: t.business,
+      Investments: t.investments,
+      "Bank Interest": t.bankInterest,
+      "Rent Income": t.rentIncome,
+      Sales: t.sales,
+      Gambling: t.gambling,
+      Awards: t.awards,
+      Refunds: t.refunds,
+      Freelance: t.freelance,
+      Royalties: t.royalties,
+      Grants: t.grants,
+      "Gifts Received": t.giftsReceived,
+      Pension: t.pension,
+      Transfer: t.transfer,
+    };
+    return categoryMap[categoryKey] || categoryKey;
+  };
 
   return (
     <SafeAreaView className="flex-1 pt-safe bg-[#3b82f6] relative">
@@ -735,7 +784,7 @@ export default function DashboardScreen() {
                             numberOfLines={1}
                             ellipsizeMode="tail"
                           >
-                            {t.category}
+                            {getCategoryLabel(t.category || "")}
                           </Text>
                           {t.description && (
                             <Text

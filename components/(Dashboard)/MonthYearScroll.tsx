@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { FlatList, Text, TouchableOpacity, View } from "react-native";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react-native";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { useLanguage } from "~/lib";
 
 const months = [
   "JAN",

@@ -10,7 +10,7 @@ import {
   TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { PersonalLoan, LoanRepayment, Account } from "~/lib/types";
+import { PersonalLoan, LoanRepayment, Account } from "~/lib";
 import {
   getUserLoans,
   createLoan,
@@ -19,15 +19,15 @@ import {
   getLoanRepayments,
   createRepayment,
   deleteRepayment,
-} from "~/lib/loans";
-import { fetchAccounts } from "~/lib/accounts";
-import { supabase } from "~/lib/supabase";
+} from "~/lib";
+import { fetchAccounts } from "~/lib";
+import { supabase } from "~/lib";
 import { useFocusEffect } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useAccount } from "~/lib/AccountContext";
+import { useAccount } from "~/lib";
 import { ChevronDown } from "lucide-react-native";
-import { useTheme } from "~/lib/theme";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 
 const Debt_Loan = () => {
   const { refreshAccounts } = useAccount();

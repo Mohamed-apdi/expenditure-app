@@ -6,7 +6,7 @@ import {
   ArrowRightCircle,
   PiggyBank,
 } from "lucide-react-native";
-import { useTheme } from "~/lib/theme";
+import { useTheme } from "~/lib";
 
 export default function MonthlyOverview({
   income,

@@ -1,5 +1,5 @@
 import { useState, useCallback, memo } from "react";
-import { API_URL } from "~/lib/api";
+import { API_URL } from "~/lib";
 import { router } from "expo-router";
 import {
   View,
@@ -23,14 +23,14 @@ import {
 } from "lucide-react-native";
 import { Text } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import { setItemAsync } from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import * as AuthSession from "expo-auth-session";
 import Toast from "react-native-toast-message";
-import { useTheme } from "../../lib/theme";
-import { useLanguage } from "../../lib/LanguageProvider";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 
 // Configure Google Auth
 WebBrowser.maybeCompleteAuthSession();
@@ -379,7 +379,7 @@ export default function SignupScreen() {
       if (data.user) {
         // Create default account for new user
         try {
-          const { createAccount } = await import("~/lib/accounts");
+          const { createAccount } = await import("~/lib");
 
           const defaultAccount = await createAccount({
             user_id: data.user.id,
@@ -554,7 +554,7 @@ export default function SignupScreen() {
 
               // Create default account for social login user
               try {
-                const { createAccount } = await import("~/lib/accounts");
+                const { createAccount } = await import("~/lib");
                 const {
                   data: { user },
                 } = await supabase.auth.getUser();

@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import {
   ArrowLeft,
   X,
@@ -34,9 +34,9 @@ import {
   CreditCard,
   Wallet,
 } from "lucide-react-native";
-import { scanReceiptWithOCR } from "~/lib/ocr";
+import { scanReceiptWithOCR } from "~/lib";
 import Toast from "react-native-toast-message";
-import { useTheme } from "~/lib/theme";
+import { useTheme } from "~/lib";
 const { width, height } = Dimensions.get("window");
 
 type ScannedData = {
@@ -785,7 +785,7 @@ export default function ReceiptScannerScreen() {
               marginBottom: 20,
             }}
           >
-            <Info size={16} color="#3b82f6" style={{ marginTop: 2 }} />
+            <Info size={16} color="#3b82f6" className="mt-0.5" />
             <Text style={{ color: theme.text, marginLeft: 12, flex: 1 }}>
               Please review the scanned information for accuracy. You can edit
               details before saving.

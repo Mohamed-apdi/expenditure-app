@@ -14,13 +14,13 @@ import {
   RefreshCcw,
   Globe,
 } from "lucide-react-native";
-import { useColorScheme } from "~/lib/useColorScheme";
-import { useTheme } from "~/lib/theme";
+import { useColorScheme } from "~/lib";
+import { useTheme } from "~/lib";
 import { WalletDropdown } from "./WalletDropdown";
-import { useAccount } from "~/lib/AccountContext";
-import { useNotifications } from "~/lib/useNotifications";
+import { useAccount } from "~/lib";
+import { useNotifications } from "~/lib";
 import { useRouter } from "expo-router";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { useLanguage } from "~/lib";
 
 interface DashboardHeaderProps {
   userName: string;

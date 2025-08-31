@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Stack, router } from "expo-router";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import { getItemAsync } from "expo-secure-store";
 import { ActivityIndicator, View } from "react-native";
 

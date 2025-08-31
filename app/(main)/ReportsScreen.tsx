@@ -28,7 +28,7 @@ import {
   LineChart,
 } from "react-native-chart-kit";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useAccount } from "~/lib/AccountContext";
+import { useAccount } from "~/lib";
 import {
   getTransactionReports,
   downloadReport,
@@ -39,11 +39,11 @@ import {
   formatDate,
   testAPIConnectivity,
   type TransactionReport,
-} from "~/lib/api";
-import { getCategoryColor, getColorByIndex } from "~/lib/chartColors";
+} from "~/lib";
+import { getCategoryColor, getColorByIndex } from "~/lib";
 import { sharePDF } from "~/lib/pdfGenerator";
-import { useTheme } from "../../lib/theme";
-import { useLanguage } from "../../lib/LanguageProvider";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -302,7 +302,9 @@ export default function ReportsScreen() {
             text: t.share,
             onPress: async () => {
               try {
-                const { sharePDF } = await import("~/lib/pdfGenerator");
+                const { sharePDF } = await import(
+                  "~/lib/generators/pdfGenerator"
+                );
                 await sharePDF(filePath);
               } catch (error) {
                 console.error("Error sharing PDF:", error);
@@ -339,7 +341,9 @@ export default function ReportsScreen() {
             text: t.share,
             onPress: async () => {
               try {
-                const { shareCSV } = await import("~/lib/csvGenerator");
+                const { shareCSV } = await import(
+                  "~/lib/generators/csvGenerator"
+                );
                 await shareCSV(filePath);
               } catch (error) {
                 console.error("Error sharing CSV:", error);

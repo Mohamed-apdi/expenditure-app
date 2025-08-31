@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import {
   X,
   ShoppingCart,
@@ -33,7 +33,7 @@ import {
   Check,
   ChevronRight,
 } from "lucide-react-native";
-import { useTheme } from "~/lib/theme";
+import { useTheme } from "~/lib";
 
 type Category = {
   id: string;

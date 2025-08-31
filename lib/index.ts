@@ -1,26 +1,56 @@
 // Database services
-export * from './accounts';
-export * from './expenses';
-export * from './budgets';
-export * from './transactions';
-export * from './transfers';
-export * from './subscriptions';
-export * from './goals';
-export * from './profiles';
-export * from './analytics';
+export * from "./services/accounts";
+export * from "./services/expenses";
+export * from "./services/budgets";
+export * from "./services/transactions";
+export * from "./services/transfers";
+export * from "./services/subscriptions";
+export * from "./services/goals";
+export * from "./services/profiles";
+export * from "./services/analytics";
+export * from "./services/loans";
+
+// API services
+export * from "./services/api";
+
+// Generators
+export * from "./generators/pdfGenerator";
+export * from "./generators/csvGenerator";
+
+// Notification service (default export)
+export { default as notificationService } from "./services/notificationService";
 
 // Types
-export * from './types';
+export * from "./types/types";
 
 // Supabase client
-export { supabase, getSupabaseWithToken } from './supabase';
+export { supabase, getSupabaseWithToken } from "./database/supabase";
+
+// Providers
+export * from "./providers/AccountContext";
+export * from "./providers/LanguageProvider";
+
+// Icons
+export * from "./icons/Check";
+export * from "./icons/ChevronDown";
+export * from "./icons/ChevronUp";
+export * from "./icons/Info";
+export * from "./icons/MoonStar";
+export * from "./icons/Sun";
 
 // Constants and utilities
-export * from './constants';
-export * from './utils';
-export * from './theme';
-export * from './useColorScheme';
-export * from './android-navigation-bar';
-export * from './ocr';
-export * from './comparison';
-export * from './compare';
+export * from "./config/theme/constants";
+export * from "./utils/utils";
+export * from "./config/theme/theme";
+export * from "./config/theme/useColorScheme";
+export * from "./config/storage/secureStore";
+export * from "./utils/android-navigation-bar";
+export * from "./utils/expoGoUtils";
+export * from "./utils/chartColors";
+export * from "./services/ocr";
+export * from "./utils/comparison";
+export * from "./utils/compare";
+
+// Hooks
+export * from "./hooks/useNotifications";
+export * from "./hooks/useDashboardData";

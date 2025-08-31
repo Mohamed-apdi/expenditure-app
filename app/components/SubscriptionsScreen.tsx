@@ -24,7 +24,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as Notifications from "expo-notifications";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import {
   fetchSubscriptionsWithAccounts,
   addSubscription,
@@ -32,12 +32,12 @@ import {
   deleteSubscription,
   toggleSubscriptionStatus,
   type Subscription,
-} from "~/lib/subscriptions";
-import { fetchAccounts, type Account } from "~/lib/accounts";
-import notificationService from "~/lib/notificationService";
+} from "~/lib";
+import { fetchAccounts, type Account } from "~/lib";
+import notificationService from "~/lib";
 import ExpoGoWarning from "~/components/ExpoGoWarning";
-import { useTheme } from "~/lib/theme";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 
 // Mock the icons - replace with your actual assets
 const serviceIcons = {
@@ -184,9 +184,17 @@ export default function SubscriptionsScreen() {
       }
 
       // Schedule notifications for upcoming subscriptions and budget checks
-      if (user) {
-        await notificationService.scheduleAllUpcomingNotifications();
-        await notificationService.scheduleBudgetCheckNotifications();
+      if (user && notificationService) {
+        try {
+          if (notificationService.scheduleAllUpcomingNotifications) {
+            await notificationService.scheduleAllUpcomingNotifications();
+          }
+          if (notificationService.scheduleBudgetCheckNotifications) {
+            await notificationService.scheduleBudgetCheckNotifications();
+          }
+        } catch (error) {
+          console.error("Error scheduling notifications:", error);
+        }
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -211,8 +219,10 @@ export default function SubscriptionsScreen() {
   useEffect(() => {
     const initializeNotifications = async () => {
       try {
-        // Register background tasks and setup notifications
-        await notificationService.registerBackgroundTask();
+        // Check if notification service is available
+        if (notificationService && notificationService.registerBackgroundTask) {
+          await notificationService.registerBackgroundTask();
+        }
       } catch (error) {
         console.error("Failed to initialize notifications:", error);
       }
@@ -228,7 +238,7 @@ export default function SubscriptionsScreen() {
     const setupNotifications = async () => {
       try {
         // Check if we're in Expo Go (where notifications are limited)
-        const { isExpoGo } = await import("~/lib/expoGoUtils");
+        const { isExpoGo } = await import("~/lib");
 
         if (isExpoGo) {
           console.warn(
@@ -237,12 +247,18 @@ export default function SubscriptionsScreen() {
           return;
         }
 
-        const subscription =
-          Notifications.addNotificationResponseReceivedListener(
-            notificationService.handleNotificationResponse
-          );
+        // Check if notification service and handler are available
+        if (
+          notificationService &&
+          notificationService.handleNotificationResponse
+        ) {
+          const subscription =
+            Notifications.addNotificationResponseReceivedListener(
+              notificationService.handleNotificationResponse
+            );
 
-        return () => subscription.remove();
+          return () => subscription.remove();
+        }
       } catch (error) {
         console.error("Failed to setup notification listener:", error);
       }
@@ -258,7 +274,16 @@ export default function SubscriptionsScreen() {
       fetchData();
 
       // Reschedule notifications based on new status
-      await notificationService.scheduleAllUpcomingNotifications();
+      try {
+        if (
+          notificationService &&
+          notificationService.scheduleAllUpcomingNotifications
+        ) {
+          await notificationService.scheduleAllUpcomingNotifications();
+        }
+      } catch (error) {
+        console.error("Error rescheduling notifications:", error);
+      }
     } catch (error) {
       console.error("Error toggling subscription:", error);
       Alert.alert(t.error, t.subscriptionToggleError);
@@ -361,7 +386,16 @@ export default function SubscriptionsScreen() {
       fetchData();
 
       // Reschedule notifications for all subscriptions
-      await notificationService.scheduleAllUpcomingNotifications();
+      try {
+        if (
+          notificationService &&
+          notificationService.scheduleAllUpcomingNotifications
+        ) {
+          await notificationService.scheduleAllUpcomingNotifications();
+        }
+      } catch (error) {
+        console.error("Error rescheduling notifications:", error);
+      }
     } catch (error) {
       console.error("Error saving subscription:", error);
       Alert.alert(t.error, t.subscriptionSaveError);
@@ -382,7 +416,16 @@ export default function SubscriptionsScreen() {
             fetchData();
 
             // Reschedule notifications for remaining subscriptions
-            await notificationService.scheduleAllUpcomingNotifications();
+            try {
+              if (
+                notificationService &&
+                notificationService.scheduleAllUpcomingNotifications
+              ) {
+                await notificationService.scheduleAllUpcomingNotifications();
+              }
+            } catch (error) {
+              console.error("Error rescheduling notifications:", error);
+            }
           } catch (error) {
             console.error("Error deleting subscription:", error);
             Alert.alert(t.error, t.subscriptionDeleteError);
@@ -685,7 +728,7 @@ export default function SubscriptionsScreen() {
           {subscriptions.filter((sub) => !sub.is_active).length === 0 ? (
             <View style={{ paddingVertical: 16, alignItems: "center" }}>
               <Text style={{ color: theme.textSecondary, fontSize: 18 }}>
-                {t.no} {t.InactiveSubscriptions}
+                {t.noInactiveSubscriptions}
               </Text>
             </View>
           ) : (

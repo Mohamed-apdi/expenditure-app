@@ -33,7 +33,7 @@ import {
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import {
   fetchGoalsWithAccounts,
   addGoal,
@@ -45,10 +45,10 @@ import {
   calculateGoalProgress,
   getTotalSavings,
   type Goal,
-} from "~/lib/goals";
-import { fetchAccounts, type Account } from "~/lib/accounts";
-import { useTheme } from "~/lib/theme";
-import { useLanguage } from "~/lib/LanguageProvider";
+} from "~/lib";
+import { fetchAccounts, type Account } from "~/lib";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 
 // Define goal icons
 type GoalIcon =

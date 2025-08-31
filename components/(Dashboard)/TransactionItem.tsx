@@ -1,5 +1,5 @@
 import { View, Text } from "react-native";
-import { useTheme } from "~/lib/theme";
+import { useTheme } from "~/lib";
 
 interface TransactionItemProps {
   icon: React.ComponentType<{ size: number; color: string }>;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Slot, router } from "expo-router";
 import { getItemAsync } from "expo-secure-store";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import { View, ActivityIndicator } from "react-native";
 
 export default function AuthLayout() {

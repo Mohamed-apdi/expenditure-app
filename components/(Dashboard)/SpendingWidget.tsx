@@ -1,13 +1,12 @@
 import { View, Text } from "react-native";
 import { Calendar } from "lucide-react-native";
-import { useColorScheme } from "~/lib/useColorScheme";
-import { useTheme } from "~/lib/theme";
+import { useColorScheme } from "~/lib";
+import { useTheme } from "~/lib";
 interface SpendingWidgetProps {
   spent: number;
 }
 
 export default function SpendingWidget({ spent }: SpendingWidgetProps) {
-
   const theme = useTheme();
 
   return (

@@ -63,16 +63,16 @@ import {
   Check,
 } from "lucide-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { supabase } from "~/lib/supabase";
-import { NAV_THEME, useTheme } from "~/lib/theme";
-import { fetchAccounts, updateAccountBalance } from "~/lib/accounts";
-import { addExpense } from "~/lib/expenses";
-import { addTransaction } from "~/lib/transactions";
-import { addTransfer } from "~/lib/transfers";
-import { addSubscription } from "~/lib/subscriptions";
-import type { Account } from "~/lib/accounts";
-import notificationService from "~/lib/notificationService";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { supabase } from "~/lib";
+import { NAV_THEME, useTheme } from "~/lib";
+import { fetchAccounts, updateAccountBalance } from "~/lib";
+import { addExpense } from "~/lib";
+import { addTransaction } from "~/lib";
+import { addTransfer } from "~/lib";
+import { addSubscription } from "~/lib";
+import type { Account } from "~/lib";
+import notificationService from "~/lib";
+import { useLanguage } from "~/lib";
 
 type Category = {
   id: string;

@@ -1,5 +1,5 @@
 import { TouchableOpacity, Text, View } from "react-native";
-import { useTheme } from "~/lib/theme";
+import { useTheme } from "~/lib";
 interface QuickActionCardProps {
   icon: React.ComponentType<{ size: number; color: string }>;
   title: string;

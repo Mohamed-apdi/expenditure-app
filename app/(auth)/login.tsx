@@ -12,13 +12,13 @@ import { View, TextInput, TouchableOpacity, Alert } from "react-native";
 import { Text } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
 import { setItemAsync } from "expo-secure-store";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
 import Toast from "react-native-toast-message";
-import { useTheme } from "../../lib/theme";
-import { useLanguage } from "../../lib/LanguageProvider";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 
 // Required for Expo OAuth
 WebBrowser.maybeCompleteAuthSession();

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { TouchableOpacity, Text, View, FlatList } from "react-native";
 import { ChevronDown, Loader } from "lucide-react-native";
-import { useTheme } from "~/lib/theme";
-import { useAccount } from "~/lib/AccountContext";
+import { useTheme } from "~/lib";
+import { useAccount } from "~/lib";
 
 export function WalletDropdown() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);

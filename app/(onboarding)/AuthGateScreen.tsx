@@ -10,8 +10,8 @@ import {
   ArrowRight,
 } from "lucide-react-native";
 import { useEffect, useRef } from "react";
-import { useTheme } from "../../lib/theme";
-import { useLanguage } from "../../lib/LanguageProvider";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 
 {
   /* Benefits */

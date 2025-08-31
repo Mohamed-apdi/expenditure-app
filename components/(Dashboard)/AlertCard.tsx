@@ -1,6 +1,6 @@
 import { View, Text } from "react-native";
 import { ChevronRight } from "lucide-react-native";
-import { useTheme } from "~/lib/theme";
+import { useTheme } from "~/lib";
 
 interface AlertCardProps {
   icon: React.ComponentType<{ size: number; color: string }>;

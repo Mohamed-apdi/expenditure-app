@@ -23,7 +23,7 @@ import { CircularProgress } from "react-native-circular-progress";
 import { SafeAreaView } from "react-native-safe-area-context";
 import SubscriptionsScreen from "../components/SubscriptionsScreen";
 import SavingsScreen from "../components/SavingsScreen";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import {
   fetchBudgets,
   fetchBudgetsWithAccounts,
@@ -31,15 +31,15 @@ import {
   updateBudget,
   deleteBudget,
   type Budget,
-} from "~/lib/budgets";
-import { fetchAccounts, type Account } from "~/lib/accounts";
+} from "~/lib";
+import { fetchAccounts, type Account } from "~/lib";
 import {
   getExpensesByCategory,
   getBudgetProgress,
   type BudgetProgress,
-} from "~/lib/analytics";
-import { useTheme } from "../../lib/theme";
-import { useLanguage } from "../../lib/LanguageProvider";
+} from "~/lib";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 
 import Investments from "../components/Investments";
 import Debt_Loan from "../components/Debt_Loan";
@@ -560,7 +560,7 @@ export default function BudgetScreen() {
                         <View
                           key={budget.id}
                           style={{
-                            width: "50%",
+                            width: "47%",
                             marginBottom: 16,
                             padding: 10,
                             backgroundColor: theme.cardBackground,
@@ -571,7 +571,11 @@ export default function BudgetScreen() {
                         >
                           <View className="flex-row justify-between gap-2 items-center mb-2">
                             <Text
-                              style={{ color: theme.text, fontWeight: "400" }}
+                              style={{
+                                color: theme.text,
+                                fontSize: 12,
+                                fontWeight: "400",
+                              }}
                             >
                               {getCategoryLabel(budget.category)}
                             </Text>
