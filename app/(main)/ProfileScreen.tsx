@@ -340,7 +340,6 @@ export default function ProfileScreen() {
         {/* Header */}
         <View className="flex-row justify-between items-center px-6 py-5">
           <Text
-            className="text-xs"
             style={{
               color: theme.text,
             }}
@@ -398,7 +397,6 @@ export default function ProfileScreen() {
 
           <View className="items-center">
             <Text
-              className="text-xs"
               style={{
                 color: theme.text,
               }}
@@ -415,7 +413,6 @@ export default function ProfileScreen() {
         {/* Contact Information */}
         <View className="px-6 mb-8">
           <Text
-            className="text-xs"
             style={{
               color: theme.text,
             }}

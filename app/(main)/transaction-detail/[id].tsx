@@ -53,7 +53,7 @@ type Transaction = {
   created_at: string;
   type: "expense" | "income" | "transfer";
   account_id: string;
-  payment_method?: string;
+
   is_recurring?: boolean;
   recurrence_interval?: string;
   location?: string;
@@ -905,8 +905,7 @@ Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
           </View>
 
           {/* Additional Details */}
-          {(transaction.payment_method ||
-            transaction.is_recurring ||
+          {(transaction.is_recurring ||
             transaction.location ||
             transaction.notes) && (
             <View
@@ -929,37 +928,6 @@ Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
               >
                 Additional Information
               </Text>
-
-              {/* Payment Method */}
-              {transaction.payment_method && (
-                <View style={{ marginBottom: 16 }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <CreditCard size={16} color={theme.textSecondary} />
-                    <Text
-                      style={{
-                        color: theme.textSecondary,
-                        fontSize: 12,
-                        marginLeft: 8,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      Payment Method
-                    </Text>
-                  </View>
-                  <Text style={{ color: theme.text, fontSize: 16 }}>
-                    {transaction.payment_method
-                      .replace("_", " ")
-                      .replace(/\b\w/g, (l) => l.toUpperCase())}
-                  </Text>
-                </View>
-              )}
 
               {/* Recurring */}
               {transaction.is_recurring && (

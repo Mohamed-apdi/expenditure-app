@@ -60,7 +60,6 @@ export type Expense = {
   category: string;
   description?: string;
   date: string;
-  payment_method?: string;
   is_recurring: boolean;
   recurrence_interval?: string;
   is_essential: boolean;

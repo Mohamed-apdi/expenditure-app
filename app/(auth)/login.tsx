@@ -79,7 +79,7 @@ export default function LoginScreen() {
     setSocialLoading(provider);
 
     try {
-      const redirectUrl = AuthSession.makeRedirectUri({ useProxy: true });
+      const redirectUrl = AuthSession.makeRedirectUri();
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,

@@ -1,5 +1,5 @@
 import { supabase } from "../database/supabase";
-import type { Transaction, TransactionWithAccounts } from "./types";
+import type { Transaction, TransactionWithAccounts } from "../types/types";
 
 export const fetchTransactions = async (
   userId: string

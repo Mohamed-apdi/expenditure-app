@@ -30,7 +30,7 @@ type Expense = {
   category: string;
   description: string;
   date: string;
-  payment_method: string;
+
   is_recurring: boolean;
   recurrence_interval?: string;
   is_essential: boolean;
@@ -138,16 +138,6 @@ export default function ExpenseDetailScreen() {
       Other: "#64748b",
     };
     return colors[category] || "#64748b";
-  };
-
-  const getPaymentMethodName = (method: string) => {
-    const methods: Record<string, string> = {
-      cash: "Cash",
-      credit_card: "Credit Card",
-      debit_card: "Debit Card",
-      digital_wallet: "Digital Wallet",
-    };
-    return methods[method] || "Unknown";
   };
 
   const handleViewReceipt = async () => {
@@ -301,25 +291,6 @@ export default function ExpenseDetailScreen() {
               <Calendar size={18} color={theme.textSecondary} />
               <Text style={{ color: theme.text, fontSize: 18, marginLeft: 12 }}>
                 {format(new Date(expense.date), "MMMM d, yyyy")}
-              </Text>
-            </View>
-          </View>
-
-          {/* Payment Method */}
-          <View>
-            <Text
-              style={{
-                color: theme.textSecondary,
-                fontSize: 13,
-                marginBottom: 6,
-              }}
-            >
-              Payment Method
-            </Text>
-            <View className="flex-row items-center">
-              <CreditCard size={18} color={theme.textSecondary} />
-              <Text style={{ color: theme.text, fontSize: 18, marginLeft: 12 }}>
-                {getPaymentMethodName(expense.payment_method)}
               </Text>
             </View>
           </View>

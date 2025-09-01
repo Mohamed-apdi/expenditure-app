@@ -1,5 +1,5 @@
 import { supabase } from "../database/supabase";
-import { PersonalLoan, LoanRepayment } from "./types";
+import { PersonalLoan, LoanRepayment } from "../types/types";
 import {
   addTransaction,
   deleteTransaction,

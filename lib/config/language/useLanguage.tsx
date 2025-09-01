@@ -1,11 +1,17 @@
 import { useState } from "react";
 import { LANGUAGES } from "./languages";
 
+// Create a type for all possible translation keys
+type TranslationKey = keyof (typeof LANGUAGES)["en"];
+
 export function useLanguage() {
   const [language, setLanguage] = useState<keyof typeof LANGUAGES>("en");
 
   return {
-    t: (key: keyof (typeof LANGUAGES)["en"]) => LANGUAGES[language][key] || key,
+    t: (key: TranslationKey): string => {
+      const currentLanguage = LANGUAGES[language];
+      return currentLanguage[key] || key;
+    },
     language,
     setLanguage,
   };

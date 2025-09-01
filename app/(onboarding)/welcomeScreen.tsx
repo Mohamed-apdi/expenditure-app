@@ -325,7 +325,7 @@ export default function WelcomeScreen() {
                 lineHeight: 24,
               }}
             >
-              {t.description}
+              {t.descriptionHome}
             </Text>
           </Animated.View>
 

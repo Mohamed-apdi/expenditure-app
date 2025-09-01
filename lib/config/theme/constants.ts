@@ -15,6 +15,8 @@ export const NAV_THEME = {
 
     // Form elements
     placeholder: "#94a3b8",
+    inputBackground: "#f8fafc",
+    inputBorder: "#e2e8f0",
 
     // Action colors - Blue and white theme
     primary: "#3b82f6",
@@ -25,6 +27,7 @@ export const NAV_THEME = {
     successText: "#ffffff",
     danger: "#1e40af", // Dark blue instead of red
     dangerText: "#ffffff",
+    error: "#ef4444", // Red for error states
 
     // Icons
     icon: "#3b82f6",
@@ -33,6 +36,10 @@ export const NAV_THEME = {
     // Status indicators
     stepInactive: "#e2e8f0",
     stepActive: "#0891b2",
+
+    // Theme detection
+    isDark: false,
+    isDarkColorScheme: false,
   },
   dark: {
     icon: "#ffffff",
@@ -52,6 +59,8 @@ export const NAV_THEME = {
 
     // Form elements
     placeholder: "#94a3b8",
+    inputBackground: "#334155",
+    inputBorder: "#475569",
 
     // Action colors - Blue and white theme
     primary: "#3b82f6",
@@ -62,13 +71,14 @@ export const NAV_THEME = {
     successText: "#ffffff",
     danger: "#1e40af", // Dark blue instead of red
     dangerText: "#ffffff",
-
-    // Icons
-    icon: "#f8fafc",
-    iconMuted: "#94a3b8",
+    error: "#f87171", // Light red for error states in dark mode
 
     // Status indicators
     stepInactive: "#334155",
     stepActive: "#0891b2",
+
+    // Theme detection
+    isDark: true,
+    isDarkColorScheme: true,
   },
 };

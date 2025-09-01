@@ -47,9 +47,6 @@ export * from "./config/storage/secureStore";
 export * from "./utils/android-navigation-bar";
 export * from "./utils/expoGoUtils";
 export * from "./utils/chartColors";
-export * from "./services/ocr";
-export * from "./utils/comparison";
-export * from "./utils/compare";
 
 // Hooks
 export * from "./hooks/useNotifications";

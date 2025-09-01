@@ -17,7 +17,6 @@ import { useRouter } from "expo-router";
 import { supabase } from "~/lib";
 import {
   getFinancialSummary,
-  getExpensesByCategory,
   getRecentTransactions,
   getAccountBalances,
   type FinancialSummary,
@@ -223,9 +222,27 @@ export default function DashboardScreen() {
         setTodaySpending(todayTotal);
         console.log("Dashboard - Today's spending:", todayTotal);
 
-        // Category Summary - use transactions
-        const categoryData = await getExpensesByCategory(user.id);
-        setCategorySummary(categoryData);
+        // Category Summary - use expenses
+        const allExpenses = await fetchExpenses(user.id);
+        const categoryMap = new Map<string, number>();
+        allExpenses
+          .filter((e) => e.entry_type === "Expense")
+          .forEach((e) => {
+            const current = categoryMap.get(e.category) || 0;
+            categoryMap.set(e.category, current + e.amount);
+          });
+
+        const categorySummary: CategorySummary[] = Array.from(
+          categoryMap.entries()
+        ).map(([category, amount]) => ({
+          category,
+          amount,
+          count: allExpenses.filter(
+            (e) => e.category === category && e.entry_type === "Expense"
+          ).length,
+          percentage: 0, // Will be calculated later if needed
+        }));
+        setCategorySummary(categorySummary);
 
         // Account Balances
         const balances = await getAccountBalances(user.id);
@@ -323,6 +340,9 @@ export default function DashboardScreen() {
         ).map(([category, amount]) => ({
           category,
           amount,
+          count: accountTransactionsFiltered.filter(
+            (t) => t.category === category && t.type === "expense"
+          ).length,
           percentage: (amount / accountExpensesTotal) * 100,
         }));
 

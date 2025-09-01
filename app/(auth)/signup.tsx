@@ -1,5 +1,4 @@
 import { useState, useCallback, memo } from "react";
-import { API_URL } from "~/lib";
 import { router } from "expo-router";
 import {
   View,

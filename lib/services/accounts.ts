@@ -4,7 +4,7 @@ import type {
   AccountGroup,
   AccountType,
   AccountWithGroup,
-} from "./types";
+} from "../types/types";
 
 export const fetchAccounts = async (userId: string): Promise<Account[]> => {
   const { data, error } = await supabase
