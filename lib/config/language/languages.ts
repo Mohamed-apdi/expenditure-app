@@ -118,7 +118,6 @@ export const LANGUAGES = {
     compareExpenses: "Compare Expenses",
 
     // ProfileScreen translations
-    profile: "Profile",
     contactInformation: "Contact Information",
     phoneNumber: "Phone Number",
     noNameProvided: "No name provided",
@@ -773,7 +772,6 @@ export const LANGUAGES = {
     compareExpenses: "Isku barbar dhig Kharashaadka",
 
     // ProfileScreen translations
-    profile: "Profile",
     contactInformation: "Macluumaadka Xiriirka",
     phoneNumber: "Telefoonka",
     noNameProvided: "Magac ma la bixin",

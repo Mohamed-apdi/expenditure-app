@@ -33,6 +33,7 @@ import {
   Lock,
   Eye,
   EyeOff,
+  Globe,
 } from "lucide-react-native";
 import { deleteItemAsync } from "expo-secure-store";
 import { supabase } from "~/lib";
@@ -56,7 +57,7 @@ type PasswordData = {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const [userProfile, setUserProfile] = useState<UserProfile>({
     fullName: "",
     email: "",
@@ -64,6 +65,7 @@ export default function ProfileScreen() {
   });
   const [loading, setLoading] = useState(true);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [passwordData, setPasswordData] = useState<PasswordData>({
     currentPassword: "",
     newPassword: "",
@@ -345,7 +347,7 @@ export default function ProfileScreen() {
             }}
             className=" text-2xl font-bold"
           >
-            {t.profile}
+            {t.settings}
           </Text>
           <TouchableOpacity
             className="p-2"
@@ -490,6 +492,45 @@ export default function ProfileScreen() {
               </View>
             </View>
           </View>
+        </View>
+
+        {/* Language Section */}
+        <View className="px-6 mb-8">
+          <Text
+            style={{ color: theme.text }}
+            className="text-lg font-bold mb-4"
+          >
+            {t.languages}
+          </Text>
+
+          {/* Change Language */}
+          <TouchableOpacity
+            className="flex-row items-center  rounded-xl p-4 mb-3 border "
+            onPress={() => setShowLanguageModal(true)}
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderColor: theme.border,
+            }}
+          >
+            <View
+              className="w-10 h-10 rounded-full  justify-center items-center mr-4"
+              style={{ backgroundColor: theme.cardBackground }}
+            >
+              <Globe size={20} color="#10b981" />
+            </View>
+            <View className="flex-1">
+              <Text
+                style={{ color: theme.text }}
+                className=" text-base font-semibold mb-1"
+              >
+                {t.languages}
+              </Text>
+              <Text className="text-slate-400 text-sm">
+                Change your app language
+              </Text>
+            </View>
+            <ChevronRight size={20} color="#64748b" />
+          </TouchableOpacity>
         </View>
 
         {/* Security Section */}
@@ -795,6 +836,109 @@ export default function ProfileScreen() {
             </View>
           </ScrollView>
         </SafeAreaView>
+      </Modal>
+
+      {/* Language Change Modal */}
+      <Modal
+        visible={showLanguageModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowLanguageModal(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black/50">
+          <View
+            style={{
+              width: "90%",
+              maxHeight: "70%",
+              backgroundColor: theme.cardBackground,
+              borderRadius: 12,
+              padding: 20,
+              borderWidth: 1,
+              borderColor: theme.border,
+            }}
+          >
+            {/* Modal Header */}
+            <View
+              className="flex-row justify-between items-center px-6 py-4 border-b"
+              style={{ borderBottomColor: theme.border }}
+            >
+              <Text style={{ color: theme.text }} className="text-lg font-bold">
+                {t.languages}
+              </Text>
+              <TouchableOpacity
+                className="p-2"
+                onPress={() => setShowLanguageModal(false)}
+              >
+                <X size={20} color={theme.icon} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Modal Content */}
+            <View className="p-6">
+              {/* Language Options */}
+              <View>
+                <Text
+                  style={{ color: theme.text }}
+                  className="text-base font-semibold mb-4"
+                >
+                  Select Language
+                </Text>
+
+                {/* English Option */}
+                <TouchableOpacity
+                  className="flex-row items-center p-4 rounded-xl border mb-3"
+                  style={{
+                    backgroundColor: theme.cardBackground,
+                    borderColor: theme.border,
+                  }}
+                  onPress={() => {
+                    setLanguage("en");
+                    setShowLanguageModal(false);
+                  }}
+                >
+                  <View className="flex-1">
+                    <Text
+                      style={{ color: theme.text }}
+                      className="text-base font-semibold"
+                    >
+                      English
+                    </Text>
+                    <Text className="text-slate-400 text-sm">
+                      English language
+                    </Text>
+                  </View>
+                  {language === "en" && <Check size={20} color="#10b981" />}
+                </TouchableOpacity>
+
+                {/* Somali Option */}
+                <TouchableOpacity
+                  className="flex-row items-center p-4 rounded-xl border"
+                  style={{
+                    backgroundColor: theme.cardBackground,
+                    borderColor: theme.border,
+                  }}
+                  onPress={() => {
+                    setLanguage("so");
+                    setShowLanguageModal(false);
+                  }}
+                >
+                  <View className="flex-1">
+                    <Text
+                      style={{ color: theme.text }}
+                      className="text-base font-semibold"
+                    >
+                      Soomaali
+                    </Text>
+                    <Text className="text-slate-400 text-sm">
+                      Somali language
+                    </Text>
+                  </View>
+                  {language === "so" && <Check size={20} color="#10b981" />}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );

@@ -172,7 +172,7 @@ export default function UpdateProfileScreen() {
           text: t.ok,
           onPress: () =>
             router.push({
-              pathname: "../(main)/ProfileScreen",
+              pathname: "../(main)/SettingScreen",
               params: {
                 updated: "true",
                 timestamp: Date.now(),
@@ -197,7 +197,7 @@ export default function UpdateProfileScreen() {
           style: "destructive",
           onPress: () =>
             router.push({
-              pathname: "../(main)/ProfileScreen",
+              pathname: "../(main)/SettingScreen",
               params: {
                 updated: "true",
                 timestamp: Date.now(),

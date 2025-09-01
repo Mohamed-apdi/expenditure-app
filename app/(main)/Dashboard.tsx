@@ -719,7 +719,7 @@ export default function DashboardScreen() {
           supabase.auth.signOut();
           router.replace("/login");
         }}
-        onSettingsPress={() => router.push("/(main)/ProfileScreen")}
+        onSettingsPress={() => router.push("/(main)/SettingScreen")}
         onNotificationPress={() => router.push("/(main)/notifications")}
       />
       <View className="">

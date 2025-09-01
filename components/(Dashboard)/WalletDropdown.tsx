@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
-import { TouchableOpacity, Text, View, FlatList } from "react-native";
-import { ChevronDown, Loader } from "lucide-react-native";
+import {
+  TouchableOpacity,
+  Text,
+  View,
+  FlatList,
+  Modal,
+  ScrollView,
+} from "react-native";
+import { ChevronDown, Loader, X } from "lucide-react-native";
 import { useTheme } from "~/lib";
 import { useAccount } from "~/lib";
 
@@ -108,35 +115,104 @@ export function WalletDropdown() {
         </TouchableOpacity>
       </View>
 
-      {/* Dropdown list */}
-      {isDropdownOpen && (
-        <View className="absolute top-10 left-3 right-10 bg-white rounded-lg shadow-lg z-50 max-h-60 w-48">
-          <FlatList
-            data={accounts}
-            keyExtractor={(item) => item.id}
-            showsVerticalScrollIndicator={true}
-            nestedScrollEnabled={true}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                className="px-4 py-3 border-b border-gray-100"
-                onPress={() => handleAccountSelection(item)}
-                activeOpacity={0.7}
-                disabled={isSelecting}
+      {/* Account Selection Modal */}
+      <Modal
+        visible={isDropdownOpen}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setIsDropdownOpen(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+          }}
+        >
+          <View
+            style={{
+              width: "90%",
+              maxHeight: "70%",
+              backgroundColor: theme.cardBackground,
+              borderRadius: 12,
+              padding: 20,
+            }}
+          >
+            <View className="flex-row justify-between items-center mb-4">
+              <Text
+                style={{
+                  color: theme.text,
+                  fontWeight: "bold",
+                  fontSize: 18,
+                }}
               >
-                <View className="flex-row items-center justify-between w-full">
-                  <Text className="text-base font-medium text-gray-800 flex-1 mr-2">
-                    {item.name}
-                  </Text>
-                  <Text className="text-base font-semibold text-gray-900">
-                    ${item.amount?.toFixed(2) || "0.00"}
-                  </Text>
-                </View>
+                Select Account
+              </Text>
+              <TouchableOpacity onPress={() => setIsDropdownOpen(false)}>
+                <X size={24} color={theme.textMuted} />
               </TouchableOpacity>
-            )}
-            ListFooterComponent={() => <View className="h-2" />}
-          />
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              style={{ maxHeight: 400 }}
+            >
+              {accounts.map((account) => (
+                <TouchableOpacity
+                  key={account.id}
+                  style={{
+                    padding: 16,
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.border,
+                    backgroundColor:
+                      selectedAccount?.id === account.id
+                        ? `${theme.primary}20`
+                        : "transparent",
+                    borderRadius: 8,
+                    marginBottom: 8,
+                  }}
+                  onPress={() => handleAccountSelection(account)}
+                  activeOpacity={0.7}
+                  disabled={isSelecting}
+                >
+                  <View className="flex-row items-center justify-between w-full">
+                    <View className="flex-1 mr-4">
+                      <Text
+                        style={{
+                          color: theme.text,
+                          fontSize: 16,
+                          fontWeight: "500",
+                          marginBottom: 4,
+                        }}
+                      >
+                        {account.name}
+                      </Text>
+                      <Text
+                        style={{
+                          color: theme.textSecondary,
+                          fontSize: 14,
+                        }}
+                      >
+                        {account.account_type}
+                      </Text>
+                    </View>
+                    <Text
+                      style={{
+                        color: theme.text,
+                        fontSize: 16,
+                        fontWeight: "600",
+                      }}
+                    >
+                      ${account.amount?.toFixed(2) || "0.00"}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
         </View>
-      )}
+      </Modal>
     </View>
   );
 }
