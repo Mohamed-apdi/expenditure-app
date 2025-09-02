@@ -27,7 +27,7 @@ export const fetchTransactionsWithAccounts = async (
       `
       *,
       account:accounts(*),
-      related_account:accounts!transactions_related_account_id_fkey(*)
+      related_account:accounts!transactions_account_id_fkey(*)
     `
     )
     .eq("user_id", userId)

@@ -82,12 +82,13 @@ import {
   Award,
   ArrowRightLeft,
 } from "lucide-react-native";
-import { formatDistanceToNow } from "date-fns";
+
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
 import DashboardHeader from "~/components/(Dashboard)/DashboardHeader";
 import MonthYearScroller from "~/components/(Dashboard)/MonthYearScroll";
 import NotificationPermissionRequest from "~/components/NotificationPermissionRequest";
+import MemoizedTransactionItem from "~/components/(Dashboard)/MemoizedTransactionItem";
 
 type Transaction = {
   id: string;
@@ -583,7 +584,7 @@ export default function DashboardScreen() {
       Taxes: Receipt,
 
       // Income categories
-      "Job Salary": DollarSign,
+      "Initial Balance": DollarSign,
       Bonus: Zap,
       "Part-time Work": Clock,
       Business: Briefcase,
@@ -631,7 +632,7 @@ export default function DashboardScreen() {
       Taxes: "#ef4444",
 
       // Income colors
-      "Job Salary": "#059669",
+      "Initial Balance": "#059669",
       Bonus: "#3b82f6",
       "Part-time Work": "#f97316",
       Business: "#8b5cf6",
@@ -677,7 +678,7 @@ export default function DashboardScreen() {
       Furniture: t.furniture,
       Repairs: t.repairs,
       Taxes: t.taxes,
-      "Job Salary": t.jobSalary,
+      "Initial Balance": t.InitialBalance,
       Bonus: t.bonus,
       "Part-time Work": t.partTimeWork,
       Business: t.business,
@@ -756,75 +757,17 @@ export default function DashboardScreen() {
           <FlatList
             data={filteredTransactions}
             keyExtractor={(item) => item.id}
-            renderItem={({ item: t }) => {
-              const IconComponent = getCategoryIcon(t.category || "");
-              const color = getCategoryColor(t.category || "");
-
-              return (
-                <TouchableOpacity
-                  key={t.id}
-                  onPress={() => router.push(`/transaction-detail/${t.id}`)}
-                >
-                  <View
-                    className="flex-row items-center p-4 rounded-xl gap-3 mb-2"
-                    style={{ backgroundColor: theme.cardBackground }}
-                  >
-                    <View
-                      className="w-11 h-11 rounded-xl items-center justify-center"
-                      style={{ backgroundColor: `${color}20` }}
-                    >
-                      <IconComponent size={20} color={color} />
-                    </View>
-                    <View className="flex-1 flex-row justify-between items-center">
-                      <View className="flex-1 flex-row items-center">
-                        <View style={{ flex: 1, paddingRight: 8 }}>
-                          <Text
-                            className="text-base font-semibold"
-                            style={{ color: theme.text }}
-                            numberOfLines={1}
-                            ellipsizeMode="tail"
-                          >
-                            {getCategoryLabel(t.category || "")}
-                          </Text>
-                          {t.description && (
-                            <Text
-                              className="text-xs"
-                              style={{ color: theme.textSecondary }}
-                              numberOfLines={1}
-                              ellipsizeMode="tail"
-                            >
-                              {t.description}
-                            </Text>
-                          )}
-                        </View>
-                        <View style={{ flexShrink: 1, alignItems: "flex-end" }}>
-                          <Text
-                            className="text-base font-bold"
-                            style={{
-                              color:
-                                t.type === "expense" ? "#DC2626" : "#16A34A",
-                            }}
-                            numberOfLines={1}
-                            ellipsizeMode="tail"
-                          >
-                            {t.type === "expense" ? "-" : "+"}$
-                            {Math.abs(t.amount).toFixed(2)}
-                          </Text>
-                          <Text
-                            className="text-xs"
-                            style={{ color: theme.textSecondary }}
-                          >
-                            {formatDistanceToNow(new Date(t.created_at), {
-                              addSuffix: true,
-                            })}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            }}
+            renderItem={({ item: t }) => (
+              <MemoizedTransactionItem
+                transaction={t}
+                getCategoryIcon={getCategoryIcon}
+                getCategoryColor={getCategoryColor}
+                getCategoryLabel={getCategoryLabel}
+                onPress={() =>
+                  router.push(`/(transactions)/transaction-detail/${t.id}`)
+                }
+              />
+            )}
             ListEmptyComponent={
               <View className="p-4 bg-white rounded-xl items-center justify-center">
                 <Text className="text-sm text-gray-500">

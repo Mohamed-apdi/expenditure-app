@@ -439,11 +439,13 @@ Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
         </Text>
 
         <View style={{ flexDirection: "row", gap: 16 }}>
-          {/*<TouchableOpacity onPress={handleShare}>
+          <TouchableOpacity onPress={handleShare}>
             <Share2 size={24} color={theme.icon} />
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => router.push(`/(expense)/edit-expense/${transaction.id}`)}
+            onPress={() =>
+              router.push(`/(transactions)/edit-transaction/${transaction.id}`)
+            }
             disabled={deleting}
           >
             <Edit3 size={24} color={theme.icon} />
@@ -454,7 +456,7 @@ Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
             ) : (
               <Trash2 size={24} color="#ef4444" />
             )}
-          </TouchableOpacity>*/}
+          </TouchableOpacity>
         </View>
       </View>
 

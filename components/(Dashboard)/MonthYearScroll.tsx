@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { FlatList, Text, TouchableOpacity, View } from "react-native";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react-native";
 import { useLanguage } from "~/lib";
@@ -44,10 +44,13 @@ export default function MonthYearScroller({
     balance: number;
   }>({ income: 0, expense: 0, balance: 0 });
 
+  // Add ref for FlatList to enable programmatic scrolling
+  const flatListRef = useRef<FlatList>(null);
+
   // Generate month/year list from 2024 → current year
   const data = useMemo(() => {
     const arr: string[] = [];
-    for (let y = 2024; y <= currentYear; y++) {
+    for (let y = 2025; y <= currentYear; y++) {
       for (let m = 0; m < 12; m++) {
         if (y === currentYear && m > currentMonth) break;
         arr.push(`${months[m]} ${y}`);
@@ -60,6 +63,23 @@ export default function MonthYearScroller({
   const [selected, setSelected] = useState(
     `${months[currentMonth]} ${currentYear}`
   );
+
+  // Scroll to selected month when component mounts or data changes
+  useEffect(() => {
+    if (flatListRef.current && data.length > 0) {
+      const selectedIndex = data.findIndex((item) => item === selected);
+      if (selectedIndex >= 0) {
+        // Add a small delay to ensure the FlatList is fully rendered
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({
+            index: selectedIndex,
+            animated: false, // Always instant scroll
+            viewPosition: 0.5, // Center the selected item
+          });
+        }, 100);
+      }
+    }
+  }, [data, selected]);
 
   useEffect(() => {
     // Parse the selected month/year
@@ -88,6 +108,7 @@ export default function MonthYearScroller({
     <View className="py-4">
       {/* Month scroller */}
       <FlatList
+        ref={flatListRef}
         data={data}
         horizontal
         keyExtractor={(item) => item}

@@ -84,7 +84,6 @@ export type Transaction = {
   id: string;
   user_id: string;
   account_id: string;
-  related_account_id?: string;
   amount: number;
   description?: string;
   date: string;

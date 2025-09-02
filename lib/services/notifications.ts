@@ -381,6 +381,6 @@ export async function createTransactionNotification({
       transaction_id: transactionId,
       amount,
     },
-    action_url: `/(main)/transaction-detail/${transactionId}`,
+    action_url: `/(transactions)/transaction-detail/${transactionId}`,
   });
 }
