@@ -65,7 +65,6 @@
 ### Charts & Visualization
 
 - **React Native Chart Kit** - Chart components
-- **Victory Native** - Data visualization library
 - **Gifted Charts** - Advanced charting solutions
 - **Circular Progress** - Progress indicators
 

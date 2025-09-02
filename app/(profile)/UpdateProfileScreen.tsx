@@ -23,11 +23,11 @@ import {
   Info,
   ChevronRight,
 } from "lucide-react-native";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import * as ImagePicker from "expo-image-picker";
 import { decode } from "base64-arraybuffer";
-import { useTheme } from "~/lib/theme";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 type FormData = {
   fullName: string;
   email: string;
@@ -172,7 +172,7 @@ export default function UpdateProfileScreen() {
           text: t.ok,
           onPress: () =>
             router.push({
-              pathname: "../(main)/ProfileScreen",
+              pathname: "../(main)/SettingScreen",
               params: {
                 updated: "true",
                 timestamp: Date.now(),
@@ -197,7 +197,7 @@ export default function UpdateProfileScreen() {
           style: "destructive",
           onPress: () =>
             router.push({
-              pathname: "../(main)/ProfileScreen",
+              pathname: "../(main)/SettingScreen",
               params: {
                 updated: "true",
                 timestamp: Date.now(),
@@ -298,7 +298,7 @@ export default function UpdateProfileScreen() {
     <ScrollView>
       <SafeAreaView
         className="flex-1"
-        tyle={{ backgroundColor: theme.background }}
+        style={{ backgroundColor: theme.background }}
       >
         <KeyboardAvoidingView
           className="flex-1"

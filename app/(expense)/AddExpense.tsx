@@ -63,16 +63,16 @@ import {
   Check,
 } from "lucide-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { supabase } from "~/lib/supabase";
-import { NAV_THEME, useTheme } from "~/lib/theme";
-import { fetchAccounts, updateAccountBalance } from "~/lib/accounts";
-import { addExpense } from "~/lib/expenses";
-import { addTransaction } from "~/lib/transactions";
-import { addTransfer } from "~/lib/transfers";
-import { addSubscription } from "~/lib/subscriptions";
-import type { Account } from "~/lib/accounts";
-import notificationService from "~/lib/notificationService";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { supabase } from "~/lib";
+import { NAV_THEME, useTheme } from "~/lib";
+import { fetchAccounts, updateAccountBalance } from "~/lib";
+import { addExpense } from "~/lib";
+import { addTransaction } from "~/lib";
+import { addTransfer } from "~/lib";
+import { addSubscription } from "~/lib";
+import type { Account } from "~/lib";
+import notificationService from "~/lib";
+import { useLanguage } from "~/lib";
 
 type Category = {
   id: string;
@@ -95,9 +95,6 @@ export default function AddExpenseScreen() {
   );
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(
-    null
-  );
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] =
     useState<Frequency>("monthly");
@@ -107,7 +104,6 @@ export default function AddExpenseScreen() {
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
 
   // Transfer-specific state
   const [fromAccount, setFromAccount] = useState<Account | null>(null);
@@ -127,12 +123,6 @@ export default function AddExpenseScreen() {
     { id: "Transfer", label: t.transfer },
   ];
   type Frequency = "daily" | "weekly" | "monthly" | "yearly";
-  type PaymentMethod =
-    | "cash"
-    | "credit_card"
-    | "debit_card"
-    | "digital_wallet"
-    | "EVC";
 
   const expenseCategories: Category[] = [
     { id: "food", name: t.foodAndDrinks, icon: Utensils, color: "#059669" },
@@ -203,29 +193,6 @@ export default function AddExpenseScreen() {
     { id: "pension", name: t.pension, icon: User, color: "#64748b" },
   ];
 
-  const paymentMethods = [
-    { id: "cash", name: t.cash, icon: DollarSign, color: "#059669" },
-    { id: "EVC", name: t.evcPlus, icon: CreditCard, color: "#dc2626" },
-    {
-      id: "credit_card",
-      name: t.creditCard,
-      icon: CreditCard,
-      color: "#3b82f6",
-    },
-    {
-      id: "debit_card",
-      name: t.debitCard,
-      icon: CreditCard,
-      color: "#8b5cf6",
-    },
-    {
-      id: "digital_wallet",
-      name: t.mobileMoney,
-      icon: Wallet,
-      color: "#f97316",
-    },
-  ];
-
   useEffect(() => {
     const loadAccounts = async () => {
       setLoadingAccounts(true);
@@ -275,18 +242,17 @@ export default function AddExpenseScreen() {
     }
 
     // Type-specific validation
-    if (entryType === "Income" && !selectedCategory) {
+    if (
+      entryType === "Income" &&
+      (!selectedCategory || !selectedCategory.name)
+    ) {
       Alert.alert(t.chooseCategory, t.pleaseSelectCategoryForIncome);
       return;
     }
 
     if (entryType === "Expense") {
-      if (!selectedCategory) {
+      if (!selectedCategory || !selectedCategory.name) {
         Alert.alert(t.chooseCategory, t.pleaseSelectCategoryForExpense);
-        return;
-      }
-      if (!paymentMethod) {
-        Alert.alert(t.paymentMethod, t.pleaseSelectPaymentMethodForExpense);
         return;
       }
     }
@@ -329,9 +295,8 @@ export default function AddExpenseScreen() {
         user_id: user.id,
         entry_type: entryType as "Income" | "Expense",
         amount: amountNum,
-        category: selectedCategory?.name || "",
+        category: selectedCategory!.name, // We know this exists due to validation above
         description: description.trim(),
-        payment_method: paymentMethod,
         is_recurring: isRecurring,
         recurrence_interval: isRecurring ? recurringFrequency : undefined,
         date: date.toISOString().split("T")[0],
@@ -346,7 +311,7 @@ export default function AddExpenseScreen() {
         amount: amountNum,
         description: description.trim(),
         date: date.toISOString().split("T")[0],
-        category: selectedCategory?.name || "",
+        category: selectedCategory?.name || "", // Transaction category is optional
         is_recurring: isRecurring,
         recurrence_interval: isRecurring ? recurringFrequency : undefined,
         type: entryType === "Income" ? "income" : "expense",
@@ -563,8 +528,8 @@ export default function AddExpenseScreen() {
         return !!selectedCategory;
 
       case "Expense":
-        // Expense needs: amount, description, category, account, payment method
-        return !!selectedCategory && !!paymentMethod;
+        // Expense needs: amount, description, category, account
+        return !!selectedCategory;
 
       case "Transfer":
         // Transfer needs: amount, description, from account, to account
@@ -580,7 +545,6 @@ export default function AddExpenseScreen() {
     isSubmitting,
     entryType,
     selectedCategory,
-    paymentMethod,
     fromAccount,
     toAccount,
   ]);
@@ -1039,90 +1003,6 @@ export default function AddExpenseScreen() {
                       </View>
                     )}
                   </View>
-                </View>
-              )}
-
-              {/* Payment Method Section - Only for Expenses */}
-              {entryType === "Expense" && (
-                <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontWeight: "700",
-                      marginBottom: 16,
-                      color: theme.text,
-                      fontFamily: "Work Sans",
-                    }}
-                  >
-                    {t.payment_method}
-                  </Text>
-
-                  <TouchableOpacity
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: 16,
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      borderColor: theme.border,
-                      backgroundColor: theme.inputBackground,
-                    }}
-                    onPress={() => setShowPaymentMethodModal(true)}
-                  >
-                    <View
-                      style={{ flexDirection: "row", alignItems: "center" }}
-                    >
-                      {paymentMethod ? (
-                        <>
-                          <View
-                            style={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: 20,
-                              justifyContent: "center",
-                              alignItems: "center",
-                              backgroundColor: `${paymentMethods.find((m) => m.id === paymentMethod)?.color}20`,
-                              marginRight: 16,
-                            }}
-                          >
-                            {React.createElement(
-                              paymentMethods.find((m) => m.id === paymentMethod)
-                                ?.icon,
-                              {
-                                size: 20,
-                                color: paymentMethods.find(
-                                  (m) => m.id === paymentMethod
-                                )?.color,
-                              }
-                            )}
-                          </View>
-                          <Text
-                            style={{
-                              fontSize: 16,
-                              fontWeight: "600",
-                              color: theme.text,
-                            }}
-                          >
-                            {
-                              paymentMethods.find((m) => m.id === paymentMethod)
-                                ?.name
-                            }
-                          </Text>
-                        </>
-                      ) : (
-                        <Text
-                          style={{
-                            fontSize: 16,
-                            color: theme.placeholder,
-                          }}
-                        >
-                          {t.select_payment_method}
-                        </Text>
-                      )}
-                    </View>
-                    <ChevronDown size={16} color={theme.iconMuted} />
-                  </TouchableOpacity>
                 </View>
               )}
 
@@ -2595,56 +2475,6 @@ export default function AddExpenseScreen() {
                           </View>
                           <Text className="text-xs text-gray-700 text-center">
                             {category.name}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </ScrollView>
-              </View>
-            </View>
-          </Modal>
-          {/* Payment Method Selection Modal */}
-          <Modal
-            visible={showPaymentMethodModal}
-            animationType="fade"
-            transparent={true}
-            onRequestClose={() => setShowPaymentMethodModal(false)}
-          >
-            <View className="flex-1 justify-center items-center bg-black/50 p-4">
-              <View className="bg-white rounded-2xl p-6 w-full max-w-md">
-                <View className="flex-row justify-between items-center mb-6">
-                  <Text className="font-bold text-xl text-gray-900">
-                    {t.selectPaymentMethod}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setShowPaymentMethodModal(false)}
-                  >
-                    <X size={24} color="#6b7280" />
-                  </TouchableOpacity>
-                </View>
-
-                <ScrollView className="max-h-[400px]">
-                  <View className="flex-row flex-wrap justify-between">
-                    {paymentMethods.map((method) => {
-                      const IconComponent = method.icon;
-                      return (
-                        <TouchableOpacity
-                          key={method.id}
-                          className={`w-1/3 p-4 items-center ${paymentMethod === method.id ? "bg-blue-50 rounded-lg" : ""}`}
-                          onPress={() => {
-                            setPaymentMethod(method.id as PaymentMethod);
-                            setShowPaymentMethodModal(false);
-                          }}
-                        >
-                          <View
-                            className="p-3 rounded-full mb-2"
-                            style={{ backgroundColor: `${method.color}20` }}
-                          >
-                            <IconComponent size={24} color={method.color} />
-                          </View>
-                          <Text className="text-xs text-gray-700 text-center">
-                            {method.name}
                           </Text>
                         </TouchableOpacity>
                       );

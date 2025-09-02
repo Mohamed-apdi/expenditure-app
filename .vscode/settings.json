@@ -1,7 +1,6 @@
 {
-  "files.exclude": {
-    "**/node_modules": true
-  },
-  "typescript.validate.enable": false,
-  "postman.settings.dotenv-detection-notification-visibility": false
+  "files.eol": "auto",
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.trimTrailingWhitespace": true
 }

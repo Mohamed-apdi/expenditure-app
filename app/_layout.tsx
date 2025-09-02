@@ -10,17 +10,17 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as React from "react";
 import { Appearance, Platform, View } from "react-native";
-import { NAV_THEME } from "~/lib/constants";
-import { useColorScheme } from "~/lib/useColorScheme";
+import { NAV_THEME } from "~/lib";
+import { useColorScheme } from "~/lib";
 import { PortalHost } from "@rn-primitives/portal";
-import { setAndroidNavigationBar } from "~/lib/android-navigation-bar";
+import { setAndroidNavigationBar } from "~/lib";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import Toast from "react-native-toast-message";
-import { AccountProvider } from "~/lib/AccountContext";
+import { AccountProvider } from "~/lib";
 import * as Notifications from "expo-notifications";
-import notificationService from "~/lib/notificationService";
+import { notificationService } from "~/lib";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { LanguageProvider } from "~/lib/LanguageProvider";
+import { LanguageProvider } from "~/lib";
 
 const LIGHT_THEME: Theme = {
   ...DefaultTheme,
@@ -68,7 +68,7 @@ export default function RootLayout() {
     const initializeNotifications = async () => {
       try {
         // Check if we're in Expo Go (where notifications are limited)
-        const { isExpoGo } = await import("~/lib/expoGoUtils");
+        const { isExpoGo } = await import("~/lib");
 
         if (isExpoGo) {
           console.warn(
@@ -98,15 +98,13 @@ export default function RootLayout() {
         <AccountProvider>
           <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
             <BottomSheetModalProvider>
-              {/*<StatusBar style={isDarkColorScheme ? "dark" : "light"} />*/}
+              <StatusBar style={isDarkColorScheme ? "dark" : "light"} />
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(onboarding)" />
                 <Stack.Screen name="(auth)" />
                 <Stack.Screen name="(main)" />
-                <Stack.Screen name="(predict)" />
                 <Stack.Screen name="(expense)" />
-                <Stack.Screen name="(analytics)" />
                 <Stack.Screen name="(profile)" />
               </Stack>
               <Toast />

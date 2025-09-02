@@ -1,7 +1,6 @@
-import React, { useState, useRef } from "react";
-import { View, Text, TouchableOpacity, Image, Animated } from "react-native";
+import React from "react";
+import { View, Text, TouchableOpacity, Image } from "react-native";
 import {
-  ChevronDown,
   User,
   Settings,
   LogOut,
@@ -14,13 +13,13 @@ import {
   RefreshCcw,
   Globe,
 } from "lucide-react-native";
-import { useColorScheme } from "~/lib/useColorScheme";
-import { useTheme } from "~/lib/theme";
+import { useColorScheme } from "~/lib";
+import { useTheme } from "~/lib";
 import { WalletDropdown } from "./WalletDropdown";
-import { useAccount } from "~/lib/AccountContext";
-import { useNotifications } from "~/lib/useNotifications";
+import { useAccount } from "~/lib";
+import { useNotifications } from "~/lib";
 import { useRouter } from "expo-router";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { useLanguage } from "~/lib";
 
 interface DashboardHeaderProps {
   userName: string;
@@ -45,8 +44,6 @@ export default function DashboardHeader({
   onSearchPress,
   onRefreshPress,
 }: DashboardHeaderProps) {
-  const rotateAnimation = useRef(new Animated.Value(0)).current;
-  const scaleAnimation = useRef(new Animated.Value(1)).current;
   const { selectedAccount } = useAccount();
   const { unreadCount } = useNotifications();
   const router = useRouter();
@@ -55,238 +52,36 @@ export default function DashboardHeader({
   const theme = useTheme();
   const { t, language, setLanguage } = useLanguage();
 
-  const dropdownAnimation = useRef(new Animated.Value(0)).current;
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
   const firstName = userName?.split(" ")[0] || "User";
-
-  const toggleDropdown = () => {
-    const toValue = isDropdownOpen ? 0 : 1;
-
-    setIsDropdownOpen(!isDropdownOpen);
-
-    Animated.parallel([
-      Animated.spring(dropdownAnimation, {
-        toValue,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }),
-      Animated.spring(rotateAnimation, {
-        toValue,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }),
-      Animated.spring(scaleAnimation, {
-        toValue: isDropdownOpen ? 1 : 0.95,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8,
-      }),
-    ]).start();
-  };
-
-  const closeDropdown = () => {
-    if (isDropdownOpen) {
-      toggleDropdown();
-    }
-  };
-
-  const dropdownTranslateY = dropdownAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [-10, 0],
-  });
-
-  const dropdownOpacity = dropdownAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, 1],
-  });
-
-  const chevronRotate = rotateAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "180deg"],
-  });
-
-  const menuItems = [
-    {
-      icon: Settings,
-      label: t.settings,
-      onPress: onSettingsPress,
-    },
-    {
-      icon: LogOut,
-      label: t.signOut,
-      onPress: onLogoutPress,
-      isDestructive: true,
-    },
-  ];
 
   return (
     <View className="relative z-50">
-      {/* Full-screen overlay that closes dropdown when clicked */}
-      {isDropdownOpen && (
-        <TouchableOpacity
-          className="absolute bg-transparent"
-          onPress={closeDropdown}
-          activeOpacity={1}
-          style={{
-            top: -1000,
-            left: -1000,
-            right: -1000,
-            bottom: -1000,
-            zIndex: 49,
-          }}
-        />
-      )}
-
       <View
         className="flex-row justify-between items-center px-6 py-5"
         style={{ zIndex: 50 }}
       >
         {/* Left Section - Profile and Actions */}
         <View className="flex-row items-center gap-4">
-          {/* Profile Dropdown */}
+          {/* Profile Image */}
           <View className="relative">
-            <Animated.View style={{ transform: [{ scale: scaleAnimation }] }}>
-              <TouchableOpacity
-                className="flex-row items-center p-1 rounded-2xl gap-2"
-                onPress={toggleDropdown}
-                activeOpacity={0.8}
-              >
-                <Image
-                  source={{
-                    uri:
-                      userImageUrl ||
-                      `https://ui-avatars.com/api/?name=${encodeURIComponent(userName || "User")}`,
-                  }}
-                  className="w-10 h-10 rounded-full border-2 border-white"
-                />
-              </TouchableOpacity>
-            </Animated.View>
-
-            {/* Dropdown Menu */}
-            <Animated.View
-              style={{
-                position: "absolute",
-                top: 50,
-                left: 0,
-                minWidth: 240,
-                backgroundColor: theme.background,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: theme.border,
-                opacity: dropdownOpacity,
-                transform: [{ translateY: dropdownTranslateY }],
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.15,
-                shadowRadius: 24,
-                elevation: 8,
-                zIndex: 51,
-                display: isDropdownOpen ? "flex" : "none",
+            <Image
+              source={{
+                uri:
+                  userImageUrl ||
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(userName || "User")}`,
               }}
-            >
-              <View className="p-2">
-                {/* User Info */}
-                <View className="flex-row items-center p-3 gap-3">
-                  <Image
-                    source={{
-                      uri:
-                        userImageUrl ||
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(userName || "User")}`,
-                    }}
-                    className="w-9 h-9 rounded-full"
-                  />
-                  <View className="flex-1">
-                    <Text
-                      className="text-sm font-semibold"
-                      style={{ color: theme.text }}
-                    >
-                      {userName}
-                    </Text>
-                    <Text
-                      className="text-xs mt-0.5"
-                      style={{ color: theme.text }}
-                    >
-                      {userEmail}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Separator */}
-                <View className="h-px bg-slate-200 my-1" />
-
-                {/* Dark Mode Toggle */}
-                <TouchableOpacity
-                  onPress={toggleColorScheme}
-                  activeOpacity={0.7}
-                  className="flex-row items-center p-3 rounded-lg gap-3 active:bg-slate-50"
-                >
-                  {isDarkColorScheme ? (
-                    <Sun size={18} color="#FFDE21" />
-                  ) : (
-                    <Moon size={18} color="#D2CFDA" />
-                  )}
-                  <Text
-                    className="text-sm font-medium"
-                    style={{ color: theme.text }}
-                  >
-                    {isDarkColorScheme ? t.lightMode : t.darkMode}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => setLanguage(language === "en" ? "so" : "en")}
-                  activeOpacity={0.7}
-                  className="flex-row items-center p-3 rounded-lg gap-3 active:bg-slate-50"
-                >
-                  <Globe size={18} color={theme.text} />
-                  <Text
-                    className="text-sm font-medium"
-                    style={{ color: theme.text }}
-                  >
-                    {t.languages} ({language.toUpperCase()})
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Menu Items */}
-                {menuItems.map((item, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    className="flex-row items-center p-3 rounded-lg gap-3 active:bg-slate-50"
-                    onPress={() => {
-                      item.onPress?.();
-                      toggleDropdown();
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <item.icon
-                      size={18}
-                      color={item.isDestructive ? "#ef4444" : theme.text}
-                    />
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        fontWeight: "500",
-                        color: item.isDestructive ? "#ef4444" : theme.text,
-                      }}
-                    >
-                      {item.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </Animated.View>
+              className="w-10 h-10 rounded-full border-2 border-white"
+            />
           </View>
 
           {/* Notification Icon with dynamic badge */}
           <TouchableOpacity
-            className="mx-3"
+            className="mx-2"
             onPress={onNotificationPress}
             activeOpacity={0.7}
           >
             <View style={{ position: "relative" }}>
-              <Bell size={22} color="#fff" />
+              <Bell size={24} color="#fff" />
               {unreadCount > 0 && (
                 <View
                   style={{
@@ -324,17 +119,22 @@ export default function DashboardHeader({
         </View>
 
         {/* Right Section - Calendar and Search */}
-        <View className="flex-row items-center gap-4">
-          {/* Calendar */}
-          {/*<TouchableOpacity onPress={onCalendarPress}>
-            <RefreshCcw size={22} color="#fff" />
-          </TouchableOpacity>*/}
-
-          {/* Search */}
+        <View className="flex-row items-center gap-5">
+          {/*Dark mode toggle*/}
+          <TouchableOpacity onPress={toggleColorScheme}>
+            {isDarkColorScheme ? (
+              <Sun size={24} color="#fff" />
+            ) : (
+              <Moon size={24} color="#fff" />
+            )}
+          </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => router.push("/components/TransactionsScreen")}
+            activeOpacity={0.7}
+            onPress={() => router.push("/(main)/SettingScreen")}
           >
-            <Search size={22} color="#fff" />
+            <View style={{ position: "relative" }}>
+              <Settings size={24} color="#fff" />
+            </View>
           </TouchableOpacity>
         </View>
       </View>

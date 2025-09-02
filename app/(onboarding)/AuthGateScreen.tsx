@@ -10,8 +10,9 @@ import {
   ArrowRight,
 } from "lucide-react-native";
 import { useEffect, useRef } from "react";
-import { useTheme } from "../../lib/theme";
-import { useLanguage } from "../../lib/LanguageProvider";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
+import { StatusBar } from "expo-status-bar";
 
 {
   /* Benefits */
@@ -175,286 +176,297 @@ export default function AuthGateScreen() {
   });
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: theme.background, overflow: "hidden" }}
-    >
-      {/* Floating particles background */}
-      {particles.map((particle) => (
-        <FloatingParticle
-          key={particle.id}
-          style={{
-            width: particle.size,
-            height: particle.size,
-            borderRadius: particle.size / 2,
-            backgroundColor: theme.primary,
-            left: `${particle.left}%`,
-            top: `${particle.top}%`,
-          }}
-        />
-      ))}
-
-      <Animated.View
+    <>
+      <StatusBar style="auto" />
+      <SafeAreaView
         style={{
-          opacity: fadeAnim,
-          transform: [
-            { scale: screenInterpolate },
-            {
-              translateY: screenTransition.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 20],
-              }),
-            },
-          ],
           flex: 1,
-          paddingHorizontal: 24,
-          justifyContent: "space-center",
-          paddingVertical: 20,
+          backgroundColor: theme.background,
+          overflow: "hidden",
         }}
       >
-        {/* Progress Indicator */}
-        <View className="flex-row items-center justify-center gap-1.5">
-          <View
+        {/* Floating particles background */}
+        {particles.map((particle) => (
+          <FloatingParticle
+            key={particle.id}
             style={{
-              width: 8,
-              height: 8,
-              backgroundColor: theme.textMuted,
-              borderRadius: 4,
-            }}
-          />
-          <View
-            style={{
-              width: 8,
-              height: 8,
-              backgroundColor: theme.textMuted,
-              borderRadius: 4,
-            }}
-          />
-          <View
-            style={{
-              width: 24,
-              height: 8,
+              width: particle.size,
+              height: particle.size,
+              borderRadius: particle.size / 2,
               backgroundColor: theme.primary,
-              borderRadius: 4,
+              left: `${particle.left}%`,
+              top: `${particle.top}%`,
             }}
           />
-        </View>
+        ))}
 
-        {/* Motivational Header */}
-        <View style={{ alignItems: "center", paddingTop: 0 }}>
-          <Animated.View
-            style={{
-              transform: [
-                {
-                  scale: fadeAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.8, 1],
-                  }),
-                },
-              ],
-            }}
-          >
-            <ShieldCheck size={56} color={theme.primary} strokeWidth={1.5} />
-          </Animated.View>
+        <Animated.View
+          style={{
+            opacity: fadeAnim,
+            transform: [
+              { scale: screenInterpolate },
+              {
+                translateY: screenTransition.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 20],
+                }),
+              },
+            ],
+            flex: 1,
+            paddingHorizontal: 24,
+            justifyContent: "center",
+            paddingVertical: 20,
+          }}
+        >
+          {/* Progress Indicator */}
+          <View className="flex-row items-center justify-center gap-1.5">
+            <View
+              style={{
+                width: 8,
+                height: 8,
+                backgroundColor: theme.textMuted,
+                borderRadius: 4,
+              }}
+            />
+            <View
+              style={{
+                width: 8,
+                height: 8,
+                backgroundColor: theme.textMuted,
+                borderRadius: 4,
+              }}
+            />
+            <View
+              style={{
+                width: 24,
+                height: 8,
+                backgroundColor: theme.primary,
+                borderRadius: 4,
+              }}
+            />
+          </View>
 
-          <Text
-            style={{
-              color: theme.text,
-              fontSize: 30,
-              fontWeight: "bold",
-              textAlign: "center",
-              marginBottom: 8,
-            }}
-          >
-            {t.takeControlOfMoney}
-          </Text>
-          <Text
-            style={{
-              color: theme.primary,
-              fontSize: 18,
-              textAlign: "center",
-              fontWeight: "500",
-              marginBottom: 4,
-            }}
-          >
-            {t.simpleToolsDescription}
-          </Text>
-          <Text
-            style={{
-              color: theme.textSecondary,
-              fontSize: 16,
-              textAlign: "center",
-              paddingHorizontal: 16,
-            }}
-          >
-            {t.allFinancesDescription}
-          </Text>
-        </View>
-
-        {/* Interactive Benefits with staggered entrance */}
-        <View style={{ paddingVertical: 16, paddingHorizontal: 8 }}>
-          {benefitData.map((item, index) => (
+          {/* Motivational Header */}
+          <View style={{ alignItems: "center", paddingTop: 0 }}>
             <Animated.View
-              key={index}
               style={{
                 transform: [
                   {
-                    translateX: benefitAnimations[index].interpolate({
+                    scale: fadeAnim.interpolate({
                       inputRange: [0, 1],
-                      outputRange: [50, 0],
+                      outputRange: [0.8, 1],
                     }),
                   },
                 ],
-                opacity: benefitAnimations[index],
-                flexDirection: "row",
-                alignItems: "flex-start",
-                marginBottom: 20,
-                backgroundColor: `${theme.cardBackground}66`,
-                padding: 16,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: `${theme.border}80`,
               }}
             >
+              <ShieldCheck size={56} color={theme.primary} strokeWidth={1.5} />
+            </Animated.View>
+
+            <Text
+              style={{
+                color: theme.text,
+                fontSize: 30,
+                fontWeight: "bold",
+                textAlign: "center",
+                marginBottom: 8,
+              }}
+            >
+              {t.takeControlOfMoney}
+            </Text>
+            <Text
+              style={{
+                color: theme.primary,
+                fontSize: 18,
+                textAlign: "center",
+                fontWeight: "500",
+                marginBottom: 4,
+              }}
+            >
+              {t.simpleToolsDescription}
+            </Text>
+            <Text
+              style={{
+                color: theme.textSecondary,
+                fontSize: 16,
+                textAlign: "center",
+                paddingHorizontal: 16,
+              }}
+            >
+              {t.allFinancesDescription}
+            </Text>
+          </View>
+
+          {/* Interactive Benefits with staggered entrance */}
+          <View style={{ paddingVertical: 16, paddingHorizontal: 8 }}>
+            {benefitData.map((item, index) => (
               <Animated.View
+                key={index}
                 style={{
                   transform: [
                     {
-                      scale: benefitAnimations[index],
+                      translateX: benefitAnimations[index].interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [50, 0],
+                      }),
                     },
                   ],
-                  backgroundColor: `${theme.primary}10`,
-                  padding: 12,
-                  borderRadius: 20,
-                  marginRight: 16,
+                  opacity: benefitAnimations[index],
+                  flexDirection: "row",
+                  alignItems: "flex-start",
+                  marginBottom: 20,
+                  backgroundColor: `${theme.cardBackground}66`,
+                  padding: 16,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: `${theme.border}80`,
                 }}
               >
-                <item.icon size={22} color={theme.primary} />
-              </Animated.View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{ color: theme.text, fontSize: 18, fontWeight: "600" }}
-                >
-                  {t[item.titleKey]}
-                </Text>
-                <Text
+                <Animated.View
                   style={{
-                    color: theme.textSecondary,
-                    fontSize: 14,
-                    marginTop: 4,
+                    transform: [
+                      {
+                        scale: benefitAnimations[index],
+                      },
+                    ],
+                    backgroundColor: `${theme.primary}10`,
+                    padding: 12,
+                    borderRadius: 20,
+                    marginRight: 16,
                   }}
                 >
-                  {t[item.descriptionKey]}
-                </Text>
-              </View>
-              <ArrowRight
-                size={18}
-                color={theme.textMuted}
-                style={{ marginTop: 4 }}
-              />
-            </Animated.View>
-          ))}
-        </View>
+                  <item.icon size={22} color={theme.primary} />
+                </Animated.View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontSize: 18,
+                      fontWeight: "600",
+                    }}
+                  >
+                    {t[item.titleKey]}
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.textSecondary,
+                      fontSize: 14,
+                      marginTop: 4,
+                    }}
+                  >
+                    {t[item.descriptionKey]}
+                  </Text>
+                </View>
+                <ArrowRight
+                  size={18}
+                  color={theme.textMuted}
+                  style={{ marginTop: 4 }}
+                />
+              </Animated.View>
+            ))}
+          </View>
 
-        {/* Auth Actions */}
-        <View style={{ marginBottom: 24 }}>
-          <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
-            <TouchableOpacity
+          {/* Auth Actions */}
+          <View style={{ marginBottom: 24 }}>
+            <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: theme.primary,
+                  borderRadius: 12,
+                  padding: 20,
+                  marginBottom: 16,
+                  shadowColor: theme.primary,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 12,
+                  elevation: 8,
+                }}
+                onPressIn={handleButtonPressIn}
+                onPressOut={handleButtonPressOut}
+                onPress={handleNavigateLogin}
+              >
+                <Lock size={22} color={theme.primaryText} />
+                <Text
+                  style={{
+                    color: theme.primaryText,
+                    fontWeight: "bold",
+                    fontSize: 18,
+                    marginLeft: 12,
+                  }}
+                >
+                  {t.signIn}
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
+
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: theme.textSecondary, marginRight: 4 }}>
+                {t.newToMoneyManager}
+              </Text>
+              <TouchableOpacity onPress={handleNavigateSignup}>
+                <Text
+                  style={{ color: theme.primary, fontWeight: "bold", flex: 1 }}
+                >
+                  {t.createAccount}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Trust Indicator */}
+          <Animated.View
+            style={{
+              opacity: fadeAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 1],
+              }),
+              alignItems: "center",
+            }}
+          >
+            <View
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: theme.primary,
-                borderRadius: 12,
-                padding: 20,
-                marginBottom: 16,
-                shadowColor: theme.primary,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 12,
-                elevation: 8,
+                marginBottom: 8,
               }}
-              onPressIn={handleButtonPressIn}
-              onPressOut={handleButtonPressOut}
-              onPress={handleNavigateLogin}
             >
-              <Lock size={22} color={theme.primaryText} />
-              <Text
-                style={{
-                  color: theme.primaryText,
-                  fontWeight: "bold",
-                  fontSize: 18,
-                  marginLeft: 12,
-                }}
-              >
-                {t.signIn}
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Text style={{ color: theme.textSecondary, marginRight: 4 }}>
-              {t.newToMoneyManager}
+              {[...Array(5)].map((_, i) => (
+                <Animated.Text
+                  key={i}
+                  style={{
+                    opacity: fadeAnim.interpolate({
+                      inputRange: [0, 0.2 * (i + 1), 1],
+                      outputRange: [0, 0, 1],
+                    }),
+                    color: "#fbbf24",
+                    fontSize: 18,
+                  }}
+                >
+                  ★
+                </Animated.Text>
+              ))}
+            </View>
+            <Text
+              style={{
+                color: theme.textMuted,
+                fontSize: 12,
+                textAlign: "center",
+              }}
+            >
+              {t.helpingUsersText}
             </Text>
-            <TouchableOpacity onPress={handleNavigateSignup}>
-              <Text
-                style={{ color: theme.primary, fontWeight: "bold", flex: 1 }}
-              >
-                {t.createAccount}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Trust Indicator */}
-        <Animated.View
-          style={{
-            opacity: fadeAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 1],
-            }),
-            alignItems: "center",
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginBottom: 8,
-            }}
-          >
-            {[...Array(5)].map((_, i) => (
-              <Animated.Text
-                key={i}
-                style={{
-                  opacity: fadeAnim.interpolate({
-                    inputRange: [0, 0.2 * (i + 1), 1],
-                    outputRange: [0, 0, 1],
-                  }),
-                  color: "#fbbf24",
-                  fontSize: 18,
-                }}
-              >
-                ★
-              </Animated.Text>
-            ))}
-          </View>
-          <Text
-            style={{
-              color: theme.textMuted,
-              fontSize: 12,
-              textAlign: "center",
-            }}
-          >
-            {t.helpingUsersText}
-          </Text>
+          </Animated.View>
         </Animated.View>
-      </Animated.View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </>
   );
 }

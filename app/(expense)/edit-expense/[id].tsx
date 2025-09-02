@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import {
   X,
   ShoppingCart,
@@ -33,7 +33,7 @@ import {
   Check,
   ChevronRight,
 } from "lucide-react-native";
-import { useTheme } from "~/lib/theme";
+import { useTheme } from "~/lib";
 
 type Category = {
   id: string;
@@ -43,7 +43,6 @@ type Category = {
 };
 
 type Frequency = "weekly" | "monthly" | "yearly";
-type PaymentMethod = "cash" | "credit_card" | "debit_card" | "digital_wallet";
 
 export default function EditExpenseScreen() {
   const router = useRouter();
@@ -62,9 +61,7 @@ export default function EditExpenseScreen() {
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] =
     useState<Frequency>("monthly");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(
-    null
-  );
+
   const [tags, setTags] = useState<string[]>([]);
   const [isEssential, setIsEssential] = useState(false);
   const theme = useTheme();
@@ -83,28 +80,6 @@ export default function EditExpenseScreen() {
     { id: "shopping", name: "Shopping", icon: ShoppingBag, color: "#06b6d4" },
     { id: "education", name: "Education", icon: Book, color: "#84cc16" },
     { id: "other", name: "Other", icon: MoreHorizontal, color: "#64748b" },
-  ];
-
-  const paymentMethods = [
-    { id: "cash", name: "Cash", icon: DollarSign, color: "#84cc16" },
-    {
-      id: "credit_card",
-      name: "Credit Card",
-      icon: CreditCard,
-      color: "#3b82f6",
-    },
-    {
-      id: "debit_card",
-      name: "Debit Card",
-      icon: CreditCard,
-      color: "#8b5cf6",
-    },
-    {
-      id: "digital_wallet",
-      name: "Digital Wallet",
-      icon: Wallet,
-      color: "#f59e0b",
-    },
   ];
 
   const quickAmounts = [10, 25, 50, 100];
@@ -127,7 +102,6 @@ export default function EditExpenseScreen() {
         setDate(new Date(data.date));
         setIsRecurring(data.is_recurring);
         setRecurringFrequency(data.recurrence_interval || "monthly");
-        setPaymentMethod(data.payment_method);
         setTags(data.tags || []);
         setIsEssential(data.is_essential);
 
@@ -162,7 +136,6 @@ export default function EditExpenseScreen() {
           category: selectedCategory.name,
           description: description.trim(),
           date: date.toISOString().split("T")[0],
-          payment_method: paymentMethod,
           is_recurring: isRecurring,
           recurrence_interval: isRecurring ? recurringFrequency : null,
           is_essential: isEssential,
@@ -375,64 +348,6 @@ export default function EditExpenseScreen() {
               multiline
               textAlignVertical="top"
             />
-          </View>
-
-          {/* Payment Method */}
-          <View className="px-6 mb-8">
-            <Text
-              className=" text-lg font-bold mb-4"
-              style={{ color: theme.text }}
-            >
-              Payment Method
-            </Text>
-            <View className="flex-row flex-wrap gap-3">
-              {paymentMethods.map((method) => {
-                const IconComponent = method.icon;
-                return (
-                  <TouchableOpacity
-                    key={method.id}
-                    className={`flex-1 min-w-[45%] flex-row items-center p-3 rounded-lg border ${
-                      paymentMethod === method.id
-                        ? "border-emerald-500 bg-emerald-500/10"
-                        : ""
-                    }`}
-                    style={{
-                      backgroundColor:
-                        paymentMethod === method.id
-                          ? "rgba(16, 185, 129, 0.1)"
-                          : theme.cardBackground,
-                      borderColor:
-                        paymentMethod === method.id ? "#10b981" : theme.border,
-                    }}
-                    onPress={() => setPaymentMethod(method.id as PaymentMethod)}
-                  >
-                    <View
-                      className={`w-8 h-8 rounded-full justify-center items-center mr-2 ${
-                        paymentMethod === method.id
-                          ? "bg-emerald-500"
-                          : `bg-[${method.color}20]`
-                      }`}
-                    >
-                      <IconComponent
-                        size={16}
-                        color={
-                          paymentMethod === method.id ? "#ffffff" : method.color
-                        }
-                      />
-                    </View>
-                    <Text
-                      className={`${
-                        paymentMethod === method.id
-                          ? "text-emerald-500 font-semibold"
-                          : "text-slate-400"
-                      }`}
-                    >
-                      {method.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
           </View>
 
           {/* Date Selection */}

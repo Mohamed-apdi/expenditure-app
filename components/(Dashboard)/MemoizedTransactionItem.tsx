@@ -1,7 +1,7 @@
-import React, { memo } from 'react';
-import { TouchableOpacity, View, Text } from 'react-native';
-import { useRouter } from 'expo-router';
-import { formatDistanceToNow } from 'date-fns';
+import React, { memo } from "react";
+import { TouchableOpacity, View, Text } from "react-native";
+import { useRouter } from "expo-router";
+import { formatDistanceToNow } from "date-fns";
 import {
   Utensils,
   Home,
@@ -41,7 +41,7 @@ import {
   Copyright,
   HandCoins,
   User,
-} from 'lucide-react-native';
+} from "lucide-react-native";
 
 type TransactionItemProps = {
   transaction: {
@@ -50,8 +50,12 @@ type TransactionItemProps = {
     category?: string;
     description?: string;
     created_at: string;
-    type: 'expense' | 'income' | 'transfer';
+    type: "expense" | "income" | "transfer";
   };
+  onPress?: () => void;
+  getCategoryIcon?: (category: string) => React.ElementType;
+  getCategoryColor?: (category: string) => string;
+  getCategoryLabel?: (categoryKey: string) => string;
 };
 
 // Memoized category icon mapping
@@ -144,70 +148,93 @@ const CATEGORY_COLORS: Record<string, string> = {
   Pension: "#64748b",
 };
 
-const MemoizedTransactionItem = memo<TransactionItemProps>(({ transaction }) => {
-  const router = useRouter();
-  
-  const IconComponent = CATEGORY_ICONS[transaction.category || ''] || MoreHorizontal;
-  const color = CATEGORY_COLORS[transaction.category || ''] || "#64748b";
+const MemoizedTransactionItem = memo<TransactionItemProps>(
+  ({
+    transaction,
+    onPress,
+    getCategoryIcon,
+    getCategoryColor,
+    getCategoryLabel,
+  }) => {
+    const router = useRouter();
 
-  const handlePress = () => {
-    router.push(`/(main)/transaction-detail/${transaction.id}`);
-  };
+    // Use passed functions if available, otherwise use built-in mappings
+    const IconComponent = getCategoryIcon
+      ? getCategoryIcon(transaction.category || "")
+      : CATEGORY_ICONS[transaction.category || ""] || MoreHorizontal;
 
-  return (
-    <TouchableOpacity onPress={handlePress}>
-      <View className="flex-row items-center p-4 bg-gray-50 rounded-xl gap-3 mb-2">
-        <View
-          className="w-11 h-11 rounded-xl items-center justify-center"
-          style={{ backgroundColor: `${color}20` }}
-        >
-          <IconComponent size={20} color={color} />
-        </View>
-        <View className="flex-1 flex-row justify-between items-center">
-          <View className="flex-1 flex-row items-center">
-            <View style={{ flex: 1, paddingRight: 8 }}>
-              <Text
-                className="text-base font-semibold text-gray-900"
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {transaction.category}
-              </Text>
-              {transaction.description && (
+    const color = getCategoryColor
+      ? getCategoryColor(transaction.category || "")
+      : CATEGORY_COLORS[transaction.category || ""] || "#64748b";
+
+    const handlePress = () => {
+      if (onPress) {
+        onPress();
+      } else {
+        router.push(`/(transactions)/transaction-detail/${transaction.id}`);
+      }
+    };
+
+    const categoryLabel = getCategoryLabel
+      ? getCategoryLabel(transaction.category || "")
+      : transaction.category || "";
+
+    return (
+      <TouchableOpacity onPress={handlePress}>
+        <View className="flex-row items-center p-4 bg-gray-50 rounded-xl gap-3 mb-2">
+          <View
+            className="w-11 h-11 rounded-xl items-center justify-center"
+            style={{ backgroundColor: `${color}20` }}
+          >
+            <IconComponent size={20} color={color} />
+          </View>
+          <View className="flex-1 flex-row justify-between items-center">
+            <View className="flex-1 flex-row items-center">
+              <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text
-                  className="text-xs text-gray-500"
+                  className="text-base font-semibold text-gray-900"
                   numberOfLines={1}
                   ellipsizeMode="tail"
                 >
-                  {transaction.description}
+                  {categoryLabel}
                 </Text>
-              )}
-            </View>
-            <View style={{ flexShrink: 1, alignItems: "flex-end" }}>
-              <Text
-                className="text-base font-bold"
-                style={{
-                  color: transaction.type === "expense" ? "#DC2626" : "#16A34A",
-                }}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {transaction.type === "expense" ? "-" : "+"}$
-                {Math.abs(transaction.amount).toFixed(2)}
-              </Text>
-              <Text className="text-xs text-gray-500">
-                {formatDistanceToNow(new Date(transaction.created_at), {
-                  addSuffix: true,
-                })}
-              </Text>
+                {transaction.description && (
+                  <Text
+                    className="text-xs text-gray-500"
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {transaction.description}
+                  </Text>
+                )}
+              </View>
+              <View style={{ flexShrink: 1, alignItems: "flex-end" }}>
+                <Text
+                  className="text-base font-bold"
+                  style={{
+                    color:
+                      transaction.type === "expense" ? "#DC2626" : "#16A34A",
+                  }}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {transaction.type === "expense" ? "-" : "+"}$
+                  {Math.abs(transaction.amount).toFixed(2)}
+                </Text>
+                <Text className="text-xs text-gray-500">
+                  {formatDistanceToNow(new Date(transaction.created_at), {
+                    addSuffix: true,
+                  })}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
-});
+      </TouchableOpacity>
+    );
+  }
+);
 
-MemoizedTransactionItem.displayName = 'MemoizedTransactionItem';
+MemoizedTransactionItem.displayName = "MemoizedTransactionItem";
 
 export default MemoizedTransactionItem;

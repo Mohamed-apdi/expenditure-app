@@ -5,6 +5,7 @@
 With Expo SDK 53, push notifications (remote notifications) functionality has been removed from Expo Go. This affects apps that use `expo-notifications` for push notifications, background tasks, and interactive notifications.
 
 **Error Message:**
+
 ```
 expo-notifications: Android Push notifications (remote notifications) functionality provided by expo-notifications was removed from Expo Go with the release of SDK 53. Use development build instead of Expo Go.
 ```
@@ -31,9 +32,9 @@ The app now gracefully handles Expo Go limitations by:
 
 ```typescript
 // Check if feature is available
-import { isFeatureAvailable } from '~/lib/expoGoUtils';
+import { isFeatureAvailable } from "~/lib";
 
-if (isFeatureAvailable('pushNotifications')) {
+if (isFeatureAvailable("pushNotifications")) {
   // Enable push notification features
 } else {
   // Show alternative UI or disable features
@@ -49,12 +50,14 @@ if (isFeatureAvailable('pushNotifications')) {
 ## Files Modified
 
 ### Core Changes
+
 - `lib/notificationService.ts` - Added Expo Go detection and graceful fallbacks
 - `lib/expoGoUtils.ts` - New utility for environment detection
 - `app/_layout.tsx` - Conditional notification initialization
 - `app/components/SubscriptionsScreen.tsx` - Graceful notification handling
 
 ### New Components
+
 - `components/ExpoGoWarning.tsx` - User-facing warning component
 
 ## How to Use
@@ -62,6 +65,7 @@ if (isFeatureAvailable('pushNotifications')) {
 ### For Development (Recommended)
 
 1. **Create a Development Build:**
+
    ```bash
    npx expo install expo-dev-client
    npx expo prebuild
@@ -77,6 +81,7 @@ if (isFeatureAvailable('pushNotifications')) {
 ### For Testing in Expo Go
 
 The app will work but with limited functionality:
+
 - Local notifications may work
 - Push notifications won't work
 - Background tasks won't work
@@ -93,11 +98,13 @@ The app will work but with limited functionality:
 ## Migration Path
 
 ### Phase 1: Current (Complete)
+
 - ✅ Graceful degradation in Expo Go
 - ✅ Full functionality in development builds
 - ✅ User warnings and education
 
 ### Phase 2: Future (Optional)
+
 - Create development build for full testing
 - Test push notifications and background tasks
 - Deploy to production with full functionality
@@ -105,15 +112,18 @@ The app will work but with limited functionality:
 ## Troubleshooting
 
 ### Notifications Not Working in Expo Go
+
 This is expected behavior. The app will show warnings and disable features.
 
 ### Notifications Not Working in Development Build
+
 1. Check device permissions
 2. Verify notification settings
 3. Check console for errors
 4. Ensure you're not running in Expo Go
 
 ### Build Errors
+
 1. Clear cache: `npx expo start -c`
 2. Reinstall dependencies: `npm install`
 3. Check Expo SDK version compatibility
@@ -127,6 +137,7 @@ This is expected behavior. The app will show warnings and disable features.
 ## Support
 
 If you encounter issues:
+
 1. Check if you're running in Expo Go or development build
 2. Review console warnings and errors
 3. Verify notification permissions

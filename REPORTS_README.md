@@ -89,6 +89,7 @@ generateLocalPDFReport(reportType: string, data: any, dateRange?: { startDate: s
 ## Data Structures
 
 ### TransactionReport
+
 ```typescript
 interface TransactionReport {
   summary: {
@@ -115,6 +116,7 @@ interface TransactionReport {
 ```
 
 ### AccountReport
+
 ```typescript
 interface AccountReport {
   summary: {
@@ -123,15 +125,19 @@ interface AccountReport {
     account_types: number;
   };
   accounts: any[];
-  by_type: Record<string, {
-    count: number;
-    total_balance: number;
-    accounts: any[];
-  }>;
+  by_type: Record<
+    string,
+    {
+      count: number;
+      total_balance: number;
+      accounts: any[];
+    }
+  >;
 }
 ```
 
 ### BudgetReport
+
 ```typescript
 interface BudgetReport {
   summary: {
@@ -152,6 +158,7 @@ interface BudgetReport {
 ```
 
 ### SubscriptionReport
+
 ```typescript
 interface SubscriptionReport {
   summary: {
@@ -160,15 +167,19 @@ interface SubscriptionReport {
     total_yearly_cost: number;
   };
   subscriptions: any[];
-  by_category: Record<string, {
-    count: number;
-    total_monthly_cost: number;
-    subscriptions: any[];
-  }>;
+  by_category: Record<
+    string,
+    {
+      count: number;
+      total_monthly_cost: number;
+      subscriptions: any[];
+    }
+  >;
 }
 ```
 
 ### GoalReport
+
 ```typescript
 interface GoalReport {
   summary: {
@@ -190,24 +201,25 @@ interface GoalReport {
 ### Basic Usage
 
 ```typescript
-import { getTransactionReports, downloadReport } from '~/lib/api';
+import { getTransactionReports, downloadReport } from "~/lib";
 
 // Fetch transaction reports
-const transactionData = await getTransactionReports('2024-01-01', '2024-01-31');
+const transactionData = await getTransactionReports("2024-01-01", "2024-01-31");
 
 // Download CSV report
-await downloadReport('transactions', 'csv', '2024-01-01', '2024-01-31');
+await downloadReport("transactions", "csv", "2024-01-01", "2024-01-31");
 
 // Generate PDF report
-await generateLocalPDFReport('transactions', transactionData, {
-  startDate: '2024-01-01',
-  endDate: '2024-01-31'
+await generateLocalPDFReport("transactions", transactionData, {
+  startDate: "2024-01-01",
+  endDate: "2024-01-31",
 });
 ```
 
 ### In ReportsScreen Component
 
 The ReportsScreen component automatically handles:
+
 - Tab navigation between different report types
 - Data fetching for each report type
 - Date range selection for transaction reports
@@ -237,11 +249,13 @@ python-dotenv==1.0.0
 ## Setup Instructions
 
 1. **Install Dependencies**
+
    ```bash
    npm install react-native-html-to-pdf react-native-chart-kit react-native-paper-dates
    ```
 
 2. **Start Backend API**
+
    ```bash
    cd householdAPI
    python main.py
@@ -267,6 +281,7 @@ python-dotenv==1.0.0
 ### Customizing Charts
 
 The charts use `react-native-chart-kit` and can be customized by modifying:
+
 - Chart colors and styling
 - Data formatting
 - Chart dimensions and layout
@@ -274,6 +289,7 @@ The charts use `react-native-chart-kit` and can be customized by modifying:
 ### PDF Template Customization
 
 PDF reports are generated using HTML templates in `lib/pdfGenerator.ts`. You can customize:
+
 - Styling and layout
 - Content structure
 - Branding and colors
@@ -281,6 +297,7 @@ PDF reports are generated using HTML templates in `lib/pdfGenerator.ts`. You can
 ## Error Handling
 
 The system includes comprehensive error handling:
+
 - Network request failures
 - Data validation errors
 - PDF generation errors
@@ -314,8 +331,9 @@ All errors are logged and displayed to users via Alert dialogs.
 ### Debug Mode
 
 Enable debug logging by setting:
+
 ```typescript
-console.log('Debug mode enabled');
+console.log("Debug mode enabled");
 ```
 
 ## Future Enhancements
@@ -328,5 +346,3 @@ console.log('Debug mode enabled');
 - Data export to other formats (Excel, JSON)
 - Interactive drill-down capabilities
 - Comparative analysis features
-
-

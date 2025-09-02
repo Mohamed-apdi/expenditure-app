@@ -1,13 +1,21 @@
 // screens/TransactionsScreen.tsx
-import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, SectionList, TextInput, ActivityIndicator } from 'react-native';
-import { Filter, Search, Plus, ArrowLeft } from 'lucide-react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { supabase } from '~/lib/supabase';
-import { fetchTransactions } from '~/lib/transactions';
-import { useAccount } from '~/lib/AccountContext';
-import { formatDistanceToNow } from 'date-fns';
+import { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  SectionList,
+  TextInput,
+  ActivityIndicator,
+} from "react-native";
+import { Filter, Search, Plus, ArrowLeft } from "lucide-react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { supabase } from "~/lib";
+import { fetchTransactions } from "~/lib";
+import { useAccount } from "~/lib";
+import { formatDistanceToNow } from "date-fns";
 
 type Transaction = {
   id: string;
@@ -16,7 +24,7 @@ type Transaction = {
   description?: string;
   created_at: string;
   date: string;
-  type: 'expense' | 'income' | 'transfer';
+  type: "expense" | "income" | "transfer";
   account_id: string;
 };
 
@@ -28,8 +36,8 @@ type TransactionSection = {
 export default function TransactionsScreen() {
   const router = useRouter();
   const { selectedAccount } = useAccount();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState("all");
   const [transactions, setTransactions] = useState<TransactionSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -38,26 +46,30 @@ export default function TransactionsScreen() {
   const fetchUserTransactions = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
-        console.log('User not authenticated');
+        console.log("User not authenticated");
         return;
       }
 
       // Fetch all transactions for the user
       let allTransactions = await fetchTransactions(user.id);
-      
+
       // Filter by selected account if one is selected
       if (selectedAccount) {
-        allTransactions = allTransactions.filter(t => t.account_id === selectedAccount.id);
+        allTransactions = allTransactions.filter(
+          (t) => t.account_id === selectedAccount.id
+        );
       }
 
       // Group transactions by date
       const groupedTransactions = groupTransactionsByDate(allTransactions);
       setTransactions(groupedTransactions);
     } catch (error) {
-      console.error('Error fetching transactions:', error);
+      console.error("Error fetching transactions:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -65,37 +77,41 @@ export default function TransactionsScreen() {
   };
 
   // Group transactions by date for section list
-  const groupTransactionsByDate = (transactions: Transaction[]): TransactionSection[] => {
+  const groupTransactionsByDate = (
+    transactions: Transaction[]
+  ): TransactionSection[] => {
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     const lastWeek = new Date(today);
     lastWeek.setDate(lastWeek.getDate() - 7);
 
-    const todayStr = today.toISOString().split('T')[0];
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    const lastWeekStr = lastWeek.toISOString().split('T')[0];
+    const todayStr = today.toISOString().split("T")[0];
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
+    const lastWeekStr = lastWeek.toISOString().split("T")[0];
 
-    const todayTransactions = transactions.filter(t => t.date === todayStr);
-    const yesterdayTransactions = transactions.filter(t => t.date === yesterdayStr);
-    const lastWeekTransactions = transactions.filter(t => 
-      t.date < yesterdayStr && t.date >= lastWeekStr
+    const todayTransactions = transactions.filter((t) => t.date === todayStr);
+    const yesterdayTransactions = transactions.filter(
+      (t) => t.date === yesterdayStr
     );
-    const olderTransactions = transactions.filter(t => t.date < lastWeekStr);
+    const lastWeekTransactions = transactions.filter(
+      (t) => t.date < yesterdayStr && t.date >= lastWeekStr
+    );
+    const olderTransactions = transactions.filter((t) => t.date < lastWeekStr);
 
     const sections: TransactionSection[] = [];
 
     if (todayTransactions.length > 0) {
-      sections.push({ title: 'Today', data: todayTransactions });
+      sections.push({ title: "Today", data: todayTransactions });
     }
     if (yesterdayTransactions.length > 0) {
-      sections.push({ title: 'Yesterday', data: yesterdayTransactions });
+      sections.push({ title: "Yesterday", data: yesterdayTransactions });
     }
     if (lastWeekTransactions.length > 0) {
-      sections.push({ title: 'Last Week', data: lastWeekTransactions });
+      sections.push({ title: "Last Week", data: lastWeekTransactions });
     }
     if (olderTransactions.length > 0) {
-      sections.push({ title: 'Older', data: olderTransactions });
+      sections.push({ title: "Older", data: olderTransactions });
     }
 
     return sections;
@@ -113,16 +129,20 @@ export default function TransactionsScreen() {
   };
 
   // Filter transactions based on search and filter
-  const filteredTransactions = transactions.map((section) => ({
-    ...section,
-    data: section.data.filter((item) => {
-      const matchesSearch = item.description?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                           item.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           false;
-      const matchesFilter = activeFilter === 'all' || item.type === activeFilter;
-      return matchesSearch && matchesFilter;
-    }),
-  })).filter((section) => section.data.length > 0);
+  const filteredTransactions = transactions
+    .map((section) => ({
+      ...section,
+      data: section.data.filter((item) => {
+        const matchesSearch =
+          item.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          false;
+        const matchesFilter =
+          activeFilter === "all" || item.type === activeFilter;
+        return matchesSearch && matchesFilter;
+      }),
+    }))
+    .filter((section) => section.data.length > 0);
 
   if (loading) {
     return (
@@ -144,9 +164,11 @@ export default function TransactionsScreen() {
             <TouchableOpacity onPress={() => router.back()} className="mr-3">
               <ArrowLeft size={24} color="#374151" />
             </TouchableOpacity>
-            <Text className="text-xl font-bold text-gray-900">Transactions</Text>
+            <Text className="text-xl font-bold text-gray-900">
+              Transactions
+            </Text>
           </View>
-          
+
           {/* Search Bar */}
           <View className="flex-row items-center bg-gray-100 rounded-lg px-3 py-2 mb-3">
             <Search size={18} color="#6b7280" />
@@ -157,16 +179,18 @@ export default function TransactionsScreen() {
               onChangeText={setSearchQuery}
             />
           </View>
-          
+
           {/* Filter Buttons */}
           <View className="flex-row space-x-2">
-            {['all', 'income', 'expense', 'transfer', 'loan'].map((filter) => (
+            {["all", "income", "expense", "transfer", "loan"].map((filter) => (
               <TouchableOpacity
                 key={filter}
-                className={`px-3 py-1 rounded-full ${activeFilter === filter ? 'bg-blue-500' : 'bg-gray-200'}`}
+                className={`px-3 py-1 rounded-full ${activeFilter === filter ? "bg-blue-500" : "bg-gray-200"}`}
                 onPress={() => setActiveFilter(filter)}
               >
-                <Text className={`${activeFilter === filter ? 'text-white' : 'text-gray-800'}`}>
+                <Text
+                  className={`${activeFilter === filter ? "text-white" : "text-gray-800"}`}
+                >
                   {filter.charAt(0).toUpperCase() + filter.slice(1)}
                 </Text>
               </TouchableOpacity>
@@ -182,28 +206,38 @@ export default function TransactionsScreen() {
           refreshing={refreshing}
           onRefresh={onRefresh}
           renderItem={({ item }) => (
-            <TouchableOpacity 
+            <TouchableOpacity
               className="bg-white p-4 border-b border-gray-100"
               onPress={() => router.push(`/transaction-detail/${item.id}`)}
             >
               <View className="flex-row justify-between items-center">
                 <View className="flex-1">
                   <Text className="font-medium text-gray-900" numberOfLines={1}>
-                    {item.description || item.category || 'No description'}
+                    {item.description || item.category || "No description"}
                   </Text>
                   <Text className="text-gray-500 text-sm">{item.category}</Text>
                   <Text className="text-gray-400 text-xs mt-1">
-                    {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(item.created_at), {
+                      addSuffix: true,
+                    })}
                   </Text>
                 </View>
                 <View className="items-end">
-                  <Text className={`font-bold text-lg ${
-                    item.type === 'expense' ? 'text-red-500' : 
-                    item.type === 'income' ? 'text-green-500' : 'text-blue-500'
-                  }`}>
-                    {item.type === 'expense' ? '-' : '+'}${Math.abs(item.amount).toFixed(2)}
+                  <Text
+                    className={`font-bold text-lg ${
+                      item.type === "expense"
+                        ? "text-red-500"
+                        : item.type === "income"
+                          ? "text-green-500"
+                          : "text-blue-500"
+                    }`}
+                  >
+                    {item.type === "expense" ? "-" : "+"}$
+                    {Math.abs(item.amount).toFixed(2)}
                   </Text>
-                  <Text className="text-gray-400 text-xs capitalize">{item.type}</Text>
+                  <Text className="text-gray-400 text-xs capitalize">
+                    {item.type}
+                  </Text>
                 </View>
               </View>
             </TouchableOpacity>
@@ -216,12 +250,11 @@ export default function TransactionsScreen() {
           ListEmptyComponent={
             <View className="flex-1 justify-center items-center p-8">
               <Text className="text-gray-500 text-center">
-                {searchQuery || activeFilter !== 'all' 
-                  ? `No transactions found${searchQuery ? ` for "${searchQuery}"` : ''}${activeFilter !== 'all' ? ` in ${activeFilter}` : ''}`
-                  : 'No transactions yet'
-                }
+                {searchQuery || activeFilter !== "all"
+                  ? `No transactions found${searchQuery ? ` for "${searchQuery}"` : ""}${activeFilter !== "all" ? ` in ${activeFilter}` : ""}`
+                  : "No transactions yet"}
               </Text>
-              {!searchQuery && activeFilter === 'all' && (
+              {!searchQuery && activeFilter === "all" && (
                 <Text className="text-gray-400 text-center mt-2">
                   Start by adding your first transaction
                 </Text>

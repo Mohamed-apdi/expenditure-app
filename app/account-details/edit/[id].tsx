@@ -11,10 +11,10 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { X, ChevronDown, Check, DollarSign } from "lucide-react-native";
-import { supabase } from "~/lib/supabase";
-import { updateAccount, fetchAccounts } from "~/lib/accounts";
-import { useTheme } from "~/lib/theme";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { supabase } from "~/lib";
+import { updateAccount, fetchAccounts } from "~/lib";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 
 type AccountGroup = {
   id: string;

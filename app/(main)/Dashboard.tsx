@@ -14,19 +14,18 @@ import {
   FlatList,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import {
   getFinancialSummary,
-  getExpensesByCategory,
   getRecentTransactions,
   getAccountBalances,
   type FinancialSummary,
   type CategorySummary,
-} from "~/lib/analytics";
-import { fetchExpenses } from "~/lib/expenses";
-import { fetchTransactions } from "~/lib/transactions";
-import { fetchProfile } from "~/lib/profiles";
-import { useAccount } from "~/lib/AccountContext";
+} from "~/lib";
+import { fetchExpenses } from "~/lib";
+import { fetchTransactions } from "~/lib";
+import { fetchProfile } from "~/lib";
+import { useAccount } from "~/lib";
 
 import {
   PieChart,
@@ -81,13 +80,15 @@ import {
   TrendingUpDown,
   DollarSign,
   Award,
+  ArrowRightLeft,
 } from "lucide-react-native";
-import { formatDistanceToNow } from "date-fns";
-import { useTheme } from "~/lib/theme";
-import { useLanguage } from "~/lib/LanguageProvider";
+
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 import DashboardHeader from "~/components/(Dashboard)/DashboardHeader";
 import MonthYearScroller from "~/components/(Dashboard)/MonthYearScroll";
 import NotificationPermissionRequest from "~/components/NotificationPermissionRequest";
+import MemoizedTransactionItem from "~/components/(Dashboard)/MemoizedTransactionItem";
 
 type Transaction = {
   id: string;
@@ -222,13 +223,37 @@ export default function DashboardScreen() {
         setTodaySpending(todayTotal);
         console.log("Dashboard - Today's spending:", todayTotal);
 
-        // Category Summary - use transactions
-        const categoryData = await getExpensesByCategory(user.id);
-        setCategorySummary(categoryData);
+        // Category Summary - use expenses
+        const allExpenses = await fetchExpenses(user.id);
+        const categoryMap = new Map<string, number>();
+        allExpenses
+          .filter((e) => e.entry_type === "Expense")
+          .forEach((e) => {
+            const current = categoryMap.get(e.category) || 0;
+            categoryMap.set(e.category, current + e.amount);
+          });
+
+        const categorySummary: CategorySummary[] = Array.from(
+          categoryMap.entries()
+        ).map(([category, amount]) => ({
+          category,
+          amount,
+          count: allExpenses.filter(
+            (e) => e.category === category && e.entry_type === "Expense"
+          ).length,
+          percentage: 0, // Will be calculated later if needed
+        }));
+        setCategorySummary(categorySummary);
 
         // Account Balances
         const balances = await getAccountBalances(user.id);
-        setAccountBalances(balances);
+        setAccountBalances(
+          balances.map((b) => ({
+            name: b.name,
+            balance: b.balance,
+            type: b.account_type,
+          }))
+        );
 
         // Recent transactions - use transactions table
         const recent = allTransactions
@@ -276,10 +301,12 @@ export default function DashboardScreen() {
 
         // Set financial summary for selected account
         setFinancialSummary({
+          totalAssets: selectedAccount.amount,
+          totalLiabilities: 0,
+          netWorth: selectedAccount.amount,
           totalIncome: accountIncome,
           totalExpenses: accountExpensesTotal,
-          netIncome: accountIncome - accountExpensesTotal,
-          totalBalance: selectedAccount.amount,
+          balance: accountIncome - accountExpensesTotal,
         });
 
         setTotalIncome(accountIncome);
@@ -322,6 +349,9 @@ export default function DashboardScreen() {
         ).map(([category, amount]) => ({
           category,
           amount,
+          count: accountTransactionsFiltered.filter(
+            (t) => t.category === category && t.type === "expense"
+          ).length,
           percentage: (amount / accountExpensesTotal) * 100,
         }));
 
@@ -562,7 +592,7 @@ export default function DashboardScreen() {
       Taxes: Receipt,
 
       // Income categories
-      "Job Salary": DollarSign,
+      "Initial Balance": DollarSign,
       Bonus: Zap,
       "Part-time Work": Clock,
       Business: Briefcase,
@@ -578,6 +608,7 @@ export default function DashboardScreen() {
       Grants: HandCoins,
       "Gifts Received": Gift,
       Pension: User,
+      Transfer: ArrowRightLeft,
     };
     return icons[category] || MoreHorizontal;
   };
@@ -609,7 +640,7 @@ export default function DashboardScreen() {
       Taxes: "#ef4444",
 
       // Income colors
-      "Job Salary": "#059669",
+      "Initial Balance": "#059669",
       Bonus: "#3b82f6",
       "Part-time Work": "#f97316",
       Business: "#8b5cf6",
@@ -625,31 +656,56 @@ export default function DashboardScreen() {
       Grants: "#059669",
       "Gifts Received": "#8b5cf6",
       Pension: "#64748b",
+      Transfer: "#3b82f6",
     };
     return colors[category] || "#64748b";
   };
 
-  const quickActions: QuickAction[] = [
-    {
-      title: t.historyExpenses,
-      icon: PieChart,
-      color: "#3b82f6",
-      screen: "../(expense)/ExpenseHistory",
-    },
-    {
-      title: t.generateReport,
-      icon: PieChart,
-      color: "#f43f5e",
-      screen: "../(expense)/ExpenseReport",
-    },
-    {
-      title: t.compareExpenses,
-      icon: TrendingUp,
-      color: "#f43f5e",
-      screen: "../(expense)/ExpenseComparison",
-    },
-  ];
-
+  // Get translated category label
+  const getCategoryLabel = (categoryKey: string) => {
+    const categoryMap: { [key: string]: string } = {
+      "Food & Drinks": t.foodAndDrinks,
+      "Home & Rent": t.homeAndRent,
+      Travel: t.travel,
+      Bills: t.bills,
+      Fun: t.fun,
+      Health: t.health,
+      Shopping: t.shopping,
+      Learning: t.learning,
+      "Personal Care": t.personalCare,
+      Insurance: t.insurance,
+      Loans: t.loans,
+      Gifts: t.gifts,
+      Donations: t.donations,
+      Vacation: t.vacation,
+      Pets: t.pets,
+      Children: t.children,
+      Subscriptions: t.subscriptions,
+      "Gym & Sports": t.gymAndSports,
+      Electronics: t.electronics,
+      Furniture: t.furniture,
+      Repairs: t.repairs,
+      Taxes: t.taxes,
+      "Initial Balance": t.InitialBalance,
+      Bonus: t.bonus,
+      "Part-time Work": t.partTimeWork,
+      Business: t.business,
+      Investments: t.investments,
+      "Bank Interest": t.bankInterest,
+      "Rent Income": t.rentIncome,
+      Sales: t.sales,
+      Gambling: t.gambling,
+      Awards: t.awards,
+      Refunds: t.refunds,
+      Freelance: t.freelance,
+      Royalties: t.royalties,
+      Grants: t.grants,
+      "Gifts Received": t.giftsReceived,
+      Pension: t.pension,
+      Transfer: t.transfer,
+    };
+    return categoryMap[categoryKey] || categoryKey;
+  };
   // if (loading && !refreshing) {
   //   return (
   //     <View className="flex-1 bg-[#F6F8FD] justify-center items-center">
@@ -657,10 +713,12 @@ export default function DashboardScreen() {
   //     </View>
   //   );
   // }
-
   return (
     <SafeAreaView className="flex-1 pt-safe bg-[#3b82f6] relative">
-      <StatusBar barStyle="light-content" backgroundColor="#3b82f6" />
+      <StatusBar
+        barStyle={theme.isDark ? "light-content" : "dark-content"}
+        backgroundColor="#3b82f6"
+      />
       {/* Header */}
       <DashboardHeader
         userName={userProfile.fullName}
@@ -670,7 +728,7 @@ export default function DashboardScreen() {
           supabase.auth.signOut();
           router.replace("/login");
         }}
-        onSettingsPress={() => router.push("/(main)/ProfileScreen")}
+        onSettingsPress={() => router.push("/(main)/SettingScreen")}
         onNotificationPress={() => router.push("/(main)/notifications")}
       />
       <View className="">
@@ -707,75 +765,17 @@ export default function DashboardScreen() {
           <FlatList
             data={filteredTransactions}
             keyExtractor={(item) => item.id}
-            renderItem={({ item: t }) => {
-              const IconComponent = getCategoryIcon(t.category || "");
-              const color = getCategoryColor(t.category || "");
-
-              return (
-                <TouchableOpacity
-                  key={t.id}
-                  onPress={() => router.push(`/transaction-detail/${t.id}`)}
-                >
-                  <View
-                    className="flex-row items-center p-4 rounded-xl gap-3 mb-2"
-                    style={{ backgroundColor: theme.cardBackground }}
-                  >
-                    <View
-                      className="w-11 h-11 rounded-xl items-center justify-center"
-                      style={{ backgroundColor: `${color}20` }}
-                    >
-                      <IconComponent size={20} color={color} />
-                    </View>
-                    <View className="flex-1 flex-row justify-between items-center">
-                      <View className="flex-1 flex-row items-center">
-                        <View style={{ flex: 1, paddingRight: 8 }}>
-                          <Text
-                            className="text-base font-semibold"
-                            style={{ color: theme.text }}
-                            numberOfLines={1}
-                            ellipsizeMode="tail"
-                          >
-                            {t.category}
-                          </Text>
-                          {t.description && (
-                            <Text
-                              className="text-xs"
-                              style={{ color: theme.textSecondary }}
-                              numberOfLines={1}
-                              ellipsizeMode="tail"
-                            >
-                              {t.description}
-                            </Text>
-                          )}
-                        </View>
-                        <View style={{ flexShrink: 1, alignItems: "flex-end" }}>
-                          <Text
-                            className="text-base font-bold"
-                            style={{
-                              color:
-                                t.type === "expense" ? "#DC2626" : "#16A34A",
-                            }}
-                            numberOfLines={1}
-                            ellipsizeMode="tail"
-                          >
-                            {t.type === "expense" ? "-" : "+"}$
-                            {Math.abs(t.amount).toFixed(2)}
-                          </Text>
-                          <Text
-                            className="text-xs"
-                            style={{ color: theme.textSecondary }}
-                          >
-                            {formatDistanceToNow(new Date(t.created_at), {
-                              addSuffix: true,
-                            })}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              );
-            }}
+            renderItem={({ item: t }) => (
+              <MemoizedTransactionItem
+                transaction={t}
+                getCategoryIcon={getCategoryIcon}
+                getCategoryColor={getCategoryColor}
+                getCategoryLabel={getCategoryLabel}
+                onPress={() =>
+                  router.push(`/(transactions)/transaction-detail/${t.id}`)
+                }
+              />
+            )}
             ListEmptyComponent={
               <View className="p-4 bg-white rounded-xl items-center justify-center">
                 <Text className="text-sm text-gray-500">

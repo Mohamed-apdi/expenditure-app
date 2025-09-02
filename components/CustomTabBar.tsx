@@ -2,8 +2,8 @@ import React from "react";
 import { View, TouchableOpacity, Text } from "react-native";
 import { Home, BarChart2, Wallet, Plus, Banknote } from "lucide-react-native";
 import { useRouter } from "expo-router";
-import { useTheme } from "~/lib/theme";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 
 export default function CustomTabBar({ state, descriptors, navigation }: any) {
   const router = useRouter();

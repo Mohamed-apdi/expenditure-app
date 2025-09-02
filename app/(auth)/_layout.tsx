@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Slot, router } from "expo-router";
 import { getItemAsync } from "expo-secure-store";
-import { supabase } from "~/lib/supabase";
+import { supabase } from "~/lib";
 import { View, ActivityIndicator } from "react-native";
+import { StatusBar } from "expo-status-bar";
 
 export default function AuthLayout() {
   const [loading, setLoading] = useState(true);
@@ -34,11 +35,19 @@ export default function AuthLayout() {
 
   if (loading) {
     return (
-      <View className="flex-1 justify-center items-center bg-black">
-        <ActivityIndicator size="large" color="#10b981" />
-      </View>
+      <>
+        <StatusBar style="light" />
+        <View className="flex-1 justify-center items-center bg-black">
+          <ActivityIndicator size="large" color="#10b981" />
+        </View>
+      </>
     );
   }
 
-  return <Slot />;
+  return (
+    <>
+      <StatusBar style="auto" />
+      <Slot />
+    </>
+  );
 }

@@ -9,13 +9,13 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { MoreHorizontal, X, Plus } from "lucide-react-native";
-import { fetchAccounts, createAccount, Account } from "~/lib/accounts";
-import { supabase } from "~/lib/supabase";
+import { fetchAccounts, createAccount, Account } from "~/lib";
+import { supabase } from "~/lib";
 import AddAccount from "../account-details/add-account";
-import { useAccount } from "~/lib/AccountContext";
+import { useAccount } from "~/lib";
 import { useFocusEffect } from "@react-navigation/native";
-import { useTheme } from "~/lib/theme";
-import { useLanguage } from "~/lib/LanguageProvider";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 
 interface AccountGroup {
   id: string;
@@ -83,9 +83,12 @@ const Accounts = () => {
   // Calculate totals - now just sum all account amounts since we don't have type field
   const total = accounts.reduce((sum, a) => sum + (a.amount || 0), 0);
 
-  const handleAddAccount = async (
-    newAccount: Omit<Account, "id" | "user_id" | "created_at" | "updated_at">
-  ) => {
+  const handleAddAccount = async (newAccount: {
+    account_type: string;
+    name: string;
+    amount: number;
+    description?: string;
+  }) => {
     try {
       setError(null);
 
@@ -101,6 +104,8 @@ const Accounts = () => {
       const accountWithUser = {
         ...newAccount,
         user_id: user.id,
+        is_default: false, // Default to false for new accounts
+        currency: "USD", // Default currency
       };
 
       const createdAccount = await createAccount(accountWithUser);
@@ -109,7 +114,7 @@ const Accounts = () => {
       // If account has an initial amount, create a transaction as income
       if (newAccount.amount && newAccount.amount > 0) {
         try {
-          const { addTransaction } = await import("~/lib/transactions");
+          const { addTransaction } = await import("~/lib");
 
           await addTransaction({
             user_id: user.id,
@@ -117,7 +122,7 @@ const Accounts = () => {
             amount: newAccount.amount,
             description: `Initial balance for ${newAccount.name}`,
             date: new Date().toISOString().split("T")[0],
-            category: "Job Salary", // Use existing income category
+            category: "Initial Balance", // Use existing income category
             type: "income",
             is_recurring: false,
           });
