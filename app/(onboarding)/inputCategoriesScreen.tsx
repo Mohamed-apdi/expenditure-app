@@ -17,6 +17,7 @@ import {
 import { useEffect, useRef } from "react";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
+import { StatusBar } from "expo-status-bar";
 
 const categories = [
   {
@@ -184,321 +185,328 @@ export default function InputCategoriesScreen() {
   });
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-      {/* Floating particles background */}
-      {particles.map((particle) => (
-        <FloatingParticle
-          key={particle.id}
+    <>
+      <StatusBar style="auto" />
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+        {/* Floating particles background */}
+        {particles.map((particle) => (
+          <FloatingParticle
+            key={particle.id}
+            style={{
+              width: particle.size,
+              height: particle.size,
+              borderRadius: particle.size / 2,
+              backgroundColor: theme.primary,
+              left: `${particle.left}%`,
+              top: `${particle.top}%`,
+            }}
+          />
+        ))}
+        <Animated.View
           style={{
-            width: particle.size,
-            height: particle.size,
-            borderRadius: particle.size / 2,
-            backgroundColor: theme.primary,
-            left: `${particle.left}%`,
-            top: `${particle.top}%`,
+            opacity: fadeAnim,
+            transform: [
+              { scale: screenInterpolate },
+              {
+                translateY: screenTransition.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 20],
+                }),
+              },
+            ],
           }}
-        />
-      ))}
-      <Animated.View
-        style={{
-          opacity: fadeAnim,
-          transform: [
-            { scale: screenInterpolate },
-            {
-              translateY: screenTransition.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 20],
-              }),
-            },
-          ],
-        }}
-        className="flex-1"
-      >
-        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-          {/* Progress Indicator */}
-          <View className="flex-row items-center justify-center gap-1.5 pt-10 px-6">
-            <View
-              style={{
-                width: 8,
-                height: 8,
-                backgroundColor: theme.textMuted,
-                borderRadius: 4,
-              }}
-            />
-            <View
-              style={{
-                width: 24,
-                height: 8,
-                backgroundColor: theme.primary,
-                borderRadius: 4,
-              }}
-            />
-            <View
-              style={{
-                width: 8,
-                height: 8,
-                backgroundColor: theme.textMuted,
-                borderRadius: 4,
-              }}
-            />
-          </View>
-
-          {/* Title and Tagline */}
-          <View className="px-6 py-5">
-            <Animated.Text
-              style={{
-                opacity: fadeAnim,
-                transform: [
-                  {
-                    translateY: fadeAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [10, 0],
-                    }),
-                  },
-                ],
-                color: theme.text,
-                fontSize: 24,
-                fontWeight: "bold",
-                marginBottom: 8,
-              }}
-            >
-              {t.accountSetup}
-            </Animated.Text>
-            <Animated.Text
-              style={{
-                opacity: fadeAnim,
-                transform: [
-                  {
-                    translateY: fadeAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [10, 0],
-                    }),
-                  },
-                ],
-                color: theme.textSecondary,
-                fontSize: 16,
-                lineHeight: 24,
-              }}
-            >
-              {t.accountSetupDescription}
-            </Animated.Text>
-          </View>
-
-          <View className="px-6 gap-4 mb-6">
-            {categories.map((category, index) => (
-              <Animated.View
-                key={category.id}
+          className="flex-1"
+        >
+          <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+            {/* Progress Indicator */}
+            <View className="flex-row items-center justify-center gap-1.5 pt-10 px-6">
+              <View
                 style={{
-                  opacity: categoryAnimations[index],
+                  width: 8,
+                  height: 8,
+                  backgroundColor: theme.textMuted,
+                  borderRadius: 4,
+                }}
+              />
+              <View
+                style={{
+                  width: 24,
+                  height: 8,
+                  backgroundColor: theme.primary,
+                  borderRadius: 4,
+                }}
+              />
+              <View
+                style={{
+                  width: 8,
+                  height: 8,
+                  backgroundColor: theme.textMuted,
+                  borderRadius: 4,
+                }}
+              />
+            </View>
+
+            {/* Title and Tagline */}
+            <View className="px-6 py-5">
+              <Animated.Text
+                style={{
+                  opacity: fadeAnim,
                   transform: [
                     {
-                      translateY: categoryAnimations[index].interpolate({
+                      translateY: fadeAnim.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [30, 0],
+                        outputRange: [10, 0],
                       }),
                     },
                   ],
-                  backgroundColor: theme.cardBackground,
-                  borderRadius: 12,
-                  padding: 20,
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                  flexDirection: "row",
-                  alignItems: "flex-start",
-                  position: "relative",
+                  color: theme.text,
+                  fontSize: 24,
+                  fontWeight: "bold",
+                  marginBottom: 8,
                 }}
               >
-                <Animated.View
-                  style={[
+                {t.accountSetup}
+              </Animated.Text>
+              <Animated.Text
+                style={{
+                  opacity: fadeAnim,
+                  transform: [
                     {
-                      transform: [
-                        {
-                          scale: categoryAnimations[index],
-                        },
-                      ],
-                      backgroundColor: `${category.color}20`,
-                      width: 56,
-                      height: 56,
-                      borderRadius: 8,
-                      justifyContent: "center",
-                      alignItems: "center",
-                      marginRight: 16,
+                      translateY: fadeAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [10, 0],
+                      }),
                     },
-                  ]}
-                >
-                  <category.icon size={28} color={category.color} />
-                </Animated.View>
+                  ],
+                  color: theme.textSecondary,
+                  fontSize: 16,
+                  lineHeight: 24,
+                }}
+              >
+                {t.accountSetupDescription}
+              </Animated.Text>
+            </View>
 
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      color: theme.text,
-                      fontSize: 18,
-                      fontWeight: "bold",
-                      marginBottom: 4,
-                    }}
-                  >
-                    {t[category.titleKey]}
-                  </Text>
-                  <Text
-                    style={{
-                      color: theme.textSecondary,
-                      fontSize: 14,
-                      marginBottom: 12,
-                      lineHeight: 20,
-                    }}
-                  >
-                    {t[category.descriptionKey]}
-                  </Text>
-
-                  <View>
-                    <Text
-                      style={{
-                        color: theme.textMuted,
-                        fontSize: 12,
-                        fontWeight: "500",
-                        marginBottom: 4,
-                      }}
-                    >
-                      {t.includes}:
-                    </Text>
-                    <View
-                      style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}
-                    >
-                      {category.fields.slice(0, 3).map((field, idx) => (
-                        <Animated.View
-                          key={idx}
-                          style={{
-                            opacity: categoryAnimations[index],
-                            transform: [
-                              {
-                                scale: categoryAnimations[index].interpolate({
-                                  inputRange: [0, 1],
-                                  outputRange: [0.5, 1],
-                                }),
-                              },
-                            ],
-                            backgroundColor: theme.border,
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 4,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: theme.text,
-                              fontSize: 12,
-                              fontWeight: "500",
-                            }}
-                          >
-                            {t[field]}
-                          </Text>
-                        </Animated.View>
-                      ))}
-                      {category.fields.length > 3 && (
-                        <Animated.View
-                          style={{
-                            opacity: categoryAnimations[index],
-                            transform: [
-                              {
-                                scale: categoryAnimations[index].interpolate({
-                                  inputRange: [0, 1],
-                                  outputRange: [0.5, 1],
-                                }),
-                              },
-                            ],
-                            backgroundColor: theme.border,
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 4,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              color: theme.text,
-                              fontSize: 12,
-                              fontWeight: "500",
-                            }}
-                          >
-                            +{category.fields.length - 3}
-                          </Text>
-                        </Animated.View>
-                      )}
-                    </View>
-                  </View>
-                </View>
-
+            <View className="px-6 gap-4 mb-6">
+              {categories.map((category, index) => (
                 <Animated.View
+                  key={category.id}
                   style={{
+                    opacity: categoryAnimations[index],
                     transform: [
                       {
-                        scale: categoryAnimations[index].interpolate({
+                        translateY: categoryAnimations[index].interpolate({
                           inputRange: [0, 1],
-                          outputRange: [0, 1],
+                          outputRange: [30, 0],
                         }),
                       },
                     ],
-                    position: "absolute",
-                    top: 16,
-                    right: 16,
-                    width: 24,
-                    height: 24,
-                    backgroundColor: theme.primary,
+                    backgroundColor: theme.cardBackground,
                     borderRadius: 12,
-                    justifyContent: "center",
-                    alignItems: "center",
+                    padding: 20,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    flexDirection: "row",
+                    alignItems: "flex-start",
+                    position: "relative",
                   }}
                 >
-                  <Text
+                  <Animated.View
+                    style={[
+                      {
+                        transform: [
+                          {
+                            scale: categoryAnimations[index],
+                          },
+                        ],
+                        backgroundColor: `${category.color}20`,
+                        width: 56,
+                        height: 56,
+                        borderRadius: 8,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        marginRight: 16,
+                      },
+                    ]}
+                  >
+                    <category.icon size={28} color={category.color} />
+                  </Animated.View>
+
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        color: theme.text,
+                        fontSize: 18,
+                        fontWeight: "bold",
+                        marginBottom: 4,
+                      }}
+                    >
+                      {t[category.titleKey]}
+                    </Text>
+                    <Text
+                      style={{
+                        color: theme.textSecondary,
+                        fontSize: 14,
+                        marginBottom: 12,
+                        lineHeight: 20,
+                      }}
+                    >
+                      {t[category.descriptionKey]}
+                    </Text>
+
+                    <View>
+                      <Text
+                        style={{
+                          color: theme.textMuted,
+                          fontSize: 12,
+                          fontWeight: "500",
+                          marginBottom: 4,
+                        }}
+                      >
+                        {t.includes}:
+                      </Text>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          flexWrap: "wrap",
+                          gap: 6,
+                        }}
+                      >
+                        {category.fields.slice(0, 3).map((field, idx) => (
+                          <Animated.View
+                            key={idx}
+                            style={{
+                              opacity: categoryAnimations[index],
+                              transform: [
+                                {
+                                  scale: categoryAnimations[index].interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [0.5, 1],
+                                  }),
+                                },
+                              ],
+                              backgroundColor: theme.border,
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                              borderRadius: 4,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: theme.text,
+                                fontSize: 12,
+                                fontWeight: "500",
+                              }}
+                            >
+                              {t[field]}
+                            </Text>
+                          </Animated.View>
+                        ))}
+                        {category.fields.length > 3 && (
+                          <Animated.View
+                            style={{
+                              opacity: categoryAnimations[index],
+                              transform: [
+                                {
+                                  scale: categoryAnimations[index].interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [0.5, 1],
+                                  }),
+                                },
+                              ],
+                              backgroundColor: theme.border,
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                              borderRadius: 4,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: theme.text,
+                                fontSize: 12,
+                                fontWeight: "500",
+                              }}
+                            >
+                              +{category.fields.length - 3}
+                            </Text>
+                          </Animated.View>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+
+                  <Animated.View
                     style={{
-                      color: theme.primaryText,
-                      fontSize: 12,
-                      fontWeight: "bold",
+                      transform: [
+                        {
+                          scale: categoryAnimations[index].interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, 1],
+                          }),
+                        },
+                      ],
+                      position: "absolute",
+                      top: 16,
+                      right: 16,
+                      width: 24,
+                      height: 24,
+                      backgroundColor: theme.primary,
+                      borderRadius: 12,
+                      justifyContent: "center",
+                      alignItems: "center",
                     }}
                   >
-                    {index + 1}
-                  </Text>
+                    <Text
+                      style={{
+                        color: theme.primaryText,
+                        fontSize: 12,
+                        fontWeight: "bold",
+                      }}
+                    >
+                      {index + 1}
+                    </Text>
+                  </Animated.View>
                 </Animated.View>
-              </Animated.View>
-            ))}
-          </View>
+              ))}
+            </View>
 
-          <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
-            <TouchableOpacity
-              style={{
-                marginHorizontal: 24,
-                marginBottom: 24,
-                backgroundColor: theme.primary,
-                paddingVertical: 16,
-                borderRadius: 12,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                shadowColor: theme.primary,
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 12,
-                elevation: 8,
-              }}
-              onPressIn={handleButtonPressIn}
-              onPressOut={handleButtonPressOut}
-              onPress={handleNavigate}
-            >
-              <Text
+            <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+              <TouchableOpacity
                 style={{
-                  color: theme.primaryText,
-                  fontSize: 16,
-                  fontWeight: "bold",
-                  marginRight: 8,
+                  marginHorizontal: 24,
+                  marginBottom: 24,
+                  backgroundColor: theme.primary,
+                  paddingVertical: 16,
+                  borderRadius: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  shadowColor: theme.primary,
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 12,
+                  elevation: 8,
                 }}
+                onPressIn={handleButtonPressIn}
+                onPressOut={handleButtonPressOut}
+                onPress={handleNavigate}
               >
-                {t.continue}
-              </Text>
-              <ArrowRight size={20} color={theme.primaryText} />
-            </TouchableOpacity>
-          </Animated.View>
-        </ScrollView>
-      </Animated.View>
-    </SafeAreaView>
+                <Text
+                  style={{
+                    color: theme.primaryText,
+                    fontSize: 16,
+                    fontWeight: "bold",
+                    marginRight: 8,
+                  }}
+                >
+                  {t.continue}
+                </Text>
+                <ArrowRight size={20} color={theme.primaryText} />
+              </TouchableOpacity>
+            </Animated.View>
+          </ScrollView>
+        </Animated.View>
+      </SafeAreaView>
+    </>
   );
 }

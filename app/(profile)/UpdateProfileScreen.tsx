@@ -298,7 +298,7 @@ export default function UpdateProfileScreen() {
     <ScrollView>
       <SafeAreaView
         className="flex-1"
-        tyle={{ backgroundColor: theme.background }}
+        style={{ backgroundColor: theme.background }}
       >
         <KeyboardAvoidingView
           className="flex-1"

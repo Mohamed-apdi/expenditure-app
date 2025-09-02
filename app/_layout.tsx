@@ -18,7 +18,7 @@ import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import Toast from "react-native-toast-message";
 import { AccountProvider } from "~/lib";
 import * as Notifications from "expo-notifications";
-import notificationService from "~/lib";
+import { notificationService } from "~/lib";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LanguageProvider } from "~/lib";
 

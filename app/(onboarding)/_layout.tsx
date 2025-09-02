@@ -3,6 +3,7 @@ import { Stack, router } from "expo-router";
 import { supabase } from "~/lib";
 import { getItemAsync } from "expo-secure-store";
 import { ActivityIndicator, View } from "react-native";
+import { StatusBar } from "expo-status-bar";
 
 export default function OnboardingLayout() {
   const [checking, setChecking] = useState(true);
@@ -34,11 +35,19 @@ export default function OnboardingLayout() {
 
   if (checking) {
     return (
-      <View className="flex-1 bg-black justify-center items-center">
-        <ActivityIndicator size="large" color="#10b981" />
-      </View>
+      <>
+        <StatusBar style="light" />
+        <View className="flex-1 bg-black justify-center items-center">
+          <ActivityIndicator size="large" color="#10b981" />
+        </View>
+      </>
     );
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <>
+      <StatusBar style="auto" />
+      <Stack screenOptions={{ headerShown: false }} />
+    </>
+  );
 }

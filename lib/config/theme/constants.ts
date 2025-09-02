@@ -37,6 +37,10 @@ export const NAV_THEME = {
     stepInactive: "#e2e8f0",
     stepActive: "#0891b2",
 
+    // React Navigation required properties
+    card: "#f9fafb",
+    notification: "#3b82f6",
+
     // Theme detection
     isDark: false,
     isDarkColorScheme: false,
@@ -76,6 +80,10 @@ export const NAV_THEME = {
     // Status indicators
     stepInactive: "#334155",
     stepActive: "#0891b2",
+
+    // React Navigation required properties
+    card: "#334155",
+    notification: "#3b82f6",
 
     // Theme detection
     isDark: true,

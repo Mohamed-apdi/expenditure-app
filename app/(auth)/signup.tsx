@@ -30,6 +30,7 @@ import * as AuthSession from "expo-auth-session";
 import Toast from "react-native-toast-message";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
+import { StatusBar } from "expo-status-bar";
 
 // Configure Google Auth
 WebBrowser.maybeCompleteAuthSession();
@@ -376,48 +377,54 @@ export default function SignupScreen() {
       }
 
       if (data.user) {
-        // Create default account for new user
-        try {
-          const { createAccount } = await import("~/lib");
+        // Check if email confirmation is required
+        if (data.user.email_confirmed_at) {
+          // User can proceed immediately - navigate to post-signup setup first
+          router.replace("/(onboarding)/post-signup-setup");
+        } else {
+          // Email confirmation required - create default account and go to login
+          try {
+            const { createAccount } = await import("~/lib");
 
-          const defaultAccount = await createAccount({
-            user_id: data.user.id,
-            account_type: "Accounts",
-            name: "Account 1",
-            amount: 0,
-            description: "Default account",
-            is_default: true,
-            currency: "USD",
-          });
+            const defaultAccount = await createAccount({
+              user_id: data.user.id,
+              account_type: "Accounts",
+              name: "Account 1",
+              amount: 0,
+              description: "Default account",
+              is_default: true,
+              currency: "USD",
+            });
 
-          console.log(
-            "Successfully created default account for new user:",
-            defaultAccount.name
-          );
+            console.log(
+              "Successfully created default account for new user:",
+              defaultAccount.name
+            );
 
-          Toast.show({
-            type: "success",
-            text1: t.accountCreated,
-            text2: t.defaultAccountCreated,
-          });
-        } catch (accountError) {
-          console.error("Error creating default account:", accountError);
-          // Still show success for user creation, but warn about account
-          Toast.show({
-            type: "success",
-            text1: t.accountCreated,
-            text2: t.pleaseCheckEmail,
-          });
+            Toast.show({
+              type: "success",
+              text1: t.accountCreated,
+              text2: t.defaultAccountCreated,
+            });
+          } catch (accountError) {
+            console.error("Error creating default account:", accountError);
+            // Still show success for user creation, but warn about account
+            Toast.show({
+              type: "success",
+              text1: t.accountCreated,
+              text2: t.pleaseCheckEmail,
+            });
+          }
+
+          router.push("/(auth)/login");
         }
-
-        router.push("/(auth)/login");
       }
     } catch (error) {
       console.error("Signup error:", error);
       Toast.show({
         type: "error",
         text1: t.signupFailed,
-        text2: error.message,
+        text2: error instanceof Error ? error.message : String(error),
       });
     } finally {
       setLoading(false);
@@ -513,7 +520,8 @@ export default function SignupScreen() {
       Toast.show({
         type: "error",
         text1: "Signup failed",
-        text2: error.message || "An unknown error occurred",
+        text2:
+          error instanceof Error ? error.message : "An unknown error occurred",
       });
     }
   }, [formData]);
@@ -521,7 +529,7 @@ export default function SignupScreen() {
     setSocialLoading(provider);
 
     try {
-      const redirectUrl = AuthSession.makeRedirectUri({ useProxy: true });
+      const redirectUrl = AuthSession.makeRedirectUri();
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
@@ -569,17 +577,14 @@ export default function SignupScreen() {
                     const defaultAccount = await createAccount({
                       user_id: user.id,
                       account_type: "Accounts",
-                      name: "Account 1",
+                      name: "Main Account",
                       amount: 0,
-                      description: "Default account",
+                      description: "Main account",
                       is_default: true,
                       currency: "USD",
                     });
 
-                    console.log(
-                      "Successfully created default account for social user:",
-                      defaultAccount.name
-                    );
+                    console.log("Successfully created:", defaultAccount.name);
                   }
                 }
               } catch (accountError) {
@@ -604,113 +609,116 @@ export default function SignupScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        className="flex-1"
-      >
-        <ScrollView
-          className="flex-1 px-6 py-4"
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ flexGrow: 1 }}
+    <>
+      <StatusBar style="auto" />
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1"
         >
-          {/* Progress Info */}
-          <View className="mb-6">
-            <View
-              style={{
-                height: 4,
-                backgroundColor: theme.border,
-                borderRadius: 2,
-                marginBottom: 8,
-              }}
-            >
+          <ScrollView
+            className="flex-1 px-6 py-4"
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ flexGrow: 1 }}
+          >
+            {/* Progress Info */}
+            <View className="mb-6">
               <View
                 style={{
-                  height: "100%",
-                  backgroundColor: theme.primary,
+                  height: 4,
+                  backgroundColor: theme.border,
                   borderRadius: 2,
-                  width: "100%",
+                  marginBottom: 8,
                 }}
-              />
-            </View>
-            <Text
-              style={{
-                color: theme.textSecondary,
-                textAlign: "center",
-                fontSize: 12,
-              }}
-            >
-              {t.accountCreation}
-            </Text>
-          </View>
-
-          {/* Header Icon */}
-          <View className="items-center mb-6">
-            <View
-              style={{
-                backgroundColor: `${theme.primary}20`,
-                padding: 16,
-                borderRadius: 32,
-              }}
-            >
-              <UserPlus size={32} color={theme.primary} />
-            </View>
-          </View>
-
-          {/* Step 1 */}
-          <SignUp
-            formData={formData}
-            updateFormData={updateFormData}
-            showPassword={showPassword}
-            toggleShowPassword={toggleShowPassword}
-            showConfirmPassword={showConfirmPassword}
-            toggleShowConfirmPassword={toggleShowConfirmPassword}
-            handleSocialSignup={handleSocialSignup}
-            t={t}
-          />
-
-          {/* Action Buttons */}
-          <View className="flex-row gap-3 mb-6 mt-4">
-            <Button
-              style={{
-                flex: 1,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: theme.primary,
-                borderRadius: 12,
-                padding: 16,
-              }}
-              onPress={handleCreate}
-              disabled={loading}
-            >
+              >
+                <View
+                  style={{
+                    height: "100%",
+                    backgroundColor: theme.primary,
+                    borderRadius: 2,
+                    width: "100%",
+                  }}
+                />
+              </View>
               <Text
                 style={{
-                  color: theme.primaryText,
-                  fontWeight: "bold",
-                  marginRight: 8,
+                  color: theme.textSecondary,
+                  textAlign: "center",
+                  fontSize: 12,
                 }}
               >
-                {loading ? t.creatingAccount : t.signUp}
+                {t.accountCreation}
               </Text>
-              <ArrowRight size={20} color={theme.primaryText} />
-            </Button>
-          </View>
+            </View>
 
-          {/* Footer */}
-          <View className="mt-6 items-center mb-10">
-            <Text style={{ color: theme.textSecondary }}>
-              {t.alreadyHaveAccount}{" "}
-              <Text
-                style={{ color: theme.primary, fontWeight: "bold" }}
-                onPress={() => router.push("/login")}
+            {/* Header Icon */}
+            <View className="items-center mb-6">
+              <View
+                style={{
+                  backgroundColor: `${theme.primary}20`,
+                  padding: 16,
+                  borderRadius: 32,
+                }}
               >
-                {t.signIn}
+                <UserPlus size={32} color={theme.primary} />
+              </View>
+            </View>
+
+            {/* Step 1 */}
+            <SignUp
+              formData={formData}
+              updateFormData={updateFormData}
+              showPassword={showPassword}
+              toggleShowPassword={toggleShowPassword}
+              showConfirmPassword={showConfirmPassword}
+              toggleShowConfirmPassword={toggleShowConfirmPassword}
+              handleSocialSignup={handleSocialSignup}
+              t={t}
+            />
+
+            {/* Action Buttons */}
+            <View className="flex-row gap-3 mb-6 mt-4">
+              <Button
+                style={{
+                  flex: 1,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: theme.primary,
+                  borderRadius: 12,
+                  padding: 16,
+                }}
+                onPress={handleCreate}
+                disabled={loading}
+              >
+                <Text
+                  style={{
+                    color: theme.primaryText,
+                    fontWeight: "bold",
+                    marginRight: 8,
+                  }}
+                >
+                  {loading ? t.creatingAccount : t.signUp}
+                </Text>
+                <ArrowRight size={20} color={theme.primaryText} />
+              </Button>
+            </View>
+
+            {/* Footer */}
+            <View className="mt-6 items-center mb-10">
+              <Text style={{ color: theme.textSecondary }}>
+                {t.alreadyHaveAccount}{" "}
+                <Text
+                  style={{ color: theme.primary, fontWeight: "bold" }}
+                  onPress={() => router.push("/login")}
+                >
+                  {t.signIn}
+                </Text>
               </Text>
-            </Text>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </>
   );
 }

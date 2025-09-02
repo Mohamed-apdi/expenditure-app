@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { X, ChevronDown, Check, DollarSign } from "lucide-react-native";
 import { useLanguage } from "~/lib";
+import { useTheme } from "~/lib";
 
 type AccountGroup = {
   id: string;
@@ -36,6 +37,7 @@ const AddAccount = ({
   accountGroups,
 }: AddAccountProps) => {
   const { t } = useLanguage();
+  const theme = useTheme();
   const [showGroupModal, setShowGroupModal] = useState(false);
   // Removed showTypeModal state
   const [newAccount, setNewAccount] = useState({
@@ -73,44 +75,89 @@ const AddAccount = ({
 
   return (
     <Modal visible={visible} animationType="fade">
-      <SafeAreaView className="flex-1 bg-gray-50">
-        <View className="flex-row justify-between items-center p-6 border-b border-gray-100">
-          <Text className="text-gray-900 text-xl font-bold">
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.cardBackground }}>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: 24,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border,
+          }}
+        >
+          <Text
+            style={{
+              color: theme.text,
+              fontSize: 20,
+              fontWeight: "bold",
+            }}
+          >
             {t.addAccount}
           </Text>
           <TouchableOpacity onPress={onClose}>
-            <X size={24} color="#6b7280" />
+            <X size={24} color={theme.textMuted} />
           </TouchableOpacity>
         </View>
 
-        <ScrollView className="flex-1 px-6 pt-6">
+        <ScrollView style={{ flex: 1, paddingHorizontal: 24, paddingTop: 24 }}>
           {/* Group Input */}
-          <View className="mb-5">
-            <Text className="text-gray-700 mb-2 font-medium">
+          <View style={{ marginBottom: 20 }}>
+            <Text
+              style={{
+                color: theme.text,
+                marginBottom: 8,
+                fontWeight: "500",
+              }}
+            >
               {t.accountType}
             </Text>
             <TouchableOpacity
-              className="border border-gray-200 rounded-xl p-4 bg-gray-50 flex-row justify-between items-center"
+              style={{
+                borderWidth: 1,
+                borderColor: theme.border,
+                borderRadius: 12,
+                padding: 16,
+                backgroundColor: theme.inputBackground,
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
               onPress={() => setShowGroupModal(true)}
             >
               <Text
-                className={
-                  newAccount.account_type ? "text-gray-900" : "text-gray-400"
-                }
+                style={{
+                  color: newAccount.account_type ? theme.text : theme.textMuted,
+                }}
               >
                 {newAccount.account_type || t.selectGroup}
               </Text>
-              <ChevronDown size={18} color="#6b7280" />
+              <ChevronDown size={18} color={theme.textMuted} />
             </TouchableOpacity>
           </View>
 
           {/* Name Input */}
-          <View className="mb-5">
-            <Text className="text-gray-700 mb-2 font-medium">{t.name}</Text>
+          <View style={{ marginBottom: 20 }}>
+            <Text
+              style={{
+                color: theme.text,
+                marginBottom: 8,
+                fontWeight: "500",
+              }}
+            >
+              {t.name}
+            </Text>
             <TextInput
-              className="border border-gray-200 rounded-xl p-4 bg-gray-50"
+              style={{
+                borderWidth: 1,
+                borderColor: theme.border,
+                borderRadius: 12,
+                padding: 16,
+                backgroundColor: theme.inputBackground,
+                color: theme.text,
+              }}
               placeholder={t.accountName}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.placeholder}
               value={newAccount.name}
               onChangeText={(text) =>
                 setNewAccount({ ...newAccount, name: text })
@@ -119,16 +166,37 @@ const AddAccount = ({
           </View>
 
           {/* Amount Input */}
-          <View className="mb-5">
-            <Text className="text-gray-700 mb-2 font-medium">{t.amount}</Text>
-            <View className="flex-row items-center border border-gray-200 rounded-xl bg-gray-50">
-              <View className="px-4">
-                <DollarSign size={18} color="#6b7280" />
+          <View style={{ marginBottom: 20 }}>
+            <Text
+              style={{
+                color: theme.text,
+                marginBottom: 8,
+                fontWeight: "500",
+              }}
+            >
+              {t.amount}
+            </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: theme.border,
+                borderRadius: 12,
+                backgroundColor: theme.inputBackground,
+              }}
+            >
+              <View style={{ paddingHorizontal: 16 }}>
+                <DollarSign size={18} color={theme.textMuted} />
               </View>
               <TextInput
-                className="flex-1 p-4"
+                style={{
+                  flex: 1,
+                  padding: 16,
+                  color: theme.text,
+                }}
                 placeholder="0.00"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.placeholder}
                 keyboardType="numeric"
                 value={
                   newAccount.amount !== undefined && !isNaN(newAccount.amount)
@@ -159,14 +227,27 @@ const AddAccount = ({
           </View>
 
           {/* Description Input */}
-          <View className="mb-5">
-            <Text className="text-gray-700 mb-2 font-medium">
+          <View style={{ marginBottom: 20 }}>
+            <Text
+              style={{
+                color: theme.text,
+                marginBottom: 8,
+                fontWeight: "500",
+              }}
+            >
               {t.description}
             </Text>
             <TextInput
-              className="border border-gray-200 rounded-xl p-4 bg-gray-50"
+              style={{
+                borderWidth: 1,
+                borderColor: theme.border,
+                borderRadius: 12,
+                padding: 16,
+                backgroundColor: theme.inputBackground,
+                color: theme.text,
+              }}
               placeholder={t.optionalDescription}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={theme.placeholder}
               value={newAccount.description}
               onChangeText={(text) =>
                 setNewAccount({ ...newAccount, description: text })
@@ -176,10 +257,23 @@ const AddAccount = ({
 
           {/* Save Button */}
           <TouchableOpacity
-            className="bg-blue-600 p-4 rounded-xl items-center mt-6 mb-8"
+            style={{
+              backgroundColor: theme.primary,
+              padding: 16,
+              borderRadius: 12,
+              alignItems: "center",
+              marginTop: 24,
+              marginBottom: 32,
+            }}
             onPress={handleAddAccount}
           >
-            <Text className="text-white font-medium text-lg">
+            <Text
+              style={{
+                color: theme.primaryText,
+                fontWeight: "500",
+                fontSize: 18,
+              }}
+            >
               {t.saveAccount}
             </Text>
           </TouchableOpacity>
@@ -192,10 +286,35 @@ const AddAccount = ({
           animationType="fade"
           onRequestClose={() => setShowGroupModal(false)}
         >
-          <View className="flex-1 bg-black/50 justify-center p-4">
-            <View className="bg-white rounded-2xl max-h-[80%]">
-              <View className="p-6 border-b border-gray-100">
-                <Text className="text-gray-900 font-bold text-lg">
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              justifyContent: "center",
+              padding: 16,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: theme.cardBackground,
+                borderRadius: 16,
+                maxHeight: "80%",
+              }}
+            >
+              <View
+                style={{
+                  padding: 24,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.border,
+                }}
+              >
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontWeight: "bold",
+                    fontSize: 18,
+                  }}
+                >
                   {t.selectGroup}
                 </Text>
               </View>
@@ -204,15 +323,27 @@ const AddAccount = ({
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                   <TouchableOpacity
-                    className={`px-6 py-4 flex-row justify-between items-center ${
-                      newAccount.account_type === item.name ? "bg-blue-50" : ""
-                    }`}
+                    style={{
+                      paddingHorizontal: 24,
+                      paddingVertical: 16,
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      backgroundColor:
+                        newAccount.account_type === item.name
+                          ? `${theme.primary}20`
+                          : "transparent",
+                    }}
                     onPress={() => {
                       setNewAccount({ ...newAccount, account_type: item.name });
                       setShowGroupModal(false);
                     }}
                   >
-                    <Text className="text-gray-900">
+                    <Text
+                      style={{
+                        color: theme.text,
+                      }}
+                    >
                       {item.name === "Cash"
                         ? t.cash
                         : item.name === "SIM Card"
@@ -238,11 +369,11 @@ const AddAccount = ({
                                             : item.name}
                     </Text>
                     {newAccount.account_type === item.name && (
-                      <Check size={20} color="#3b82f6" />
+                      <Check size={20} color={theme.primary} />
                     )}
                   </TouchableOpacity>
                 )}
-                className="max-h-96"
+                style={{ maxHeight: 384 }}
               />
             </View>
           </View>

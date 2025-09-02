@@ -7,12 +7,8 @@ import React, {
   useCallback,
 } from "react";
 import { supabase } from "../database/supabase";
-import {
-  fetchAccounts,
-  updateAccount,
-  createAccount,
-  type Account,
-} from "../services/accounts";
+import { fetchAccounts, updateAccount } from "../services/accounts";
+import type { Account } from "../types/types";
 import { fetchTransactions } from "../services/transactions";
 
 interface AccountContextType {

@@ -52,6 +52,10 @@ type TransactionItemProps = {
     created_at: string;
     type: "expense" | "income" | "transfer";
   };
+  onPress?: () => void;
+  getCategoryIcon?: (category: string) => React.ElementType;
+  getCategoryColor?: (category: string) => string;
+  getCategoryLabel?: (categoryKey: string) => string;
 };
 
 // Memoized category icon mapping

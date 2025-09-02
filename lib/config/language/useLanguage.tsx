@@ -10,7 +10,7 @@ export function useLanguage() {
   return {
     t: (key: TranslationKey): string => {
       const currentLanguage = LANGUAGES[language];
-      return currentLanguage[key] || key;
+      return (currentLanguage as any)[key] || key;
     },
     language,
     setLanguage,

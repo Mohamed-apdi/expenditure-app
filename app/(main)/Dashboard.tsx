@@ -247,7 +247,13 @@ export default function DashboardScreen() {
 
         // Account Balances
         const balances = await getAccountBalances(user.id);
-        setAccountBalances(balances);
+        setAccountBalances(
+          balances.map((b) => ({
+            name: b.name,
+            balance: b.balance,
+            type: b.account_type,
+          }))
+        );
 
         // Recent transactions - use transactions table
         const recent = allTransactions
@@ -295,10 +301,12 @@ export default function DashboardScreen() {
 
         // Set financial summary for selected account
         setFinancialSummary({
+          totalAssets: selectedAccount.amount,
+          totalLiabilities: 0,
+          netWorth: selectedAccount.amount,
           totalIncome: accountIncome,
           totalExpenses: accountExpensesTotal,
-          netIncome: accountIncome - accountExpensesTotal,
-          totalBalance: selectedAccount.amount,
+          balance: accountIncome - accountExpensesTotal,
         });
 
         setTotalIncome(accountIncome);

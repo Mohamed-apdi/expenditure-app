@@ -20,6 +20,7 @@ import {
 import { useEffect, useRef } from "react";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
+import { StatusBar } from "expo-status-bar";
 
 const { width, height } = Dimensions.get("window");
 
@@ -179,6 +180,7 @@ export default function WelcomeScreen() {
 
   return (
     <>
+      <StatusBar style="auto" />
       <Stack.Screen options={{ headerShown: false }} />
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
         {/* Floating particles background */}

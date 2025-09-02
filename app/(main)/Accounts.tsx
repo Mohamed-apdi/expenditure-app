@@ -83,9 +83,12 @@ const Accounts = () => {
   // Calculate totals - now just sum all account amounts since we don't have type field
   const total = accounts.reduce((sum, a) => sum + (a.amount || 0), 0);
 
-  const handleAddAccount = async (
-    newAccount: Omit<Account, "id" | "user_id" | "created_at" | "updated_at">
-  ) => {
+  const handleAddAccount = async (newAccount: {
+    account_type: string;
+    name: string;
+    amount: number;
+    description?: string;
+  }) => {
     try {
       setError(null);
 
@@ -101,6 +104,8 @@ const Accounts = () => {
       const accountWithUser = {
         ...newAccount,
         user_id: user.id,
+        is_default: false, // Default to false for new accounts
+        currency: "USD", // Default currency
       };
 
       const createdAccount = await createAccount(accountWithUser);

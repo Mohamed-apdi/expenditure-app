@@ -212,6 +212,33 @@ export const LANGUAGES = {
     optionalDescription: "Optional description",
     saveAccount: "Save Account",
 
+    // Post Signup Setup translations
+    setupYourAccounts: "Setup Your Accounts",
+    youCanRenameOrAddAccount:
+      "You can rename your main account or add another account",
+    renameMainAccount: "Rename Main Account",
+    addAnotherAccount: "Add Another Account",
+    skipForNow: "Skip for now",
+    createMainAccount: "Create Main Account",
+    openingBalanceNote: "Opening Balance won't count as income",
+    renameAccount: "Rename Account",
+    newName: "New Name",
+    enterNewName: "Enter new name",
+    accountRenamed: "Account renamed",
+    somethingWentWrong: "Something went wrong",
+    nameCannotBeNumbers: "Name cannot be only numbers",
+
+    // Profile Setup translations
+    setupProfile: "Setup Profile",
+    completeYourProfile: "Complete your profile to get started",
+    addPhoto: "Add Photo",
+    saveAndContinue: "Save & Continue",
+    profileSetupSuccess: "Profile setup completed successfully",
+    failedToSetupProfile: "Failed to setup profile",
+    uploadingImage: "Uploading image...",
+    savingProfile: "Saving profile...",
+    optional: "Optional",
+
     // Account Details page
     deleteAccount: "Delete Account",
     deleteAccountConfirm: "Are you sure you want to delete",
@@ -869,6 +896,33 @@ export const LANGUAGES = {
     description: "Faahfaahin",
     optionalDescription: "Gali Faahfaahin (ikhtiyaar) ",
     saveAccount: "Kaydi Akoonka",
+
+    // Post Signup Setup translations
+    setupYourAccounts: "Deji Akoonaadkaaga",
+    youCanRenameOrAddAccount:
+      "Waxaad beddeli kartaa magaca akoonkaaga ugu weyn ama ku dar akoon kale",
+    renameMainAccount: "Beddeli Akoonka Ugu Weyn",
+    addAnotherAccount: "Ku dar Akoon Kale",
+    skipForNow: "Ka saar hadda",
+    createMainAccount: "Abuur Akoonka Ugu Weyn",
+
+    // Profile Setup translations
+    setupProfile: "Deji Profile-ka",
+    completeYourProfile: "Buuxi profile-kaaga si aad u bilowdo",
+    addPhoto: "Ku dar Sawir",
+    saveAndContinue: "Kaydi & Sii wad",
+    profileSetupSuccess: "Profile-ka dejiinta si guul leh ayaa loo dhammeeyay",
+    failedToSetupProfile: "Profile-ka dejiinta waa la guuldarreysatay",
+    uploadingImage: "Sawirka soo dejinta...",
+    savingProfile: "Profile-ka kaydinta...",
+    optional: "Ikhtiyaar",
+    openingBalanceNote: "Lacagta furitaanka ma noqon doonto dakhlig",
+    renameAccount: "Beddeli Akoonka",
+    newName: "Magaca Cusub",
+    enterNewName: "Geli magaca cusub",
+    accountRenamed: "Akoonka waa la beddelay",
+    somethingWentWrong: "Waxaa dhacay khalad",
+    nameCannotBeNumbers: "Magaca ma noqon karo tiro kaliya",
 
     // Account Details page
     deleteAccount: "Ka saar Akoon",

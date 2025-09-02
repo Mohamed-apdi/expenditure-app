@@ -7,7 +7,17 @@ export * from "./services/transfers";
 export * from "./services/subscriptions";
 export * from "./services/goals";
 export * from "./services/profiles";
-export * from "./services/analytics";
+export {
+  getFinancialSummary,
+  getMonthlySummary,
+  getBudgetProgress,
+  getAccountBalances,
+  getRecentTransactions,
+  type FinancialSummary,
+  type CategorySummary,
+  type MonthlySummary,
+  type BudgetProgress,
+} from "./services/analytics";
 export * from "./services/loans";
 
 // API services
