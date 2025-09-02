@@ -3,17 +3,19 @@
 
 # Explicitly declare text files you want to always be normalized and converted
 # to native line endings on checkout
-*.ts text
-*.tsx text
 *.js text
 *.jsx text
+*.ts text
+*.tsx text
 *.json text
 *.md text
-*.css text
-*.html text
-*.xml text
 *.yml text
 *.yaml text
+*.css text
+*.scss text
+*.html text
+*.xml text
+*.svg text
 
 # Declare files that will always have CRLF line endings on checkout
 *.bat text eol=crlf
