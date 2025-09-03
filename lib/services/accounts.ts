@@ -46,14 +46,10 @@ export const fetchAccountsWithGroups = async (
 
 export const createAccount = async (accountData: {
   user_id: string;
-  account_type: string; // Renamed from group_name
+  account_type: string;
   name: string;
   amount: number;
   description?: string;
-  // Removed type field
-  group_id?: string;
-  is_default?: boolean;
-  currency?: string;
 }): Promise<Account> => {
   try {
     const { data, error } = await supabase
@@ -73,14 +69,10 @@ export const createAccount = async (accountData: {
 export const updateAccount = async (
   accountId: string,
   updates: Partial<{
-    account_type: string; // Renamed from group_name
+    account_type: string;
     name: string;
     amount: number;
     description: string;
-    // Removed type field
-    group_id: string;
-    is_default: boolean;
-    currency: string;
   }>
 ): Promise<Account> => {
   try {
@@ -207,11 +199,13 @@ export const updateAccountBalance = async (
 export const getDefaultAccount = async (
   userId: string
 ): Promise<Account | null> => {
+  // Temporarily return the first account since is_default column doesn't exist
   const { data, error } = await supabase
     .from("accounts")
     .select("*")
     .eq("user_id", userId)
-    .eq("is_default", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
     .single();
 
   if (error && error.code !== "PGRST116") {

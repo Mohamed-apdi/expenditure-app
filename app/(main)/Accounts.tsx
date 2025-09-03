@@ -104,41 +104,10 @@ const Accounts = () => {
       const accountWithUser = {
         ...newAccount,
         user_id: user.id,
-        is_default: false, // Default to false for new accounts
-        currency: "USD", // Default currency
       };
 
       const createdAccount = await createAccount(accountWithUser);
       setAccounts((prev) => [...prev, createdAccount]);
-
-      // If account has an initial amount, create a transaction as income
-      if (newAccount.amount && newAccount.amount > 0) {
-        try {
-          const { addTransaction } = await import("~/lib");
-
-          await addTransaction({
-            user_id: user.id,
-            account_id: createdAccount.id,
-            amount: newAccount.amount,
-            description: `Initial balance for ${newAccount.name}`,
-            date: new Date().toISOString().split("T")[0],
-            category: "Initial Balance", // Use existing income category
-            type: "income",
-            is_recurring: false,
-          });
-
-          console.log(
-            "Created initial balance transaction for account:",
-            createdAccount.name
-          );
-        } catch (transactionError) {
-          console.error(
-            "Failed to create initial balance transaction:",
-            transactionError
-          );
-          // Don't fail the account creation if transaction creation fails
-        }
-      }
 
       // Refresh accounts in context to update MonthYearScroller
       await refreshContextAccounts();

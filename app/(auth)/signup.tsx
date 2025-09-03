@@ -392,8 +392,6 @@ export default function SignupScreen() {
               name: "Account 1",
               amount: 0,
               description: "Default account",
-              is_default: true,
-              currency: "USD",
             });
 
             console.log(
@@ -580,8 +578,6 @@ export default function SignupScreen() {
                       name: "Main Account",
                       amount: 0,
                       description: "Main account",
-                      is_default: true,
-                      currency: "USD",
                     });
 
                     console.log("Successfully created:", defaultAccount.name);

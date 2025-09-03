@@ -34,9 +34,6 @@ export interface Account {
   // Removed type field
   created_at: string;
   updated_at: string;
-  group_id?: string;
-  is_default: boolean;
-  currency: string;
 }
 
 export type Budget = {

@@ -115,38 +115,17 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Function to handle account selection and update is_default
+  // Function to handle account selection
   const setSelectedAccount = async (account: Account | null) => {
     try {
       if (account && !isUpdatingDefault) {
         setIsUpdatingDefault(true);
         console.log("Setting selected account to:", account.name);
 
-        // First, set all accounts to is_default: false
-        const updatePromises = accounts.map((acc) =>
-          updateAccount(acc.id, { is_default: false })
-        );
-
-        // Wait for all updates to complete
-        await Promise.all(updatePromises);
-
-        // Then set the selected account to is_default: true
-        await updateAccount(account.id, { is_default: true });
-
         // Update local state
         setSelectedAccountState(account);
 
-        // Update local accounts array to reflect the changes
-        const updatedAccounts = accounts.map((acc) => ({
-          ...acc,
-          is_default: acc.id === account.id,
-        }));
-        setAccounts(updatedAccounts);
-
-        console.log(
-          "Successfully updated is_default for account:",
-          account.name
-        );
+        console.log("Successfully updated selected account:", account.name);
       } else if (!account) {
         setSelectedAccountState(null);
       }
@@ -186,15 +165,14 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
         // Only set default selected account if no account is currently selected
         if (!selectedAccount && !isUpdatingDefault) {
-          const defaultAccount = fetchedAccounts.find(
-            (acc) => acc.is_default === true
-          );
-          const accountToSelect = defaultAccount || fetchedAccounts[0];
-          console.log(
-            "Setting initial selected account to:",
-            accountToSelect.name
-          );
-          setSelectedAccountState(accountToSelect);
+          const accountToSelect = fetchedAccounts[0];
+          if (accountToSelect) {
+            console.log(
+              "Setting initial selected account to:",
+              accountToSelect.name
+            );
+            setSelectedAccountState(accountToSelect);
+          }
         }
       } else {
         console.log("No accounts found in database");
@@ -246,15 +224,14 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
         // Only set default selected account if no account is currently selected
         if (!selectedAccount && !isUpdatingDefault) {
-          const defaultAccount = fetchedAccounts.find(
-            (acc) => acc.is_default === true
-          );
-          const accountToSelect = defaultAccount || fetchedAccounts[0];
-          console.log(
-            "Setting refreshed selected account to:",
-            accountToSelect.name
-          );
-          setSelectedAccountState(accountToSelect);
+          const accountToSelect = fetchedAccounts[0];
+          if (accountToSelect) {
+            console.log(
+              "Setting refreshed selected account to:",
+              accountToSelect.name
+            );
+            setSelectedAccountState(accountToSelect);
+          }
         }
       } else {
         console.log("No accounts found after refresh");

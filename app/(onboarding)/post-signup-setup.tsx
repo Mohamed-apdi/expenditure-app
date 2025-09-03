@@ -55,11 +55,8 @@ export default function PostSignupSetupScreen() {
       const userAccounts = await fetchAccounts(user.id);
       setAccounts(userAccounts);
 
-      // Find default account or earliest account
-      let mainAccount = userAccounts.find((acc) => acc.is_default);
-      if (!mainAccount && userAccounts.length > 0) {
-        mainAccount = userAccounts[0]; // Pick earliest account
-      }
+      // Find earliest account
+      let mainAccount = userAccounts.length > 0 ? userAccounts[0] : null;
       setDefaultAccount(mainAccount || null);
 
       // Load account groups for AddAccount modal
@@ -99,8 +96,6 @@ export default function PostSignupSetupScreen() {
         name: "Main Account",
         amount: 0,
         description: "Main account",
-        is_default: true,
-        currency: "USD",
       });
 
       setAccounts((prev) => [newAccount, ...prev]);
@@ -179,7 +174,6 @@ export default function PostSignupSetupScreen() {
       const newAccount = await createAccount({
         user_id: user.id,
         ...accountData,
-        currency: "USD",
       });
 
       setAccounts((prev) => [newAccount, ...prev]);

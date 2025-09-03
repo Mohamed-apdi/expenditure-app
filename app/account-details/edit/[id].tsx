@@ -31,8 +31,6 @@ type Account = {
   created_at: string;
   updated_at: string;
   group_id?: string;
-  is_default: boolean;
-  currency: string;
 };
 
 const accountGroups: AccountGroup[] = [
