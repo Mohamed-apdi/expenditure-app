@@ -5,8 +5,9 @@ import {
   getExpensesByCategory,
   getAccountBalances,
 } from "../services/analytics";
-import { fetchTransactions } from "../services/expenses";
+import { fetchAllTransactionsAndTransfers } from "../services/transactions";
 import { fetchProfile } from "../services/profiles";
+import type { Transaction } from "../types/types";
 
 export const useUserProfile = (userId: string | null) => {
   return useQuery({
@@ -20,12 +21,12 @@ export const useUserProfile = (userId: string | null) => {
 export const useTransactions = (userId: string | null, accountId?: string) => {
   return useQuery({
     queryKey: ["transactions", userId, accountId],
-    queryFn: () => fetchTransactions(userId!),
+    queryFn: () => fetchAllTransactionsAndTransfers(userId!),
     enabled: !!userId,
     staleTime: 2 * 60 * 1000, // 2 minutes
-    select: (data) => {
+    select: (data: Transaction[]) => {
       if (accountId) {
-        return data.filter((t) => t.account_id === accountId);
+        return data.filter((t: Transaction) => t.account_id === accountId);
       }
       return data;
     },
@@ -75,18 +76,20 @@ export const useRecentTransactions = (
 ) => {
   return useQuery({
     queryKey: ["recent-transactions", userId, accountId, limit],
-    queryFn: () => fetchTransactions(userId!),
+    queryFn: () => fetchAllTransactionsAndTransfers(userId!),
     enabled: !!userId,
     staleTime: 2 * 60 * 1000, // 2 minutes
-    select: (data) => {
+    select: (data: Transaction[]) => {
       let filteredData = data;
       if (accountId) {
-        filteredData = data.filter((t) => t.account_id === accountId);
+        filteredData = data.filter(
+          (t: Transaction) => t.account_id === accountId
+        );
       }
 
       return filteredData
         .sort(
-          (a, b) =>
+          (a: Transaction, b: Transaction) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         )
         .slice(0, limit);
@@ -103,25 +106,25 @@ export const useMonthData = (
   return useQuery({
     queryKey: ["month-data", userId, month, year, accountId],
     queryFn: async () => {
-      const allTransactions = await fetchTransactions(userId!);
+      const allTransactions = await fetchAllTransactionsAndTransfers(userId!);
 
       const startDate = new Date(year, month, 1).toISOString().split("T")[0];
       const endDate = new Date(year, month + 1, 0).toISOString().split("T")[0];
 
       let monthTransactions = allTransactions.filter(
-        (t) => t.date >= startDate && t.date <= endDate
+        (t: Transaction) => t.date >= startDate && t.date <= endDate
       );
 
       if (accountId) {
         monthTransactions = monthTransactions.filter(
-          (t) => t.account_id === accountId
+          (t: Transaction) => t.account_id === accountId
         );
       }
 
       let monthIncome = 0;
       let monthExpense = 0;
 
-      monthTransactions.forEach((t) => {
+      monthTransactions.forEach((t: Transaction) => {
         const amount = t.amount || 0;
         if (t.type === "income") {
           monthIncome += amount;

@@ -9,7 +9,7 @@ import React, {
 import { supabase } from "../database/supabase";
 import { fetchAccounts, updateAccount } from "../services/accounts";
 import type { Account } from "../types/types";
-import { fetchTransactions } from "../services/transactions";
+import { fetchAllTransactionsAndTransfers } from "../services/transactions";
 
 interface AccountContextType {
   selectedAccount: Account | null;

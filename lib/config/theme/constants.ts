@@ -47,6 +47,7 @@ export const NAV_THEME = {
   },
   dark: {
     icon: "#ffffff",
+    iconMuted: "#94a3b8",
 
     // Main backgrounds
     background: "#1e293b",

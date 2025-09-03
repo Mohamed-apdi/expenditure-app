@@ -62,7 +62,6 @@ export default function EditExpenseScreen() {
   const [recurringFrequency, setRecurringFrequency] =
     useState<Frequency>("monthly");
 
-  const [tags, setTags] = useState<string[]>([]);
   const [isEssential, setIsEssential] = useState(false);
   const theme = useTheme();
 
@@ -102,7 +101,7 @@ export default function EditExpenseScreen() {
         setDate(new Date(data.date));
         setIsRecurring(data.is_recurring);
         setRecurringFrequency(data.recurrence_interval || "monthly");
-        setTags(data.tags || []);
+
         setIsEssential(data.is_essential);
 
         // Set category
@@ -139,7 +138,7 @@ export default function EditExpenseScreen() {
           is_recurring: isRecurring,
           recurrence_interval: isRecurring ? recurringFrequency : null,
           is_essential: isEssential,
-          tags: tags.length > 0 ? tags : null,
+
           updated_at: new Date().toISOString(),
         })
         .eq("id", id);
@@ -462,29 +461,6 @@ export default function EditExpenseScreen() {
                 />
               </TouchableOpacity>
             </View>
-          </View>
-
-          {/* Tags */}
-          <View className="px-6 mb-8">
-            <Text className="mb-3" style={{ color: theme.text }}>
-              Tags
-            </Text>
-            <TouchableOpacity
-              className="flex-row items-center p-4 rounded-xl border "
-              style={{
-                backgroundColor: theme.background,
-                borderColor: theme.border,
-              }}
-            >
-              <Tag size={20} color="#f59e0b" />
-              <Text
-                className=" ml-3 flex-1 font-medium"
-                style={{ color: theme.text }}
-              >
-                {tags.length > 0 ? tags.join(", ") : "Add tags..."}
-              </Text>
-              <ChevronRight size={16} color="#64748b" />
-            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

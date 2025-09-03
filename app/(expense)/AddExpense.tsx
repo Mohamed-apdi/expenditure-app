@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
@@ -71,7 +69,7 @@ import { addTransaction } from "~/lib";
 import { addTransfer } from "~/lib";
 import { addSubscription } from "~/lib";
 import type { Account } from "~/lib";
-import notificationService from "~/lib";
+import { notificationService } from "~/lib";
 import { useLanguage } from "~/lib";
 
 type Category = {
@@ -87,7 +85,9 @@ export default function AddExpenseScreen() {
 
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   // States
-  const [entryType, setEntryType] = useState("Expense");
+  const [entryType, setEntryType] = useState<"Income" | "Expense" | "Transfer">(
+    "Expense"
+  );
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
@@ -224,7 +224,7 @@ export default function AddExpenseScreen() {
     loadAccounts();
   }, []);
 
-  const handleEntryTypeChange = (type: string) => {
+  const handleEntryTypeChange = (type: "Income" | "Expense" | "Transfer") => {
     setEntryType(type);
     setSelectedCategory(null);
   };
@@ -435,7 +435,7 @@ export default function AddExpenseScreen() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Please log in first");
 
-      // Add transfer record
+      // Add transfer record only - no duplicate transactions
       await addTransfer({
         user_id: user.id,
         from_account_id: fromAccount.id,
@@ -443,30 +443,6 @@ export default function AddExpenseScreen() {
         amount: amountNum,
         description: `Transfer from ${fromAccount.name} to ${toAccount.name}`,
         date: date.toISOString().split("T")[0],
-      });
-
-      // Add EXPENSE transaction for the FROM account (outgoing transfer)
-      await addTransaction({
-        user_id: user.id,
-        account_id: fromAccount.id,
-        amount: amountNum,
-        description: `Transfer to ${toAccount.name}`,
-        date: date.toISOString().split("T")[0],
-        category: "Transfer",
-        is_recurring: false,
-        type: "expense", // This will increase expenses for Account 1
-      });
-
-      // Add INCOME transaction for the TO account (incoming transfer)
-      await addTransaction({
-        user_id: user.id,
-        account_id: toAccount.id,
-        amount: amountNum,
-        description: `Transfer from ${fromAccount.name}`,
-        date: date.toISOString().split("T")[0],
-        category: "Transfer",
-        is_recurring: false,
-        type: "income", // This will increase income for Account 2
       });
 
       // Update account balances using the service
@@ -625,7 +601,11 @@ export default function AddExpenseScreen() {
                   borderColor:
                     entryType === tab.id ? theme.primary : theme.border,
                 }}
-                onPress={() => handleEntryTypeChange(tab.id)}
+                onPress={() =>
+                  handleEntryTypeChange(
+                    tab.id as "Income" | "Expense" | "Transfer"
+                  )
+                }
               >
                 <Text
                   style={{
@@ -700,160 +680,159 @@ export default function AddExpenseScreen() {
               </View>
 
               {/* Updated Category Section with Dropdown - Only for Income and Expenses */}
-              {entryType === "Expense" && (
-                <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontWeight: "700",
-                      marginBottom: 16,
-                      color: theme.text,
-                      fontFamily: "Work Sans",
-                    }}
-                  >
-                    {t.choose_category}
-                  </Text>
+              <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "700",
+                    marginBottom: 16,
+                    color: theme.text,
+                    fontFamily: "Work Sans",
+                  }}
+                >
+                  {t.choose_category}
+                </Text>
 
-                  <View>
-                    <TouchableOpacity
+                <View>
+                  <TouchableOpacity
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: 16,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      backgroundColor: theme.inputBackground,
+                    }}
+                    onPress={() =>
+                      setShowCategoryDropdown(!showCategoryDropdown)
+                    }
+                  >
+                    <View
+                      style={{ flexDirection: "row", alignItems: "center" }}
+                    >
+                      {selectedCategory ? (
+                        <>
+                          <View
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 20,
+                              justifyContent: "center",
+                              alignItems: "center",
+                              backgroundColor: `${selectedCategory.color}20`,
+                              marginRight: 16,
+                            }}
+                          >
+                            <selectedCategory.icon
+                              size={20}
+                              color={selectedCategory.color}
+                            />
+                          </View>
+                          <Text
+                            style={{
+                              fontSize: 16,
+                              fontWeight: "600",
+                              color: theme.text,
+                            }}
+                          >
+                            {selectedCategory.name}
+                          </Text>
+                        </>
+                      ) : (
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            color: theme.placeholder,
+                          }}
+                        >
+                          {t.select_category}
+                        </Text>
+                      )}
+                    </View>
+                    <ChevronDown
+                      size={16}
+                      color={theme.iconMuted}
                       style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        padding: 16,
+                        transform: [
+                          {
+                            rotate: showCategoryDropdown ? "180deg" : "0deg",
+                          },
+                        ],
+                      }}
+                    />
+                  </TouchableOpacity>
+
+                  {showCategoryDropdown && (
+                    <View
+                      style={{
+                        marginTop: 8,
                         borderRadius: 12,
                         borderWidth: 1,
                         borderColor: theme.border,
                         backgroundColor: theme.inputBackground,
+                        maxHeight: 300,
                       }}
-                      onPress={() =>
-                        setShowCategoryDropdown(!showCategoryDropdown)
-                      }
                     >
-                      <View
-                        style={{ flexDirection: "row", alignItems: "center" }}
-                      >
-                        {selectedCategory ? (
-                          <>
-                            <View
+                      <ScrollView>
+                        {categories.map((category) => {
+                          const IconComponent = category.icon;
+                          return (
+                            <TouchableOpacity
+                              key={category.id}
                               style={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: 20,
-                                justifyContent: "center",
+                                padding: 16,
+                                borderBottomWidth: 1,
+                                borderBottomColor: theme.border,
+                                flexDirection: "row",
                                 alignItems: "center",
-                                backgroundColor: `${selectedCategory.color}20`,
-                                marginRight: 16,
+                                backgroundColor:
+                                  selectedCategory?.id === category.id
+                                    ? `${category.color}10`
+                                    : undefined,
+                              }}
+                              onPress={() => {
+                                setSelectedCategory(category);
+                                setShowCategoryDropdown(false);
                               }}
                             >
-                              <selectedCategory.icon
-                                size={20}
-                                color={selectedCategory.color}
-                              />
-                            </View>
-                            <Text
-                              style={{
-                                fontSize: 16,
-                                fontWeight: "600",
-                                color: theme.text,
-                              }}
-                            >
-                              {selectedCategory.name}
-                            </Text>
-                          </>
-                        ) : (
-                          <Text
-                            style={{
-                              fontSize: 16,
-                              color: theme.placeholder,
-                            }}
-                          >
-                            {t.select_category}
-                          </Text>
-                        )}
-                      </View>
-                      <ChevronDown
-                        size={16}
-                        color={theme.iconMuted}
-                        style={{
-                          transform: [
-                            {
-                              rotate: showCategoryDropdown ? "180deg" : "0deg",
-                            },
-                          ],
-                        }}
-                      />
-                    </TouchableOpacity>
-
-                    {showCategoryDropdown && (
-                      <View
-                        style={{
-                          marginTop: 8,
-                          borderRadius: 12,
-                          borderWidth: 1,
-                          borderColor: theme.border,
-                          backgroundColor: theme.inputBackground,
-                          maxHeight: 300,
-                        }}
-                      >
-                        <ScrollView>
-                          {categories.map((category) => {
-                            const IconComponent = category.icon;
-                            return (
-                              <TouchableOpacity
-                                key={category.id}
+                              <View
                                 style={{
-                                  padding: 16,
-                                  borderBottomWidth: 1,
-                                  borderBottomColor: theme.border,
-                                  flexDirection: "row",
+                                  width: 40,
+                                  height: 40,
+                                  borderRadius: 20,
+                                  justifyContent: "center",
                                   alignItems: "center",
-                                  backgroundColor:
-                                    selectedCategory?.id === category.id
-                                      ? `${category.color}10`
-                                      : undefined,
-                                }}
-                                onPress={() => {
-                                  setSelectedCategory(category);
-                                  setShowCategoryDropdown(false);
+                                  backgroundColor: `${category.color}20`,
+                                  marginRight: 16,
                                 }}
                               >
-                                <View
-                                  style={{
-                                    width: 40,
-                                    height: 40,
-                                    borderRadius: 20,
-                                    justifyContent: "center",
-                                    alignItems: "center",
-                                    backgroundColor: `${category.color}20`,
-                                    marginRight: 16,
-                                  }}
-                                >
-                                  <IconComponent
-                                    size={20}
-                                    color={category.color}
-                                  />
-                                </View>
-                                <Text
-                                  style={{
-                                    fontSize: 16,
-                                    fontWeight: "600",
-                                    color: theme.text,
-                                  }}
-                                >
-                                  {category.name}
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </ScrollView>
-                      </View>
-                    )}
-                  </View>
+                                <IconComponent
+                                  size={20}
+                                  color={category.color}
+                                />
+                              </View>
+                              <Text
+                                style={{
+                                  fontSize: 16,
+                                  fontWeight: "600",
+                                  color: theme.text,
+                                }}
+                              >
+                                {category.name}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+                  )}
                 </View>
-              )}
+              </View>
 
-              {entryType === "Income" && (
+              {(entryType as "Income" | "Expense" | "Transfer") ===
+                "Income" && (
                 <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
                   <Text
                     style={{
@@ -2366,8 +2345,8 @@ export default function AddExpenseScreen() {
                     <Text
                       style={{
                         color: "white",
-                        fontSize: 12,
-                        fontWeight: "600",
+                        fontSize: 10,
+                        fontWeight: "500",
                         marginLeft: 8,
                       }}
                     >
@@ -2496,8 +2475,7 @@ export default function AddExpenseScreen() {
               <View className="bg-white rounded-2xl p-6 w-full max-w-md">
                 <View className="flex-row justify-between items-center mb-6">
                   <Text className="font-bold text-xl text-gray-900">
-                    {t.select} {accountSelectionType === "from" ? t.from : t.to}{" "}
-                    {t.account}
+                    {t.selectAccount}
                   </Text>
                   <TouchableOpacity
                     onPress={() => setShowAccountSelectionModal(false)}
@@ -2507,46 +2485,39 @@ export default function AddExpenseScreen() {
                 </View>
 
                 <ScrollView className="max-h-[400px]">
-                  <View className="space-y-3">
+                  <View className="flex-row flex-wrap justify-between">
                     {accounts.map((account) => (
                       <TouchableOpacity
                         key={account.id}
-                        className={`p-4 rounded-lg border ${
-                          (accountSelectionType === "from" &&
-                            fromAccount?.id === account.id) ||
-                          (accountSelectionType === "to" &&
-                            toAccount?.id === account.id)
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-gray-200"
+                        className={`w-1/2 p-4 items-center ${
+                          accountSelectionType === "from"
+                            ? selectedAccount?.id === account.id
+                              ? "bg-blue-50 rounded-lg"
+                              : ""
+                            : accountSelectionType === "to"
+                              ? toAccount?.id === account.id
+                                ? "bg-green-50 rounded-lg"
+                                : ""
+                              : ""
                         }`}
                         onPress={() => {
                           if (accountSelectionType === "from") {
                             setFromAccount(account);
-                          } else {
+                          } else if (accountSelectionType === "to") {
                             setToAccount(account);
                           }
                           setShowAccountSelectionModal(false);
                         }}
                       >
-                        <View className="flex-row items-center justify-between">
-                          <View className="flex-row items-center">
-                            <View className="p-2 rounded-full bg-gray-100 mr-3">
-                              <Wallet size={20} color="#3B82F6" />
-                            </View>
-                            <View>
-                              <Text className="text-lg font-medium text-gray-900">
-                                {account.name}
-                              </Text>
-                              <Text className="text-sm text-gray-500">
-                                {account.account_type}{" "}
-                                {/* Changed from group_name to account_type */}
-                              </Text>
-                            </View>
-                          </View>
-                          <Text className="text-lg font-semibold text-gray-900">
-                            ${account.amount.toFixed(2)}
-                          </Text>
+                        <View
+                          className="p-3 rounded-full mb-2"
+                          style={{ backgroundColor: `${theme.primary}20` }}
+                        >
+                          <Wallet size={24} color={theme.primary} />
                         </View>
+                        <Text className="text-xs text-gray-700 text-center">
+                          {account.name}
+                        </Text>
                       </TouchableOpacity>
                     ))}
                   </View>

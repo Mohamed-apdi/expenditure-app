@@ -13,7 +13,7 @@ import { Filter, Search, Plus, ArrowLeft } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { supabase } from "~/lib";
-import { fetchTransactions } from "~/lib";
+import { fetchAllTransactionsAndTransfers } from "~/lib";
 import { useAccount } from "~/lib";
 import { formatDistanceToNow } from "date-fns";
 
@@ -55,8 +55,8 @@ export default function TransactionsScreen() {
         return;
       }
 
-      // Fetch all transactions for the user
-      let allTransactions = await fetchTransactions(user.id);
+      // Fetch all transactions and transfers for the user
+      let allTransactions = await fetchAllTransactionsAndTransfers(user.id);
 
       // Filter by selected account if one is selected
       if (selectedAccount) {

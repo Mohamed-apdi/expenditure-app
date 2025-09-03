@@ -62,6 +62,7 @@ export default function ProfileScreen() {
     fullName: "",
     email: "",
     phone: "",
+    image_url: "",
   });
   const [loading, setLoading] = useState(true);
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -99,10 +100,6 @@ export default function ProfileScreen() {
               email: user.email || "",
               phone: profileData.phone || "",
               image_url: profileData.image_url || "",
-              totalPredictions: 0,
-              avgAccuracy: 0,
-              joinDate: profileData.created_at || new Date().toISOString(),
-              lastSignIn: user.last_sign_in_at || new Date().toISOString(),
             });
           }
         }
@@ -322,7 +319,9 @@ export default function ProfileScreen() {
       }
 
       await deleteItemAsync("token");
+      await deleteItemAsync("userId");
       await deleteItemAsync("refresh_token");
+      await deleteItemAsync("supabase_session");
 
       router.replace("../(onboarding)/welcomeScreen" as any);
 

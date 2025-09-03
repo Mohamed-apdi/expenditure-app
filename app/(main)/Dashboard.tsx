@@ -23,7 +23,7 @@ import {
   type CategorySummary,
 } from "~/lib";
 import { fetchExpenses } from "~/lib";
-import { fetchTransactions } from "~/lib";
+import { fetchAllTransactionsAndTransfers } from "~/lib";
 import { fetchProfile } from "~/lib";
 import { useAccount } from "~/lib";
 
@@ -204,7 +204,7 @@ export default function DashboardScreen() {
           .split("T")[0];
 
         // Get all transactions and filter for today's expenses
-        const allTransactions = await fetchTransactions(user.id);
+        const allTransactions = await fetchAllTransactionsAndTransfers(user.id);
         console.log(
           "Dashboard - All transactions fetched:",
           allTransactions.length
@@ -255,7 +255,7 @@ export default function DashboardScreen() {
           }))
         );
 
-        // Recent transactions - use transactions table
+        // Recent transactions - use transactions table (including transfers)
         const recent = allTransactions
           .sort(
             (a, b) =>
@@ -274,7 +274,9 @@ export default function DashboardScreen() {
         const accountId = selectedAccount.id;
 
         // Get transactions for selected account
-        const accountTransactions = await fetchTransactions(user.id);
+        const accountTransactions = await fetchAllTransactionsAndTransfers(
+          user.id
+        );
         const accountTransactionsFiltered = accountTransactions.filter(
           (t) => t.account_id === accountId
         );
@@ -366,7 +368,7 @@ export default function DashboardScreen() {
           },
         ]);
 
-        // Recent transactions for selected account
+        // Recent transactions for selected account (including transfers)
         const recent = accountTransactionsFiltered
           .sort(
             (a, b) =>
@@ -427,7 +429,7 @@ export default function DashboardScreen() {
         let monthTransactions;
         if (selectedAccount) {
           // Filter by selected account
-          monthTransactions = await fetchTransactions(user.id);
+          monthTransactions = await fetchAllTransactionsAndTransfers(user.id);
           monthTransactions = monthTransactions.filter(
             (t) =>
               t.account_id === selectedAccount.id &&
@@ -440,7 +442,7 @@ export default function DashboardScreen() {
           );
         } else {
           // Fetch all transactions
-          monthTransactions = await fetchTransactions(user.id);
+          monthTransactions = await fetchAllTransactionsAndTransfers(user.id);
           monthTransactions = monthTransactions.filter(
             (t) => t.date >= startDate && t.date <= endDate
           );
@@ -458,11 +460,18 @@ export default function DashboardScreen() {
           } else if (t.type === "expense") {
             monthExpense += amount;
           }
+          // Include transfer transactions in the list
           monthTransactionsList.push(t as Transaction);
         });
 
+        // Sort transactions by created_at in descending chronological order (newest first)
+        const sortedTransactions = monthTransactionsList.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+
         // Update the filtered transactions for the selected month
-        setFilteredTransactions(monthTransactionsList);
+        setFilteredTransactions(sortedTransactions);
 
         // Calculate balance based on whether an account is selected
         let balance;

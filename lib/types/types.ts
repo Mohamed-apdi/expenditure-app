@@ -62,7 +62,6 @@ export type Expense = {
   is_essential: boolean;
   created_at: string;
   updated_at: string;
-  receipt_url?: string;
   entry_type: "Income" | "Expense";
   account_id?: string;
 };
@@ -90,6 +89,12 @@ export type Transaction = {
   type: "expense" | "income" | "transfer";
   created_at: string;
   updated_at: string;
+  // Transfer-specific properties (added for unified data handling)
+  isTransfer?: boolean;
+  transferId?: string;
+  from_account_id?: string;
+  to_account_id?: string;
+  transferDirection?: "from" | "to";
 };
 
 export type Transfer = {

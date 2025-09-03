@@ -40,6 +40,7 @@ import {
   Heart,
 } from "lucide-react-native";
 import { supabase } from "~/lib";
+import { fetchAllTransactionsAndTransfers } from "~/lib";
 import { format, formatDistanceToNow } from "date-fns";
 import { useTheme } from "~/lib";
 import Toast from "react-native-toast-message";
@@ -56,10 +57,6 @@ type Transaction = {
 
   is_recurring?: boolean;
   recurrence_interval?: string;
-  location?: string;
-  tags?: string[];
-  receipt_url?: string;
-  notes?: string;
   // Account details
   account?: {
     id: string;
@@ -85,7 +82,16 @@ type Transaction = {
 export default function TransactionDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const [transaction, setTransaction] = useState<Transaction | null>(null);
+  const [transaction, setTransaction] = useState<
+    | (Transaction & {
+        isTransfer?: boolean;
+        transferId?: string;
+        from_account_id?: string;
+        to_account_id?: string;
+        transferDirection?: "from" | "to";
+      })
+    | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const theme = useTheme();
@@ -95,100 +101,74 @@ export default function TransactionDetailScreen() {
     try {
       setLoading(true);
 
-      // First, get the basic transaction data
-      const { data: transactionData, error: transactionError } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      if (transactionError && transactionError.code !== "PGRST116") {
-        // If not found in transactions, try expenses table for backward compatibility
-        const { data: expenseData, error: expenseError } = await supabase
-          .from("expenses")
-          .select("*")
-          .eq("id", id)
-          .single();
-
-        if (expenseError) throw expenseError;
-
-        // Get account data for expense
-        if (expenseData.account_id) {
-          const { data: accountData } = await supabase
-            .from("accounts")
-            .select("id, name, account_type, amount")
-            .eq("id", expenseData.account_id)
-            .single();
-
-          setTransaction({
-            ...expenseData,
-            type: "expense" as const,
-            account: accountData,
-          });
-        } else {
-          setTransaction({
-            ...expenseData,
-            type: "expense" as const,
-          });
-        }
+      // Get current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert("Error", "Please log in first");
+        router.back();
         return;
       }
 
-      if (transactionData) {
-        // Fetch related account data separately
-        const accountPromises = [];
+      // Fetch all transactions and transfers to find the one we're viewing
+      const allTransactions = await fetchAllTransactionsAndTransfers(user.id);
+      const targetTransaction = allTransactions.find((t) => t.id === id);
 
-        // Main account
-        if (transactionData.account_id) {
-          accountPromises.push(
-            supabase
-              .from("accounts")
-              .select("id, name, account_type, amount")
-              .eq("id", transactionData.account_id)
-              .single()
-              .then(({ data }) => ({ type: "account", data }))
-          );
+      if (!targetTransaction) {
+        Alert.alert("Error", "Transaction/Transfer not found");
+        router.back();
+        return;
+      }
+
+      // Check if this is a transfer
+      if (targetTransaction.isTransfer) {
+        // Extract the original transfer ID from the composite ID
+        const transferId = targetTransaction.transferId || id;
+
+        // Load the actual transfer data with account details
+        const { data: transferData } = await supabase
+          .from("transfers")
+          .select(
+            `
+            *,
+            from_account:accounts!transfers_from_account_id_fkey(id, name, account_type, amount),
+            to_account:accounts!transfers_to_account_id_fkey(id, name, account_type, amount)
+          `
+          )
+          .eq("id", transferId)
+          .single();
+
+        if (transferData) {
+          // Determine which account this transaction represents
+          const isFromAccount = targetTransaction.transferDirection === "from";
+          const isToAccount = targetTransaction.transferDirection === "to";
+
+          setTransaction({
+            ...transferData,
+            type: isFromAccount ? "expense" : "income",
+            account: isFromAccount
+              ? transferData.from_account
+              : transferData.to_account,
+            from_account: transferData.from_account,
+            to_account: transferData.to_account,
+            // Override the ID to match the composite ID for proper navigation
+            id: targetTransaction.id,
+          });
         }
-
-        // From account (for transfers)
-        if (transactionData.from_account_id) {
-          accountPromises.push(
-            supabase
-              .from("accounts")
-              .select("id, name, account_type, amount")
-              .eq("id", transactionData.from_account_id)
-              .single()
-              .then(({ data }) => ({ type: "from_account", data }))
-          );
-        }
-
-        // To account (for transfers)
-        if (transactionData.to_account_id) {
-          accountPromises.push(
-            supabase
-              .from("accounts")
-              .select("id, name, account_type, amount")
-              .eq("id", transactionData.to_account_id)
-              .single()
-              .then(({ data }) => ({ type: "to_account", data }))
-          );
-        }
-
-        // Fetch all account data
-        const accountResults = await Promise.all(accountPromises);
-
-        // Build the final transaction object
-        const enrichedTransaction = { ...transactionData };
-
-        accountResults.forEach((result) => {
-          if (result.data) {
-            enrichedTransaction[result.type] = result.data;
-          }
-        });
-
-        setTransaction(enrichedTransaction);
       } else {
-        throw new Error("Transaction not found");
+        // Handle regular transaction
+        // Fetch account data
+        const { data: accountData } = await supabase
+          .from("accounts")
+          .select("id, name, account_type, amount")
+          .eq("id", targetTransaction.account_id)
+          .single();
+
+        setTransaction({
+          ...targetTransaction,
+          account: accountData || undefined,
+        });
       }
     } catch (error) {
       console.error("Error fetching transaction:", error);
@@ -217,12 +197,21 @@ export default function TransactionDetailScreen() {
               setDeleting(true);
 
               // Delete from appropriate table
-              const table =
-                transaction?.type === "expense" ? "expenses" : "transactions";
+              let table = "transactions";
+              let deleteId = id;
+
+              if (transaction?.isTransfer) {
+                // For transfers, delete the original transfer record
+                table = "transfers";
+                deleteId = transaction.transferId || id;
+              } else if (transaction?.type === "expense") {
+                table = "expenses";
+              }
+
               const { error } = await supabase
                 .from(table)
                 .delete()
-                .eq("id", id);
+                .eq("id", deleteId);
 
               if (error) throw error;
 
@@ -249,11 +238,11 @@ export default function TransactionDetailScreen() {
     if (!transaction) return;
 
     const shareText = `Transaction Details:
-Amount: ${transaction.type === "expense" ? "-" : "+"}$${transaction.amount.toFixed(2)}
-Category: ${transaction.category || "N/A"}
-Description: ${transaction.description || "N/A"}
-Date: ${format(new Date(transaction.date), "MMMM d, yyyy")}
-Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
+      Amount: ${transaction.type === "expense" ? "-" : "+"}$${transaction.amount.toFixed(2)}
+      Category: ${transaction.category || "N/A"}
+      Description: ${transaction.description || "N/A"}
+      Date: ${format(new Date(transaction.date), "MMMM d, yyyy")}
+      Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
 
     try {
       await Share.share({
@@ -532,8 +521,8 @@ Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
               <Text
                 style={{
                   color: theme.success,
-                  marginLeft: 6,
-                  fontSize: 12,
+                  marginLeft: 5,
+                  fontSize: 10,
                   fontWeight: "600",
                 }}
               >
@@ -649,85 +638,6 @@ Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
                 </View>
               </View>
             )}
-
-            {/* Date */}
-            <View style={{ marginBottom: 16 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 8,
-                }}
-              >
-                <Calendar size={16} color={theme.textSecondary} />
-                <Text
-                  style={{
-                    color: theme.textSecondary,
-                    fontSize: 12,
-                    marginLeft: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  Transaction Date
-                </Text>
-              </View>
-              <Text style={{ color: theme.text, fontSize: 16 }}>
-                {format(new Date(transaction.date), "EEEE, MMMM d, yyyy")}
-              </Text>
-              <Text
-                style={{
-                  color: theme.textSecondary,
-                  fontSize: 14,
-                  marginTop: 4,
-                }}
-              >
-                {formatDistanceToNow(new Date(transaction.date), {
-                  addSuffix: true,
-                })}
-              </Text>
-            </View>
-
-            {/* Transaction ID */}
-            <View>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 8,
-                }}
-              >
-                <Hash size={16} color={theme.textSecondary} />
-                <Text
-                  style={{
-                    color: theme.textSecondary,
-                    fontSize: 12,
-                    marginLeft: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  Transaction ID
-                </Text>
-                <TouchableOpacity
-                  style={{ marginLeft: "auto" }}
-                  onPress={() =>
-                    copyToClipboard(transaction.id, "Transaction ID")
-                  }
-                >
-                  <Copy size={14} color={theme.textSecondary} />
-                </TouchableOpacity>
-              </View>
-              <Text
-                style={{
-                  color: theme.text,
-                  fontSize: 14,
-                  fontFamily: "monospace",
-                }}
-              >
-                {transaction.id}
-              </Text>
-            </View>
           </View>
 
           {/* Account Information */}
@@ -907,9 +817,7 @@ Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
           </View>
 
           {/* Additional Details */}
-          {(transaction.is_recurring ||
-            transaction.location ||
-            transaction.notes) && (
+          {transaction.is_recurring && (
             <View
               style={{
                 backgroundColor: theme.cardBackground,
@@ -932,92 +840,34 @@ Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
               </Text>
 
               {/* Recurring */}
-              {transaction.is_recurring && (
-                <View style={{ marginBottom: 16 }}>
-                  <View
+              <View style={{ marginBottom: 16 }}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginBottom: 8,
+                  }}
+                >
+                  <Repeat size={16} color={theme.textSecondary} />
+                  <Text
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginBottom: 8,
+                      color: theme.textSecondary,
+                      fontSize: 12,
+                      marginLeft: 8,
+                      textTransform: "uppercase",
+                      letterSpacing: 0.5,
                     }}
                   >
-                    <Repeat size={16} color={theme.textSecondary} />
-                    <Text
-                      style={{
-                        color: theme.textSecondary,
-                        fontSize: 12,
-                        marginLeft: 8,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      Recurring
-                    </Text>
-                  </View>
-                  <Text style={{ color: theme.text, fontSize: 16 }}>
-                    {transaction.recurrence_interval?.charAt(0).toUpperCase() +
-                      transaction.recurrence_interval?.slice(1) || "Yes"}
+                    Recurring
                   </Text>
                 </View>
-              )}
-
-              {/* Location */}
-              {transaction.location && (
-                <View style={{ marginBottom: 16 }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <MapPin size={16} color={theme.textSecondary} />
-                    <Text
-                      style={{
-                        color: theme.textSecondary,
-                        fontSize: 12,
-                        marginLeft: 8,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      Location
-                    </Text>
-                  </View>
-                  <Text style={{ color: theme.text, fontSize: 16 }}>
-                    {transaction.location}
-                  </Text>
-                </View>
-              )}
-
-              {/* Notes */}
-              {transaction.notes && (
-                <View>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <FileText size={16} color={theme.textSecondary} />
-                    <Text
-                      style={{
-                        color: theme.textSecondary,
-                        fontSize: 12,
-                        marginLeft: 8,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      Notes
-                    </Text>
-                  </View>
-                  <Text style={{ color: theme.text, fontSize: 16 }}>
-                    {transaction.notes}
-                  </Text>
-                </View>
-              )}
+                <Text style={{ color: theme.text, fontSize: 16 }}>
+                  {transaction.recurrence_interval
+                    ? transaction.recurrence_interval.charAt(0).toUpperCase() +
+                      transaction.recurrence_interval.slice(1)
+                    : "Yes"}
+                </Text>
+              </View>
             </View>
           )}
 
@@ -1115,8 +965,8 @@ Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
                   <Text
                     style={{
                       color: transactionColor,
-                      fontSize: 12,
-                      fontWeight: "600",
+                      fontSize: 10,
+                      fontWeight: "500",
                       textTransform: "uppercase",
                     }}
                   >

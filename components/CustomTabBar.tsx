@@ -12,7 +12,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
 
   return (
     <View
-      className="flex-row  h-[70px] justify-around items-center "
+      className="flex-row  h-[70px] justify-around items-center px-4"
       style={{
         backgroundColor: theme.background,
       }}

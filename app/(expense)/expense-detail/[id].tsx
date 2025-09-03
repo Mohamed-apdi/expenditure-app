@@ -34,9 +34,7 @@ type Expense = {
   is_recurring: boolean;
   recurrence_interval?: string;
   is_essential: boolean;
-  tags?: string[];
   created_at: string;
-  receipt_url?: string;
 };
 
 export default function ExpenseDetailScreen() {
@@ -113,7 +111,7 @@ export default function ExpenseDetailScreen() {
                 .eq("id", id);
 
               if (error) throw error;
-              router.push("/(main)/ExpenseListScreen");
+              router.back();
             } catch (error) {
               console.error("Error deleting expense:", error);
               Alert.alert("Error", "Failed to delete expense");
@@ -140,23 +138,6 @@ export default function ExpenseDetailScreen() {
     return colors[category] || "#64748b";
   };
 
-  const handleViewReceipt = async () => {
-    if (!expense?.receipt_url) return;
-
-    try {
-      const { data } = await supabase.storage
-        .from("receipts")
-        .createSignedUrl(expense.receipt_url, 60); // 60 second URL expiry
-
-      if (data?.signedUrl) {
-        await Linking.openURL(data.signedUrl);
-      }
-    } catch (error) {
-      console.error("Error opening receipt:", error);
-      Alert.alert("Error", "Could not open receipt");
-    }
-  };
-
   if (loading) {
     return (
       <SafeAreaView className="flex-1 bg-slate-900 items-center justify-center">
@@ -171,7 +152,7 @@ export default function ExpenseDetailScreen() {
         <Text className="text-white text-lg">Expense not found</Text>
         <TouchableOpacity
           className="mt-4 bg-emerald-500 px-6 py-3 rounded-lg"
-          onPress={() => router.push("/expenses")}
+          onPress={() => router.back()}
         >
           <Text className="text-white font-bold">Back to Expenses</Text>
         </TouchableOpacity>
@@ -341,42 +322,6 @@ export default function ExpenseDetailScreen() {
               </Text>
             </View>
           </View>
-
-          {/* Tags */}
-          {expense.tags && expense.tags.length > 0 && (
-            <View>
-              <Text
-                style={{
-                  color: theme.textSecondary,
-                  fontSize: 13,
-                  marginBottom: 6,
-                }}
-              >
-                Tags
-              </Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {expense.tags.map((tag, index) => (
-                  <View
-                    key={index}
-                    style={{
-                      backgroundColor: theme.cardBackground,
-                      borderColor: theme.border,
-                      borderWidth: 1,
-                      paddingHorizontal: 12,
-                      paddingVertical: 4,
-                      borderRadius: 999,
-                      marginRight: 6,
-                      marginBottom: 6,
-                    }}
-                  >
-                    <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
-                      {tag}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
 
           {/* Created At */}
           <View>
