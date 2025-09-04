@@ -371,13 +371,13 @@ const EditTransactionScreen = () => {
           );
 
           // Set transaction type and disable tab switching for better UX
-          if (targetTransaction.type === "income") {
+          if (targetTransaction.isTransfer) {
+            setEntryType("Transfer");
+            setTransferAmount(targetTransaction.amount.toString());
+          } else if (targetTransaction.type === "income") {
             setEntryType("Income");
           } else if (targetTransaction.type === "expense") {
             setEntryType("Expense");
-          } else if (targetTransaction.type === "transfer") {
-            setEntryType("Transfer");
-            setTransferAmount(targetTransaction.amount.toString());
           }
 
           // Set category if exists

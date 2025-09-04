@@ -9,7 +9,13 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
-import { Filter, Search, Plus, ArrowLeft } from "lucide-react-native";
+import {
+  Filter,
+  Search,
+  Plus,
+  ArrowLeft,
+  ArrowRightLeft,
+} from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { supabase } from "~/lib";
@@ -26,6 +32,12 @@ type Transaction = {
   date: string;
   type: "expense" | "income" | "transfer";
   account_id: string;
+  // Transfer-specific properties
+  isTransfer?: boolean;
+  transferId?: string;
+  from_account_id?: string;
+  to_account_id?: string;
+  transferDirection?: "from" | "to";
 };
 
 type TransactionSection = {
@@ -99,19 +111,35 @@ export default function TransactionsScreen() {
     );
     const olderTransactions = transactions.filter((t) => t.date < lastWeekStr);
 
+    // Sort each group by created_at timestamp in descending order (newest first)
+    const sortByCreatedAt = (a: Transaction, b: Transaction) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+
     const sections: TransactionSection[] = [];
 
     if (todayTransactions.length > 0) {
-      sections.push({ title: "Today", data: todayTransactions });
+      sections.push({
+        title: "Today",
+        data: todayTransactions.sort(sortByCreatedAt),
+      });
     }
     if (yesterdayTransactions.length > 0) {
-      sections.push({ title: "Yesterday", data: yesterdayTransactions });
+      sections.push({
+        title: "Yesterday",
+        data: yesterdayTransactions.sort(sortByCreatedAt),
+      });
     }
     if (lastWeekTransactions.length > 0) {
-      sections.push({ title: "Last Week", data: lastWeekTransactions });
+      sections.push({
+        title: "Last Week",
+        data: lastWeekTransactions.sort(sortByCreatedAt),
+      });
     }
     if (olderTransactions.length > 0) {
-      sections.push({ title: "Older", data: olderTransactions });
+      sections.push({
+        title: "Older",
+        data: olderTransactions.sort(sortByCreatedAt),
+      });
     }
 
     return sections;
@@ -137,8 +165,15 @@ export default function TransactionsScreen() {
           item.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           item.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           false;
-        const matchesFilter =
-          activeFilter === "all" || item.type === activeFilter;
+
+        // Handle transfer filtering
+        let matchesFilter = true;
+        if (activeFilter === "transfer") {
+          matchesFilter = item.isTransfer === true;
+        } else if (activeFilter !== "all") {
+          matchesFilter = item.type === activeFilter && !item.isTransfer;
+        }
+
         return matchesSearch && matchesFilter;
       }),
     }))
@@ -156,7 +191,7 @@ export default function TransactionsScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 py-safe">
+    <SafeAreaView className="flex-1">
       <View className="flex-1 bg-gray-50">
         {/* Header */}
         <View className="p-4 bg-white border-b border-gray-200">
@@ -182,10 +217,10 @@ export default function TransactionsScreen() {
 
           {/* Filter Buttons */}
           <View className="flex-row space-x-2">
-            {["all", "income", "expense", "transfer", "loan"].map((filter) => (
+            {["all", "income", "expense", "transfer"].map((filter) => (
               <TouchableOpacity
                 key={filter}
-                className={`px-3 py-1 rounded-full ${activeFilter === filter ? "bg-blue-500" : "bg-gray-200"}`}
+                className={`px-3 mr-2 py-1 rounded-full ${activeFilter === filter ? "bg-blue-500" : "bg-gray-200"}`}
                 onPress={() => setActiveFilter(filter)}
               >
                 <Text
@@ -222,21 +257,43 @@ export default function TransactionsScreen() {
                     })}
                   </Text>
                 </View>
-                <View className="items-end">
+                <View className="items-end ">
                   <Text
-                    className={`font-bold text-lg ${
-                      item.type === "expense"
-                        ? "text-red-500"
-                        : item.type === "income"
-                          ? "text-green-500"
-                          : "text-blue-500"
+                    className={`font-bold text-lg  ${
+                      item.isTransfer
+                        ? "text-blue-500"
+                        : item.type === "expense"
+                          ? "text-red-500"
+                          : "text-green-500"
                     }`}
                   >
-                    {item.type === "expense" ? "-" : "+"}$
-                    {Math.abs(item.amount).toFixed(2)}
+                    <View className="flex-row items-center">
+                      {item.isTransfer ? (
+                        <ArrowRightLeft size={16} color="#3b82f6" />
+                      ) : item.type === "expense" ? (
+                        <Text className="font-bold text-lg text-red-500">
+                          -
+                        </Text>
+                      ) : (
+                        <Text className="font-bold text-lg text-green-500">
+                          +
+                        </Text>
+                      )}
+                      <Text
+                        className={`font-bold text-lg ${
+                          item.isTransfer
+                            ? "text-blue-500"
+                            : item.type === "expense"
+                              ? "text-red-500"
+                              : "text-green-500"
+                        }`}
+                      >
+                        ${Math.abs(item.amount).toFixed(2)}
+                      </Text>
+                    </View>
                   </Text>
                   <Text className="text-gray-400 text-xs capitalize">
-                    {item.type}
+                    {item.isTransfer ? "transfer" : item.type}
                   </Text>
                 </View>
               </View>

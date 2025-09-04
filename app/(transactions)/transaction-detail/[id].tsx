@@ -140,20 +140,20 @@ export default function TransactionDetailScreen() {
           .single();
 
         if (transferData) {
-          // Determine which account this transaction represents
-          const isFromAccount = targetTransaction.transferDirection === "from";
-          const isToAccount = targetTransaction.transferDirection === "to";
-
           setTransaction({
             ...transferData,
-            type: isFromAccount ? "expense" : "income",
-            account: isFromAccount
-              ? transferData.from_account
-              : transferData.to_account,
+            type: "transfer", // Always set type to transfer for transfer transactions
+            account:
+              targetTransaction.transferDirection === "from"
+                ? transferData.from_account
+                : transferData.to_account,
             from_account: transferData.from_account,
             to_account: transferData.to_account,
             // Override the ID to match the composite ID for proper navigation
             id: targetTransaction.id,
+            isTransfer: true,
+            transferId: transferId,
+            transferDirection: targetTransaction.transferDirection,
           });
         }
       } else {
@@ -237,12 +237,28 @@ export default function TransactionDetailScreen() {
   const handleShare = async () => {
     if (!transaction) return;
 
-    const shareText = `Transaction Details:
-      Amount: ${transaction.type === "expense" ? "-" : "+"}$${transaction.amount.toFixed(2)}
-      Category: ${transaction.category || "N/A"}
-      Description: ${transaction.description || "N/A"}
-      Date: ${format(new Date(transaction.date), "MMMM d, yyyy")}
-      Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
+    let shareText = "";
+
+    if (
+      transaction.type === "transfer" &&
+      transaction.from_account &&
+      transaction.to_account
+    ) {
+      shareText = `Transfer Details:
+        Amount Transferred: $${transaction.amount.toFixed(2)}
+        From Account: ${transaction.from_account.name} (${transaction.from_account.account_type})
+        To Account: ${transaction.to_account.name} (${transaction.to_account.account_type})
+        Description: ${transaction.description || "N/A"}
+        Date: ${format(new Date(transaction.date), "MMMM d, yyyy")}
+        Type: Transfer`;
+    } else {
+      shareText = `Transaction Details:
+        Amount: ${transaction.type === "expense" ? "-" : "+"}$${transaction.amount.toFixed(2)}
+        Category: ${transaction.category || "N/A"}
+        Description: ${transaction.description || "N/A"}
+        Date: ${format(new Date(transaction.date), "MMMM d, yyyy")}
+        Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
+    }
 
     try {
       await Share.share({
@@ -424,7 +440,9 @@ export default function TransactionDetailScreen() {
         </TouchableOpacity>
 
         <Text style={{ color: theme.text, fontSize: 18, fontWeight: "600" }}>
-          Transaction Details
+          {transaction.type === "transfer"
+            ? "Transfer Details"
+            : "Transaction Details"}
         </Text>
 
         <View style={{ flexDirection: "row", gap: 16 }}>
@@ -484,27 +502,33 @@ export default function TransactionDetailScreen() {
                 marginBottom: 8,
               }}
             >
-              {transaction.type === "expense"
-                ? "Amount Spent"
-                : transaction.type === "income"
-                  ? "Amount Received"
-                  : "Amount Transferred"}
+              {transaction.type === "transfer"
+                ? "Amount Transferred"
+                : transaction.type === "expense"
+                  ? "Amount Spent"
+                  : "Amount Received"}
             </Text>
 
             <Text
               style={{
-                color: transactionColor,
+                color:
+                  transaction.type === "transfer"
+                    ? transaction.transferDirection === "from"
+                      ? "#ef4444"
+                      : "#10b981"
+                    : transactionColor,
                 fontSize: 42,
                 fontWeight: "700",
                 marginBottom: 8,
               }}
             >
-              {transaction.type === "expense"
-                ? "-"
-                : transaction.type === "income"
-                  ? "+"
-                  : ""}
-              ${transaction.amount.toFixed(2)}
+              {transaction.type === "transfer"
+                ? (transaction.transferDirection === "from" ? "-" : "+") +
+                  "$" +
+                  transaction.amount.toFixed(2)
+                : (transaction.type === "expense" ? "-" : "+") +
+                  "$" +
+                  transaction.amount.toFixed(2)}
             </Text>
 
             <View
@@ -526,9 +550,11 @@ export default function TransactionDetailScreen() {
                   fontWeight: "600",
                 }}
               >
-                {transaction.type.charAt(0).toUpperCase() +
-                  transaction.type.slice(1)}{" "}
-                Completed
+                {transaction.type === "transfer"
+                  ? "Transfer Completed"
+                  : transaction.type.charAt(0).toUpperCase() +
+                    transaction.type.slice(1) +
+                    " Completed"}
               </Text>
             </View>
           </View>
@@ -659,7 +685,9 @@ export default function TransactionDetailScreen() {
                 marginBottom: 16,
               }}
             >
-              Account Details
+              {transaction.type === "transfer"
+                ? "Transfer Details"
+                : "Account Details"}
             </Text>
 
             {transaction.type === "transfer" ? (
