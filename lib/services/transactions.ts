@@ -230,6 +230,143 @@ export const deleteTransaction = async (
   }
 };
 
+export const deleteTransactionWithBalanceUpdate = async (
+  transactionId: string,
+  isTransfer: boolean = false,
+  transferId?: string
+): Promise<void> => {
+  try {
+    if (isTransfer && transferId) {
+      // Handle transfer deletion
+      const { data: transfer, error: transferError } = await supabase
+        .from("transfers")
+        .select("*")
+        .eq("id", transferId)
+        .single();
+
+      if (transferError) {
+        console.error("Error fetching transfer for deletion:", transferError);
+        throw transferError;
+      }
+
+      if (!transfer) {
+        throw new Error("Transfer not found");
+      }
+
+      // Get current account balances
+      const { data: fromAccount, error: fromAccountError } = await supabase
+        .from("accounts")
+        .select("amount")
+        .eq("id", transfer.from_account_id)
+        .single();
+
+      const { data: toAccount, error: toAccountError } = await supabase
+        .from("accounts")
+        .select("amount")
+        .eq("id", transfer.to_account_id)
+        .single();
+
+      if (fromAccountError || toAccountError) {
+        console.error(
+          "Error fetching account balances:",
+          fromAccountError || toAccountError
+        );
+        throw fromAccountError || toAccountError;
+      }
+
+      // Calculate new balances (reverse the transfer)
+      const fromAccountNewBalance = fromAccount.amount + transfer.amount;
+      const toAccountNewBalance = toAccount.amount - transfer.amount;
+
+      // Delete the transfer
+      const { error: deleteError } = await supabase
+        .from("transfers")
+        .delete()
+        .eq("id", transferId);
+
+      if (deleteError) {
+        console.error("Error deleting transfer:", deleteError);
+        throw deleteError;
+      }
+
+      // Update account balances
+      await Promise.all([
+        supabase
+          .from("accounts")
+          .update({ amount: fromAccountNewBalance })
+          .eq("id", transfer.from_account_id),
+        supabase
+          .from("accounts")
+          .update({ amount: toAccountNewBalance })
+          .eq("id", transfer.to_account_id),
+      ]);
+    } else {
+      // Handle regular transaction deletion
+      const { data: transaction, error: transactionError } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("id", transactionId)
+        .single();
+
+      if (transactionError) {
+        console.error(
+          "Error fetching transaction for deletion:",
+          transactionError
+        );
+        throw transactionError;
+      }
+
+      if (!transaction) {
+        throw new Error("Transaction not found");
+      }
+
+      // Get current account balance
+      const { data: account, error: accountError } = await supabase
+        .from("accounts")
+        .select("amount")
+        .eq("id", transaction.account_id)
+        .single();
+
+      if (accountError) {
+        console.error("Error fetching account balance:", accountError);
+        throw accountError;
+      }
+
+      // Calculate new balance (reverse the transaction)
+      let newBalance: number;
+      if (transaction.type === "expense") {
+        // Add back the expense amount
+        newBalance = account.amount + transaction.amount;
+      } else if (transaction.type === "income") {
+        // Subtract the income amount
+        newBalance = account.amount - transaction.amount;
+      } else {
+        throw new Error("Invalid transaction type");
+      }
+
+      // Delete the transaction
+      const { error: deleteError } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("id", transactionId);
+
+      if (deleteError) {
+        console.error("Error deleting transaction:", deleteError);
+        throw deleteError;
+      }
+
+      // Update account balance
+      await supabase
+        .from("accounts")
+        .update({ amount: newBalance })
+        .eq("id", transaction.account_id);
+    }
+  } catch (error) {
+    console.error("Error in deleteTransactionWithBalanceUpdate:", error);
+    throw error;
+  }
+};
+
 export const getTransactionById = async (
   transactionId: string
 ): Promise<Transaction | null> => {

@@ -40,10 +40,14 @@ import {
   Heart,
 } from "lucide-react-native";
 import { supabase } from "~/lib";
-import { fetchAllTransactionsAndTransfers } from "~/lib";
+import {
+  fetchAllTransactionsAndTransfers,
+  deleteTransactionWithBalanceUpdate,
+} from "~/lib";
 import { format, formatDistanceToNow } from "date-fns";
 import { useTheme } from "~/lib";
 import Toast from "react-native-toast-message";
+import { useAccount } from "~/lib";
 
 type Transaction = {
   id: string;
@@ -82,6 +86,7 @@ type Transaction = {
 export default function TransactionDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const { refreshBalances } = useAccount();
   const [transaction, setTransaction] = useState<
     | (Transaction & {
         isTransfer?: boolean;
@@ -184,9 +189,17 @@ export default function TransactionDetailScreen() {
   }, [id]);
 
   const handleDelete = async () => {
+    if (!transaction) return;
+
+    const transactionType = transaction.isTransfer
+      ? "transfer"
+      : transaction.type;
+    const transactionDescription =
+      transaction.description || transaction.category || "this transaction";
+
     Alert.alert(
       "Delete Transaction",
-      "Are you sure you want to delete this transaction? This action cannot be undone.",
+      `Are you sure you want to delete ${transactionDescription}? This action cannot be undone and will update your account balance accordingly.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -196,35 +209,29 @@ export default function TransactionDetailScreen() {
             try {
               setDeleting(true);
 
-              // Delete from appropriate table
-              let table = "transactions";
-              let deleteId = id;
+              // Use the comprehensive delete function with balance updates
+              await deleteTransactionWithBalanceUpdate(
+                transaction.id,
+                transaction.isTransfer || false,
+                transaction.transferId
+              );
 
-              if (transaction?.isTransfer) {
-                // For transfers, delete the original transfer record
-                table = "transfers";
-                deleteId = transaction.transferId || id;
-              } else if (transaction?.type === "expense") {
-                table = "expenses";
-              }
-
-              const { error } = await supabase
-                .from(table)
-                .delete()
-                .eq("id", deleteId);
-
-              if (error) throw error;
+              // Refresh account balances
+              await refreshBalances();
 
               Toast.show({
                 type: "success",
                 text1: "Transaction Deleted",
-                text2: "The transaction has been successfully deleted.",
+                text2: `${transactionType.charAt(0).toUpperCase() + transactionType.slice(1)} has been successfully deleted and account balances updated.`,
               });
 
               router.back();
             } catch (error) {
               console.error("Error deleting transaction:", error);
-              Alert.alert("Error", "Failed to delete transaction");
+              Alert.alert(
+                "Error",
+                `Failed to delete ${transactionType}. Please try again.`
+              );
             } finally {
               setDeleting(false);
             }
