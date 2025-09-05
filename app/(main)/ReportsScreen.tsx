@@ -41,7 +41,7 @@ import {
   type TransactionReport,
 } from "~/lib";
 import { getCategoryColor, getColorByIndex } from "~/lib";
-import { sharePDF } from "~/lib/pdfGenerator";
+import { sharePDF } from "~/lib/";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
 
@@ -772,6 +772,7 @@ export default function ReportsScreen() {
               width={screenWidth - 48}
               height={220}
               yAxisLabel="$"
+              yAxisSuffix=""
               chartConfig={{
                 backgroundColor: theme.cardBackground,
                 backgroundGradientFrom: theme.cardBackground,
@@ -1017,7 +1018,7 @@ export default function ReportsScreen() {
             {/* Submit Button */}
             <TouchableOpacity
               style={{
-                backgroundColor: "#10b981",
+                backgroundColor: "#3b82f6",
                 padding: 12,
                 borderRadius: 8,
                 flexDirection: "row",
@@ -1035,6 +1036,9 @@ export default function ReportsScreen() {
               )}
               <Text
                 style={{ marginLeft: 8, color: "white", fontWeight: "600" }}
+                numberOfLines={1}
+                adjustsFontSizeToFit={true}
+                minimumFontScale={0.5}
               >
                 {loading ? t.loading : t.applyDateRange}
               </Text>
