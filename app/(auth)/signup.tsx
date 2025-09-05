@@ -409,6 +409,17 @@ export default function SignupScreen() {
           });
         }
 
+        // Save session securely (same as login)
+        if (data.session?.access_token) {
+          await setItemAsync("token", data.session.access_token);
+        }
+        if (data.user?.id) {
+          await setItemAsync("userId", data.user.id);
+        }
+        if (data.session) {
+          await setItemAsync("supabase_session", JSON.stringify(data.session));
+        }
+
         // Check if email confirmation is required
         if (data.user.email_confirmed_at) {
           // User can proceed immediately - navigate to post-signup setup

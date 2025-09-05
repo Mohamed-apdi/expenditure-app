@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Stack, router } from "expo-router";
 import { supabase } from "~/lib";
-import { getItemAsync } from "expo-secure-store";
+import { getItemAsync, setItemAsync } from "expo-secure-store";
 import { ActivityIndicator, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 
@@ -20,9 +20,15 @@ export default function OnboardingLayout() {
         });
 
         if (!error) {
-          // ✅ Redirect if already logged in
-          router.replace("/(main)/Dashboard");
-          return;
+          // Check if user has completed onboarding
+          const onboardingComplete = await getItemAsync("onboarding_complete");
+
+          if (onboardingComplete === "true") {
+            // ✅ User completed onboarding - go to dashboard
+            router.replace("/(main)/Dashboard");
+            return;
+          }
+          // ✅ User is logged in but hasn't completed onboarding - continue to onboarding flow
         }
       }
 

@@ -20,6 +20,7 @@ import { decode } from "base64-arraybuffer";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
 import { supabase } from "~/lib";
+import { setItemAsync } from "expo-secure-store";
 import { createProfile, updateProfile } from "~/lib";
 import { StatusBar } from "expo-status-bar";
 
@@ -239,6 +240,9 @@ export default function ProfileSetupScreen() {
         text2: t.profileSetupSuccess,
       });
 
+      // Mark onboarding as complete
+      await setItemAsync("onboarding_complete", "true");
+
       // Navigate to dashboard
       router.replace("/(main)/Dashboard");
     } catch (error: any) {
@@ -257,7 +261,9 @@ export default function ProfileSetupScreen() {
     router.push("/(onboarding)/account-setup");
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
+    // Mark onboarding as complete even when skipping
+    await setItemAsync("onboarding_complete", "true");
     router.replace("/(main)/Dashboard");
   };
 
