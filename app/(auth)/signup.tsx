@@ -377,43 +377,44 @@ export default function SignupScreen() {
       }
 
       if (data.user) {
+        // Create default account for all new users
+        try {
+          const { createAccount } = await import("~/lib");
+
+          const defaultAccount = await createAccount({
+            user_id: data.user.id,
+            account_type: "Accounts",
+            name: "Main Account",
+            amount: 0,
+            description: "Your main account",
+          });
+
+          console.log(
+            "Successfully created default account for new user:",
+            defaultAccount.name
+          );
+
+          Toast.show({
+            type: "success",
+            text1: t.accountCreated,
+            text2: t.defaultAccountCreated,
+          });
+        } catch (accountError) {
+          console.error("Error creating default account:", accountError);
+          // Still show success for user creation, but warn about account
+          Toast.show({
+            type: "success",
+            text1: t.accountCreated,
+            text2: t.pleaseCheckEmail,
+          });
+        }
+
         // Check if email confirmation is required
         if (data.user.email_confirmed_at) {
-          // User can proceed immediately - navigate to post-signup setup first
-          router.replace("/(onboarding)/post-signup-setup");
+          // User can proceed immediately - navigate to post-signup setup
+          router.replace("/(onboarding)/account-setup");
         } else {
-          // Email confirmation required - create default account and go to login
-          try {
-            const { createAccount } = await import("~/lib");
-
-            const defaultAccount = await createAccount({
-              user_id: data.user.id,
-              account_type: "Accounts",
-              name: "Account 1",
-              amount: 0,
-              description: "Default account",
-            });
-
-            console.log(
-              "Successfully created default account for new user:",
-              defaultAccount.name
-            );
-
-            Toast.show({
-              type: "success",
-              text1: t.accountCreated,
-              text2: t.defaultAccountCreated,
-            });
-          } catch (accountError) {
-            console.error("Error creating default account:", accountError);
-            // Still show success for user creation, but warn about account
-            Toast.show({
-              type: "success",
-              text1: t.accountCreated,
-              text2: t.pleaseCheckEmail,
-            });
-          }
-
+          // Email confirmation required - go to login
           router.push("/(auth)/login");
         }
       }
@@ -577,7 +578,7 @@ export default function SignupScreen() {
                       account_type: "Accounts",
                       name: "Main Account",
                       amount: 0,
-                      description: "Main account",
+                      description: "Your main account",
                     });
 
                     console.log("Successfully created:", defaultAccount.name);

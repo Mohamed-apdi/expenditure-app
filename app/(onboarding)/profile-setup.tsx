@@ -253,6 +253,10 @@ export default function ProfileSetupScreen() {
     }
   };
 
+  const handlePrevious = () => {
+    router.push("/(onboarding)/account-setup");
+  };
+
   const handleSkip = () => {
     router.replace("/(main)/Dashboard");
   };
@@ -398,24 +402,51 @@ export default function ProfileSetupScreen() {
                 ) : (
                   <ArrowRight size={20} color="white" />
                 )}
-                <Text className="text-white font-semibold text-xs  ml-2">
+                <Text
+                  className="text-white font-semibold text-lg  ml-2"
+                  numberOfLines={1}
+                  adjustsFontSizeToFit={true}
+                  minimumFontScale={0.8}
+                >
                   {loading ? t.savingProfile : t.saveAndContinue}
                 </Text>
               </TouchableOpacity>
 
-              {/* Skip Button */}
-              <TouchableOpacity
-                onPress={handleSkip}
-                disabled={loading || uploadingImage}
-                className="w-full py-3"
-              >
-                <Text
-                  className="text-center text-base font-medium"
-                  style={{ color: theme.textSecondary }}
+              {/* Previous and Skip Buttons */}
+              <View className="flex-row space-x-4 mt-4 gap-2 justify-between">
+                {/* Previous Button */}
+                <TouchableOpacity
+                  onPress={handlePrevious}
+                  disabled={loading || uploadingImage}
+                  className="flex-1 py-3 rounded-lg border"
+                  style={{
+                    borderColor: theme.border,
+                    backgroundColor: theme.cardBackground,
+                  }}
                 >
-                  {t.skipForNow}
-                </Text>
-              </TouchableOpacity>
+                  <Text
+                    className="text-center text-base font-medium"
+                    style={{ color: theme.text }}
+                  >
+                    {t.previous || "Previous"}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Skip Button */}
+                <TouchableOpacity
+                  onPress={handleSkip}
+                  disabled={loading || uploadingImage}
+                  className="flex-1 py-3 rounded-lg"
+                  style={{ backgroundColor: theme.cardBackground }}
+                >
+                  <Text
+                    className="text-center text-base font-medium"
+                    style={{ color: theme.textSecondary }}
+                  >
+                    {t.skipForNow || "Skip"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>

@@ -13,7 +13,7 @@ import { X, ChevronDown, Check, DollarSign } from "lucide-react-native";
 import { useLanguage } from "~/lib";
 import { useTheme } from "~/lib";
 
-type AccountGroup = {
+type AccountType = {
   id: string;
   name: string;
 };
@@ -22,13 +22,29 @@ type AddAccountProps = {
   visible: boolean;
   onClose: () => void;
   onAddAccount: (account: {
-    account_type: string; // Changed from group_name
+    account_type: string;
     name: string;
     amount: number;
     description?: string;
   }) => void;
-  accountGroups: AccountGroup[];
+  accountGroups?: any[]; // Keep for backward compatibility but use predefined types
 };
+
+// Predefined account types
+const accountTypes: AccountType[] = [
+  { id: "1", name: "Cash" },
+  { id: "2", name: "Accounts" },
+  { id: "3", name: "SIM Card" },
+  { id: "4", name: "Debit Card" },
+  { id: "5", name: "Savings" },
+  { id: "6", name: "Top-Up/Prepaid" },
+  { id: "7", name: "Investments" },
+  { id: "8", name: "Overdrafts" },
+  { id: "9", name: "Loan" },
+  { id: "10", name: "Insurance" },
+  { id: "11", name: "Card" },
+  { id: "12", name: "Others" },
+];
 
 const AddAccount = ({
   visible,
@@ -306,6 +322,9 @@ const AddAccount = ({
                   padding: 24,
                   borderBottomWidth: 1,
                   borderBottomColor: theme.border,
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                 }}
               >
                 <Text
@@ -317,9 +336,12 @@ const AddAccount = ({
                 >
                   {t.selectGroup}
                 </Text>
+                <TouchableOpacity onPress={() => setShowGroupModal(false)}>
+                  <X size={24} color={theme.textMuted} />
+                </TouchableOpacity>
               </View>
               <FlatList
-                data={accountGroups}
+                data={accountTypes}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                   <TouchableOpacity

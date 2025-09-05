@@ -97,7 +97,7 @@ export const LANGUAGES = {
     passwordsDoNotMatch: "Passwords do not match",
     accountCreated: "Account created!",
     defaultAccountCreated:
-      "Default account 'Account 1' has been created for you",
+      "Default account 'Account Main' has been created for you",
     pleaseCheckEmail: "Please check your email to verify your account",
     signupFailed: "Signup failed",
     pleaseFillAllFields: "Please fill in all required fields",

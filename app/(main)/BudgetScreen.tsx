@@ -617,7 +617,7 @@ export default function BudgetScreen() {
                               rotation={0}
                               lineCap="round"
                             >
-                              {(fill) => (
+                              {(fill: number) => (
                                 <Text
                                   style={{
                                     color: theme.text,

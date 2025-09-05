@@ -31,7 +31,7 @@ The Profile Setup Screen (`app/(onboarding)/profile-setup.tsx`) is a new onboard
 
 ### Updated Navigation Flow
 
-1. **Signup Success**: Now redirects to `/(onboarding)/post-signup-setup` first (for account setup)
+1. **Signup Success**: Now redirects to `/(onboarding)/account-setup` first (for account setup)
 2. **Post-Signup Setup**: After creating/renaming accounts or skipping, goes to `/(onboarding)/profile-setup`
 3. **Profile Setup**: Success redirects to `/(main)/Dashboard`
 
