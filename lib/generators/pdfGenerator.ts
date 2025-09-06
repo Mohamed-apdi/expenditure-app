@@ -1,6 +1,7 @@
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
+import * as FileSystem from "expo-file-system";
+import { Platform, Alert } from "react-native";
 
 export interface PDFReportData {
   title: string;
@@ -11,21 +12,26 @@ export interface PDFReportData {
   tables: Array<{ title: string; headers: string[]; rows: string[][] }>;
 }
 
-export const generatePDFReport = async (data: PDFReportData): Promise<string> => {
+export const generatePDFReport = async (
+  data: PDFReportData
+): Promise<string> => {
   const htmlContent = generateHTMLContent(data);
-  
+
   try {
     // Generate PDF using expo-print
-    const { uri } = await Print.printToFileAsync({
+    const { uri: cacheUri } = await Print.printToFileAsync({
       html: htmlContent,
-      base64: false
+      base64: false,
     });
-    
-    console.log('PDF generated successfully at:', uri);
-    return uri;
+
+    console.log("PDF generated successfully at:", cacheUri);
+
+    // Save to local storage based on platform
+    const savedUri = await savePDFToLocalStorage(cacheUri, data.title);
+    return savedUri;
   } catch (error) {
-    console.error('Error generating PDF:', error);
-    throw new Error('Failed to generate PDF report');
+    console.error("Error generating PDF:", error);
+    throw new Error("Failed to generate PDF report");
   }
 };
 
@@ -34,35 +40,82 @@ export const sharePDF = async (fileUri: string) => {
   try {
     if (await Sharing.isAvailableAsync()) {
       await Sharing.shareAsync(fileUri, {
-        mimeType: 'application/pdf',
-        dialogTitle: 'Share PDF Report'
+        mimeType: "application/pdf",
+        dialogTitle: "Share PDF Report",
       });
     } else {
-      console.log('Sharing not available on this platform');
+      console.log("Sharing not available on this platform");
     }
   } catch (error) {
-    console.error('Error sharing PDF:', error);
+    console.error("Error sharing PDF:", error);
+  }
+};
+
+// Function to save PDF to local storage (platform-specific)
+export const savePDFToLocalStorage = async (
+  cacheUri: string,
+  title: string
+): Promise<string> => {
+  try {
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const fileName = `${title.replace(/\s+/g, "_")}_${dateStr}.pdf`;
+
+    if (Platform.OS === "android") {
+      // For Android, use Storage Access Framework to save to Downloads folder
+      const result =
+        await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+
+      if (!result.granted) {
+        // Fallback to documents directory if SAF is not granted
+        return await savePDFToDocuments(cacheUri, fileName);
+      }
+
+      // Type guard: result.granted is true, so directoryUri exists
+      const directoryUri = (result as { granted: true; directoryUri: string })
+        .directoryUri;
+
+      // Create file in user-selected directory
+      const safUri = await FileSystem.StorageAccessFramework.createFileAsync(
+        directoryUri,
+        fileName,
+        "application/pdf"
+      );
+      return safUri;
+    } else {
+      // For iOS, save to documents directory
+      return await savePDFToDocuments(cacheUri, fileName);
+    }
+  } catch (error) {
+    console.error("Error saving PDF to local storage:", error);
+    // Fallback to documents directory
+    return await savePDFToDocuments(
+      cacheUri,
+      `${title.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`
+    );
   }
 };
 
 // Function to save PDF to documents directory
-export const savePDFToDocuments = async (fileUri: string, fileName: string): Promise<string> => {
+export const savePDFToDocuments = async (
+  fileUri: string,
+  fileName: string
+): Promise<string> => {
   try {
     const documentsDir = FileSystem.documentDirectory;
     if (!documentsDir) {
-      throw new Error('Documents directory not available');
+      throw new Error("Documents directory not available");
     }
-    
-    const newUri = `${documentsDir}${fileName}.pdf`;
+
+    const newUri = `${documentsDir}${fileName}`;
     await FileSystem.copyAsync({
       from: fileUri,
-      to: newUri
+      to: newUri,
     });
-    
-    console.log('PDF saved to documents directory:', newUri);
+
+    console.log("PDF saved to documents directory:", newUri);
     return newUri;
   } catch (error) {
-    console.error('Error saving PDF to documents:', error);
+    console.error("Error saving PDF to documents:", error);
     throw error;
   }
 };
@@ -149,7 +202,6 @@ const generateHTMLContent = (data: PDFReportData): string => {
         }
         table {
           width: 100%;
-          border-collapse: collapse;
           margin-bottom: 20px;
         }
         th, td {
@@ -180,41 +232,53 @@ const generateHTMLContent = (data: PDFReportData): string => {
         <div class="header">
           <div class="title">${data.title}</div>
           <div class="subtitle">Financial Report</div>
-          ${data.dateRange ? `<div class="date-range">Period: ${data.dateRange}</div>` : ''}
+          ${data.dateRange ? `<div class="date-range">Period: ${data.dateRange}</div>` : ""}
           <div class="date-range">Generated: ${new Date().toLocaleDateString()}</div>
         </div>
 
         <div class="summary-section">
           <div class="section-title">Summary</div>
           <div class="summary-grid">
-            ${Object.entries(data.summary).map(([key, value]) => `
+            ${data.summary
+              .map(
+                (item) => `
               <div class="summary-card">
-                <div class="summary-label">${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
-                <div class="summary-value">${formatValueForPDF(key, value)}</div>
+                <div class="summary-label">${item.label}</div>
+                <div class="summary-value">${item.value}</div>
               </div>
-            `).join('')}
+            `
+              )
+              .join("")}
           </div>
         </div>
 
-        ${data.tables.map(table => `
+        ${data.tables
+          .map(
+            (table) => `
           <div class="table-container">
             <div class="section-title">${table.title}</div>
             <table>
               <thead>
                 <tr>
-                  ${table.headers.map(header => `<th>${header}</th>`).join('')}
+                  ${table.headers.map((header) => `<th>${header}</th>`).join("")}
                 </tr>
               </thead>
               <tbody>
-                ${table.rows.map(row => `
+                ${table.rows
+                  .map(
+                    (row) => `
                   <tr>
-                    ${row.map(cell => `<td>${cell}</td>`).join('')}
+                    ${row.map((cell) => `<td>${cell}</td>`).join("")}
                   </tr>
-                `).join('')}
+                `
+                  )
+                  .join("")}
               </tbody>
             </table>
           </div>
-        `).join('')}
+        `
+          )
+          .join("")}
 
         <div class="footer">
           <p>Generated by Expenditure App</p>
@@ -226,28 +290,11 @@ const generateHTMLContent = (data: PDFReportData): string => {
   `;
 };
 
-// Helper function to format values for PDF display
-const formatValueForPDF = (key: string, value: any): string => {
-  if (typeof value === 'number') {
-    if (key.includes('amount') || key.includes('cost') || key.includes('balance') || key.includes('budget')) {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-      }).format(value);
-    } else if (key.includes('percentage') || key.includes('progress')) {
-      return `${value.toFixed(1)}%`;
-    } else {
-      return value.toLocaleString();
-    }
-  }
-  return String(value);
-};
-
 // Helper function to format currency for PDF
 export const formatCurrencyForPDF = (amount: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
   }).format(amount);
 };
 
@@ -256,4 +303,18 @@ export const formatPercentageForPDF = (value: number): string => {
   return `${value.toFixed(1)}%`;
 };
 
-
+// Function to get user-friendly save location message
+export const getSaveLocationMessage = (
+  fileUri: string,
+  fileName: string
+): string => {
+  if (Platform.OS === "android") {
+    if (fileUri.includes("content://")) {
+      return `PDF saved to Downloads folder as ${fileName}`;
+    } else {
+      return `PDF saved to app documents as ${fileName}`;
+    }
+  } else {
+    return `PDF saved to app documents as ${fileName}`;
+  }
+};

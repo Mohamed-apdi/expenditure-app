@@ -85,7 +85,8 @@ import {
 } from "~/lib";
 import { generateTransactionReport } from "~/lib/services/transactions";
 import { getCategoryColor, getColorByIndex } from "~/lib";
-import { sharePDF } from "~/lib/";
+import { sharePDF, getSaveLocationMessage } from "~/lib/";
+import { getCSVSaveLocationMessage } from "~/lib/generators/csvGenerator";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
 import { useRouter } from "expo-router";
@@ -702,7 +703,6 @@ export default function Report() {
 
   const handleDownload = async (format: "csv" | "pdf") => {
     try {
-      setLoading(true);
       const startDate = dateRange.startDate.toISOString().split("T")[0];
       const endDate = dateRange.endDate.toISOString().split("T")[0];
 
@@ -710,6 +710,38 @@ export default function Report() {
         Alert.alert(t.error, t.noDataForReport);
         return;
       }
+
+      // Show confirmation dialog
+      const formatUpper = format.toUpperCase();
+      Alert.alert(
+        `Download ${formatUpper}`,
+        `Are you sure you want to download the ${formatUpper} report?`,
+        [
+          {
+            text: t.cancel,
+            style: "cancel",
+          },
+          {
+            text: t.download,
+            onPress: async () => {
+              await performDownload(format, startDate, endDate);
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Error in handleDownload:", error);
+      Alert.alert(t.error, t.somethingWentWrong);
+    }
+  };
+
+  const performDownload = async (
+    format: "csv" | "pdf",
+    startDate: string,
+    endDate: string
+  ) => {
+    try {
+      setLoading(true);
 
       if (format === "pdf") {
         // Generate PDF locally
@@ -719,7 +751,10 @@ export default function Report() {
           startDate && endDate ? { startDate, endDate } : undefined
         );
 
-        Alert.alert(t.pdfGeneratedSuccessfully, t.reportSavedToDevice, [
+        const fileName = `Transactions.pdf`;
+        const saveMessage = getSaveLocationMessage(filePath, fileName);
+
+        Alert.alert(t.pdfGeneratedSuccessfully, saveMessage, [
           {
             text: t.share,
             onPress: async () => {
@@ -734,14 +769,7 @@ export default function Report() {
               }
             },
           },
-          {
-            text: t.openFileManager,
-            onPress: () => {
-              Alert.alert(t.fileLocation, t.pdfSavedToDocuments, [
-                { text: t.ok },
-              ]);
-            },
-          },
+
           {
             text: t.done,
             style: "cancel",
@@ -755,7 +783,10 @@ export default function Report() {
           startDate && endDate ? { startDate, endDate } : undefined
         );
 
-        Alert.alert(t.csvGeneratedSuccessfully, t.reportSavedToDevice, [
+        const fileName = `Transactions.csv`;
+        const saveMessage = getCSVSaveLocationMessage(filePath, fileName);
+
+        Alert.alert(t.csvGeneratedSuccessfully, saveMessage, [
           {
             text: t.share,
             onPress: async () => {
@@ -768,14 +799,6 @@ export default function Report() {
                 console.error("Error sharing CSV:", error);
                 Alert.alert(t.error, t.failedToShare);
               }
-            },
-          },
-          {
-            text: t.openFileManager,
-            onPress: () => {
-              Alert.alert(t.fileLocation, t.csvSavedToDocuments, [
-                { text: t.ok },
-              ]);
             },
           },
           {

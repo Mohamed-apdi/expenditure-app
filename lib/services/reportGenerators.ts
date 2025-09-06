@@ -82,11 +82,14 @@ export const generateLocalCSVReport = async (
             key.includes("balance") ||
             key.includes("cost") ||
             key.includes("saved") ||
-            key.includes("target")
+            key.includes("target") ||
+            key.includes("average")
               ? formatCurrency(value)
               : key.includes("percentage") || key.includes("progress")
                 ? formatPercentage(value)
-                : value.toString(),
+                : key.includes("transaction") && key.includes("total")
+                  ? Math.round(value).toString()
+                  : value.toFixed(2),
         });
       } else {
         csvData.summary.push({
@@ -165,11 +168,14 @@ export const generateLocalPDFReport = async (
             key.includes("balance") ||
             key.includes("cost") ||
             key.includes("saved") ||
-            key.includes("target")
+            key.includes("target") ||
+            key.includes("average")
               ? formatCurrency(value)
               : key.includes("percentage") || key.includes("progress")
                 ? formatPercentage(value)
-                : value.toString(),
+                : key.includes("transaction") && key.includes("total")
+                  ? Math.round(value).toString()
+                  : value.toFixed(2),
         });
       } else {
         pdfData.summary.push({

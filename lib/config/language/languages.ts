@@ -682,7 +682,6 @@ export const LANGUAGES = {
     downloadCSV: "Download CSV",
     downloadPDF: "Download PDF",
     share: "Share",
-    openFileManager: "Open File Manager",
     fileLocation: "File Location",
     pdfSavedToDocuments:
       "Your PDF has been saved to the Documents folder. You can access it through your device's file manager.",
@@ -1394,7 +1393,6 @@ export const LANGUAGES = {
     downloadCSV: "Soo deji CSV",
     downloadPDF: "Soo deji PDF",
     share: "Wadaag",
-    openFileManager: "Fur Maamulaha Faylka",
     fileLocation: "Goobta Faylka",
     pdfSavedToDocuments:
       "PDF-ka waa la kaydiyay goobta Faylka. Waxaad ka heli kartaa maamulaha faylkaaga.",
