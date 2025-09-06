@@ -10,6 +10,7 @@ import {
   Alert,
   PanResponder,
   RefreshControl,
+  Platform,
 } from "react-native";
 import {
   Plus,
@@ -18,9 +19,11 @@ import {
   Edit2,
   Trash2,
   ChevronDown,
+  Calendar,
 } from "lucide-react-native";
 import { CircularProgress } from "react-native-circular-progress";
 import { SafeAreaView } from "react-native-safe-area-context";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import SubscriptionsScreen from "../components/SubscriptionsScreen";
 import SavingsScreen from "../components/SavingsScreen";
 import { supabase } from "~/lib";
@@ -40,6 +43,7 @@ import {
 } from "~/lib";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
+import { formatDate } from "~/lib";
 
 import Investments from "../components/Investments";
 import Debt_Loan from "../components/Debt_Loan";
@@ -159,6 +163,18 @@ export default function BudgetScreen() {
   const [newCategory, setNewCategory] = useState("");
   const [newAllocated, setNewAllocated] = useState("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [budgetPeriod, setBudgetPeriod] = useState("this_month");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
+  const [isGlobalBudget, setIsGlobalBudget] = useState(false);
+  const [budgetAlertsEnabled, setBudgetAlertsEnabled] = useState(true);
+  const [isInsightsModalVisible, setIsInsightsModalVisible] = useState(false);
+  const [selectedBudgetForInsights, setSelectedBudgetForInsights] =
+    useState<any>(null);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [datePickerMode, setDatePickerMode] = useState<"start" | "end">(
+    "start"
+  );
 
   // Fetch budgets and accounts from database
   const fetchData = async () => {
@@ -210,14 +226,18 @@ export default function BudgetScreen() {
   }, []);
 
   const openAddModal = () => {
-    if (accounts.length === 0) {
+    if (accounts.length === 0 && !isGlobalBudget) {
       Alert.alert(t.noAccounts, t.createAccountFirst);
       return;
     }
     setCurrentBudget(null);
     setNewCategory("");
     setNewAllocated("");
-    setSelectedAccount(accounts[0]); // Set default account
+    setBudgetPeriod("this_month");
+    setCustomStartDate("");
+    setCustomEndDate("");
+    setIsGlobalBudget(false);
+    setSelectedAccount(accounts.length > 0 ? accounts[0] : null); // Set default account
     setIsModalVisible(true);
   };
 
@@ -225,6 +245,8 @@ export default function BudgetScreen() {
     setCurrentBudget(budget);
     setNewCategory(budget.category);
     setNewAllocated(budget.amount.toString());
+    setBudgetPeriod(budget.period || "this_month");
+    setIsGlobalBudget(budget.account_id === null);
 
     // Find and set the account for this budget
     const budgetAccount =
@@ -234,13 +256,44 @@ export default function BudgetScreen() {
     setIsModalVisible(true);
   };
 
+  const openInsightsModal = (budget: any) => {
+    setSelectedBudgetForInsights(budget);
+    setIsInsightsModalVisible(true);
+  };
+
+  // Date picker functions
+  const openDatePicker = (mode: "start" | "end") => {
+    setDatePickerMode(mode);
+    setDatePickerVisible(true);
+  };
+
+  const onDismiss = () => setDatePickerVisible(false);
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === "android") {
+      setDatePickerVisible(false);
+    }
+
+    if (selectedDate) {
+      if (datePickerMode === "start") {
+        setCustomStartDate(selectedDate.toISOString().split("T")[0]);
+      } else {
+        setCustomEndDate(selectedDate.toISOString().split("T")[0]);
+      }
+    }
+  };
+
+  const confirmIOSDate = () => {
+    setDatePickerVisible(false);
+  };
+
   const handleSaveBudget = async () => {
     if (!newCategory.trim() || !newAllocated.trim()) {
       Alert.alert(t.missingInfo, t.pleaseFillCategoryAndAmount);
       return;
     }
 
-    if (!selectedAccount) {
+    if (!isGlobalBudget && !selectedAccount) {
       Alert.alert(t.selectAccount, t.selectAccountForBudget);
       return;
     }
@@ -250,29 +303,52 @@ export default function BudgetScreen() {
       return;
     }
 
+    // Validate custom date range if selected
+    if (budgetPeriod === "custom") {
+      if (!customStartDate || !customEndDate) {
+        Alert.alert(t.missingInfo, t.pleaseSelectDateRange);
+        return;
+      }
+      if (new Date(customStartDate) >= new Date(customEndDate)) {
+        Alert.alert(t.error, t.endDateMustBeAfterStartDate);
+        return;
+      }
+    }
+
     try {
+      const budgetData = {
+        category: newCategory,
+        amount: parseFloat(newAllocated),
+        period: budgetPeriod as
+          | "this_week"
+          | "this_month"
+          | "next_month"
+          | "this_year"
+          | "custom",
+        account_id: isGlobalBudget ? undefined : selectedAccount?.id,
+        start_date:
+          budgetPeriod === "custom"
+            ? customStartDate
+            : new Date().toISOString().split("T")[0],
+        end_date: budgetPeriod === "custom" ? customEndDate : undefined,
+        is_active: true,
+      };
+
       if (currentBudget) {
         // Update existing budget
-        const updatedBudget = await updateBudget(currentBudget.id, {
-          category: newCategory,
-          amount: parseFloat(newAllocated),
-          account_id: selectedAccount.id,
-        });
+        const updatedBudget = await updateBudget(currentBudget.id, budgetData);
         setBudgets((prev) =>
           prev.map((b) => (b.id === currentBudget.id ? updatedBudget : b))
         );
         Alert.alert(t.success, t.budgetUpdated);
       } else {
         // Add new budget
-        const newBudget = await addBudget({
+        const newBudgetData = {
           user_id: userId,
-          account_id: selectedAccount.id,
-          category: newCategory,
-          amount: parseFloat(newAllocated),
-          period: "monthly",
-          start_date: new Date().toISOString().split("T")[0],
-          is_active: true,
-        });
+          ...budgetData,
+          account_id: isGlobalBudget ? undefined : selectedAccount?.id || "",
+        };
+        const newBudget = await addBudget(newBudgetData as any);
         setBudgets((prev) => [...prev, newBudget]);
         Alert.alert(t.success, t.budgetAdded);
       }
@@ -520,9 +596,36 @@ export default function BudgetScreen() {
                   <View className="flex-row justify-between items-center">
                     <View className="flex-row items-center">
                       <Text style={{ color: theme.text, fontSize: 14 }}>
-                        {t.budgetAlertsEnabled}
+                        Budget Alerts
                       </Text>
                     </View>
+                    <TouchableOpacity
+                      style={{
+                        width: 50,
+                        height: 30,
+                        borderRadius: 15,
+                        backgroundColor: budgetAlertsEnabled
+                          ? theme.primary
+                          : theme.border,
+                        alignItems: budgetAlertsEnabled
+                          ? "flex-end"
+                          : "flex-start",
+                        justifyContent: "center",
+                        paddingHorizontal: 2,
+                      }}
+                      onPress={() =>
+                        setBudgetAlertsEnabled(!budgetAlertsEnabled)
+                      }
+                    >
+                      <View
+                        style={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: 13,
+                          backgroundColor: theme.primaryText,
+                        }}
+                      />
+                    </TouchableOpacity>
                   </View>
                   <Text
                     style={{
@@ -531,7 +634,7 @@ export default function BudgetScreen() {
                       marginTop: 4,
                     }}
                   >
-                    {t.budgetAlertsDescription}
+                    Get notified when you're close to or over your budget limits
                   </Text>
                 </View>
 
@@ -557,7 +660,7 @@ export default function BudgetScreen() {
                       const remaining = progress.remaining;
 
                       return (
-                        <View
+                        <TouchableOpacity
                           key={budget.id}
                           style={{
                             width: "47%",
@@ -568,6 +671,7 @@ export default function BudgetScreen() {
                             borderWidth: 1,
                             borderColor: theme.border,
                           }}
+                          onPress={() => openInsightsModal(budget)}
                         >
                           <View className="flex-row justify-between gap-2 items-center mb-2">
                             <Text
@@ -593,17 +697,48 @@ export default function BudgetScreen() {
                             </View>
                           </View>
 
-                          {budget.account && (
-                            <Text
-                              style={{
-                                color: theme.textSecondary,
-                                fontSize: 12,
-                                marginBottom: 8,
-                              }}
-                            >
-                              {budget.account.name}
-                            </Text>
-                          )}
+                          <View style={{ marginBottom: 8 }}>
+                            {budget.account ? (
+                              <Text
+                                style={{
+                                  color: theme.textSecondary,
+                                  fontSize: 12,
+                                }}
+                              >
+                                {budget.account.name}
+                              </Text>
+                            ) : (
+                              <Text
+                                style={{
+                                  color: theme.primary,
+                                  fontSize: 12,
+                                  fontWeight: "500",
+                                }}
+                              >
+                                🌐 Global Budget
+                              </Text>
+                            )}
+                            {budget.period &&
+                              budget.period !== "this_month" && (
+                                <Text
+                                  style={{
+                                    color: theme.textSecondary,
+                                    fontSize: 10,
+                                    marginTop: 2,
+                                  }}
+                                >
+                                  {budget.period === "this_week"
+                                    ? "This Week"
+                                    : budget.period === "next_month"
+                                      ? "Next Month"
+                                      : budget.period === "this_year"
+                                        ? "This Year"
+                                        : budget.period === "custom"
+                                          ? "Custom Period"
+                                          : budget.period}
+                                </Text>
+                              )}
+                          </View>
 
                           <View
                             style={{ alignItems: "center", marginVertical: 8 }}
@@ -691,7 +826,7 @@ export default function BudgetScreen() {
                               </Text>
                             </View>
                           </View>
-                        </View>
+                        </TouchableOpacity>
                       );
                     })}
                   </View>
@@ -813,77 +948,264 @@ export default function BudgetScreen() {
                 )}
               </View>
 
+              {/* Global Budget Toggle */}
               <View className="mb-4">
-                <Text style={{ color: theme.text, marginBottom: 4 }}>
-                  {t.account}
-                </Text>
                 <TouchableOpacity
                   style={{
-                    borderWidth: 1,
-                    borderColor: theme.border,
-                    borderRadius: 8,
-                    padding: 12,
                     flexDirection: "row",
-                    justifyContent: "space-between",
                     alignItems: "center",
+                    padding: 12,
+                    backgroundColor: isGlobalBudget
+                      ? `${theme.primary}20`
+                      : theme.background,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: isGlobalBudget ? theme.primary : theme.border,
                   }}
-                  onPress={() => setShowAccountDropdown(!showAccountDropdown)}
+                  onPress={() => {
+                    setIsGlobalBudget(!isGlobalBudget);
+                    if (!isGlobalBudget) {
+                      setSelectedAccount(null);
+                    } else if (accounts.length > 0) {
+                      setSelectedAccount(accounts[0]);
+                    }
+                  }}
                 >
-                  <Text
-                    style={{
-                      color: selectedAccount ? theme.text : theme.textMuted,
-                    }}
-                  >
-                    {selectedAccount ? selectedAccount.name : t.selectAccount}
-                  </Text>
-                  <ChevronDown size={16} color={theme.textMuted} />
-                </TouchableOpacity>
-
-                {showAccountDropdown && (
                   <View
                     style={{
-                      marginTop: 8,
+                      width: 20,
+                      height: 20,
+                      borderRadius: 10,
+                      borderWidth: 2,
+                      borderColor: isGlobalBudget
+                        ? theme.primary
+                        : theme.border,
+                      backgroundColor: isGlobalBudget
+                        ? theme.primary
+                        : "transparent",
+                      marginRight: 12,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {isGlobalBudget && (
+                      <Text style={{ color: theme.primaryText, fontSize: 12 }}>
+                        ✓
+                      </Text>
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: theme.text, fontWeight: "500" }}>
+                      🌐 Global Budget
+                    </Text>
+                    <Text style={{ color: theme.textSecondary, fontSize: 12 }}>
+                      Track spending across all accounts
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+
+              {/* Account Selection - Only show if not global budget */}
+              {!isGlobalBudget && (
+                <View className="mb-4">
+                  <Text style={{ color: theme.text, marginBottom: 4 }}>
+                    {t.account}
+                  </Text>
+                  <TouchableOpacity
+                    style={{
                       borderWidth: 1,
                       borderColor: theme.border,
                       borderRadius: 8,
-                      backgroundColor: theme.cardBackground,
-                      maxHeight: 160,
+                      padding: 12,
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
                     }}
+                    onPress={() => setShowAccountDropdown(!showAccountDropdown)}
                   >
-                    <ScrollView>
-                      {accounts.map((account) => (
-                        <TouchableOpacity
-                          key={account.id}
-                          style={{
-                            padding: 12,
-                            borderBottomWidth: 1,
-                            borderBottomColor: theme.border,
-                            backgroundColor:
-                              selectedAccount?.id === account.id
-                                ? `${theme.primary}20`
-                                : "transparent",
-                          }}
-                          onPress={() => {
-                            setSelectedAccount(account);
-                            setShowAccountDropdown(false);
-                          }}
-                        >
-                          <Text
-                            style={{ color: theme.text, fontWeight: "500" }}
+                    <Text
+                      style={{
+                        color: selectedAccount ? theme.text : theme.textMuted,
+                      }}
+                    >
+                      {selectedAccount ? selectedAccount.name : t.selectAccount}
+                    </Text>
+                    <ChevronDown size={16} color={theme.textMuted} />
+                  </TouchableOpacity>
+
+                  {showAccountDropdown && (
+                    <View
+                      style={{
+                        marginTop: 8,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        borderRadius: 8,
+                        backgroundColor: theme.cardBackground,
+                        maxHeight: 160,
+                      }}
+                    >
+                      <ScrollView>
+                        {accounts.map((account) => (
+                          <TouchableOpacity
+                            key={account.id}
+                            style={{
+                              padding: 12,
+                              borderBottomWidth: 1,
+                              borderBottomColor: theme.border,
+                              backgroundColor:
+                                selectedAccount?.id === account.id
+                                  ? `${theme.primary}20`
+                                  : "transparent",
+                            }}
+                            onPress={() => {
+                              setSelectedAccount(account);
+                              setShowAccountDropdown(false);
+                            }}
                           >
-                            {account.name}
-                          </Text>
-                          <Text
-                            style={{ color: theme.textSecondary, fontSize: 14 }}
-                          >
-                            {account.account_type}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
-                  </View>
-                )}
+                            <Text
+                              style={{ color: theme.text, fontWeight: "500" }}
+                            >
+                              {account.name}
+                            </Text>
+                            <Text
+                              style={{
+                                color: theme.textSecondary,
+                                fontSize: 14,
+                              }}
+                            >
+                              {account.account_type}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* Budget Period Selection */}
+              <View className="mb-4">
+                <Text style={{ color: theme.text, marginBottom: 4 }}>
+                  Budget Period
+                </Text>
+                <View
+                  style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                >
+                  {[
+                    { key: "this_week", label: "This Week" },
+                    { key: "this_month", label: "This Month" },
+                    { key: "next_month", label: "Next Month" },
+                    { key: "this_year", label: "This Year" },
+                    { key: "custom", label: "Custom Range" },
+                  ].map((period) => (
+                    <TouchableOpacity
+                      key={period.key}
+                      style={{
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
+                        borderRadius: 20,
+                        backgroundColor:
+                          budgetPeriod === period.key
+                            ? theme.primary
+                            : theme.background,
+                        borderWidth: 1,
+                        borderColor:
+                          budgetPeriod === period.key
+                            ? theme.primary
+                            : theme.border,
+                      }}
+                      onPress={() => setBudgetPeriod(period.key)}
+                    >
+                      <Text
+                        style={{
+                          color:
+                            budgetPeriod === period.key
+                              ? theme.primaryText
+                              : theme.text,
+                          fontWeight: "500",
+                        }}
+                      >
+                        {period.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
+
+              {/* Custom Date Range - Only show if custom period is selected */}
+              {budgetPeriod === "custom" && (
+                <View className="mb-4">
+                  <Text style={{ color: theme.text, marginBottom: 8 }}>
+                    Custom Date Range
+                  </Text>
+                  <View className="flex-row justify-between items-center gap-2">
+                    <TouchableOpacity
+                      style={{
+                        flex: 1,
+                        backgroundColor: theme.background,
+                        padding: 12,
+                        borderRadius: 8,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginRight: 8,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                      }}
+                      onPress={() => openDatePicker("start")}
+                    >
+                      <Calendar size={14} color="#3b82f6" />
+                      <Text
+                        style={{
+                          marginLeft: 8,
+                          color: "#1d4ed8",
+                          fontSize: 12,
+                          fontWeight: "500",
+                        }}
+                        numberOfLines={1}
+                        minimumFontScale={0.5}
+                        adjustsFontSizeToFit={true}
+                      >
+                        From:{" "}
+                        {customStartDate
+                          ? formatDate(new Date(customStartDate).toISOString())
+                          : "Select Start Date"}
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={{
+                        flex: 1,
+                        backgroundColor: theme.background,
+                        padding: 12,
+                        borderRadius: 8,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                      }}
+                      onPress={() => openDatePicker("end")}
+                    >
+                      <Calendar size={14} color="#8b5cf6" />
+                      <Text
+                        style={{
+                          marginLeft: 8,
+                          color: "#7c3aed",
+                          fontSize: 12,
+                          fontWeight: "500",
+                        }}
+                        numberOfLines={1}
+                        minimumFontScale={0.5}
+                        adjustsFontSizeToFit={true}
+                      >
+                        To:{" "}
+                        {customEndDate
+                          ? formatDate(new Date(customEndDate).toISOString())
+                          : "Select End Date"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
 
               <View className="mb-4">
                 <Text style={{ color: theme.text, marginBottom: 4 }}>
@@ -922,6 +1244,402 @@ export default function BudgetScreen() {
             </View>
           </View>
         </Modal>
+
+        {/* Budget Insights Modal */}
+        <Modal
+          visible={isInsightsModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setIsInsightsModalVisible(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              backgroundColor: "rgba(0, 0, 0, 0.5)",
+            }}
+          >
+            <View
+              style={{
+                width: "92%",
+                maxHeight: "80%",
+                backgroundColor: theme.cardBackground,
+                borderRadius: 12,
+                padding: 24,
+              }}
+            >
+              <View className="flex-row justify-between items-center mb-4">
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontWeight: "bold",
+                    fontSize: 18,
+                  }}
+                >
+                  📊 Budget Insights
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setIsInsightsModalVisible(false)}
+                >
+                  <X size={24} color={theme.textMuted} />
+                </TouchableOpacity>
+              </View>
+
+              {selectedBudgetForInsights && (
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {/* Budget Details */}
+                  <View
+                    style={{
+                      padding: 16,
+                      backgroundColor: theme.background,
+                      borderRadius: 8,
+                      marginBottom: 16,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: theme.text,
+                        fontWeight: "bold",
+                        fontSize: 16,
+                        marginBottom: 8,
+                      }}
+                    >
+                      {getCategoryLabel(selectedBudgetForInsights.category)}
+                    </Text>
+
+                    <View className="flex-row justify-between items-center mb-2">
+                      <Text
+                        style={{ color: theme.textSecondary, fontSize: 14 }}
+                      >
+                        Budget Amount
+                      </Text>
+                      <Text style={{ color: theme.text, fontWeight: "500" }}>
+                        ${selectedBudgetForInsights.amount.toFixed(2)}
+                      </Text>
+                    </View>
+
+                    <View className="flex-row justify-between items-center mb-2">
+                      <Text
+                        style={{ color: theme.textSecondary, fontSize: 14 }}
+                      >
+                        Period
+                      </Text>
+                      <Text style={{ color: theme.text, fontWeight: "500" }}>
+                        {selectedBudgetForInsights.period === "this_week"
+                          ? "This Week"
+                          : selectedBudgetForInsights.period === "this_month"
+                            ? "This Month"
+                            : selectedBudgetForInsights.period === "next_month"
+                              ? "Next Month"
+                              : selectedBudgetForInsights.period === "this_year"
+                                ? "This Year"
+                                : selectedBudgetForInsights.period === "custom"
+                                  ? "Custom Period"
+                                  : selectedBudgetForInsights.period}
+                      </Text>
+                    </View>
+
+                    <View className="flex-row justify-between items-center">
+                      <Text
+                        style={{ color: theme.textSecondary, fontSize: 14 }}
+                      >
+                        Account
+                      </Text>
+                      <Text style={{ color: theme.text, fontWeight: "500" }}>
+                        {selectedBudgetForInsights.account
+                          ? selectedBudgetForInsights.account.name
+                          : "🌐 Global Budget"}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Progress Details */}
+                  {(() => {
+                    const progress = getCategoryProgress(
+                      selectedBudgetForInsights.category
+                    );
+                    return (
+                      <View
+                        style={{
+                          padding: 16,
+                          backgroundColor: theme.background,
+                          borderRadius: 8,
+                          marginBottom: 16,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: theme.text,
+                            fontWeight: "bold",
+                            fontSize: 16,
+                            marginBottom: 12,
+                          }}
+                        >
+                          Spending Progress
+                        </Text>
+
+                        <View
+                          style={{ alignItems: "center", marginBottom: 16 }}
+                        >
+                          <CircularProgress
+                            size={120}
+                            width={12}
+                            fill={Math.min(progress.percentage, 100)}
+                            tintColor={getProgressColor(progress.percentage)}
+                            backgroundColor="#e5e7eb"
+                            rotation={0}
+                            lineCap="round"
+                          >
+                            {(fill: number) => (
+                              <Text
+                                style={{
+                                  color: theme.text,
+                                  fontWeight: "bold",
+                                  fontSize: 24,
+                                }}
+                              >
+                                {Math.round(fill)}%
+                              </Text>
+                            )}
+                          </CircularProgress>
+                        </View>
+
+                        <View className="flex-row justify-between items-center mb-2">
+                          <Text
+                            style={{ color: theme.textSecondary, fontSize: 14 }}
+                          >
+                            Spent
+                          </Text>
+                          <Text
+                            style={{ color: theme.text, fontWeight: "500" }}
+                          >
+                            ${progress.spent.toFixed(2)}
+                          </Text>
+                        </View>
+
+                        <View className="flex-row justify-between items-center mb-2">
+                          <Text
+                            style={{ color: theme.textSecondary, fontSize: 14 }}
+                          >
+                            Budget
+                          </Text>
+                          <Text
+                            style={{ color: theme.text, fontWeight: "500" }}
+                          >
+                            ${selectedBudgetForInsights.amount.toFixed(2)}
+                          </Text>
+                        </View>
+
+                        <View className="flex-row justify-between items-center">
+                          <Text
+                            style={{ color: theme.textSecondary, fontSize: 14 }}
+                          >
+                            Remaining
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              fontWeight: "500",
+                              color:
+                                progress.remaining < 0 ? "#ef4444" : "#10b981",
+                            }}
+                          >
+                            ${Math.abs(progress.remaining).toFixed(2)}{" "}
+                            {progress.remaining < 0 ? "Over" : "Left"}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })()}
+
+                  {/* Budget Health */}
+                  <View
+                    style={{
+                      padding: 16,
+                      backgroundColor: theme.background,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: theme.text,
+                        fontWeight: "bold",
+                        fontSize: 16,
+                        marginBottom: 12,
+                      }}
+                    >
+                      Budget Health
+                    </Text>
+
+                    {(() => {
+                      const progress = getCategoryProgress(
+                        selectedBudgetForInsights.category
+                      );
+                      const isHealthy = progress.percentage <= 100;
+                      const isWarning =
+                        progress.percentage > 75 && progress.percentage <= 100;
+                      const isOverBudget = progress.percentage > 100;
+
+                      return (
+                        <View>
+                          <View className="flex-row justify-between items-center mb-4">
+                            <Text
+                              style={{
+                                color: theme.textSecondary,
+                                fontSize: 14,
+                              }}
+                            >
+                              Status
+                            </Text>
+                            <Text
+                              style={{
+                                color: isHealthy ? "#10b981" : "#ef4444",
+                                fontSize: 14,
+                                fontWeight: "500",
+                              }}
+                            >
+                              {isOverBudget
+                                ? "⚠️ Over Budget"
+                                : isWarning
+                                  ? "⚠️ Close to Limit"
+                                  : "✅ Healthy"}
+                            </Text>
+                          </View>
+
+                          <Text
+                            style={{ color: theme.textSecondary, fontSize: 12 }}
+                          >
+                            {isOverBudget
+                              ? `You've exceeded your budget by $${Math.abs(progress.remaining).toFixed(2)}`
+                              : isWarning
+                                ? `You've used ${Math.round(progress.percentage)}% of your budget`
+                                : `You have $${progress.remaining.toFixed(2)} remaining in your budget`}
+                          </Text>
+                        </View>
+                      );
+                    })()}
+                  </View>
+                </ScrollView>
+              )}
+            </View>
+          </View>
+        </Modal>
+
+        {/* Date Picker */}
+        {datePickerVisible && (
+          <>
+            {Platform.OS === "ios" ? (
+              <Modal
+                transparent={true}
+                animationType="slide"
+                visible={datePickerVisible}
+                onRequestClose={onDismiss}
+              >
+                <View
+                  style={{
+                    flex: 1,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    backgroundColor: "rgba(0, 0, 0, 0.5)",
+                  }}
+                >
+                  <View
+                    style={{
+                      width: "90%",
+                      backgroundColor: theme.cardBackground,
+                      borderRadius: 12,
+                      padding: 20,
+                    }}
+                  >
+                    <View className="flex-row justify-between items-center mb-4">
+                      <Text
+                        style={{
+                          color: theme.text,
+                          fontWeight: "bold",
+                          fontSize: 18,
+                        }}
+                      >
+                        Select {datePickerMode === "start" ? "Start" : "End"}{" "}
+                        Date
+                      </Text>
+                      <TouchableOpacity onPress={onDismiss}>
+                        <X size={24} color={theme.textMuted} />
+                      </TouchableOpacity>
+                    </View>
+
+                    <DateTimePicker
+                      value={
+                        datePickerMode === "start"
+                          ? customStartDate
+                            ? new Date(customStartDate)
+                            : new Date()
+                          : customEndDate
+                            ? new Date(customEndDate)
+                            : new Date()
+                      }
+                      mode="date"
+                      display="spinner"
+                      onChange={onDateChange}
+                      style={{ backgroundColor: theme.background }}
+                    />
+
+                    <View className="flex-row gap-2 mt-4">
+                      <TouchableOpacity
+                        style={{
+                          flex: 1,
+                          backgroundColor: theme.border,
+                          padding: 12,
+                          borderRadius: 8,
+                          alignItems: "center",
+                        }}
+                        onPress={onDismiss}
+                      >
+                        <Text style={{ color: theme.text, fontWeight: "500" }}>
+                          Cancel
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={{
+                          flex: 1,
+                          backgroundColor: theme.primary,
+                          padding: 12,
+                          borderRadius: 8,
+                          alignItems: "center",
+                        }}
+                        onPress={confirmIOSDate}
+                      >
+                        <Text
+                          style={{
+                            color: theme.primaryText,
+                            fontWeight: "500",
+                          }}
+                        >
+                          Confirm
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </Modal>
+            ) : (
+              <DateTimePicker
+                value={
+                  datePickerMode === "start"
+                    ? customStartDate
+                      ? new Date(customStartDate)
+                      : new Date()
+                    : customEndDate
+                      ? new Date(customEndDate)
+                      : new Date()
+                }
+                mode="date"
+                display="default"
+                onChange={onDateChange}
+              />
+            )}
+          </>
+        )}
       </View>
     </SafeAreaView>
   );

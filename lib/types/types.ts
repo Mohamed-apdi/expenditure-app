@@ -39,10 +39,10 @@ export interface Account {
 export type Budget = {
   id: string;
   user_id: string;
-  account_id: string;
+  account_id?: string; // Optional for global budgets
   category: string;
   amount: number;
-  period: "weekly" | "monthly" | "yearly";
+  period: "this_week" | "this_month" | "next_month" | "this_year" | "custom";
   start_date: string;
   end_date?: string;
   is_active: boolean;

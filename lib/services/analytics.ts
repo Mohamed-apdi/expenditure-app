@@ -100,13 +100,13 @@ export const getExpensesByCategory = async (
     if (startDate) query = query.gte("date", startDate);
     if (endDate) query = query.lte("date", endDate);
 
-    const { data: transactions } = query;
+    const { data: transactions } = await query;
 
     if (!transactions) return [];
 
     const categoryMap = new Map<string, { amount: number; count: number }>();
 
-    transactions.forEach((transaction) => {
+    transactions.forEach((transaction: any) => {
       const current = categoryMap.get(transaction.category) || {
         amount: 0,
         count: 0,
@@ -192,7 +192,7 @@ export const getBudgetProgress = async (
   try {
     const { data: budgets } = await supabase
       .from("budgets")
-      .select("category, amount")
+      .select("category, amount, period, start_date, end_date, account_id")
       .eq("user_id", userId)
       .eq("is_active", true);
 
@@ -201,12 +201,72 @@ export const getBudgetProgress = async (
     const budgetProgress: BudgetProgress[] = [];
 
     for (const budget of budgets) {
-      const { data: transactions } = await supabase
+      // Calculate date range based on budget period
+      let startDate: string;
+      let endDate: string;
+
+      if (budget.period === "custom" && budget.start_date && budget.end_date) {
+        startDate = budget.start_date;
+        endDate = budget.end_date;
+      } else if (budget.period === "this_week") {
+        const now = new Date();
+        const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+        const endOfWeek = new Date(
+          now.setDate(now.getDate() - now.getDay() + 6)
+        );
+        startDate = startOfWeek.toISOString().split("T")[0];
+        endDate = endOfWeek.toISOString().split("T")[0];
+      } else if (budget.period === "this_month") {
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        startDate = startOfMonth.toISOString().split("T")[0];
+        endDate = endOfMonth.toISOString().split("T")[0];
+      } else if (budget.period === "next_month") {
+        const now = new Date();
+        const startOfNextMonth = new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          1
+        );
+        const endOfNextMonth = new Date(
+          now.getFullYear(),
+          now.getMonth() + 2,
+          0
+        );
+        startDate = startOfNextMonth.toISOString().split("T")[0];
+        endDate = endOfNextMonth.toISOString().split("T")[0];
+      } else if (budget.period === "this_year") {
+        const now = new Date();
+        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        const endOfYear = new Date(now.getFullYear(), 11, 31);
+        startDate = startOfYear.toISOString().split("T")[0];
+        endDate = endOfYear.toISOString().split("T")[0];
+      } else {
+        // Default to this month for backward compatibility
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        startDate = startOfMonth.toISOString().split("T")[0];
+        endDate = endOfMonth.toISOString().split("T")[0];
+      }
+
+      // Build query for transactions
+      let query = supabase
         .from("transactions")
         .select("amount")
         .eq("user_id", userId)
         .eq("category", budget.category)
-        .eq("type", "expense"); // Use transactions table with type = 'expense'
+        .eq("type", "expense")
+        .gte("date", startDate)
+        .lte("date", endDate);
+
+      // If budget is not global (has account_id), filter by account
+      if (budget.account_id) {
+        query = query.eq("account_id", budget.account_id);
+      }
+
+      const { data: transactions } = await query;
 
       const spent =
         transactions?.reduce(
