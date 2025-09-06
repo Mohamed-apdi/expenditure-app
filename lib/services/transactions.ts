@@ -479,3 +479,78 @@ export const getRecurringTransactions = async (
 
   return data || [];
 };
+
+export const generateTransactionReport = async (
+  userId: string,
+  startDate: string,
+  endDate: string
+) => {
+  const { data: transactions } = await supabase
+    .from("transactions")
+    .select("*")
+    .eq("user_id", userId)
+    .gte("date", startDate)
+    .lte("date", endDate);
+
+  let categoryBreakdown: Record<
+    string,
+    { amount: number; count: number; transactionIds: string[] }
+  > = {};
+  let dailyTrends: Record<string, number> = {};
+  let monthlyTrends: Record<string, number> = {};
+  let totalIncome = 0;
+  let totalExpenses = 0;
+
+  if (transactions) {
+    transactions.forEach((tx) => {
+      const amount = tx.amount; // Keep original amount with sign
+      const category = tx.category;
+      const date = new Date(tx.date);
+
+      // Separate income and expenses
+      if (tx.type === "income") {
+        totalIncome += Math.abs(amount);
+      } else if (tx.type === "expense") {
+        totalExpenses += Math.abs(amount);
+      }
+
+      // For category breakdown, track amount, count, and transaction IDs
+      if (!categoryBreakdown[category]) {
+        categoryBreakdown[category] = {
+          amount: 0,
+          count: 0,
+          transactionIds: [],
+        };
+      }
+
+      categoryBreakdown[category].amount += Math.abs(amount);
+      categoryBreakdown[category].count += 1;
+      categoryBreakdown[category].transactionIds.push(tx.id);
+
+      const dayKey = date.toISOString().slice(0, 10);
+      dailyTrends[dayKey] = (dailyTrends[dayKey] || 0) + Math.abs(amount);
+
+      const monthKey = date.toISOString().slice(0, 7);
+      monthlyTrends[monthKey] =
+        (monthlyTrends[monthKey] || 0) + Math.abs(amount);
+    });
+  }
+
+  const totalAmount = totalIncome - totalExpenses; // Net amount
+  const totalTransactions = transactions?.length || 0;
+  const avgTransaction =
+    totalTransactions > 0
+      ? (totalIncome + totalExpenses) / totalTransactions
+      : 0;
+
+  return {
+    categoryBreakdown,
+    dailyTrends,
+    monthlyTrends,
+    totalAmount,
+    totalIncome,
+    totalExpenses,
+    totalTransactions,
+    avgTransaction,
+  };
+};

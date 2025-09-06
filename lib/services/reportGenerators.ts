@@ -1,20 +1,7 @@
-import { getItemAsync } from "expo-secure-store";
+import { generateCSVReport } from "../generators/csvGenerator";
+import { generatePDFReport } from "../generators/pdfGenerator";
 
-// Report API functions
-export const REAL_API_URL = "https://expenditure-api-ez17.onrender.com";
-
-// Health check function to test API connectivity
-export const testAPIConnectivity = async () => {
-  try {
-    const response = await fetch(`${REAL_API_URL}/`);
-    console.log("Health check response:", response.status, response.statusText);
-    return response.ok;
-  } catch (error) {
-    console.error("Health check failed:", error);
-    return false;
-  }
-};
-
+// Transaction Report Type
 export interface TransactionReport {
   summary: {
     total_amount: number;
@@ -29,6 +16,7 @@ export interface TransactionReport {
       amount: number;
       percentage: number;
       count: number;
+      transactionIds?: string[];
     };
   };
   daily_trends: Array<{
@@ -42,88 +30,35 @@ export interface TransactionReport {
   transactions: any[];
 }
 
-// Generic API call helper
-const apiCall = async (endpoint: string, params: Record<string, any> = {}) => {
-  try {
-    const token = await getItemAsync("supabase_session");
-    if (!token) {
-      throw new Error("No authentication token found");
-    }
-
-    const sessionData = JSON.parse(token);
-    const accessToken = sessionData.access_token;
-
-    // Build query string
-    const queryParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        queryParams.append(key, value.toString());
-      }
-    });
-
-    const url = `${REAL_API_URL}${endpoint}${queryParams.toString() ? "?" + queryParams.toString() : ""}`;
-    console.log("Making API call to:", url);
-
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    console.log("API response status:", response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("API error response:", errorText);
-      throw new Error(`API call failed: ${response.status} - ${errorText}`);
-    }
-
-    const data = await response.json();
-    console.log("API response data:", data);
-    return data;
-  } catch (error) {
-    console.error("API call error:", error);
-    throw error;
-  }
+// Utility functions
+export const formatCurrency = (
+  amount: number,
+  currency: string = "USD"
+): string => {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency,
+  }).format(amount);
 };
 
-export const getTransactionReports = async (
-  accountId?: string,
-  startDate?: string,
-  endDate?: string
-): Promise<TransactionReport> => {
-  const params: Record<string, any> = {};
-  if (accountId) params.account_id = accountId;
-  if (startDate) params.start_date = startDate;
-  if (endDate) params.end_date = endDate;
-
-  return apiCall("/reports/transactions", params);
+export const formatPercentage = (value: number): string => {
+  return `${value.toFixed(1)}%`;
 };
 
-export const downloadReport = async (
-  reportType: string,
-  format: "csv" | "pdf",
-  startDate?: string,
-  endDate?: string,
-  accountId?: string
-) => {
-  const params: Record<string, any> = { format };
-  if (startDate) params.start_date = startDate;
-  if (endDate) params.end_date = endDate;
-  if (accountId) params.account_id = accountId;
-
-  return apiCall(`/reports/download/${reportType}`, params);
+export const formatDate = (dateString: string): string => {
+  return new Date(dateString).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 };
 
+// Local CSV Report Generator
 export const generateLocalCSVReport = async (
   reportType: string,
   data: any,
   dateRange?: { startDate: string; endDate: string }
 ): Promise<string> => {
-  const { generateCSVReport } = await import("~/lib/generators/csvGenerator");
-
   // Create CSV data structure
   const csvData = {
     title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`,
@@ -197,13 +132,12 @@ export const generateLocalCSVReport = async (
   return fileUri;
 };
 
+// Local PDF Report Generator
 export const generateLocalPDFReport = async (
   reportType: string,
   data: any,
   dateRange?: { startDate: string; endDate: string }
 ): Promise<string> => {
-  const { generatePDFReport } = await import("~/lib/generators/pdfGenerator");
-
   // Create PDF data structure
   const pdfData = {
     title: `${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`,
@@ -281,26 +215,4 @@ export const generateLocalPDFReport = async (
   // Generate the PDF and return the file URI
   const fileUri = await generatePDFReport(pdfData);
   return fileUri;
-};
-
-export const formatCurrency = (
-  amount: number,
-  currency: string = "USD"
-): string => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency,
-  }).format(amount);
-};
-
-export const formatPercentage = (value: number): string => {
-  return `${value.toFixed(1)}%`;
-};
-
-export const formatDate = (dateString: string): string => {
-  return new Date(dateString).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
 };

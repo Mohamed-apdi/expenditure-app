@@ -20,6 +20,52 @@ import {
   TrendingUp,
   X,
   Wallet,
+  RotateCcw,
+  Plus,
+  Lightbulb,
+  Utensils,
+  Home,
+  Bus,
+  Zap,
+  Ticket,
+  HeartPulse,
+  ShoppingBag,
+  GraduationCap,
+  MoreHorizontal,
+  Smile,
+  Shield,
+  CreditCard,
+  Gift,
+  HandHeart,
+  Luggage,
+  PawPrint,
+  Baby,
+  Repeat,
+  Dumbbell,
+  Smartphone,
+  Sofa,
+  Wrench,
+  Receipt,
+  Landmark,
+  Gem,
+  Clock,
+  Briefcase,
+  LineChart as LineChartIcon,
+  Percent,
+  Key,
+  Tag,
+  Dice5,
+  Trophy,
+  RefreshCw,
+  Laptop,
+  Copyright,
+  HandCoins,
+  User,
+  DollarSign,
+  Award,
+  ArrowRightLeft,
+  Film,
+  Book,
 } from "lucide-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
@@ -30,27 +76,272 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAccount } from "~/lib";
 import {
-  getTransactionReports,
-  downloadReport,
   generateLocalPDFReport,
   generateLocalCSVReport,
   formatCurrency,
   formatPercentage,
   formatDate,
-  testAPIConnectivity,
   type TransactionReport,
 } from "~/lib";
+import { generateTransactionReport } from "~/lib/services/transactions";
 import { getCategoryColor, getColorByIndex } from "~/lib";
 import { sharePDF } from "~/lib/";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
+import { useRouter } from "expo-router";
 
 const { width: screenWidth } = Dimensions.get("window");
 
-export default function ReportsScreen() {
+// Category icon mapping (same as Dashboard)
+const CATEGORY_ICONS: Record<string, React.ElementType> = {
+  // Expense categories
+  "Food & Drinks": Utensils,
+  "Home & Rent": Home,
+  Travel: Bus,
+  Bills: Zap,
+  Fun: Film,
+  Health: HeartPulse,
+  Shopping: ShoppingBag,
+  Learning: GraduationCap,
+  "Personal Care": Smile,
+  Insurance: Shield,
+  Loans: CreditCard,
+  Gifts: Gift,
+  Donations: HandHeart,
+  Vacation: Luggage,
+  Pets: PawPrint,
+  Children: Baby,
+  Subscriptions: Repeat,
+  "Gym & Sports": Dumbbell,
+  Electronics: Smartphone,
+  Furniture: Sofa,
+  Repairs: Wrench,
+  Taxes: Receipt,
+
+  // Income categories
+  "Initial Balance": DollarSign,
+  Bonus: Zap,
+  "Part-time Work": Clock,
+  Business: Briefcase,
+  Investments: LineChartIcon,
+  "Bank Interest": Percent,
+  "Rent Income": Home,
+  Sales: ShoppingBag,
+  Gambling: Dice5,
+  Awards: Award,
+  Refunds: RefreshCw,
+  Freelance: Laptop,
+  Royalties: Book,
+  Grants: HandCoins,
+  "Gifts Received": Gift,
+  Pension: User,
+  Transfer: ArrowRightLeft,
+};
+
+// Category color mapping (same as Dashboard)
+const CATEGORY_COLORS: Record<string, string> = {
+  // Expense colors
+  "Food & Drinks": "#059669",
+  "Home & Rent": "#0891b2",
+  Travel: "#3b82f6",
+  Bills: "#f97316",
+  Fun: "#8b5cf6",
+  Health: "#dc2626",
+  Shopping: "#06b6d4",
+  Learning: "#84cc16",
+  "Personal Care": "#ec4899",
+  Insurance: "#14b8a6",
+  Loans: "#f97316",
+  Gifts: "#8b5cf6",
+  Donations: "#dc2626",
+  Vacation: "#3b82f6",
+  Pets: "#f97316",
+  Children: "#ec4899",
+  Subscriptions: "#8b5cf6",
+  "Gym & Sports": "#059669",
+  Electronics: "#64748b",
+  Furniture: "#f97316",
+  Repairs: "#3b82f6",
+  Taxes: "#dc2626",
+
+  // Income colors
+  "Initial Balance": "#059669",
+  Bonus: "#f97316",
+  "Part-time Work": "#f97316",
+  Business: "#8b5cf6",
+  Investments: "#059669",
+  "Bank Interest": "#06b6d4",
+  "Rent Income": "#0891b2",
+  Sales: "#06b6d4",
+  Gambling: "#f43f5e",
+  Awards: "#8b5cf6",
+  Refunds: "#3b82f6",
+  Freelance: "#f97316",
+  Royalties: "#84cc16",
+  Grants: "#059669",
+  "Gifts Received": "#8b5cf6",
+  Pension: "#64748b",
+  Transfer: "#64748b",
+};
+
+// Category type mapping (expense vs income)
+const CATEGORY_TYPES: Record<string, "expense" | "income"> = {
+  // Expense categories
+  "Food & Drinks": "expense",
+  "Home & Rent": "expense",
+  Travel: "expense",
+  Bills: "expense",
+  Fun: "expense",
+  Health: "expense",
+  Shopping: "expense",
+  Learning: "expense",
+  "Personal Care": "expense",
+  Insurance: "expense",
+  Loans: "expense",
+  Gifts: "expense",
+  Donations: "expense",
+  Vacation: "expense",
+  Pets: "expense",
+  Children: "expense",
+  Subscriptions: "expense",
+  "Gym & Sports": "expense",
+  Electronics: "expense",
+  Furniture: "expense",
+  Repairs: "expense",
+  Taxes: "expense",
+
+  // Income categories
+  "Initial Balance": "income",
+  Bonus: "income",
+  "Part-time Work": "income",
+  Business: "income",
+  Investments: "income",
+  "Bank Interest": "income",
+  "Rent Income": "income",
+  Sales: "income",
+  Gambling: "income",
+  Awards: "income",
+  Refunds: "income",
+  Freelance: "income",
+  Royalties: "income",
+  Grants: "income",
+  "Gifts Received": "income",
+  Pension: "income",
+  Transfer: "income",
+};
+
+// Category Item Component (similar to MemoizedTransactionItem)
+const CategoryItem = ({
+  category,
+  data,
+  isSelected = false,
+}: {
+  category: string;
+  data: {
+    amount: number;
+    percentage: number;
+    count: number;
+    transactionIds?: string[];
+  };
+  isSelected?: boolean;
+}) => {
+  const theme = useTheme();
+  const { t } = useLanguage();
+  const router = useRouter();
+  const IconComponent = CATEGORY_ICONS[category] || MoreHorizontal;
+  const color = CATEGORY_COLORS[category] || "#64748b";
+  const categoryType = CATEGORY_TYPES[category] || "expense";
+  const isExpense = categoryType === "expense";
+
+  const handlePress = () => {
+    if (data.transactionIds && data.transactionIds.length > 0) {
+      // Navigate to the first transaction detail
+      router.push(
+        `/(transactions)/transaction-detail/${data.transactionIds[0]}`
+      );
+    }
+  };
+
+  return (
+    <TouchableOpacity onPress={handlePress}>
+      <View
+        className="flex-row items-center p-4 rounded-xl gap-3 mb-2"
+        style={{
+          backgroundColor: isSelected ? `${color}10` : theme.cardBackground,
+          borderWidth: isSelected ? 1 : 0,
+          borderColor: isSelected ? color : "transparent",
+        }}
+      >
+        <View
+          className="w-11 h-11 rounded-xl items-center justify-center"
+          style={{ backgroundColor: `${color}20` }}
+        >
+          <IconComponent size={20} color={color} />
+        </View>
+        <View className="flex-1 flex-row justify-between items-center">
+          <View className="flex-1 flex-row items-center">
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text
+                className="text-base font-semibold"
+                style={{ color: theme.text }}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {category}
+              </Text>
+              <Text
+                className="text-xs"
+                style={{ color: theme.textSecondary }}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {data.count} {t.transactionsCount}
+              </Text>
+              <Text
+                className="text-xs"
+                //style={{ color: theme.textSecondary }}
+                style={{
+                  color: isExpense ? "#DC2626" : "#16A34A",
+                }}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {isExpense ? t.expense : t.income}
+              </Text>
+            </View>
+            <View style={{ flexShrink: 1, alignItems: "flex-end" }}>
+              <Text
+                className="text-base font-bold"
+                style={{
+                  color: isExpense ? "#DC2626" : "#16A34A",
+                }}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {isExpense ? "-" : "+"}
+                {formatCurrency(Math.abs(data.amount))}
+              </Text>
+              <Text
+                className="text-xs"
+                style={{ color: theme.textSecondary }}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {formatPercentage(data.percentage)}
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+export default function Report() {
   const theme = useTheme();
   const { t } = useLanguage();
   const { selectedAccount, accounts } = useAccount();
+  const router = useRouter();
 
   // Set default date range to today for both dates
   const getDefaultDateRange = () => {
@@ -71,6 +362,9 @@ export default function ReportsScreen() {
   );
   const [loading, setLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>("today");
+  const [chartView, setChartView] = useState<"bar" | "line">("bar");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // Report data states
   const [transactionData, setTransactionData] =
@@ -84,6 +378,101 @@ export default function ReportsScreen() {
     percentage: number;
   } | null>(null);
   const [segmentModalVisible, setSegmentModalVisible] = useState(false);
+
+  // Helper function to transform generateTransactionReport data to match UI expectations
+  const transformReportData = useCallback(
+    (
+      reportData: any,
+      userId: string,
+      startDate: string,
+      endDate: string
+    ): TransactionReport => {
+      // Validate input data
+      if (!reportData) {
+        throw new Error("reportData is null or undefined");
+      }
+
+      // Ensure data structures exist
+      const categoryBreakdown = reportData.categoryBreakdown || {};
+      const dailyTrends = reportData.dailyTrends || {};
+      const monthlyTrends = reportData.monthlyTrends || {};
+
+      // Use the income/expense data from generateTransactionReport
+      const totalIncome = reportData.totalIncome || 0;
+      const totalExpenses = reportData.totalExpenses || 0;
+
+      // Transform category breakdown to include count, percentage, and transaction IDs
+      const transformedCategoryBreakdown: {
+        [key: string]: {
+          amount: number;
+          percentage: number;
+          count: number;
+          transactionIds?: string[];
+        };
+      } = {};
+
+      if (typeof categoryBreakdown === "object") {
+        Object.entries(categoryBreakdown).forEach(
+          ([category, data]: [string, any]) => {
+            // Handle both old format (just amount) and new format (object with amount, count, transactionIds)
+            const amount = typeof data === "number" ? data : data.amount;
+            const count = typeof data === "number" ? 1 : data.count;
+            const transactionIds =
+              typeof data === "number" ? [] : data.transactionIds || [];
+
+            const absAmount = Math.abs(amount || 0);
+            const totalSpending = totalIncome + totalExpenses;
+            const percentage =
+              totalSpending > 0 ? (absAmount / totalSpending) * 100 : 0;
+            transformedCategoryBreakdown[category] = {
+              amount: absAmount,
+              percentage: percentage,
+              count: count,
+              transactionIds: transactionIds,
+            };
+          }
+        );
+      }
+
+      // Transform daily trends to array format
+      const transformedDailyTrends =
+        typeof dailyTrends === "object"
+          ? Object.entries(dailyTrends).map(
+              ([date, amount]: [string, any]) => ({
+                date,
+                amount: Math.abs(amount || 0),
+              })
+            )
+          : [];
+
+      // Transform monthly trends to array format
+      const transformedMonthlyTrends =
+        typeof monthlyTrends === "object"
+          ? Object.entries(monthlyTrends).map(
+              ([month, amount]: [string, any]) => ({
+                month,
+                amount: Math.abs(amount || 0),
+              })
+            )
+          : [];
+
+      return {
+        summary: {
+          total_amount: reportData.totalAmount || 0,
+          total_income: totalIncome,
+          total_expenses: totalExpenses,
+          total_transactions: reportData.totalTransactions || 0,
+          average_transaction: reportData.avgTransaction || 0,
+          period: `${startDate} to ${endDate}`,
+        },
+        category_breakdown: transformedCategoryBreakdown,
+        daily_trends: transformedDailyTrends,
+        monthly_trends: transformedMonthlyTrends,
+        transactions: [],
+      };
+    },
+    []
+  );
 
   // Helper functions for data aggregation (moved before useMemo to prevent hoisting issues)
   const aggregateByWeek = (dailyData: any[]) => {
@@ -219,34 +608,60 @@ export default function ReportsScreen() {
     };
   }, [processedChartData]);
 
+  // Memoized line chart data
+  const lineChartData = useMemo(() => {
+    if (!processedChartData) return null;
+
+    return {
+      labels: processedChartData.displayData.map((item) =>
+        new Date(item.date).toLocaleDateString(
+          "en-US",
+          processedChartData.dateFormatter
+        )
+      ),
+      datasets: [
+        {
+          data: processedChartData.displayData.map((item) =>
+            Math.abs(item.amount)
+          ),
+          color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`, // Indigo color
+          strokeWidth: 3,
+        },
+      ],
+    };
+  }, [processedChartData]);
+
   const fetchTransactionReports = useCallback(async () => {
     if (!selectedAccount) {
-      console.log("No selected account, skipping fetch");
       return;
     }
 
     try {
       setLoading(true);
-      console.log(
-        "Fetching transaction reports for account:",
-        selectedAccount?.id,
-        "Date range:",
-        dateRange.startDate.toISOString().split("T")[0],
-        "to",
-        dateRange.endDate.toISOString().split("T")[0]
+
+      const startDate = dateRange.startDate.toISOString().split("T")[0];
+      const endDate = dateRange.endDate.toISOString().split("T")[0];
+
+      const rawData = await generateTransactionReport(
+        selectedAccount.user_id,
+        startDate,
+        endDate
       );
 
-      const data = await getTransactionReports(
-        selectedAccount?.id,
-        dateRange.startDate.toISOString().split("T")[0],
-        dateRange.endDate.toISOString().split("T")[0]
-      );
+      if (!rawData) {
+        throw new Error("No data returned from generateTransactionReport");
+      }
 
-      console.log("Transaction reports data received:", data);
+      const data = transformReportData(
+        rawData,
+        selectedAccount.user_id,
+        startDate,
+        endDate
+      );
       setTransactionData(data);
       setIsInitialLoad(false);
     } catch (error) {
-      console.error("Error fetching transaction reports:", error);
+      console.error("Error generating transaction reports:", error);
       const errorMessage =
         error instanceof Error ? error.message : t.unknownError;
       Alert.alert(
@@ -257,23 +672,33 @@ export default function ReportsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [selectedAccount, dateRange.startDate, dateRange.endDate]);
+  }, [
+    selectedAccount,
+    dateRange.startDate,
+    dateRange.endDate,
+    transformReportData,
+    t,
+  ]);
 
-  // Optimized initial data loading - only test API once per session
+  // Initial data loading
   useEffect(() => {
     if (selectedAccount && isInitialLoad) {
-      console.log("Loading initial data with default dates...");
       fetchTransactionReports();
     }
-  }, [selectedAccount, isInitialLoad, fetchTransactionReports]);
+  }, [selectedAccount?.id, isInitialLoad]);
 
-  // Refresh transaction data only when date range changes (triggered by submit)
+  // Refresh transaction data when date range changes
   useEffect(() => {
-    if (selectedAccount && dateRange && !isInitialLoad) {
-      console.log("Date range changed via submit, refreshing data...");
+    if (selectedAccount && !isInitialLoad) {
       fetchTransactionReports();
     }
-  }, [dateRange, selectedAccount, fetchTransactionReports, isInitialLoad]);
+  }, [dateRange.startDate, dateRange.endDate, selectedAccount?.id]);
+
+  const handleCategoryPress = (category: string) => {
+    setSelectedCategory(selectedCategory === category ? null : category);
+    // You can add more functionality here, like filtering transactions by category
+    console.log(`Selected category: ${category}`);
+  };
 
   const handleDownload = async (format: "csv" | "pdf") => {
     try {
@@ -288,14 +713,11 @@ export default function ReportsScreen() {
 
       if (format === "pdf") {
         // Generate PDF locally
-        console.log("Generating PDF report...");
         const filePath = await generateLocalPDFReport(
           "transactions",
           transactionData,
           startDate && endDate ? { startDate, endDate } : undefined
         );
-
-        console.log("PDF generated at:", filePath);
 
         Alert.alert(t.pdfGeneratedSuccessfully, t.reportSavedToDevice, [
           {
@@ -327,14 +749,11 @@ export default function ReportsScreen() {
         ]);
       } else {
         // Generate CSV locally
-        console.log("Generating CSV report...");
         const filePath = await generateLocalCSVReport(
           "transactions",
           transactionData,
           startDate && endDate ? { startDate, endDate } : undefined
         );
-
-        console.log("CSV generated at:", filePath);
 
         Alert.alert(t.csvGeneratedSuccessfully, t.reportSavedToDevice, [
           {
@@ -391,8 +810,8 @@ export default function ReportsScreen() {
         } else {
           setPendingDateRange((prev) => ({ ...prev, endDate: selectedDate }));
         }
-
-        console.log("Date selected, waiting for submit to apply changes");
+        // Clear selected preset when manually changing dates
+        setSelectedPreset(null);
       }
     },
     [datePickerMode]
@@ -400,18 +819,67 @@ export default function ReportsScreen() {
 
   const confirmIOSDate = useCallback(() => {
     setDatePickerVisible(false);
-    console.log("iOS date confirmed, waiting for submit to apply changes");
   }, []);
 
   // Function to apply pending date changes and refresh data
   const handleSubmitDateRange = useCallback(() => {
-    console.log("Applying date range changes and refreshing data...");
     setDateRange(pendingDateRange);
   }, [pendingDateRange]);
 
   const openDatePicker = useCallback((mode: "start" | "end") => {
     setDatePickerMode(mode);
     setDatePickerVisible(true);
+  }, []);
+
+  // Reset function to set date range to today
+  const handleReset = useCallback(() => {
+    const today = new Date();
+    const resetDateRange = {
+      startDate: today,
+      endDate: today,
+    };
+    setPendingDateRange(resetDateRange);
+    setDateRange(resetDateRange);
+    setSelectedPreset("today");
+  }, []);
+
+  // Quick date preset functions
+  const handleDatePreset = useCallback((preset: string) => {
+    const today = new Date();
+    let startDate: Date;
+    let endDate: Date;
+
+    switch (preset) {
+      case "today":
+        startDate = new Date(today);
+        endDate = new Date(today);
+        break;
+      case "thisWeek":
+        startDate = new Date(today);
+        startDate.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
+        endDate = new Date(today);
+        break;
+      case "thisMonth":
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        endDate = new Date(today);
+        break;
+      case "lastMonth":
+        startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+        break;
+      case "thisYear":
+        startDate = new Date(today.getFullYear(), 0, 1);
+        endDate = new Date(today);
+        break;
+      default:
+        startDate = new Date(today);
+        endDate = new Date(today);
+    }
+
+    const presetDateRange = { startDate, endDate };
+    setPendingDateRange(presetDateRange);
+    setDateRange(presetDateRange);
+    setSelectedPreset(preset);
   }, []);
 
   // Function to handle pie chart segment selection
@@ -487,6 +955,268 @@ export default function ReportsScreen() {
 
     return (
       <ScrollView className="flex-1">
+        {/* Smart Insights */}
+        {transactionData &&
+          Object.keys(transactionData.category_breakdown).length > 0 && (
+            <View
+              style={{
+                marginBottom: 16,
+                backgroundColor: theme.cardBackground,
+                padding: 16,
+                borderRadius: 12,
+                shadowColor: theme.border,
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.05,
+                shadowRadius: 2,
+                elevation: 1,
+              }}
+            >
+              <View className="flex-row items-center mb-3">
+                <Lightbulb size={20} color="#f59e0b" />
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontSize: 16,
+                    fontWeight: "bold",
+                    marginLeft: 8,
+                  }}
+                >
+                  {t.smartInsights}
+                </Text>
+              </View>
+              <View>
+                {(() => {
+                  const insights = [];
+                  const categories = Object.entries(
+                    transactionData.category_breakdown
+                  );
+                  const totalSpending =
+                    transactionData.summary.total_income +
+                    transactionData.summary.total_expenses;
+
+                  // Calculate net income (income - expenses)
+                  const netIncome =
+                    transactionData.summary.total_income -
+                    transactionData.summary.total_expenses;
+                  const overspendingAmount = Math.abs(netIncome);
+
+                  // Find biggest expense category
+                  const biggestCategory = categories.reduce(
+                    (max, [category, data]) =>
+                      data.amount > max.amount
+                        ? {
+                            category,
+                            amount: data.amount,
+                            percentage: data.percentage,
+                          }
+                        : max,
+                    { category: "", amount: 0, percentage: 0 }
+                  );
+
+                  // Biggest expense category insight
+                  if (biggestCategory.amount > 0) {
+                    insights.push(
+                      <Text
+                        key="biggest-category"
+                        style={{
+                          color: theme.textSecondary,
+                          fontSize: 14,
+                          lineHeight: 20,
+                          marginBottom: 8,
+                        }}
+                      >
+                        💡{" "}
+                        {t.biggestExpenseCategory
+                          .replace("{category}", biggestCategory.category)
+                          .replace(
+                            "{percentage}",
+                            biggestCategory.percentage.toFixed(1)
+                          )}
+                      </Text>
+                    );
+                  }
+
+                  // Net Income Analysis with detailed financial advice
+                  if (
+                    transactionData.summary.total_income > 0 &&
+                    transactionData.summary.total_expenses > 0
+                  ) {
+                    const savingsRate =
+                      ((transactionData.summary.total_income -
+                        transactionData.summary.total_expenses) /
+                        transactionData.summary.total_income) *
+                      100;
+
+                    if (netIncome > 0) {
+                      // Positive net income - user is saving
+                      insights.push(
+                        <View
+                          key="positive-net-income"
+                          style={{ marginBottom: 12 }}
+                        >
+                          <Text
+                            style={{
+                              color: "#059669",
+                              fontSize: 14,
+                              lineHeight: 20,
+                              marginBottom: 8,
+                              fontWeight: "600",
+                            }}
+                          >
+                            💰{" "}
+                            {t.netIncomePositive.replace(
+                              "{percentage}",
+                              savingsRate.toFixed(1)
+                            )}
+                          </Text>
+                          <Text
+                            style={{
+                              color: theme.textSecondary,
+                              fontSize: 13,
+                              lineHeight: 18,
+                              marginLeft: 16,
+                            }}
+                          >
+                            • {t.buildEmergencyFund}
+                          </Text>
+                          <Text
+                            style={{
+                              color: theme.textSecondary,
+                              fontSize: 13,
+                              lineHeight: 18,
+                              marginLeft: 16,
+                            }}
+                          >
+                            • {t.setSavingsGoal}
+                          </Text>
+                        </View>
+                      );
+                    } else {
+                      // Negative net income - user is overspending
+                      insights.push(
+                        <View
+                          key="negative-net-income"
+                          style={{ marginBottom: 12 }}
+                        >
+                          <Text
+                            style={{
+                              color: "#dc2626",
+                              fontSize: 14,
+                              lineHeight: 20,
+                              marginBottom: 8,
+                              fontWeight: "600",
+                            }}
+                          >
+                            {t.netIncomeNegative.replace(
+                              "{amount}",
+                              formatCurrency(overspendingAmount)
+                            )}
+                          </Text>
+
+                          <Text
+                            style={{
+                              color: theme.textSecondary,
+                              fontSize: 13,
+                              fontWeight: "600",
+                              marginBottom: 6,
+                              marginLeft: 16,
+                            }}
+                          >
+                            {t.overspendingRecommendations}
+                          </Text>
+
+                          <Text
+                            style={{
+                              color: theme.textSecondary,
+                              fontSize: 13,
+                              lineHeight: 18,
+                              marginLeft: 16,
+                            }}
+                          >
+                            • {t.reduceExpenses}
+                          </Text>
+                          <Text
+                            style={{
+                              color: theme.textSecondary,
+                              fontSize: 13,
+                              lineHeight: 18,
+                              marginLeft: 16,
+                            }}
+                          >
+                            • {t.reviewSubscriptions}
+                          </Text>
+                          <Text
+                            style={{
+                              color: theme.textSecondary,
+                              fontSize: 13,
+                              lineHeight: 18,
+                              marginLeft: 16,
+                            }}
+                          >
+                            • {t.createBudget}
+                          </Text>
+                          <Text
+                            style={{
+                              color: theme.textSecondary,
+                              fontSize: 13,
+                              lineHeight: 18,
+                              marginLeft: 16,
+                            }}
+                          >
+                            • {t.trackDailySpending}
+                          </Text>
+                        </View>
+                      );
+                    }
+                  }
+
+                  // Additional insights for spending patterns
+                  if (categories.length > 3) {
+                    const topThreeCategories = categories
+                      .sort(([, a], [, b]) => b.amount - a.amount)
+                      .slice(0, 3);
+
+                    if (topThreeCategories.length > 0) {
+                      insights.push(
+                        <Text
+                          key="spending-diversity"
+                          style={{
+                            color: theme.textSecondary,
+                            fontSize: 14,
+                            lineHeight: 20,
+                            marginBottom: 8,
+                          }}
+                        >
+                          📊{" "}
+                          {t.spendingDiversity
+                            .replace("{count}", categories.length.toString())
+                            .replace(
+                              "{categories}",
+                              topThreeCategories.map(([cat]) => cat).join(", ")
+                            )}
+                        </Text>
+                      );
+                    }
+                  }
+
+                  return insights.length > 0 ? (
+                    insights
+                  ) : (
+                    <Text
+                      style={{
+                        color: theme.textSecondary,
+                        fontSize: 14,
+                        fontStyle: "italic",
+                      }}
+                    >
+                      {t.keepAddingTransactions}
+                    </Text>
+                  );
+                })()}
+              </View>
+            </View>
+          )}
+
         {/* Summary Cards */}
         <View className="mb-4">
           {/* First Row - Net Amount */}
@@ -732,15 +1462,38 @@ export default function ReportsScreen() {
               </View>
             </>
           ) : (
-            <Text
+            <View
               style={{
-                color: theme.textSecondary,
-                textAlign: "center",
+                alignItems: "center",
                 paddingVertical: 32,
+                paddingHorizontal: 16,
               }}
             >
-              {t.noDataAvailable}
-            </Text>
+              <PieChart size={48} color={theme.textMuted} />
+              <Text
+                style={{
+                  color: theme.text,
+                  fontSize: 18,
+                  fontWeight: "600",
+                  marginTop: 16,
+                  textAlign: "center",
+                }}
+              >
+                No Spending Data Yet
+              </Text>
+              <Text
+                style={{
+                  color: theme.textSecondary,
+                  fontSize: 14,
+                  textAlign: "center",
+                  marginTop: 8,
+                  lineHeight: 20,
+                }}
+              >
+                Start adding transactions to see your spending patterns and
+                insights here.
+              </Text>
+            </View>
           )}
         </View>
 
@@ -764,48 +1517,144 @@ export default function ReportsScreen() {
             >
               {processedChartData.chartTitle}
             </Text>
-            <BarChart2 size={20} color="#6366f1" />
+            <View className="flex-row items-center">
+              <TouchableOpacity
+                onPress={() => setChartView("bar")}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  backgroundColor:
+                    chartView === "bar" ? "#6366f1" : "transparent",
+                  marginRight: 8,
+                }}
+              >
+                <BarChart2
+                  size={20}
+                  color={chartView === "bar" ? "#ffffff" : "#6366f1"}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setChartView("line")}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  backgroundColor:
+                    chartView === "line" ? "#10b981" : "transparent",
+                }}
+              >
+                <TrendingUp
+                  size={20}
+                  color={chartView === "line" ? "#ffffff" : "#10b981"}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
           {barChartData.datasets[0].data.length > 0 ? (
-            <BarChart
-              data={barChartData}
-              width={screenWidth - 48}
-              height={220}
-              yAxisLabel="$"
-              yAxisSuffix=""
-              chartConfig={{
-                backgroundColor: theme.cardBackground,
-                backgroundGradientFrom: theme.cardBackground,
-                backgroundGradientTo: theme.cardBackground,
-                decimalPlaces: 0,
-                color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(156, 163, 175, ${opacity})`,
-                style: { borderRadius: 16 },
-                barPercentage: 0.7,
-                fillShadowGradient: "#8b5cf6",
-                fillShadowGradientOpacity: 0.3,
-                propsForBackgroundLines: {
-                  strokeDasharray: "5,5",
-                  stroke: theme.border,
-                  strokeWidth: 1,
-                },
-                propsForLabels: {
-                  fontSize: 12,
-                  fontWeight: "500",
-                },
-              }}
-              style={{ marginVertical: 8, borderRadius: 16 }}
-            />
+            chartView === "bar" ? (
+              <BarChart
+                data={barChartData}
+                width={screenWidth - 48}
+                height={220}
+                yAxisLabel="$"
+                yAxisSuffix=""
+                chartConfig={{
+                  backgroundColor: theme.cardBackground,
+                  backgroundGradientFrom: theme.cardBackground,
+                  backgroundGradientTo: theme.cardBackground,
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
+                  labelColor: (opacity = 1) =>
+                    `rgba(156, 163, 175, ${opacity})`,
+                  style: { borderRadius: 16 },
+                  barPercentage: 0.7,
+                  fillShadowGradient: "#8b5cf6",
+                  fillShadowGradientOpacity: 0.3,
+                  propsForBackgroundLines: {
+                    strokeDasharray: "5,5",
+                    stroke: theme.border,
+                    strokeWidth: 1,
+                  },
+                  propsForLabels: {
+                    fontSize: 12,
+                    fontWeight: "500",
+                  },
+                }}
+                style={{ marginVertical: 8, borderRadius: 16 }}
+              />
+            ) : (
+              <LineChart
+                data={lineChartData!}
+                width={screenWidth - 48}
+                height={220}
+                yAxisLabel="$"
+                yAxisSuffix=""
+                chartConfig={{
+                  backgroundColor: theme.cardBackground,
+                  backgroundGradientFrom: theme.cardBackground,
+                  backgroundGradientTo: theme.cardBackground,
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
+                  labelColor: (opacity = 1) =>
+                    `rgba(156, 163, 175, ${opacity})`,
+                  style: { borderRadius: 16 },
+                  fillShadowGradient: "#10b981",
+                  fillShadowGradientOpacity: 0.1,
+                  propsForBackgroundLines: {
+                    strokeDasharray: "5,5",
+                    stroke: theme.border,
+                    strokeWidth: 1,
+                  },
+                  propsForLabels: {
+                    fontSize: 12,
+                    fontWeight: "500",
+                  },
+                  propsForDots: {
+                    r: "4",
+                    strokeWidth: "2",
+                    stroke: "#10b981",
+                  },
+                }}
+                style={{ marginVertical: 8, borderRadius: 16 }}
+                bezier
+              />
+            )
           ) : (
-            <Text
+            <View
               style={{
-                color: theme.text,
-                textAlign: "center",
+                alignItems: "center",
                 paddingVertical: 32,
+                paddingHorizontal: 16,
               }}
             >
-              {t.noTrendDataAvailable}
-            </Text>
+              {chartView === "bar" ? (
+                <BarChart2 size={48} color={theme.textMuted} />
+              ) : (
+                <TrendingUp size={48} color={theme.textMuted} />
+              )}
+              <Text
+                style={{
+                  color: theme.text,
+                  fontSize: 16,
+                  fontWeight: "600",
+                  marginTop: 16,
+                  textAlign: "center",
+                }}
+              >
+                No Trend Data Available
+              </Text>
+              <Text
+                style={{
+                  color: theme.textSecondary,
+                  fontSize: 14,
+                  textAlign: "center",
+                  marginTop: 8,
+                }}
+              >
+                Try selecting a different date range to see spending trends
+              </Text>
+            </View>
           )}
 
           {processedChartData.showingLimited && (
@@ -827,552 +1676,772 @@ export default function ReportsScreen() {
           )}
         </View>
 
-        {/* Category Breakdown Table */}
+        {/* Category Breakdown */}
         <View
           style={{
             marginBottom: 24,
             backgroundColor: theme.cardBackground,
             padding: 16,
             borderRadius: 12,
+            shadowColor: theme.border,
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05,
+            shadowRadius: 2,
+            elevation: 1,
           }}
         >
-          <Text
-            style={{
-              color: theme.text,
-              fontSize: 18,
-              fontWeight: "bold",
-              marginBottom: 16,
-            }}
-          >
-            {t.categoryBreakdown}
-          </Text>
-          {Object.entries(transactionData.category_breakdown).map(
-            ([category, data], index) => (
-              <View
-                key={index}
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  paddingVertical: 12,
-                  borderBottomWidth: 1,
-                  borderBottomColor: theme.border,
-                }}
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.text, fontWeight: "500" }}>
-                    {category}
+          <View className="flex-row justify-between items-center mb-4">
+            <Text
+              style={{
+                color: theme.text,
+                fontSize: 18,
+                fontWeight: "bold",
+              }}
+            >
+              {t.categoryBreakdown}
+            </Text>
+            <PieChart size={20} color="#8b5cf6" />
+          </View>
+          {Object.entries(transactionData.category_breakdown)
+            .sort(([, a], [, b]) => Math.abs(b.amount) - Math.abs(a.amount)) // Sort by amount descending
+            .map(([category, data], index) => (
+              <CategoryItem key={index} category={category} data={data} />
+            ))}
+        </View>
+
+        {/* Selected Category Details */}
+        {selectedCategory &&
+          transactionData.category_breakdown[selectedCategory] && (
+            <View
+              style={{
+                marginBottom: 24,
+                backgroundColor: theme.cardBackground,
+                padding: 16,
+                borderRadius: 12,
+                shadowColor: theme.border,
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.05,
+                shadowRadius: 2,
+                elevation: 1,
+              }}
+            >
+              <View className="flex-row justify-between items-center mb-3">
+                <View>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontSize: 16,
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {selectedCategory} Details
                   </Text>
-                  <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
-                    {data.count} {t.transactionsCount}
+                  <Text
+                    style={{
+                      color: theme.textSecondary,
+                      fontSize: 12,
+                      marginTop: 2,
+                    }}
+                  >
+                    {CATEGORY_TYPES[selectedCategory] === "expense"
+                      ? t.expense
+                      : t.income}
                   </Text>
                 </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  <Text style={{ color: theme.text, fontWeight: "bold" }}>
-                    {formatCurrency(data.amount)}
-                  </Text>
+                <View className="flex-row items-center gap-2">
+                  <TouchableOpacity
+                    onPress={() => {
+                      const categoryData =
+                        transactionData.category_breakdown[selectedCategory];
+                      if (
+                        categoryData.transactionIds &&
+                        categoryData.transactionIds.length > 0
+                      ) {
+                        router.push(
+                          `/(transactions)/transaction-detail/${categoryData.transactionIds[0]}`
+                        );
+                      }
+                    }}
+                    style={{
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: 6,
+                      backgroundColor: theme.primary,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: "white",
+                        fontSize: 12,
+                        fontWeight: "600",
+                      }}
+                    >
+                      View Transaction
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setSelectedCategory(null)}
+                    style={{
+                      padding: 4,
+                      borderRadius: 4,
+                    }}
+                  >
+                    <X size={16} color={theme.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View className="flex-row justify-between">
+                <View>
                   <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
-                    {formatPercentage(data.percentage)}
+                    Total Amount
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      fontWeight: "bold",
+                      color:
+                        CATEGORY_TYPES[selectedCategory] === "expense"
+                          ? "#DC2626"
+                          : "#16A34A",
+                    }}
+                  >
+                    {CATEGORY_TYPES[selectedCategory] === "expense" ? "-" : "+"}
+                    {formatCurrency(
+                      Math.abs(
+                        transactionData.category_breakdown[selectedCategory]
+                          .amount
+                      )
+                    )}
+                  </Text>
+                </View>
+                <View>
+                  <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
+                    Percentage
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontSize: 18,
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {formatPercentage(
+                      transactionData.category_breakdown[selectedCategory]
+                        .percentage
+                    )}
+                  </Text>
+                </View>
+                <View>
+                  <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
+                    Transactions
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontSize: 18,
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {transactionData.category_breakdown[selectedCategory].count}
                   </Text>
                 </View>
               </View>
-            )
+            </View>
           )}
-        </View>
       </ScrollView>
     );
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-      <View className="flex-1">
-        {/* Header */}
-        <View
-          style={{
-            backgroundColor: theme.cardBackground,
-            padding: 16,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.border,
-          }}
-        >
-          <View className="flex-row justify-between items-center mb-4">
-            <View>
-              <Text
-                style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}
-              >
-                {t.transactionReports}
-              </Text>
-              {selectedAccount && (
+      <ScrollView className="flex-1">
+        <View className="flex-1">
+          {/* Header */}
+          <View
+            style={{
+              backgroundColor: theme.background,
+              padding: 16,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.border,
+            }}
+          >
+            <View className="flex-row justify-between items-center mb-4">
+              <View>
                 <Text
                   style={{
-                    color: theme.textSecondary,
-                    fontSize: 14,
-                    marginTop: 4,
+                    color: theme.text,
+                    fontSize: 18,
+                    fontWeight: "bold",
                   }}
                 >
-                  {t.showingDataFor} {selectedAccount.name}
+                  {t.transactionReports}
                 </Text>
-              )}
-              {!selectedAccount && (
-                <Text style={{ color: "#d97706", fontSize: 14, marginTop: 4 }}>
-                  {t.pleaseSelectAccountWarning}
-                </Text>
-              )}
-            </View>
-            <View className="flex-row gap-2">
-              <TouchableOpacity
-                style={{
-                  backgroundColor: "#3b82f6",
-                  padding: 8,
-                  borderRadius: 8,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.05,
-                  shadowRadius: 2,
-                  elevation: 1,
-                }}
-                onPress={() => handleDownload("csv")}
-                disabled={loading}
-              >
-                <Download size={18} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{
-                  backgroundColor: "#10b981",
-                  padding: 8,
-                  borderRadius: 8,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.05,
-                  shadowRadius: 2,
-                  elevation: 1,
-                }}
-                onPress={() => handleDownload("pdf")}
-                disabled={loading}
-              >
-                <Download size={18} color="white" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Date Range Picker */}
-          <View className="gap-2">
-            <View className="flex-row justify-between items-center gap-2">
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  backgroundColor: theme.background,
-                  padding: 12,
-                  borderRadius: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginRight: 8,
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                }}
-                onPress={() => openDatePicker("start")}
-                disabled={loading}
-              >
-                <Calendar size={14} color="#3b82f6" />
-                <Text
+                {selectedAccount && (
+                  <Text
+                    style={{
+                      color: theme.textSecondary,
+                      fontSize: 14,
+                      marginTop: 4,
+                    }}
+                  >
+                    {t.showingDataFor} {selectedAccount.name}
+                  </Text>
+                )}
+                {!selectedAccount && (
+                  <Text
+                    style={{ color: "#d97706", fontSize: 14, marginTop: 4 }}
+                  >
+                    {t.pleaseSelectAccountWarning}
+                  </Text>
+                )}
+              </View>
+              <View className="flex-row gap-2">
+                <TouchableOpacity
                   style={{
-                    marginLeft: 8,
-                    color: "#1d4ed8",
-                    fontSize: 14,
-                    fontWeight: "500",
+                    backgroundColor: "#3b82f6",
+                    padding: 8,
+                    borderRadius: 8,
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 2,
+                    elevation: 1,
                   }}
+                  onPress={() => handleDownload("csv")}
+                  disabled={loading}
                 >
-                  {t.from}:{" "}
-                  {formatDate(pendingDateRange.startDate.toISOString())}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  backgroundColor: theme.background,
-                  padding: 12,
-                  borderRadius: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                }}
-                onPress={() => openDatePicker("end")}
-                disabled={loading}
-              >
-                <Calendar size={14} color="#8b5cf6" />
-                <Text
+                  <FileText size={18} color="white" />
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={{
-                    marginLeft: 8,
-                    color: "#7c3aed",
-                    fontSize: 14,
-                    fontWeight: "500",
+                    backgroundColor: "#10b981",
+                    padding: 8,
+                    borderRadius: 8,
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 2,
+                    elevation: 1,
                   }}
+                  onPress={() => handleDownload("pdf")}
+                  disabled={loading}
                 >
-                  {t.to}: {formatDate(pendingDateRange.endDate.toISOString())}
-                </Text>
-              </TouchableOpacity>
+                  <Download size={18} color="white" />
+                </TouchableOpacity>
+              </View>
             </View>
 
-            {/* Submit Button */}
-            <TouchableOpacity
-              style={{
-                backgroundColor: "#3b82f6",
-                padding: 12,
-                borderRadius: 8,
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: loading ? 0.6 : 1,
-              }}
-              onPress={handleSubmitDateRange}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Filter size={16} color="white" />
-              )}
-              <Text
-                style={{ marginLeft: 8, color: "white", fontWeight: "600" }}
-                numberOfLines={1}
-                adjustsFontSizeToFit={true}
-                minimumFontScale={0.5}
-              >
-                {loading ? t.loading : t.applyDateRange}
-              </Text>
-            </TouchableOpacity>
-
-            {/* Current active date range indicator */}
-            <View
-              style={{
-                backgroundColor: theme.background,
-                padding: 8,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: theme.border,
-              }}
-            >
+            {/* Quick Date Presets */}
+            <View className="mb-3">
               <Text
                 style={{
                   color: theme.textSecondary,
-                  fontSize: 12,
-                  textAlign: "center",
+                  fontSize: 14,
+                  fontWeight: "600",
+                  marginBottom: 8,
                 }}
               >
-                {t.showingData} {formatDate(dateRange.startDate.toISOString())}{" "}
-                - {formatDate(dateRange.endDate.toISOString())}
+                Quick Select
               </Text>
+              <View className="flex-row flex-wrap gap-2">
+                {[
+                  { key: "today", label: "Today" },
+                  { key: "thisWeek", label: "This Week" },
+                  { key: "thisMonth", label: "This Month" },
+                  { key: "lastMonth", label: "Last Month" },
+                  { key: "thisYear", label: "This Year" },
+                ].map((preset) => {
+                  const isSelected = selectedPreset === preset.key;
+                  return (
+                    <TouchableOpacity
+                      key={preset.key}
+                      style={{
+                        backgroundColor: isSelected
+                          ? theme.primary
+                          : theme.background,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        borderRadius: 20,
+                        borderWidth: 1,
+                        borderColor: isSelected ? theme.primary : theme.border,
+                        shadowColor: isSelected ? theme.primary : "transparent",
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: isSelected ? 0.3 : 0,
+                        shadowRadius: 4,
+                        elevation: isSelected ? 3 : 0,
+                      }}
+                      onPress={() => handleDatePreset(preset.key)}
+                      disabled={loading}
+                    >
+                      <Text
+                        style={{
+                          color: isSelected ? "white" : theme.text,
+                          fontSize: 12,
+                          fontWeight: isSelected ? "600" : "500",
+                        }}
+                      >
+                        {preset.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
-          </View>
-        </View>
 
-        {/* Content */}
-        <View style={{ flex: 1, backgroundColor: "transparent", padding: 16 }}>
-          {loading ? (
-            <View className="flex-1 justify-center items-center">
-              <ActivityIndicator size="large" color={theme.primary} />
-              <Text style={{ marginTop: 16, color: theme.textSecondary }}>
-                {t.loadingReports}
-              </Text>
-            </View>
-          ) : (
-            renderTransactionTab()
-          )}
-        </View>
-
-        {/* Date Picker */}
-        {datePickerVisible && (
-          <>
-            {Platform.OS === "ios" ? (
-              <Modal
-                transparent={true}
-                animationType="slide"
-                visible={datePickerVisible}
-                onRequestClose={onDismiss}
-              >
-                <View
+            {/* Date Range Picker */}
+            <View className="gap-2">
+              <View className="flex-row justify-between items-center gap-2">
+                <TouchableOpacity
                   style={{
                     flex: 1,
-                    justifyContent: "flex-end",
-                    backgroundColor: "rgba(0, 0, 0, 0.3)",
+                    backgroundColor: theme.background,
+                    padding: 12,
+                    borderRadius: 8,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginRight: 8,
+                    borderWidth: 1,
+                    borderColor: theme.border,
                   }}
+                  onPress={() => openDatePicker("start")}
+                  disabled={loading}
+                >
+                  <Calendar size={14} color="#3b82f6" />
+                  <Text
+                    style={{
+                      marginLeft: 8,
+                      color: "#1d4ed8",
+                      fontSize: 14,
+                      fontWeight: "500",
+                    }}
+                  >
+                    {t.from}:{" "}
+                    {formatDate(pendingDateRange.startDate.toISOString())}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    backgroundColor: theme.background,
+                    padding: 12,
+                    borderRadius: 8,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                  }}
+                  onPress={() => openDatePicker("end")}
+                  disabled={loading}
+                >
+                  <Calendar size={14} color="#8b5cf6" />
+                  <Text
+                    style={{
+                      marginLeft: 8,
+                      color: "#7c3aed",
+                      fontSize: 14,
+                      fontWeight: "500",
+                    }}
+                  >
+                    {t.to}: {formatDate(pendingDateRange.endDate.toISOString())}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Action Buttons Row */}
+              <View className="flex-row gap-2">
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: "#3b82f6",
+                    padding: 12,
+                    borderRadius: 8,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flex: 1,
+                    opacity: loading ? 0.6 : 1,
+                  }}
+                  onPress={handleSubmitDateRange}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
+                    <Filter size={16} color="white" />
+                  )}
+                  <Text
+                    style={{ marginLeft: 8, color: "white", fontWeight: "600" }}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.5}
+                  >
+                    {loading ? t.loading : t.applyDateRange}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: "#f59e0b",
+                    padding: 12,
+                    borderRadius: 8,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    opacity: loading ? 0.6 : 1,
+                    flex: 1,
+                  }}
+                  onPress={handleReset}
+                  disabled={loading}
+                >
+                  <RotateCcw size={16} color="white" />
+                  <Text
+                    style={{ marginLeft: 8, color: "white", fontWeight: "600" }}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.5}
+                  >
+                    Reset
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Current active date range indicator */}
+              <View
+                style={{
+                  backgroundColor: theme.background,
+                  padding: 8,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                }}
+              >
+                <Text
+                  style={{
+                    color: theme.textSecondary,
+                    fontSize: 12,
+                    textAlign: "center",
+                  }}
+                >
+                  {t.showingData}{" "}
+                  {formatDate(dateRange.startDate.toISOString())} -{" "}
+                  {formatDate(dateRange.endDate.toISOString())}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Content */}
+          <View
+            style={{ flex: 1, backgroundColor: "transparent", padding: 16 }}
+          >
+            {loading ? (
+              <View className="flex-1 justify-center items-center">
+                <ActivityIndicator size="large" color={theme.primary} />
+                <Text style={{ marginTop: 16, color: theme.textSecondary }}>
+                  {t.loadingReports}
+                </Text>
+              </View>
+            ) : (
+              renderTransactionTab()
+            )}
+          </View>
+
+          {/* Date Picker */}
+          {datePickerVisible && (
+            <>
+              {Platform.OS === "ios" ? (
+                <Modal
+                  transparent={true}
+                  animationType="slide"
+                  visible={datePickerVisible}
+                  onRequestClose={onDismiss}
                 >
                   <View
                     style={{
-                      backgroundColor: theme.cardBackground,
-                      borderTopLeftRadius: 24,
-                      borderTopRightRadius: 24,
-                      padding: 20,
+                      flex: 1,
+                      justifyContent: "flex-end",
+                      backgroundColor: "rgba(0, 0, 0, 0.3)",
                     }}
                   >
-                    <View className="flex-row justify-between items-center mb-4">
-                      <Text
+                    <View
+                      style={{
+                        backgroundColor: theme.cardBackground,
+                        borderTopLeftRadius: 24,
+                        borderTopRightRadius: 24,
+                        padding: 20,
+                      }}
+                    >
+                      <View className="flex-row justify-between items-center mb-4">
+                        <Text
+                          style={{
+                            color: theme.text,
+                            fontSize: 18,
+                            fontWeight: "bold",
+                          }}
+                        >
+                          {datePickerMode === "start"
+                            ? t.selectStartDate
+                            : t.selectEndDate}
+                        </Text>
+                        <TouchableOpacity onPress={onDismiss}>
+                          <X size={24} color={theme.textMuted} />
+                        </TouchableOpacity>
+                      </View>
+
+                      <DateTimePicker
+                        value={
+                          datePickerMode === "start"
+                            ? pendingDateRange.startDate
+                            : pendingDateRange.endDate
+                        }
+                        mode="date"
+                        display="spinner"
+                        onChange={onDateChange}
+                        maximumDate={
+                          datePickerMode === "start"
+                            ? pendingDateRange.endDate
+                            : new Date()
+                        }
+                        minimumDate={
+                          datePickerMode === "end"
+                            ? pendingDateRange.startDate
+                            : new Date(2020, 0, 1)
+                        }
+                        themeVariant={
+                          theme.isDarkColorScheme ? "dark" : "light"
+                        }
+                      />
+
+                      <TouchableOpacity
                         style={{
-                          color: theme.text,
-                          fontSize: 18,
-                          fontWeight: "bold",
+                          backgroundColor: "#3b82f6",
+                          padding: 16,
+                          borderRadius: 12,
+                          marginTop: 16,
                         }}
+                        onPress={confirmIOSDate}
                       >
-                        {datePickerMode === "start"
-                          ? t.selectStartDate
-                          : t.selectEndDate}
-                      </Text>
-                      <TouchableOpacity onPress={onDismiss}>
-                        <X size={24} color={theme.textMuted} />
+                        <Text
+                          style={{
+                            color: "white",
+                            textAlign: "center",
+                            fontWeight: "bold",
+                          }}
+                        >
+                          {t.confirm}
+                        </Text>
                       </TouchableOpacity>
                     </View>
-
-                    <DateTimePicker
-                      value={
-                        datePickerMode === "start"
-                          ? pendingDateRange.startDate
-                          : pendingDateRange.endDate
-                      }
-                      mode="date"
-                      display="spinner"
-                      onChange={onDateChange}
-                      maximumDate={
-                        datePickerMode === "start"
-                          ? pendingDateRange.endDate
-                          : new Date()
-                      }
-                      minimumDate={
-                        datePickerMode === "end"
-                          ? pendingDateRange.startDate
-                          : new Date(2020, 0, 1)
-                      }
-                      themeVariant={theme.isDarkColorScheme ? "dark" : "light"}
-                    />
-
-                    <TouchableOpacity
-                      style={{
-                        backgroundColor: "#3b82f6",
-                        padding: 16,
-                        borderRadius: 12,
-                        marginTop: 16,
-                      }}
-                      onPress={confirmIOSDate}
-                    >
-                      <Text
-                        style={{
-                          color: "white",
-                          textAlign: "center",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {t.confirm}
-                      </Text>
-                    </TouchableOpacity>
                   </View>
-                </View>
-              </Modal>
-            ) : (
-              <DateTimePicker
-                value={
-                  datePickerMode === "start"
-                    ? pendingDateRange.startDate
-                    : pendingDateRange.endDate
-                }
-                mode="date"
-                display="default"
-                onChange={onDateChange}
-                maximumDate={
-                  datePickerMode === "start"
-                    ? pendingDateRange.endDate
-                    : new Date()
-                }
-                minimumDate={
-                  datePickerMode === "end"
-                    ? pendingDateRange.startDate
-                    : new Date(2020, 0, 1)
-                }
-              />
-            )}
-          </>
-        )}
+                </Modal>
+              ) : (
+                <DateTimePicker
+                  value={
+                    datePickerMode === "start"
+                      ? pendingDateRange.startDate
+                      : pendingDateRange.endDate
+                  }
+                  mode="date"
+                  display="default"
+                  onChange={onDateChange}
+                  maximumDate={
+                    datePickerMode === "start"
+                      ? pendingDateRange.endDate
+                      : new Date()
+                  }
+                  minimumDate={
+                    datePickerMode === "end"
+                      ? pendingDateRange.startDate
+                      : new Date(2020, 0, 1)
+                  }
+                />
+              )}
+            </>
+          )}
 
-        {/* Segment Details Modal */}
-        {selectedSegment && (
-          <Modal
-            transparent={true}
-            animationType="fade"
-            visible={segmentModalVisible}
-            onRequestClose={() => setSegmentModalVisible(false)}
-          >
-            <View
-              style={{
-                flex: 1,
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: "rgba(0, 0, 0, 0.5)",
-              }}
+          {/* Segment Details Modal */}
+          {selectedSegment && (
+            <Modal
+              transparent={true}
+              animationType="fade"
+              visible={segmentModalVisible}
+              onRequestClose={() => setSegmentModalVisible(false)}
             >
               <View
                 style={{
-                  backgroundColor: theme.cardBackground,
-                  borderRadius: 16,
-                  padding: 24,
-                  marginHorizontal: 32,
-                  minWidth: 280,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 8,
-                  elevation: 8,
+                  flex: 1,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  backgroundColor: "rgba(0, 0, 0, 0.5)",
                 }}
               >
-                {/* Header with category color */}
-                <View className="flex-row items-center mb-4">
-                  <View
-                    className="w-6 h-6 rounded-full mr-3"
-                    style={{ backgroundColor: selectedSegment.color }}
-                  />
-                  <Text
-                    style={{
-                      color: theme.text,
-                      fontSize: 20,
-                      fontWeight: "bold",
-                      flex: 1,
-                    }}
-                  >
-                    {selectedSegment.name}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setSegmentModalVisible(false)}
-                    className="p-1"
-                  >
-                    <X size={20} color={theme.textMuted} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Amount and percentage */}
-                <View className="mb-4">
-                  <View
-                    style={{
-                      backgroundColor: theme.background,
-                      padding: 16,
-                      borderRadius: 8,
-                      marginBottom: 12,
-                      borderWidth: 1,
-                      borderColor: theme.border,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: theme.textSecondary,
-                        fontSize: 14,
-                        marginBottom: 4,
-                      }}
-                    >
-                      {t.amount}
-                    </Text>
+                <View
+                  style={{
+                    backgroundColor: theme.cardBackground,
+                    borderRadius: 16,
+                    padding: 24,
+                    marginHorizontal: 32,
+                    minWidth: 280,
+                    shadowColor: "#000",
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 8,
+                    elevation: 8,
+                  }}
+                >
+                  {/* Header with category color */}
+                  <View className="flex-row items-center mb-4">
+                    <View
+                      className="w-6 h-6 rounded-full mr-3"
+                      style={{ backgroundColor: selectedSegment.color }}
+                    />
                     <Text
                       style={{
                         color: theme.text,
-                        fontSize: 24,
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {formatCurrency(Math.abs(selectedSegment.value))}
-                    </Text>
-                  </View>
-
-                  <View
-                    style={{
-                      backgroundColor: theme.background,
-                      padding: 16,
-                      borderRadius: 8,
-                      borderWidth: 1,
-                      borderColor: theme.border,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: theme.textSecondary,
-                        fontSize: 14,
-                        marginBottom: 4,
-                      }}
-                    >
-                      {t.percentageOfTotal}
-                    </Text>
-                    <Text
-                      style={{
                         fontSize: 20,
-                        fontWeight: "600",
-                        color: selectedSegment.color,
+                        fontWeight: "bold",
+                        flex: 1,
                       }}
                     >
-                      {selectedSegment.percentage.toFixed(1)}%
+                      {selectedSegment.name}
                     </Text>
+                    <TouchableOpacity
+                      onPress={() => setSegmentModalVisible(false)}
+                      className="p-1"
+                    >
+                      <X size={20} color={theme.textMuted} />
+                    </TouchableOpacity>
                   </View>
-                </View>
 
-                {/* Transaction count if available */}
-                {selectedSegment.name !== t.allCategories &&
-                  transactionData?.category_breakdown[selectedSegment.name] && (
+                  {/* Amount and percentage */}
+                  <View className="mb-4">
                     <View
                       style={{
                         backgroundColor: theme.background,
                         padding: 16,
                         borderRadius: 8,
-                        marginBottom: 16,
+                        marginBottom: 12,
                         borderWidth: 1,
                         borderColor: theme.border,
                       }}
                     >
                       <Text
                         style={{
-                          color: "#1d4ed8",
+                          color: theme.textSecondary,
                           fontSize: 14,
                           marginBottom: 4,
                         }}
                       >
-                        {t.transactions}
+                        {t.amount}
                       </Text>
                       <Text
                         style={{
-                          fontSize: 18,
-                          fontWeight: "600",
-                          color: "#1e40af",
+                          color: theme.text,
+                          fontSize: 24,
+                          fontWeight: "bold",
                         }}
                       >
-                        {
-                          transactionData.category_breakdown[
-                            selectedSegment.name
-                          ].count
-                        }{" "}
-                        {t.transactionsCount}
+                        {formatCurrency(Math.abs(selectedSegment.value))}
                       </Text>
                     </View>
-                  )}
 
-                {/* Close button */}
-                <TouchableOpacity
-                  onPress={() => setSegmentModalVisible(false)}
-                  style={{
-                    backgroundColor: "#8b5cf6",
-                    padding: 12,
-                    borderRadius: 12,
-                    marginTop: 8,
-                  }}
-                >
-                  <Text
+                    <View
+                      style={{
+                        backgroundColor: theme.background,
+                        padding: 16,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: theme.textSecondary,
+                          fontSize: 14,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {t.percentageOfTotal}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 20,
+                          fontWeight: "600",
+                          color: selectedSegment.color,
+                        }}
+                      >
+                        {selectedSegment.percentage.toFixed(1)}%
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Transaction count if available */}
+                  {selectedSegment.name !== t.allCategories &&
+                    transactionData?.category_breakdown[
+                      selectedSegment.name
+                    ] && (
+                      <View
+                        style={{
+                          backgroundColor: theme.background,
+                          padding: 16,
+                          borderRadius: 8,
+                          marginBottom: 16,
+                          borderWidth: 1,
+                          borderColor: theme.border,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: "#1d4ed8",
+                            fontSize: 14,
+                            marginBottom: 4,
+                          }}
+                        >
+                          {t.transactions}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 18,
+                            fontWeight: "600",
+                            color: "#1e40af",
+                          }}
+                        >
+                          {
+                            transactionData.category_breakdown[
+                              selectedSegment.name
+                            ].count
+                          }{" "}
+                          {t.transactionsCount}
+                        </Text>
+                      </View>
+                    )}
+
+                  {/* Close button */}
+                  <TouchableOpacity
+                    onPress={() => setSegmentModalVisible(false)}
                     style={{
-                      color: "white",
-                      textAlign: "center",
-                      fontWeight: "600",
+                      backgroundColor: "#8b5cf6",
+                      padding: 12,
+                      borderRadius: 12,
+                      marginTop: 8,
                     }}
                   >
-                    {t.close}
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      style={{
+                        color: "white",
+                        textAlign: "center",
+                        fontWeight: "600",
+                      }}
+                    >
+                      {t.close}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          </Modal>
-        )}
-      </View>
+            </Modal>
+          )}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

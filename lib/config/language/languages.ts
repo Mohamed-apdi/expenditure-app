@@ -58,6 +58,29 @@ export const LANGUAGES = {
     helpfulAlertsDescription: "Stay on top of bills and daily spending",
     smartInsights: "Smart Insights",
     smartInsightsDescription: "Discover trends and plan your savings goals",
+
+    // Smart Insights Financial Advice
+    financialAdvice: "Financial Advice",
+    overspendingAlert: "Overspending Alert",
+    overspendingMessage:
+      "You're spending more than you're earning this period. Consider reviewing your expenses to avoid financial stress.",
+    overspendingRecommendations: "Recommendations:",
+    reduceExpenses: "Reduce discretionary spending",
+    reviewSubscriptions: "Review and cancel unused subscriptions",
+    createBudget: "Create a monthly budget",
+    trackDailySpending: "Track daily spending habits",
+    buildEmergencyFund: "Build an emergency fund",
+    setSavingsGoal: "Set a savings goal",
+    netIncomePositive:
+      "Great job! You're saving {percentage}% of your income this period",
+    netIncomeNegative:
+      "⚠️ You're spending {amount} more than you're earning. Consider reviewing your expenses",
+    biggestExpenseCategory:
+      "Your biggest expense is {category} ({percentage}% of total spending)",
+    keepAddingTransactions:
+      "Keep adding transactions to get personalized insights!",
+    spendingDiversity:
+      "You have diverse spending across {count} categories. Your top 3 expenses are: {categories}",
     newToMoneyManager: "New to Money Manager?",
     createAccount: "Create Account",
     helpingUsersText: "Helping users manage money securely every day",
@@ -738,6 +761,29 @@ export const LANGUAGES = {
     helpfulAlertsDescription: "La soco biilka iyo kharashaadka maalin kasta",
     smartInsights: "Fahanka Caqliga ah",
     smartInsightsDescription: "Hel dhaqdhaqaaqa oo qorsheeyada kaydkaaga",
+
+    // Smart Insights Financial Advice
+    financialAdvice: "Talooyinka Maaliyadeed",
+    overspendingAlert: "Digniin ku Saabsan Qadka Dheeraadka",
+    overspendingMessage:
+      "Waxaad qadka badan ka qadashaa waxaad kasbaysaa muddadan. Ka fiirso qadkaaga si aad uga fogaato cadaadiska maaliyadeed.",
+    overspendingRecommendations: "Talooyinka:",
+    reduceExpenses: "Yaree qadka aan loo baahneyn",
+    reviewSubscriptions: "Fiiri oo jooji qandaraasyada aan la isticmaalin",
+    createBudget: "Samee miisaaniyad bisha",
+    trackDailySpending: "Raadi dhaqdhaqaaqa maalinlaha ah",
+    buildEmergencyFund: "Samee kayd degdeg ah",
+    setSavingsGoal: "Deji ujeedada kaydka",
+    netIncomePositive:
+      "Waxaad u fiican tahay! Waxaad kaydsanaysaa {percentage}% dakhligaaga muddadan",
+    netIncomeNegative:
+      "⚠️ Waxaad qadka {amount} ka badan ka qadashaa waxaad kasbaysaa. Ka fiirso qadkaaga",
+    biggestExpenseCategory:
+      "Qadkaaga ugu weyn waa {category} ({percentage}% qadka guud)",
+    keepAddingTransactions:
+      "Sii wad ku darista dhaqdhaqaaqa si aad u hesho fahanka gaarka ah!",
+    spendingDiversity:
+      "Waxaad leedahay qadka kala duwan {count} qaybood. 3da ugu sarreeya waa: {categories}",
     newToMoneyManager: "Cusub Maamulka Lacagta?",
     createAccount: "Abuur Akoon",
     helpingUsersText:
