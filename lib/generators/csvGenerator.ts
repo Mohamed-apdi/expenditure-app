@@ -54,6 +54,13 @@ export const generateCSVReport = async (
       .split("T")[0];
     const filename = `${data.title.toLowerCase().replace(/\s+/g, "_")}_${timestamp}.csv`;
 
+    // Validate CSV content
+    if (!csvContent || csvContent.length === 0) {
+      throw new Error("CSV content is empty");
+    }
+
+    console.log("CSV content length:", csvContent.length, "characters");
+
     // Save to local storage based on platform
     const savedUri = await saveCSVToLocalStorage(csvContent, filename);
     return savedUri;
@@ -107,6 +114,24 @@ export const saveCSVToLocalStorage = async (
         "text/csv"
       );
 
+      // Write CSV content to SAF file
+      await FileSystem.writeAsStringAsync(safUri, csvContent, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      // Validate the saved file
+      const savedFileInfo = await FileSystem.getInfoAsync(safUri);
+      if (!savedFileInfo.exists || savedFileInfo.size === 0) {
+        throw new Error("Failed to save CSV content to SAF file");
+      }
+
+      console.log(
+        "CSV saved to Android Downloads:",
+        safUri,
+        "Size:",
+        savedFileInfo.size,
+        "bytes"
+      );
       return safUri;
     } else {
       // For iOS, save to documents directory
@@ -135,7 +160,19 @@ export const saveCSVToDocuments = async (
       encoding: FileSystem.EncodingType.UTF8,
     });
 
-    console.log("CSV saved to documents directory:", fileUri);
+    // Validate the saved file
+    const savedFileInfo = await FileSystem.getInfoAsync(fileUri);
+    if (!savedFileInfo.exists || savedFileInfo.size === 0) {
+      throw new Error("Failed to save CSV to documents directory");
+    }
+
+    console.log(
+      "CSV saved to documents directory:",
+      fileUri,
+      "Size:",
+      savedFileInfo.size,
+      "bytes"
+    );
     return fileUri;
   } catch (error) {
     console.error("Error saving CSV to documents:", error);

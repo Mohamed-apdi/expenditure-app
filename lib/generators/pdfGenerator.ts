@@ -26,6 +26,14 @@ export const generatePDFReport = async (
 
     console.log("PDF generated successfully at:", cacheUri);
 
+    // Validate that the PDF was created
+    const fileInfo = await FileSystem.getInfoAsync(cacheUri);
+    if (!fileInfo.exists || fileInfo.size === 0) {
+      throw new Error("PDF file was not created or is empty");
+    }
+
+    console.log("PDF file size:", fileInfo.size, "bytes");
+
     // Save to local storage based on platform
     const savedUri = await savePDFToLocalStorage(cacheUri, data.title);
     return savedUri;
@@ -80,6 +88,33 @@ export const savePDFToLocalStorage = async (
         fileName,
         "application/pdf"
       );
+
+      // Copy PDF content to SAF file
+      const base64 = await FileSystem.readAsStringAsync(cacheUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      if (!base64 || base64.length === 0) {
+        throw new Error("PDF content is empty");
+      }
+
+      await FileSystem.writeAsStringAsync(safUri, base64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Validate the saved file
+      const savedFileInfo = await FileSystem.getInfoAsync(safUri);
+      if (!savedFileInfo.exists || savedFileInfo.size === 0) {
+        throw new Error("Failed to save PDF content to SAF file");
+      }
+
+      console.log(
+        "PDF saved to Android Downloads:",
+        safUri,
+        "Size:",
+        savedFileInfo.size,
+        "bytes"
+      );
       return safUri;
     } else {
       // For iOS, save to documents directory
@@ -112,7 +147,19 @@ export const savePDFToDocuments = async (
       to: newUri,
     });
 
-    console.log("PDF saved to documents directory:", newUri);
+    // Validate the copied file
+    const copiedFileInfo = await FileSystem.getInfoAsync(newUri);
+    if (!copiedFileInfo.exists || copiedFileInfo.size === 0) {
+      throw new Error("Failed to copy PDF to documents directory");
+    }
+
+    console.log(
+      "PDF saved to documents directory:",
+      newUri,
+      "Size:",
+      copiedFileInfo.size,
+      "bytes"
+    );
     return newUri;
   } catch (error) {
     console.error("Error saving PDF to documents:", error);
