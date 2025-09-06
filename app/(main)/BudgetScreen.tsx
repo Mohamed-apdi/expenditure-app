@@ -175,6 +175,7 @@ export default function BudgetScreen() {
   const [datePickerMode, setDatePickerMode] = useState<"start" | "end">(
     "start"
   );
+  const [amountError, setAmountError] = useState<string | null>(null);
 
   // Fetch budgets and accounts from database
   const fetchData = async () => {
@@ -237,6 +238,7 @@ export default function BudgetScreen() {
     setCustomStartDate("");
     setCustomEndDate("");
     setIsGlobalBudget(false);
+    setAmountError(null);
     setSelectedAccount(accounts.length > 0 ? accounts[0] : null); // Set default account
     setIsModalVisible(true);
   };
@@ -287,11 +289,44 @@ export default function BudgetScreen() {
     setDatePickerVisible(false);
   };
 
+  // Helper function to validate and format amount
+  const validateAmount = (
+    amount: string
+  ): { isValid: boolean; error?: string; value?: number } => {
+    const numAmount = parseFloat(amount);
+
+    if (!amount.trim()) {
+      return { isValid: false, error: "Amount is required" };
+    }
+
+    if (isNaN(numAmount)) {
+      return { isValid: false, error: "Please enter a valid number" };
+    }
+
+    if (numAmount <= 0) {
+      return { isValid: false, error: "Amount must be greater than 0" };
+    }
+
+    if (numAmount > 999999) {
+      return { isValid: false, error: "Amount cannot exceed $999,999" };
+    }
+
+    return { isValid: true, value: numAmount };
+  };
+
   const handleSaveBudget = async () => {
     if (!newCategory.trim() || !newAllocated.trim()) {
       Alert.alert(t.missingInfo, t.pleaseFillCategoryAndAmount);
       return;
     }
+
+    // Validate budget amount
+    const amountValidation = validateAmount(newAllocated);
+    if (!amountValidation.isValid) {
+      setAmountError(amountValidation.error!);
+      return;
+    }
+    const amount = amountValidation.value!;
 
     if (!isGlobalBudget && !selectedAccount) {
       Alert.alert(t.selectAccount, t.selectAccountForBudget);
@@ -318,7 +353,7 @@ export default function BudgetScreen() {
     try {
       const budgetData = {
         category: newCategory,
-        amount: parseFloat(newAllocated),
+        amount: amount,
         period: budgetPeriod as
           | "this_week"
           | "this_month"
@@ -1214,18 +1249,40 @@ export default function BudgetScreen() {
                 <TextInput
                   style={{
                     borderWidth: 1,
-                    borderColor: theme.border,
+                    borderColor: amountError ? "#ef4444" : theme.border,
                     borderRadius: 8,
                     padding: 12,
                     color: theme.text,
                     backgroundColor: theme.background,
                   }}
-                  placeholder={t.enterAmount}
+                  placeholder="Enter amount (e.g., 500)"
                   placeholderTextColor={theme.textMuted}
                   keyboardType="numeric"
                   value={newAllocated}
-                  onChangeText={setNewAllocated}
+                  onChangeText={(text) => {
+                    // Only allow numbers and one decimal point
+                    const cleanedText = text.replace(/[^0-9.]/g, "");
+                    // Prevent multiple decimal points
+                    const parts = cleanedText.split(".");
+                    if (parts.length > 2) {
+                      setNewAllocated(parts[0] + "." + parts.slice(1).join(""));
+                    } else {
+                      setNewAllocated(cleanedText);
+                    }
+
+                    // Clear error when user starts typing
+                    if (amountError) {
+                      setAmountError(null);
+                    }
+                  }}
                 />
+                {amountError && (
+                  <Text
+                    style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}
+                  >
+                    {amountError}
+                  </Text>
+                )}
               </View>
 
               <TouchableOpacity
