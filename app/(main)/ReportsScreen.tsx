@@ -875,24 +875,37 @@ export default function Report() {
     switch (preset) {
       case "today":
         startDate = new Date(today);
+        startDate.setHours(0, 0, 0, 0); // Start of day
         endDate = new Date(today);
+        endDate.setHours(23, 59, 59, 999); // End of day
         break;
       case "thisWeek":
         startDate = new Date(today);
-        startDate.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
+        // Calculate start of week (Monday)
+        const dayOfWeek = today.getDay();
+        const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 0, so 6 days back to Monday
+        startDate.setDate(today.getDate() - daysToMonday);
+        startDate.setHours(0, 0, 0, 0); // Start of day
         endDate = new Date(today);
+        endDate.setHours(23, 59, 59, 999); // End of day
         break;
       case "thisMonth":
         startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        startDate.setHours(0, 0, 0, 0); // Start of day
         endDate = new Date(today);
+        endDate.setHours(23, 59, 59, 999); // End of day
         break;
       case "lastMonth":
         startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        startDate.setHours(0, 0, 0, 0); // Start of day
         endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+        endDate.setHours(23, 59, 59, 999); // End of day
         break;
       case "thisYear":
         startDate = new Date(today.getFullYear(), 0, 1);
+        startDate.setHours(0, 0, 0, 0); // Start of day
         endDate = new Date(today);
+        endDate.setHours(23, 59, 59, 999); // End of day
         break;
       default:
         startDate = new Date(today);
