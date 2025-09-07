@@ -483,14 +483,22 @@ export const getRecurringTransactions = async (
 export const generateTransactionReport = async (
   userId: string,
   startDate: string,
-  endDate: string
+  endDate: string,
+  accountId?: string
 ) => {
-  const { data: transactions } = await supabase
+  let query = supabase
     .from("transactions")
     .select("*")
     .eq("user_id", userId)
     .gte("date", startDate)
     .lte("date", endDate);
+
+  // Filter by account if accountId is provided
+  if (accountId) {
+    query = query.eq("account_id", accountId);
+  }
+
+  const { data: transactions } = await query;
 
   let categoryBreakdown: Record<
     string,

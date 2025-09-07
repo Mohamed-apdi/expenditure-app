@@ -300,7 +300,6 @@ const CategoryItem = ({
               </Text>
               <Text
                 className="text-xs"
-                //style={{ color: theme.textSecondary }}
                 style={{
                   color: isExpense ? "#DC2626" : "#16A34A",
                 }}
@@ -646,7 +645,8 @@ export default function Report() {
       const rawData = await generateTransactionReport(
         selectedAccount.user_id,
         startDate,
-        endDate
+        endDate,
+        selectedAccount.id
       );
 
       if (!rawData) {
@@ -1744,146 +1744,6 @@ export default function Report() {
               <CategoryItem key={index} category={category} data={data} />
             ))}
         </View>
-
-        {/* Selected Category Details */}
-        {selectedCategory &&
-          transactionData.category_breakdown[selectedCategory] && (
-            <View
-              style={{
-                marginBottom: 24,
-                backgroundColor: theme.cardBackground,
-                padding: 16,
-                borderRadius: 12,
-                shadowColor: theme.border,
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 2,
-                elevation: 1,
-              }}
-            >
-              <View className="flex-row justify-between items-center mb-3">
-                <View>
-                  <Text
-                    style={{
-                      color: theme.text,
-                      fontSize: 16,
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {selectedCategory} Details
-                  </Text>
-                  <Text
-                    style={{
-                      color: theme.textSecondary,
-                      fontSize: 12,
-                      marginTop: 2,
-                    }}
-                  >
-                    {CATEGORY_TYPES[selectedCategory] === "expense"
-                      ? t.expense
-                      : t.income}
-                  </Text>
-                </View>
-                <View className="flex-row items-center gap-2">
-                  <TouchableOpacity
-                    onPress={() => {
-                      const categoryData =
-                        transactionData.category_breakdown[selectedCategory];
-                      if (
-                        categoryData.transactionIds &&
-                        categoryData.transactionIds.length > 0
-                      ) {
-                        router.push(
-                          `/(transactions)/transaction-detail/${categoryData.transactionIds[0]}`
-                        );
-                      }
-                    }}
-                    style={{
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
-                      borderRadius: 6,
-                      backgroundColor: theme.primary,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: "white",
-                        fontSize: 12,
-                        fontWeight: "600",
-                      }}
-                    >
-                      View Transaction
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => setSelectedCategory(null)}
-                    style={{
-                      padding: 4,
-                      borderRadius: 4,
-                    }}
-                  >
-                    <X size={16} color={theme.textSecondary} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-              <View className="flex-row justify-between">
-                <View>
-                  <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
-                    Total Amount
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 18,
-                      fontWeight: "bold",
-                      color:
-                        CATEGORY_TYPES[selectedCategory] === "expense"
-                          ? "#DC2626"
-                          : "#16A34A",
-                    }}
-                  >
-                    {CATEGORY_TYPES[selectedCategory] === "expense" ? "-" : "+"}
-                    {formatCurrency(
-                      Math.abs(
-                        transactionData.category_breakdown[selectedCategory]
-                          .amount
-                      )
-                    )}
-                  </Text>
-                </View>
-                <View>
-                  <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
-                    Percentage
-                  </Text>
-                  <Text
-                    style={{
-                      color: theme.text,
-                      fontSize: 18,
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {formatPercentage(
-                      transactionData.category_breakdown[selectedCategory]
-                        .percentage
-                    )}
-                  </Text>
-                </View>
-                <View>
-                  <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
-                    Transactions
-                  </Text>
-                  <Text
-                    style={{
-                      color: theme.text,
-                      fontSize: 18,
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {transactionData.category_breakdown[selectedCategory].count}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          )}
       </ScrollView>
     );
   };
