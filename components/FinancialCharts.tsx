@@ -1,16 +1,27 @@
 // components/FinancialCharts.tsx
-import { View, Text } from 'react-native';
-import { BarChart, PieChart } from 'react-native-chart-kit';
-import { Dimensions } from 'react-native';
+import { View, Text } from "react-native";
+import { BarChart, PieChart } from "react-native-chart-kit";
+import { Dimensions } from "react-native";
 
-const screenWidth = Dimensions.get('window').width;
+const screenWidth = Dimensions.get("window").width;
 
-export const SpendingByCategoryChart = ({ data }) => {
+interface CategoryData {
+  category: string;
+  amount: number;
+  color: string;
+}
+
+interface MonthlyData {
+  month: string;
+  amount: number;
+}
+
+export const SpendingByCategoryChart = ({ data }: { data: CategoryData[] }) => {
   const chartData = data.map((item) => ({
     name: item.category,
     amount: item.amount,
     color: item.color,
-    legendFontColor: '#7F7F7F',
+    legendFontColor: "#7F7F7F",
     legendFontSize: 12,
   }));
 
@@ -22,9 +33,9 @@ export const SpendingByCategoryChart = ({ data }) => {
         width={screenWidth - 32}
         height={220}
         chartConfig={{
-          backgroundColor: '#ffffff',
-          backgroundGradientFrom: '#ffffff',
-          backgroundGradientTo: '#ffffff',
+          backgroundColor: "#ffffff",
+          backgroundGradientFrom: "#ffffff",
+          backgroundGradientTo: "#ffffff",
           decimalPlaces: 0,
           color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
         }}
@@ -37,7 +48,7 @@ export const SpendingByCategoryChart = ({ data }) => {
   );
 };
 
-export const MonthlyTrendChart = ({ data }) => {
+export const MonthlyTrendChart = ({ data }: { data: MonthlyData[] }) => {
   return (
     <View className="mb-6">
       <Text className="font-bold text-lg mb-2 ml-4">Monthly Trends</Text>
@@ -55,9 +66,9 @@ export const MonthlyTrendChart = ({ data }) => {
         yAxisLabel="$"
         yAxisSuffix=""
         chartConfig={{
-          backgroundColor: '#ffffff',
-          backgroundGradientFrom: '#ffffff',
-          backgroundGradientTo: '#ffffff',
+          backgroundColor: "#ffffff",
+          backgroundGradientFrom: "#ffffff",
+          backgroundGradientTo: "#ffffff",
           decimalPlaces: 0,
           color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
           labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,

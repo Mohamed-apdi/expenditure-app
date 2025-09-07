@@ -240,8 +240,13 @@ export default function ProfileSetupScreen() {
         text2: t.profileSetupSuccess,
       });
 
-      // Mark onboarding as complete
-      await setItemAsync("onboarding_complete", "true");
+      // Mark onboarding as complete for this specific user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        await setItemAsync(`onboarding_complete_${user.id}`, "true");
+      }
 
       // Navigate to dashboard
       router.replace("/(main)/Dashboard");
@@ -262,8 +267,13 @@ export default function ProfileSetupScreen() {
   };
 
   const handleSkip = async () => {
-    // Mark onboarding as complete even when skipping
-    await setItemAsync("onboarding_complete", "true");
+    // Mark onboarding as complete even when skipping for this specific user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      await setItemAsync(`onboarding_complete_${user.id}`, "true");
+    }
     router.replace("/(main)/Dashboard");
   };
 

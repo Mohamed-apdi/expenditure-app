@@ -12,6 +12,7 @@ import {
 import { X, ChevronDown, Check, DollarSign } from "lucide-react-native";
 import { useLanguage } from "~/lib";
 import { useTheme } from "~/lib";
+import Toast from "react-native-toast-message";
 
 type AccountType = {
   id: string;
@@ -55,37 +56,156 @@ const AddAccount = ({
   const { t } = useLanguage();
   const theme = useTheme();
   const [showGroupModal, setShowGroupModal] = useState(false);
-  // Removed showTypeModal state
   const [newAccount, setNewAccount] = useState({
-    account_type: "", // Changed from group_name
+    account_type: "",
     name: "",
     amount: 0,
     description: "",
   });
 
-  // Removed accountTypes array
+  // Validation constants
+  const MAX_AMOUNT = 999999999.99;
+  const MIN_NAME_LENGTH = 2;
+  const MAX_NAME_LENGTH = 50;
+  const MAX_DESCRIPTION_LENGTH = 200;
+
+  // Validation helper functions
+  const sanitizeInput = (input: string): string => {
+    return input
+      .replace(/[<>]/g, "") // Remove potential HTML tags
+      .replace(/[\r\n\t]/g, " ") // Replace line breaks with spaces
+      .trim();
+  };
+
+  const validateAccountName = (name: string): string | null => {
+    const sanitizedName = sanitizeInput(name);
+
+    if (!sanitizedName) {
+      return t.accountNameRequired || "Account name is required";
+    }
+
+    if (sanitizedName.length < MIN_NAME_LENGTH) {
+      return (
+        t.nameTooShort ||
+        `Account name must be at least ${MIN_NAME_LENGTH} characters`
+      );
+    }
+
+    if (sanitizedName.length > MAX_NAME_LENGTH) {
+      return (
+        t.nameTooLong ||
+        `Account name must be less than ${MAX_NAME_LENGTH} characters`
+      );
+    }
+
+    return null;
+  };
+
+  const validateAmount = (amountStr: string): string | null => {
+    if (!amountStr.trim()) {
+      return t.amountRequired || "Amount is required";
+    }
+
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount < 0) {
+      return t.invalidAmount || "Please enter a valid amount";
+    }
+
+    if (amount > MAX_AMOUNT) {
+      return (
+        t.amountTooLarge || `Maximum amount is $${MAX_AMOUNT.toLocaleString()}`
+      );
+    }
+
+    const decimalPlaces = (amountStr.split(".")[1] || "").length;
+    if (decimalPlaces > 2) {
+      return t.invalidAmountFormat || "Amount can only have 2 decimal places";
+    }
+
+    return null;
+  };
+
+  const validateAccountType = (type: string): string | null => {
+    if (!type) {
+      return t.accountTypeRequired || "Account type is required";
+    }
+
+    const validTypes = accountTypes.map((t) => t.name);
+    if (!validTypes.includes(type)) {
+      return t.invalidAccountType || "Please select a valid account type";
+    }
+
+    return null;
+  };
+
+  const validateDescription = (description: string): string | null => {
+    if (description.length > MAX_DESCRIPTION_LENGTH) {
+      return (
+        t.descriptionTooLong ||
+        `Description must be less than ${MAX_DESCRIPTION_LENGTH} characters`
+      );
+    }
+
+    return null;
+  };
 
   const handleAddAccount = () => {
-    if (!newAccount.account_type || !newAccount.name) {
-      // Changed from group_name
-      // Add validation/error handling
+    // Validate account type
+    const typeError = validateAccountType(newAccount.account_type);
+    if (typeError) {
+      Toast.show({
+        type: "error",
+        text1: typeError,
+      });
       return;
     }
 
+    // Validate account name
+    const nameError = validateAccountName(newAccount.name);
+    if (nameError) {
+      Toast.show({
+        type: "error",
+        text1: nameError,
+      });
+      return;
+    }
+
+    // Validate amount
+    const amountError = validateAmount(newAccount.amount.toString());
+    if (amountError) {
+      Toast.show({
+        type: "error",
+        text1: amountError,
+      });
+      return;
+    }
+
+    // Validate description
+    if (newAccount.description) {
+      const descriptionError = validateDescription(newAccount.description);
+      if (descriptionError) {
+        Toast.show({
+          type: "error",
+          text1: descriptionError,
+        });
+        return;
+      }
+    }
+
     onAddAccount({
-      account_type: newAccount.account_type, // Changed from group_name
-      name: newAccount.name,
+      account_type: newAccount.account_type,
+      name: sanitizeInput(newAccount.name),
       amount: newAccount.amount || 0,
-      description: newAccount.description,
-      // Removed type field
+      description: newAccount.description
+        ? sanitizeInput(newAccount.description)
+        : undefined,
     });
 
     setNewAccount({
-      account_type: "", // Changed from group_name
+      account_type: "",
       name: "",
       amount: 0,
       description: "",
-      // Removed type field
     });
   };
 

@@ -20,15 +20,23 @@ export default function OnboardingLayout() {
         });
 
         if (!error) {
-          // Check if user has completed onboarding
-          const onboardingComplete = await getItemAsync("onboarding_complete");
+          // Get current user to check their onboarding status
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
 
-          if (onboardingComplete === "true") {
-            // ✅ User completed onboarding - go to dashboard
-            router.replace("/(main)/Dashboard");
-            return;
+          if (user) {
+            // Check if this specific user has completed onboarding
+            const userOnboardingKey = `onboarding_complete_${user.id}`;
+            const onboardingComplete = await getItemAsync(userOnboardingKey);
+
+            if (onboardingComplete === "true") {
+              // ✅ User completed onboarding - go to dashboard
+              router.replace("/(main)/Dashboard");
+              return;
+            }
+            // ✅ User is logged in but hasn't completed onboarding - continue to onboarding flow
           }
-          // ✅ User is logged in but hasn't completed onboarding - continue to onboarding flow
         }
       }
 

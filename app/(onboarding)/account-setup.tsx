@@ -59,6 +59,13 @@ export default function PostSignupSetupScreen() {
   );
   const [accountGroups, setAccountGroups] = useState<AccountGroup[]>([]);
 
+  // Constants for validation
+  const MAX_ACCOUNTS = 20;
+  const MAX_AMOUNT = 999999999.99;
+  const MIN_NAME_LENGTH = 2;
+  const MAX_NAME_LENGTH = 50;
+  const MAX_DESCRIPTION_LENGTH = 200;
+
   // Predefined account types
   const accountTypes = [
     { id: "1", name: "Cash" },
@@ -74,6 +81,103 @@ export default function PostSignupSetupScreen() {
     { id: "11", name: "Card" },
     { id: "12", name: "Others" },
   ];
+
+  // Validation helper functions
+  const sanitizeInput = (input: string): string => {
+    return input
+      .replace(/[<>]/g, "") // Remove potential HTML tags
+      .replace(/[\r\n\t]/g, " ") // Replace line breaks with spaces
+      .trim();
+  };
+
+  const isDuplicateName = (name: string, excludeId?: string): boolean => {
+    return accounts.some(
+      (acc) =>
+        acc.name.toLowerCase() === name.toLowerCase() && acc.id !== excludeId
+    );
+  };
+
+  const validateAccountName = (name: string): string | null => {
+    const sanitizedName = sanitizeInput(name);
+
+    if (!sanitizedName) {
+      return t.accountNameRequired || "Account name is required";
+    }
+
+    if (sanitizedName.length < MIN_NAME_LENGTH) {
+      return (
+        t.nameTooShort ||
+        `Account name must be at least ${MIN_NAME_LENGTH} characters`
+      );
+    }
+
+    if (sanitizedName.length > MAX_NAME_LENGTH) {
+      return (
+        t.nameTooLong ||
+        `Account name must be less than ${MAX_NAME_LENGTH} characters`
+      );
+    }
+
+    return null;
+  };
+
+  const validateAmount = (amountStr: string): string | null => {
+    if (!amountStr.trim()) {
+      return t.amountRequired || "Amount is required";
+    }
+
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount < 0) {
+      return t.invalidAmount || "Please enter a valid amount";
+    }
+
+    if (amount > MAX_AMOUNT) {
+      return (
+        t.amountTooLarge || `Maximum amount is $${MAX_AMOUNT.toLocaleString()}`
+      );
+    }
+
+    const decimalPlaces = (amountStr.split(".")[1] || "").length;
+    if (decimalPlaces > 2) {
+      return t.invalidAmountFormat || "Amount can only have 2 decimal places";
+    }
+
+    return null;
+  };
+
+  const validateAccountType = (type: string): string | null => {
+    if (!type) {
+      return t.accountTypeRequired || "Account type is required";
+    }
+
+    const validTypes = accountTypes.map((t) => t.name);
+    if (!validTypes.includes(type)) {
+      return t.invalidAccountType || "Please select a valid account type";
+    }
+
+    return null;
+  };
+
+  const validateDescription = (description: string): string | null => {
+    if (description.length > MAX_DESCRIPTION_LENGTH) {
+      return (
+        t.descriptionTooLong ||
+        `Description must be less than ${MAX_DESCRIPTION_LENGTH} characters`
+      );
+    }
+
+    return null;
+  };
+
+  const isAnyOperationInProgress = (): boolean => {
+    return (
+      creatingMainAccount ||
+      addingAccount ||
+      renaming ||
+      deletingAccount ||
+      settingAmount
+    );
+  };
 
   useEffect(() => {
     loadUserData();
@@ -123,6 +227,29 @@ export default function PostSignupSetupScreen() {
   };
 
   const handleCreateMainAccount = async () => {
+    // Loading state validation
+    if (isAnyOperationInProgress()) {
+      Toast.show({
+        type: "info",
+        text1: t.pleaseWait || "Please wait",
+        text2:
+          t.anotherOperationInProgress || "Another operation is in progress",
+      });
+      return;
+    }
+
+    // Maximum account limit validation
+    if (accounts.length >= MAX_ACCOUNTS) {
+      Toast.show({
+        type: "error",
+        text1: t.accountLimitReached || "Account limit reached",
+        text2:
+          t.accountLimitMessage ||
+          `You can only have ${MAX_ACCOUNTS} accounts maximum`,
+      });
+      return;
+    }
+
     try {
       setCreatingMainAccount(true);
 
@@ -158,23 +285,68 @@ export default function PostSignupSetupScreen() {
   };
 
   const handleEditAccount = async () => {
-    if (!accountToEdit || !newAccountName.trim()) return;
+    if (!accountToEdit) return;
 
-    // Validate name
-    if (/^\d+$/.test(newAccountName.trim())) {
+    // Loading state validation
+    if (isAnyOperationInProgress()) {
+      Toast.show({
+        type: "info",
+        text1: t.pleaseWait || "Please wait",
+        text2:
+          t.anotherOperationInProgress || "Another operation is in progress",
+      });
+      return;
+    }
+
+    // Validate account name
+    const nameError = validateAccountName(newAccountName);
+    if (nameError) {
       Toast.show({
         type: "error",
-        text1: t.nameCannotBeNumbers || "Name cannot be only numbers",
+        text1: nameError,
+      });
+      return;
+    }
+
+    // Validate duplicate name
+    const sanitizedName = sanitizeInput(newAccountName);
+    if (isDuplicateName(sanitizedName, accountToEdit.id)) {
+      Toast.show({
+        type: "error",
+        text1: t.accountNameExists || "Account name already exists",
+        text2: t.chooseDifferentName || "Please choose a different name",
       });
       return;
     }
 
     // Validate amount
-    const amount = parseFloat(newAccountAmount || "0");
-    if (isNaN(amount) || amount < 0) {
+    const amountError = validateAmount(newAccountAmount || "0");
+    if (amountError) {
       Toast.show({
         type: "error",
-        text1: t.invalidAmount || "Please enter a valid amount",
+        text1: amountError,
+      });
+      return;
+    }
+
+    // Validate account type
+    const typeError = validateAccountType(
+      newAccountType || accountToEdit.account_type
+    );
+    if (typeError) {
+      Toast.show({
+        type: "error",
+        text1: typeError,
+      });
+      return;
+    }
+
+    // Validate description
+    const descriptionError = validateDescription(newAccountDescription);
+    if (descriptionError) {
+      Toast.show({
+        type: "error",
+        text1: descriptionError,
       });
       return;
     }
@@ -182,11 +354,13 @@ export default function PostSignupSetupScreen() {
     try {
       setRenaming(true);
 
+      const amount = parseFloat(newAccountAmount || "0");
       const updatedAccount = await updateAccount(accountToEdit.id, {
-        name: newAccountName.trim(),
+        name: sanitizedName,
         amount: amount,
         account_type: newAccountType || accountToEdit.account_type,
-        description: newAccountDescription || accountToEdit.description,
+        description:
+          sanitizeInput(newAccountDescription) || accountToEdit.description,
       });
 
       setAccounts((prev) =>
@@ -222,14 +396,25 @@ export default function PostSignupSetupScreen() {
   };
 
   const handleSetAmount = async () => {
-    if (!defaultAccount || !newAccountAmount.trim()) return;
+    if (!defaultAccount) return;
+
+    // Loading state validation
+    if (isAnyOperationInProgress()) {
+      Toast.show({
+        type: "info",
+        text1: t.pleaseWait || "Please wait",
+        text2:
+          t.anotherOperationInProgress || "Another operation is in progress",
+      });
+      return;
+    }
 
     // Validate amount
-    const amount = Number.parseFloat(newAccountAmount.trim());
-    if (isNaN(amount) || amount < 0) {
+    const amountError = validateAmount(newAccountAmount);
+    if (amountError) {
       Toast.show({
         type: "error",
-        text1: t.invalidAmount || "Please enter a valid amount",
+        text1: amountError,
       });
       return;
     }
@@ -237,6 +422,7 @@ export default function PostSignupSetupScreen() {
     try {
       setSettingAmount(true);
 
+      const amount = Number.parseFloat(newAccountAmount.trim());
       const updatedAccount = await updateAccount(defaultAccount.id, {
         amount: amount,
       });
@@ -269,6 +455,82 @@ export default function PostSignupSetupScreen() {
     amount: number;
     description?: string;
   }) => {
+    // Loading state validation
+    if (isAnyOperationInProgress()) {
+      Toast.show({
+        type: "info",
+        text1: t.pleaseWait || "Please wait",
+        text2:
+          t.anotherOperationInProgress || "Another operation is in progress",
+      });
+      return;
+    }
+
+    // Maximum account limit validation
+    if (accounts.length >= MAX_ACCOUNTS) {
+      Toast.show({
+        type: "error",
+        text1: t.accountLimitReached || "Account limit reached",
+        text2:
+          t.accountLimitMessage ||
+          `You can only have ${MAX_ACCOUNTS} accounts maximum`,
+      });
+      return;
+    }
+
+    // Validate account name
+    const nameError = validateAccountName(accountData.name);
+    if (nameError) {
+      Toast.show({
+        type: "error",
+        text1: nameError,
+      });
+      return;
+    }
+
+    // Validate duplicate name
+    const sanitizedName = sanitizeInput(accountData.name);
+    if (isDuplicateName(sanitizedName)) {
+      Toast.show({
+        type: "error",
+        text1: t.accountNameExists || "Account name already exists",
+        text2: t.chooseDifferentName || "Please choose a different name",
+      });
+      return;
+    }
+
+    // Validate account type
+    const typeError = validateAccountType(accountData.account_type);
+    if (typeError) {
+      Toast.show({
+        type: "error",
+        text1: typeError,
+      });
+      return;
+    }
+
+    // Validate amount
+    const amountError = validateAmount(accountData.amount.toString());
+    if (amountError) {
+      Toast.show({
+        type: "error",
+        text1: amountError,
+      });
+      return;
+    }
+
+    // Validate description
+    if (accountData.description) {
+      const descriptionError = validateDescription(accountData.description);
+      if (descriptionError) {
+        Toast.show({
+          type: "error",
+          text1: descriptionError,
+        });
+        return;
+      }
+    }
+
     try {
       setAddingAccount(true);
 
@@ -279,7 +541,12 @@ export default function PostSignupSetupScreen() {
 
       const newAccount = await createAccount({
         user_id: user.id,
-        ...accountData,
+        account_type: accountData.account_type,
+        name: sanitizedName,
+        amount: accountData.amount,
+        description: accountData.description
+          ? sanitizeInput(accountData.description)
+          : undefined,
       });
 
       // Add new account to the top of the list
@@ -313,6 +580,28 @@ export default function PostSignupSetupScreen() {
 
   const handleDeleteAccount = async () => {
     if (!accountToDelete) return;
+
+    // Loading state validation
+    if (isAnyOperationInProgress()) {
+      Toast.show({
+        type: "info",
+        text1: t.pleaseWait || "Please wait",
+        text2:
+          t.anotherOperationInProgress || "Another operation is in progress",
+      });
+      return;
+    }
+
+    // Last account deletion warning
+    if (accounts.length === 1) {
+      Toast.show({
+        type: "info",
+        text1: t.lastAccountWarning || "Last account",
+        text2:
+          t.lastAccountMessage ||
+          "This is your only account. Consider creating another before deleting.",
+      });
+    }
 
     try {
       setDeletingAccount(true);
@@ -354,9 +643,16 @@ export default function PostSignupSetupScreen() {
   };
 
   const handleSkip = () => {
+    if (accounts.length === 0) {
+      Toast.show({
+        type: "error",
+        text1: "Please create at least one account",
+        text2: "You need an account to track your expenses",
+      });
+      return;
+    }
     router.replace("/(onboarding)/profile-setup");
   };
-
   if (loading) {
     return (
       <>

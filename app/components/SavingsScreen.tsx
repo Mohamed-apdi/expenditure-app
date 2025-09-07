@@ -370,7 +370,11 @@ export default function SavingsScreen() {
   };
 
   const formatDate = (dateString: string) => {
-    const options = { year: "numeric", month: "short", day: "numeric" };
+    const options: Intl.DateTimeFormatOptions = {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 

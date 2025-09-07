@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, Alert } from "react-native";
 import { Bell, X } from "lucide-react-native";
-import { requestNotificationPermissions } from "~/lib";
+import { requestNotificationPermissions } from "~/lib/services/notificationService";
 import { isExpoGo } from "~/lib";
 
 interface NotificationPermissionRequestProps {

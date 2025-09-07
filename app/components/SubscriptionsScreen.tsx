@@ -34,7 +34,7 @@ import {
   type Subscription,
 } from "~/lib";
 import { fetchAccounts, type Account } from "~/lib";
-import notificationService from "~/lib";
+import { notificationService } from "~/lib";
 import ExpoGoWarning from "~/components/ExpoGoWarning";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
@@ -436,7 +436,11 @@ export default function SubscriptionsScreen() {
   };
 
   const formatDate = (dateString: string) => {
-    const options = { year: "numeric", month: "short", day: "numeric" };
+    const options: Intl.DateTimeFormatOptions = {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
@@ -628,7 +632,7 @@ export default function SubscriptionsScreen() {
                       >
                         <Image
                           source={
-                            serviceIcons[subscription.icon] ||
+                            serviceIcons[subscription.icon as ServiceIcon] ||
                             serviceIcons.other
                           }
                           className="w-6 h-6"
@@ -756,7 +760,7 @@ export default function SubscriptionsScreen() {
                       >
                         <Image
                           source={
-                            serviceIcons[subscription.icon] ||
+                            serviceIcons[subscription.icon as ServiceIcon] ||
                             serviceIcons.other
                           }
                           className="w-6 h-6"
@@ -1381,7 +1385,10 @@ export default function SubscriptionsScreen() {
                     className="p-3 rounded-full mb-2"
                     style={{ backgroundColor: formData.icon_color }}
                   >
-                    <Image source={serviceIcons[icon]} className="w-8 h-8" />
+                    <Image
+                      source={serviceIcons[icon as ServiceIcon]}
+                      className="w-8 h-8"
+                    />
                   </View>
                   <Text
                     style={{
