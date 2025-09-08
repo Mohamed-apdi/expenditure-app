@@ -4,39 +4,34 @@
     "slug": "qoondeeye",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/Qoondeeye.png",
     "scheme": "qoondeeye",
-    "platforms": [
-      "ios",
-      "android",
-      "web"
-    ],
+    "platforms": ["ios", "android", "web"],
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/splash.png",
+      "image": "./assets/images/Qoondeeye.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "jsEngine": "hermes"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "../assets/images/Qoondeeye.png",
         "backgroundColor": "#ffffff"
       },
       "icon": "./assets/android/mipmap-xxxhdpi/Qoondeeye.png",
-      "jsEngine": "hermes"
+      "jsEngine": "hermes",
+      "package": "com.sadaqelmi.qoondeeye"
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/Qoondeeye.png"
     },
     "plugins": [
       "expo-router",
@@ -46,15 +41,19 @@
         {
           "color": "#ffffff",
           "icon": "./assets/android/mipmap-mdpi/Qoondeeye.png",
-          "sounds": [
-            "./assets/sounds/notification.wav"
-          ]
+          "sounds": ["./assets/sounds/notification.wav"]
         }
       ],
       "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "86833cf0-f6fd-4c16-936d-f00b700aec26"
+      }
     }
   }
 }

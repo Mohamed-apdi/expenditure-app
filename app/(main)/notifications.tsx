@@ -562,9 +562,6 @@ export default function NotificationsScreen() {
                   <CheckCheck size={20} color={theme.primary} />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity onPress={toggleSelectionMode}>
-                <Settings size={20} color={theme.icon} />
-              </TouchableOpacity>
             </>
           )}
         </View>

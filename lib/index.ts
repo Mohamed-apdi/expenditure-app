@@ -19,6 +19,7 @@ export {
   type BudgetProgress,
 } from "./services/analytics";
 export * from "./services/loans";
+export * from "./services/notifications";
 
 // Report generators
 export * from "./services/reportGenerators";
