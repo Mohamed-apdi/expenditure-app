@@ -20,10 +20,11 @@ import {
   TrendingDown,
   DollarSign,
   BarChart3,
+  Wallet,
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { supabase } from "~/lib";
-import { fetchAccounts, type Account } from "~/lib";
+import { fetchAccounts, type Account, updateAccountBalance } from "~/lib";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
 
@@ -57,7 +58,8 @@ const Investments = () => {
     null
   );
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
-  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
+  const [showAccountSelectionModal, setShowAccountSelectionModal] =
+    useState(false);
 
   // Form states
   const [newType, setNewType] = useState("");
@@ -202,15 +204,30 @@ const Investments = () => {
     }
 
     try {
+      const investedAmount = parseFloat(newInvestedAmount);
+      const currentValue = parseFloat(newCurrentValue);
+
       if (currentInvestment) {
         // Update existing investment
+        const oldInvestedAmount = currentInvestment.invested_amount;
+        const oldCurrentValue = currentInvestment.current_value;
+
+        // Calculate the net effect of the old investment on account balance
+        const oldNetEffect = oldCurrentValue - oldInvestedAmount;
+
+        // Calculate the net effect of the new investment on account balance
+        const newNetEffect = currentValue - investedAmount;
+
+        // Calculate the difference in net effect
+        const balanceChange = newNetEffect - oldNetEffect;
+
         const { data, error } = await supabase
           .from("investments")
           .update({
             type: newType,
             name: newName,
-            invested_amount: parseFloat(newInvestedAmount),
-            current_value: parseFloat(newCurrentValue),
+            invested_amount: investedAmount,
+            current_value: currentValue,
             account_id: selectedAccount.id,
             updated_at: new Date().toISOString(),
           })
@@ -219,6 +236,10 @@ const Investments = () => {
           .single();
 
         if (error) throw error;
+
+        // Update account balance
+        const newBalance = selectedAccount.amount + balanceChange;
+        await updateAccountBalance(selectedAccount.id, newBalance);
 
         setInvestments((prev) =>
           prev.map((inv) => (inv.id === currentInvestment.id ? data : inv))
@@ -233,13 +254,18 @@ const Investments = () => {
             account_id: selectedAccount.id,
             type: newType,
             name: newName,
-            invested_amount: parseFloat(newInvestedAmount),
-            current_value: parseFloat(newCurrentValue),
+            invested_amount: investedAmount,
+            current_value: currentValue,
           })
           .select()
           .single();
 
         if (error) throw error;
+
+        // Update account balance: subtract invested amount, add current value
+        const balanceChange = currentValue - investedAmount;
+        const newBalance = selectedAccount.amount + balanceChange;
+        await updateAccountBalance(selectedAccount.id, newBalance);
 
         setInvestments((prev) => [data, ...prev]);
         Alert.alert(t.success, t.investmentAdded);
@@ -260,12 +286,38 @@ const Investments = () => {
         style: "destructive",
         onPress: async () => {
           try {
+            // Find the investment to get its details before deletion
+            const investmentToDelete = investments.find(
+              (inv) => inv.id === investmentId
+            );
+            if (!investmentToDelete) {
+              Alert.alert(t.error, t.error);
+              return;
+            }
+
             const { error } = await supabase
               .from("investments")
               .delete()
               .eq("id", investmentId);
 
             if (error) throw error;
+
+            // Update account balance: reverse the investment's effect
+            // Subtract the current value and add back the invested amount
+            const balanceChange =
+              investmentToDelete.invested_amount -
+              investmentToDelete.current_value;
+            const accountToUpdate = accounts.find(
+              (acc) => acc.id === investmentToDelete.account_id
+            );
+
+            if (accountToUpdate) {
+              const newBalance = accountToUpdate.amount + balanceChange;
+              await updateAccountBalance(
+                investmentToDelete.account_id,
+                newBalance
+              );
+            }
 
             setInvestments((prev) =>
               prev.filter((inv) => inv.id !== investmentId)
@@ -709,73 +761,58 @@ const Investments = () => {
                   </Text>
                   <TouchableOpacity
                     style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: 16,
+                      borderRadius: 12,
                       borderWidth: 1,
                       borderColor: theme.border,
-                      borderRadius: 8,
-                      padding: 12,
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
+                      backgroundColor: theme.inputBackground,
                     }}
-                    onPress={() => setShowAccountDropdown(!showAccountDropdown)}
+                    onPress={() => setShowAccountSelectionModal(true)}
                   >
-                    <Text
-                      style={{
-                        color: selectedAccount ? theme.text : theme.textMuted,
-                      }}
-                    >
-                      {selectedAccount ? selectedAccount.name : t.selectAccount}
-                    </Text>
-                    <ChevronDown size={16} color={theme.textMuted} />
-                  </TouchableOpacity>
-
-                  {showAccountDropdown && (
                     <View
-                      style={{
-                        marginTop: 8,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        borderRadius: 8,
-                        backgroundColor: theme.cardBackground,
-                        maxHeight: 160,
-                      }}
+                      style={{ flexDirection: "row", alignItems: "center" }}
                     >
-                      <ScrollView>
-                        {accounts.map((account) => (
-                          <TouchableOpacity
-                            key={account.id}
+                      <View
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 20,
+                          justifyContent: "center",
+                          alignItems: "center",
+                          backgroundColor: `${theme.primary}30`,
+                          marginRight: 16,
+                        }}
+                      >
+                        <Wallet size={20} color={theme.primary} />
+                      </View>
+                      <View>
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            fontWeight: "600",
+                            color: theme.text,
+                          }}
+                        >
+                          {selectedAccount?.name || t.selectAccount}
+                        </Text>
+                        {selectedAccount && (
+                          <Text
                             style={{
-                              padding: 12,
-                              borderBottomWidth: 1,
-                              borderBottomColor: theme.border,
-                              backgroundColor:
-                                selectedAccount?.id === account.id
-                                  ? `${theme.primary}20`
-                                  : "transparent",
-                            }}
-                            onPress={() => {
-                              setSelectedAccount(account);
-                              setShowAccountDropdown(false);
+                              fontSize: 14,
+                              color: theme.textSecondary,
                             }}
                           >
-                            <Text
-                              style={{ color: theme.text, fontWeight: "500" }}
-                            >
-                              {account.name}
-                            </Text>
-                            <Text
-                              style={{
-                                color: theme.textSecondary,
-                                fontSize: 14,
-                              }}
-                            >
-                              {account.account_type}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
+                            {selectedAccount.account_type} $
+                            {selectedAccount.amount.toFixed(2)}
+                          </Text>
+                        )}
+                      </View>
                     </View>
-                  )}
+                    <ChevronDown size={16} color={theme.iconMuted} />
+                  </TouchableOpacity>
                 </View>
 
                 <View className="mb-4">
@@ -833,6 +870,57 @@ const Investments = () => {
                     {currentInvestment ? t.updateInvestment : t.addInvestment}
                   </Text>
                 </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Account Selection Modal */}
+        <Modal
+          visible={showAccountSelectionModal}
+          animationType="fade"
+          transparent={true}
+          onRequestClose={() => setShowAccountSelectionModal(false)}
+        >
+          <View className="flex-1 justify-center items-center bg-black/50 p-4">
+            <View className="bg-white rounded-2xl p-6 w-full max-w-md">
+              <View className="flex-row justify-between items-center mb-6">
+                <Text className="font-bold text-xl text-gray-900">
+                  {t.selectAccount}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowAccountSelectionModal(false)}
+                >
+                  <X size={24} color="#6b7280" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView className="max-h-[400px]">
+                <View className="flex-row flex-wrap justify-between">
+                  {accounts.map((account) => (
+                    <TouchableOpacity
+                      key={account.id}
+                      className={`w-1/2 p-4 items-center ${
+                        selectedAccount?.id === account.id
+                          ? "bg-blue-50 rounded-lg"
+                          : ""
+                      }`}
+                      onPress={() => {
+                        setSelectedAccount(account);
+                        setShowAccountSelectionModal(false);
+                      }}
+                    >
+                      <View
+                        className="p-3 rounded-full mb-2"
+                        style={{ backgroundColor: `${theme.primary}20` }}
+                      >
+                        <Wallet size={24} color={theme.primary} />
+                      </View>
+                      <Text className="text-xs text-gray-700 text-center">
+                        {account.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </ScrollView>
             </View>
           </View>

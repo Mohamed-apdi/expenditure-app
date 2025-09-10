@@ -20,6 +20,7 @@ import {
   Trash2,
   ChevronDown,
   Calendar,
+  Wallet,
 } from "lucide-react-native";
 import { CircularProgress } from "react-native-circular-progress";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -62,7 +63,8 @@ export default function BudgetScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
+  const [showAccountSelectionModal, setShowAccountSelectionModal] =
+    useState(false);
 
   const expenseCategories = [
     { key: "Food & Drinks", label: t.foodAndDrinks },
@@ -1052,69 +1054,38 @@ export default function BudgetScreen() {
                       borderColor: theme.border,
                       borderRadius: 8,
                       padding: 12,
+                      backgroundColor: theme.inputBackground,
                       flexDirection: "row",
-                      justifyContent: "space-between",
                       alignItems: "center",
                     }}
-                    onPress={() => setShowAccountDropdown(!showAccountDropdown)}
+                    onPress={() => setShowAccountSelectionModal(true)}
                   >
-                    <Text
-                      style={{
-                        color: selectedAccount ? theme.text : theme.textMuted,
-                      }}
-                    >
-                      {selectedAccount ? selectedAccount.name : t.selectAccount}
-                    </Text>
-                    <ChevronDown size={16} color={theme.textMuted} />
-                  </TouchableOpacity>
-
-                  {showAccountDropdown && (
-                    <View
-                      style={{
-                        marginTop: 8,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        borderRadius: 8,
-                        backgroundColor: theme.cardBackground,
-                        maxHeight: 160,
-                      }}
-                    >
-                      <ScrollView>
-                        {accounts.map((account) => (
-                          <TouchableOpacity
-                            key={account.id}
-                            style={{
-                              padding: 12,
-                              borderBottomWidth: 1,
-                              borderBottomColor: theme.border,
-                              backgroundColor:
-                                selectedAccount?.id === account.id
-                                  ? `${theme.primary}20`
-                                  : "transparent",
-                            }}
-                            onPress={() => {
-                              setSelectedAccount(account);
-                              setShowAccountDropdown(false);
-                            }}
-                          >
-                            <Text
-                              style={{ color: theme.text, fontWeight: "500" }}
-                            >
-                              {account.name}
-                            </Text>
-                            <Text
-                              style={{
-                                color: theme.textSecondary,
-                                fontSize: 14,
-                              }}
-                            >
-                              {account.account_type}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
+                    <Wallet size={20} color={theme.iconMuted} />
+                    <View style={{ marginLeft: 12, flex: 1 }}>
+                      <Text
+                        style={{
+                          color: selectedAccount ? theme.text : theme.textMuted,
+                          fontWeight: "500",
+                        }}
+                      >
+                        {selectedAccount
+                          ? selectedAccount.name
+                          : t.selectAccount}
+                      </Text>
+                      {selectedAccount && (
+                        <Text
+                          style={{
+                            color: theme.textSecondary,
+                            fontSize: 12,
+                            marginTop: 2,
+                          }}
+                        >
+                          {selectedAccount.account_type} • $
+                          {selectedAccount.amount.toFixed(2)}
+                        </Text>
+                      )}
                     </View>
-                  )}
+                  </TouchableOpacity>
                 </View>
               )}
 
@@ -1697,6 +1668,58 @@ export default function BudgetScreen() {
             )}
           </>
         )}
+
+        {/* Account Selection Modal */}
+        <Modal
+          visible={showAccountSelectionModal}
+          animationType="fade"
+          transparent={true}
+          onRequestClose={() => setShowAccountSelectionModal(false)}
+        >
+          <View className="flex-1 justify-center items-center bg-black/50 p-4">
+            <View className="bg-white rounded-2xl p-6 w-full max-w-md">
+              <View className="flex-row justify-between items-center mb-6">
+                <Text className="font-bold text-xl text-gray-900">
+                  {t.selectAccount}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowAccountSelectionModal(false)}
+                >
+                  <X size={24} color="#6b7280" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView className="max-h-[400px]">
+                <View className="flex-row flex-wrap justify-between">
+                  {accounts.map((account) => (
+                    <TouchableOpacity
+                      key={account.id}
+                      className={`w-1/2 p-4 items-center ${
+                        selectedAccount?.id === account.id
+                          ? "bg-blue-50 rounded-lg"
+                          : ""
+                      }`}
+                      onPress={() => {
+                        setSelectedAccount(account);
+                        setShowAccountSelectionModal(false);
+                      }}
+                    >
+                      <View
+                        className="p-3 rounded-full mb-2"
+                        style={{ backgroundColor: `${theme.primary}20` }}
+                      >
+                        <Wallet size={24} color={theme.primary} />
+                      </View>
+                      <Text className="text-xs text-gray-700 text-center">
+                        {account.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
       </View>
     </SafeAreaView>
   );

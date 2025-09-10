@@ -157,7 +157,7 @@ export type SubscriptionWithAccount = Subscription & {
 export type Goal = {
   id: string;
   user_id: string;
-  account_id: string;
+  account_id?: string;
   name: string;
   target_amount: number;
   current_amount: number;

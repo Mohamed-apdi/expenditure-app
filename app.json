@@ -21,7 +21,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "../assets/images/Qoondeeye.png",
+        "foregroundImage": "./assets/images/Qoondeeye.png",
         "backgroundColor": "#ffffff"
       },
       "icon": "./assets/android/mipmap-xxxhdpi/Qoondeeye.png",

@@ -70,7 +70,6 @@ export const setupNotificationCategories = async () => {
       ],
       {
         intentIdentifiers: [],
-        hiddenPreviewsBodyPlaceholder: "Subscription payment due",
         customDismissAction: false,
       }
     );
@@ -98,7 +97,6 @@ export const setupNotificationCategories = async () => {
       ],
       {
         intentIdentifiers: [],
-        hiddenPreviewsBodyPlaceholder: "Budget alert",
         customDismissAction: false,
       }
     );
@@ -126,7 +124,6 @@ export const setupNotificationCategories = async () => {
       ],
       {
         intentIdentifiers: [],
-        hiddenPreviewsBodyPlaceholder: "Budget exceeded",
         customDismissAction: false,
       }
     );
@@ -159,7 +156,6 @@ export const requestNotificationPermissions = async () => {
           allowDisplayInCarPlay: true,
           allowCriticalAlerts: true,
           allowProvisional: false,
-          allowAnnouncements: true,
         },
         android: {
           allowAlert: true,
@@ -201,6 +197,7 @@ export const scheduleSubscriptionNotification = async (
   await Notifications.cancelScheduledNotificationAsync(identifier);
 
   const trigger = {
+    type: Notifications.SchedulableTriggerInputTypes.DATE as const,
     date: scheduledDate,
   };
 
@@ -258,25 +255,25 @@ export const handleNotificationResponse = async (
         // Process the payment automatically
         await processSubscriptionPayment(
           user.id,
-          subscriptionId,
-          accountId,
-          amount,
-          subscriptionName,
-          billingCycle
+          subscriptionId as string,
+          accountId as string,
+          amount as number,
+          subscriptionName as string,
+          billingCycle as string
         );
 
         // Show success notification
         await Notifications.scheduleNotificationAsync({
           content: {
             title: "✅ Payment Processed",
-            body: `Successfully paid $${amount.toFixed(2)} for ${subscriptionName}`,
+            body: `Successfully paid $${(amount as number).toFixed(2)} for ${subscriptionName}`,
             sound: "notification.wav",
           },
           trigger: null, // Show immediately
         });
       } else if (actionIdentifier === "PAUSE_SUBSCRIPTION") {
         // Pause the subscription
-        await pauseSubscription(subscriptionId);
+        await pauseSubscription(subscriptionId as string);
 
         // Show confirmation notification
         await Notifications.scheduleNotificationAsync({
@@ -315,7 +312,10 @@ export const handleNotificationResponse = async (
             body: `Don't forget to check your ${category} budget`,
             data: notificationData,
           },
-          trigger: { date: reminderTime },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: reminderTime,
+          },
         });
       } else if (actionIdentifier === "ADJUST_BUDGET") {
         // Show guidance for adjusting budget
@@ -633,6 +633,7 @@ export const registerBackgroundTask = async () => {
               data: { type: "daily-check" },
             },
             trigger: {
+              type: Notifications.SchedulableTriggerInputTypes.DATE,
               date: futureDate,
             },
           });
@@ -729,6 +730,7 @@ export const scheduleBudgetCheckNotifications = async () => {
           sound: "notification.wav",
         },
         trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: checkDate,
         },
       });

@@ -30,6 +30,16 @@ import {
   Briefcase,
   Shield,
   User,
+  Award,
+  Star,
+  Zap,
+  BarChart3,
+  PieChart,
+  ArrowUpRight,
+  ArrowDownRight,
+  Sparkles,
+  History,
+  TrendingDown,
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -46,7 +56,6 @@ import {
   getTotalSavings,
   type Goal,
 } from "~/lib";
-import { fetchAccounts, type Account } from "~/lib";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
 
@@ -98,10 +107,7 @@ export default function SavingsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
-  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [totalSavings, setTotalSavings] = useState(0);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -160,23 +166,15 @@ export default function SavingsScreen() {
 
       setUserId(user.id);
 
-      // Fetch goals with accounts, accounts, goal progress, and total savings in parallel
-      const [goalsData, accountsData, progressData, totalData] =
-        await Promise.all([
-          fetchGoalsWithAccounts(user.id),
-          fetchAccounts(user.id),
-          calculateGoalProgress(user.id),
-          getTotalSavings(user.id),
-        ]);
+      // Fetch goals, goal progress, and total savings in parallel
+      const [goalsData, progressData, totalData] = await Promise.all([
+        fetchGoalsWithAccounts(user.id),
+        calculateGoalProgress(user.id),
+        getTotalSavings(user.id),
+      ]);
 
       setGoals(goalsData);
-      setAccounts(accountsData);
       setTotalSavings(totalData);
-
-      // Set default selected account if available
-      if (accountsData.length > 0) {
-        setSelectedAccount(accountsData[0]);
-      }
     } catch (error) {
       console.error("Error fetching data:", error);
       Alert.alert(t.error, t.failedToFetchData);
@@ -208,10 +206,6 @@ export default function SavingsScreen() {
   };
 
   const openAddModal = () => {
-    if (accounts.length === 0) {
-      Alert.alert(t.noAccountsForGoal, t.createAccountFirstForGoal);
-      return;
-    }
     setCurrentGoal(null);
     setFormData({
       name: "",
@@ -224,7 +218,6 @@ export default function SavingsScreen() {
       icon_color: colors[0],
       description: "",
     });
-    setSelectedAccount(accounts[0]); // Set default account
     setIsEditMode(false);
     setIsModalVisible(true);
   };
@@ -242,11 +235,6 @@ export default function SavingsScreen() {
       icon_color: goal.icon_color,
       description: goal.description || "",
     });
-
-    // Find and set the account for this goal
-    const goalAccount =
-      goal.account || accounts.find((acc) => acc.id === goal.account_id);
-    setSelectedAccount(goalAccount || null);
 
     setIsEditMode(true);
     setIsModalVisible(true);
@@ -276,11 +264,6 @@ export default function SavingsScreen() {
       return;
     }
 
-    if (!selectedAccount) {
-      Alert.alert(t.selectAccount, t.selectAccountForGoal);
-      return;
-    }
-
     if (!userId) {
       Alert.alert(t.error, t.userNotAuthenticatedForGoal);
       return;
@@ -292,7 +275,6 @@ export default function SavingsScreen() {
 
       const goalData = {
         user_id: userId,
-        account_id: selectedAccount.id,
         name: formData.name,
         target_amount: targetAmount,
         current_amount: currentAmount,
@@ -330,10 +312,34 @@ export default function SavingsScreen() {
     try {
       const amount = parseFloat(amountModalData.amount);
 
+      if (!currentGoal) {
+        Alert.alert(t.error, "No goal selected");
+        return;
+      }
+
       if (amountModalData.type === "add") {
+        // Check if adding this amount would exceed the target
+        const newTotal = currentGoal.current_amount + amount;
+        if (newTotal > currentGoal.target_amount) {
+          const maxAllowed =
+            currentGoal.target_amount - currentGoal.current_amount;
+          Alert.alert(
+            "Amount Too High",
+            `You can only add up to $${maxAllowed.toFixed(2)} more to reach your target of $${currentGoal.target_amount.toFixed(2)}.`
+          );
+          return;
+        }
         await addAmountToGoal(currentGoal.id, amount);
         Alert.alert(t.success, t.amountAdded);
       } else {
+        // Check if withdrawing this amount would go below 0
+        if (amount > currentGoal.current_amount) {
+          Alert.alert(
+            "Insufficient Funds",
+            `You can only withdraw up to $${currentGoal.current_amount.toFixed(2)} from this goal.`
+          );
+          return;
+        }
         await withdrawAmountFromGoal(currentGoal.id, amount);
         Alert.alert(t.success, t.amountWithdrawn);
       }
@@ -369,7 +375,7 @@ export default function SavingsScreen() {
     ]);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDateDetailed = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = {
       year: "numeric",
       month: "short",
@@ -416,6 +422,64 @@ export default function SavingsScreen() {
     return theme.danger; // Red when far from goal
   };
 
+  // Calculate insights
+  const calculateInsights = () => {
+    const activeGoals = goals.filter((g) => g.is_active);
+    const completedGoals = activeGoals.filter(
+      (g) => g.current_amount >= g.target_amount
+    );
+    const totalTargetAmount = activeGoals.reduce(
+      (sum, g) => sum + g.target_amount,
+      0
+    );
+    const totalCurrentAmount = activeGoals.reduce(
+      (sum, g) => sum + g.current_amount,
+      0
+    );
+    const overallProgress =
+      totalTargetAmount > 0
+        ? (totalCurrentAmount / totalTargetAmount) * 100
+        : 0;
+
+    // Calculate average monthly contribution needed
+    const goalsWithDates = activeGoals.filter((g) => g.target_date);
+    const avgMonthlyNeeded =
+      goalsWithDates.length > 0
+        ? goalsWithDates.reduce((sum, g) => {
+            const monthsLeft = Math.max(
+              1,
+              Math.ceil(
+                (new Date(g.target_date).getTime() - new Date().getTime()) /
+                  (1000 * 60 * 60 * 24 * 30)
+              )
+            );
+            return sum + (g.target_amount - g.current_amount) / monthsLeft;
+          }, 0) / goalsWithDates.length
+        : 0;
+
+    return {
+      totalGoals: activeGoals.length,
+      completedGoals: completedGoals.length,
+      overallProgress: Math.round(overallProgress),
+      avgMonthlyNeeded: Math.round(avgMonthlyNeeded),
+      completionRate:
+        activeGoals.length > 0
+          ? Math.round((completedGoals.length / activeGoals.length) * 100)
+          : 0,
+    };
+  };
+
+  const insights = calculateInsights();
+
+  // Formatting functions (matching Debt_Loan screen)
+  const formatCurrencyText = (amount: number) => {
+    return `$${amount.toFixed(2)}`;
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
   return (
     <View>
       <ScrollView
@@ -424,39 +488,153 @@ export default function SavingsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Total Savings Summary */}
+        {/* Enhanced Total Savings Summary */}
         <View
           style={{
             backgroundColor: theme.primary,
             padding: 24,
-            borderRadius: 16,
+            borderRadius: 20,
             marginBottom: 24,
+            shadowColor: theme.primary,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 8,
           }}
         >
-          <Text
-            style={{
-              color: theme.primaryText,
-              fontSize: 18,
-              fontWeight: "500",
-            }}
-          >
-            {t.totalSavings}
-          </Text>
-          <Text
-            style={{
-              color: theme.primaryText,
-              fontSize: 30,
-              fontWeight: "bold",
-            }}
-          >
-            ${totalSavings.toFixed(2)}
-          </Text>
-          <Text style={{ color: `${theme.primaryText}80`, fontSize: 14 }}>
-            {t.acrossActiveGoals.replace(
-              "{count}",
-              goals.filter((g) => g.is_active).length.toString()
-            )}
-          </Text>
+          <View className="flex-row justify-between items-start mb-4">
+            <View className="flex-1">
+              <Text
+                style={{
+                  color: theme.primaryText,
+                  fontSize: 18,
+                  fontWeight: "600",
+                  marginBottom: 4,
+                }}
+              >
+                {t.totalSavings}
+              </Text>
+              <Text
+                style={{
+                  color: theme.primaryText,
+                  fontSize: 36,
+                  fontWeight: "bold",
+                  marginBottom: 8,
+                }}
+              >
+                ${totalSavings.toFixed(2)}
+              </Text>
+              <Text style={{ color: `${theme.primaryText}90`, fontSize: 14 }}>
+                {t.acrossActiveGoals.replace(
+                  "{count}",
+                  goals.filter((g) => g.is_active).length.toString()
+                )}
+              </Text>
+            </View>
+            <View
+              style={{
+                backgroundColor: `${theme.primaryText}20`,
+                padding: 12,
+                borderRadius: 12,
+              }}
+            >
+              <PiggyBank size={24} color={theme.primaryText} />
+            </View>
+          </View>
+
+          {/* Progress Bar */}
+          <View style={{ marginTop: 16 }}>
+            <View className="flex-row justify-between items-center mb-2">
+              <Text
+                style={{
+                  color: `${theme.primaryText}90`,
+                  fontSize: 14,
+                  fontWeight: "500",
+                }}
+              >
+                Overall Progress
+              </Text>
+              <Text
+                style={{
+                  color: theme.primaryText,
+                  fontSize: 16,
+                  fontWeight: "bold",
+                }}
+              >
+                {insights.overallProgress}%
+              </Text>
+            </View>
+            <View
+              style={{
+                height: 8,
+                backgroundColor: `${theme.primaryText}30`,
+                borderRadius: 4,
+                overflow: "hidden",
+              }}
+            >
+              <View
+                style={{
+                  height: 8,
+                  borderRadius: 4,
+                  width: `${insights.overallProgress}%`,
+                  backgroundColor: theme.primaryText,
+                }}
+              />
+            </View>
+          </View>
+        </View>
+
+        {/* Insights Section */}
+        <View style={{ marginBottom: 24 }}>
+          <View className="flex-row justify-between items-center mb-4">
+            <Text
+              style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
+            >
+              📊 Insights & Analytics
+            </Text>
+            <BarChart3 size={20} color={theme.primary} />
+          </View>
+
+          <View className="flex-row flex-wrap justify-between gap-3">
+            {/* Completion Rate Card */}
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: theme.cardBackground,
+                padding: 16,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: theme.border,
+                shadowColor: theme.border,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 2,
+              }}
+            >
+              <View className="flex-row items-center mb-2">
+                <Award size={16} color="#10b981" />
+                <Text
+                  style={{
+                    color: theme.textSecondary,
+                    fontSize: 12,
+                    marginLeft: 6,
+                    fontWeight: "500",
+                  }}
+                >
+                  Completion Rate
+                </Text>
+              </View>
+              <Text
+                style={{ color: theme.text, fontSize: 24, fontWeight: "bold" }}
+              >
+                {insights.completionRate}%
+              </Text>
+              <Text style={{ color: theme.textMuted, fontSize: 12 }}>
+                {insights.completedGoals} of {insights.totalGoals} goals
+              </Text>
+            </View>
+          </View>
         </View>
 
         {/* Active Goals */}
@@ -470,14 +648,29 @@ export default function SavingsScreen() {
             <TouchableOpacity
               style={{
                 backgroundColor: theme.primary,
-                borderRadius: 8,
+                borderRadius: 12,
                 paddingVertical: 12,
-                paddingHorizontal: 12,
+                paddingHorizontal: 16,
                 alignItems: "center",
+                flexDirection: "row",
+                shadowColor: theme.primary,
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                elevation: 3,
               }}
               onPress={openAddModal}
             >
-              <Text style={{ color: theme.primaryText }}>{t.addGoal}</Text>
+              <Plus size={16} color={theme.primaryText} />
+              <Text
+                style={{
+                  color: theme.primaryText,
+                  fontWeight: "600",
+                  marginLeft: 6,
+                }}
+              >
+                {t.addGoal}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -512,36 +705,74 @@ export default function SavingsScreen() {
                     (1000 * 60 * 60 * 24)
                 );
 
+                const isCompleted = progress >= 100;
+                const isNearCompletion = progress >= 75 && progress < 100;
+
                 return (
                   <Pressable
                     key={goal.id}
                     style={{
                       marginBottom: 16,
-                      padding: 16,
+                      padding: 20,
                       backgroundColor: theme.cardBackground,
-                      borderRadius: 12,
+                      borderRadius: 16,
                       borderWidth: 1,
-                      borderColor: theme.border,
-                      shadowColor: theme.border,
-                      shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: 0.05,
-                      shadowRadius: 2,
-                      elevation: 1,
+                      borderColor: isCompleted ? theme.success : theme.border,
+                      shadowColor: isCompleted ? theme.success : theme.border,
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: isCompleted ? 0.2 : 0.1,
+                      shadowRadius: 6,
+                      elevation: 3,
+                      transform: [{ scale: isCompleted ? 1.02 : 1 }],
                     }}
                     onPress={() => openEditModal(goal)}
                   >
+                    {/* Achievement Badge */}
+                    {isCompleted && (
+                      <View
+                        style={{
+                          position: "absolute",
+                          top: -8,
+                          right: 16,
+                          backgroundColor: theme.success,
+                          paddingHorizontal: 12,
+                          paddingVertical: 4,
+                          borderRadius: 12,
+                          flexDirection: "row",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Star size={12} color="white" />
+                        <Text
+                          style={{
+                            color: "white",
+                            fontSize: 10,
+                            fontWeight: "bold",
+                            marginLeft: 4,
+                          }}
+                        >
+                          COMPLETED!
+                        </Text>
+                      </View>
+                    )}
+
                     <View className="flex-row justify-between items-start mb-3">
                       <View className="flex-row items-center flex-1">
                         <View
-                          className="rounded-full mr-3 p-2"
+                          className="rounded-full mr-3 p-3"
                           style={{
                             backgroundColor: goal.icon_color,
                             borderWidth: 2,
                             borderColor: goal.icon_color,
+                            shadowColor: goal.icon_color,
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 4,
+                            elevation: 3,
                           }}
                         >
                           {React.createElement(getGoalIcon(goal.icon), {
-                            size: 18,
+                            size: 20,
                             color: "white",
                           })}
                         </View>
@@ -549,8 +780,9 @@ export default function SavingsScreen() {
                           <Text
                             style={{
                               color: theme.text,
-                              fontWeight: "600",
+                              fontWeight: "700",
                               fontSize: 18,
+                              marginBottom: 2,
                             }}
                           >
                             {goal.name}
@@ -562,49 +794,101 @@ export default function SavingsScreen() {
                           </Text>
                         </View>
                       </View>
-                      <Switch
-                        value={goal.is_active}
-                        onValueChange={() =>
-                          handleToggleGoalStatus(goal.id, goal.is_active)
-                        }
-                        trackColor={{ false: "#767577", true: theme.primary }}
-                        thumbColor="#f4f3f4"
-                      />
+                      <View className="flex-row items-center gap-2">
+                        {isNearCompletion && (
+                          <View
+                            style={{
+                              backgroundColor: "#f59e0b",
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                              borderRadius: 8,
+                              flexDirection: "row",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Zap size={10} color="white" />
+                            <Text
+                              style={{
+                                color: "white",
+                                fontSize: 9,
+                                fontWeight: "bold",
+                                marginLeft: 2,
+                              }}
+                            >
+                              Almost there!
+                            </Text>
+                          </View>
+                        )}
+                        <Switch
+                          value={goal.is_active}
+                          onValueChange={() =>
+                            handleToggleGoalStatus(goal.id, goal.is_active)
+                          }
+                          trackColor={{ false: "#767577", true: theme.primary }}
+                          thumbColor="#f4f3f4"
+                        />
+                      </View>
                     </View>
 
-                    {/* Progress Bar */}
-                    <View style={{ marginBottom: 12 }}>
-                      <View className="flex-row justify-between items-center mb-2">
-                        <Text
-                          style={{ color: theme.textSecondary, fontSize: 14 }}
-                        >
-                          ${goal.current_amount.toFixed(2)} of $
-                          {goal.target_amount.toFixed(2)}
-                        </Text>
-                        <Text
-                          style={{
-                            color: theme.textSecondary,
-                            fontSize: 14,
-                            fontWeight: "500",
-                          }}
-                        >
-                          {Math.round(progress)}%
-                        </Text>
+                    {/* Enhanced Progress Bar */}
+                    <View style={{ marginBottom: 16 }}>
+                      <View className="flex-row justify-between items-center mb-3">
+                        <View className="flex-row items-center">
+                          <DollarSign size={14} color={theme.textSecondary} />
+                          <Text
+                            style={{
+                              color: theme.textSecondary,
+                              fontSize: 14,
+                              marginLeft: 4,
+                            }}
+                          >
+                            ${goal.current_amount.toFixed(2)} of $
+                            {goal.target_amount.toFixed(2)}
+                          </Text>
+                        </View>
+                        <View className="flex-row items-center">
+                          <Text
+                            style={{
+                              color: getProgressColor(progress),
+                              fontSize: 16,
+                              fontWeight: "bold",
+                            }}
+                          >
+                            {Math.round(progress)}%
+                          </Text>
+                          {isCompleted && (
+                            <Sparkles
+                              size={14}
+                              color={theme.success}
+                              style={{ marginLeft: 4 }}
+                            />
+                          )}
+                        </View>
                       </View>
                       <View
                         style={{
-                          height: 8,
+                          height: 10,
                           backgroundColor: theme.border,
-                          borderRadius: 4,
+                          borderRadius: 5,
                           overflow: "hidden",
+                          shadowColor: getProgressColor(progress),
+                          shadowOffset: { width: 0, height: 1 },
+                          shadowOpacity: 0.2,
+                          shadowRadius: 2,
+                          elevation: 1,
                         }}
                       >
                         <View
                           style={{
-                            height: 8,
-                            borderRadius: 4,
+                            height: 10,
+                            borderRadius: 5,
                             width: `${progress}%`,
                             backgroundColor: getProgressColor(progress),
+                            shadowColor: getProgressColor(progress),
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.3,
+                            shadowRadius: 4,
+                            elevation: 2,
                           }}
                         />
                       </View>
@@ -621,7 +905,7 @@ export default function SavingsScreen() {
                             marginLeft: 8,
                           }}
                         >
-                          {t.target}: {formatDate(goal.target_date)}
+                          {t.target}: {formatDateDetailed(goal.target_date)}
                         </Text>
                       </View>
                       <View className="flex-row items-center">
@@ -640,31 +924,33 @@ export default function SavingsScreen() {
                       </View>
                     </View>
 
-                    {goal.account && (
-                      <Text
-                        style={{
-                          color: theme.textSecondary,
-                          fontSize: 14,
-                          marginBottom: 12,
-                        }}
-                      >
-                        {t.account}: {goal.account.name}
-                      </Text>
-                    )}
-
-                    {/* Action Buttons */}
-                    <View className="flex-row space-x-2 gap-2">
+                    {/* Enhanced Action Buttons */}
+                    <View className="flex-row gap-3">
                       <TouchableOpacity
                         style={{
                           flex: 1,
                           backgroundColor: "#10b981",
-                          paddingVertical: 8,
-                          borderRadius: 8,
+                          paddingVertical: 12,
+                          borderRadius: 12,
                           alignItems: "center",
+                          flexDirection: "row",
+                          justifyContent: "center",
+                          shadowColor: "#10b981",
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.3,
+                          shadowRadius: 4,
+                          elevation: 3,
                         }}
                         onPress={() => openAddAmountModal(goal, "add")}
                       >
-                        <Text style={{ color: "white", fontWeight: "500" }}>
+                        <ArrowUpRight size={16} color="white" />
+                        <Text
+                          style={{
+                            color: "white",
+                            fontWeight: "600",
+                            marginLeft: 6,
+                          }}
+                        >
                           {t.addAmount}
                         </Text>
                       </TouchableOpacity>
@@ -672,13 +958,27 @@ export default function SavingsScreen() {
                         style={{
                           flex: 1,
                           backgroundColor: "#f59e0b",
-                          paddingVertical: 8,
-                          borderRadius: 8,
+                          paddingVertical: 12,
+                          borderRadius: 12,
                           alignItems: "center",
+                          flexDirection: "row",
+                          justifyContent: "center",
+                          shadowColor: "#f59e0b",
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: 0.3,
+                          shadowRadius: 4,
+                          elevation: 3,
                         }}
                         onPress={() => openAddAmountModal(goal, "withdraw")}
                       >
-                        <Text style={{ color: "white", fontWeight: "500" }}>
+                        <ArrowDownRight size={16} color="white" />
+                        <Text
+                          style={{
+                            color: "white",
+                            fontWeight: "600",
+                            marginLeft: 6,
+                          }}
+                        >
                           {t.withdrawAmount}
                         </Text>
                       </TouchableOpacity>
@@ -1026,87 +1326,6 @@ export default function SavingsScreen() {
                       fontWeight: "500",
                     }}
                   >
-                    {t.account}
-                  </Text>
-                  <TouchableOpacity
-                    style={{
-                      borderWidth: 1,
-                      borderColor: theme.border,
-                      borderRadius: 8,
-                      padding: 12,
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                    onPress={() => setShowAccountDropdown(!showAccountDropdown)}
-                  >
-                    <Text
-                      style={{
-                        color: selectedAccount ? theme.text : theme.textMuted,
-                      }}
-                    >
-                      {selectedAccount ? selectedAccount.name : t.selectAccount}
-                    </Text>
-                    <ChevronDown size={16} color={theme.textMuted} />
-                  </TouchableOpacity>
-
-                  {showAccountDropdown && (
-                    <View
-                      style={{
-                        marginTop: 8,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        borderRadius: 8,
-                        backgroundColor: theme.cardBackground,
-                        maxHeight: 160,
-                      }}
-                    >
-                      <ScrollView>
-                        {accounts.map((account) => (
-                          <TouchableOpacity
-                            key={account.id}
-                            style={{
-                              padding: 12,
-                              borderBottomWidth: 1,
-                              borderBottomColor: theme.border,
-                              backgroundColor:
-                                selectedAccount?.id === account.id
-                                  ? `${theme.primary}20`
-                                  : "transparent",
-                            }}
-                            onPress={() => {
-                              setSelectedAccount(account);
-                              setShowAccountDropdown(false);
-                            }}
-                          >
-                            <Text
-                              style={{ color: theme.text, fontWeight: "500" }}
-                            >
-                              {account.name}
-                            </Text>
-                            <Text
-                              style={{
-                                color: theme.textSecondary,
-                                fontSize: 14,
-                              }}
-                            >
-                              {account.account_type}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  )}
-                </View>
-
-                <View className="mt-2">
-                  <Text
-                    style={{
-                      color: theme.text,
-                      marginBottom: 8,
-                      fontWeight: "500",
-                    }}
-                  >
                     {t.targetAmount}
                   </Text>
                   <View
@@ -1204,7 +1423,7 @@ export default function SavingsScreen() {
                       }}
                     >
                       {formData.target_date
-                        ? formatDate(formData.target_date)
+                        ? formatDateDetailed(formData.target_date)
                         : t.selectTargetDate}
                     </Text>
                     <Calendar size={20} color={theme.textMuted} />
@@ -1319,19 +1538,163 @@ export default function SavingsScreen() {
             </View>
 
             <View className="space-y-5">
-              <View>
-                <Text
+              {/* Goal History Section */}
+              {currentGoal && (
+                <View
+                  className="mb-4 p-3 rounded-lg border"
                   style={{
-                    color: theme.text,
-                    marginBottom: 8,
-                    fontWeight: "500",
+                    backgroundColor: theme.background,
+                    borderColor: theme.border,
                   }}
                 >
-                  {t.amount}
-                </Text>
+                  <View className="flex-row items-center mb-3">
+                    <View
+                      className="rounded-full mr-3 p-2"
+                      style={{
+                        backgroundColor: currentGoal.icon_color,
+                        borderWidth: 2,
+                        borderColor: currentGoal.icon_color,
+                      }}
+                    >
+                      {React.createElement(getGoalIcon(currentGoal.icon), {
+                        size: 16,
+                        color: "white",
+                      })}
+                    </View>
+                    <View className="flex-1">
+                      <Text
+                        className="font-bold text-lg"
+                        style={{ color: theme.text }}
+                      >
+                        {currentGoal.name}
+                      </Text>
+                      <Text
+                        className="text-sm"
+                        style={{ color: theme.textSecondary }}
+                      >
+                        {getGoalCategoryLabel(currentGoal.category)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Summary Stats */}
+                  <View className="flex-row justify-between items-center mb-2">
+                    <Text
+                      className="text-gray-600"
+                      style={{ color: theme.textSecondary }}
+                    >
+                      Target Amount:
+                    </Text>
+                    <Text className="font-medium" style={{ color: theme.text }}>
+                      {formatCurrencyText(currentGoal.target_amount)}
+                    </Text>
+                  </View>
+                  <View className="flex-row justify-between items-center mb-2">
+                    <Text
+                      className="text-gray-600"
+                      style={{ color: theme.textSecondary }}
+                    >
+                      Principal Amount:
+                    </Text>
+                    <Text className="font-bold text-lg text-green-600">
+                      {formatCurrencyText(currentGoal.current_amount)}
+                    </Text>
+                  </View>
+                  <View className="flex-row justify-between items-center">
+                    <Text
+                      className="text-gray-600"
+                      style={{ color: theme.textSecondary }}
+                    >
+                      Remaining Amount:
+                    </Text>
+                    <Text
+                      className={`font-bold ${
+                        currentGoal.target_amount -
+                          currentGoal.current_amount <=
+                        0
+                          ? "text-green-600"
+                          : "text-orange-600"
+                      }`}
+                    >
+                      {formatCurrencyText(
+                        currentGoal.target_amount - currentGoal.current_amount
+                      )}
+                    </Text>
+                  </View>
+
+                  {/* Progress Bar */}
+                  <View style={{ marginTop: 12 }}>
+                    <View
+                      style={{
+                        height: 8,
+                        backgroundColor: theme.border,
+                        borderRadius: 4,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <View
+                        style={{
+                          height: 8,
+                          borderRadius: 4,
+                          width: `${calculateProgress(currentGoal.current_amount, currentGoal.target_amount)}%`,
+                          backgroundColor: getProgressColor(
+                            calculateProgress(
+                              currentGoal.current_amount,
+                              currentGoal.target_amount
+                            )
+                          ),
+                        }}
+                      />
+                    </View>
+                    <Text
+                      style={{
+                        color: theme.textSecondary,
+                        fontSize: 12,
+                        textAlign: "center",
+                        marginTop: 4,
+                      }}
+                    >
+                      {Math.round(
+                        calculateProgress(
+                          currentGoal.current_amount,
+                          currentGoal.target_amount
+                        )
+                      )}
+                      % Complete
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              <View>
+                <View className="flex-row justify-between items-center mb-2">
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontWeight: "500",
+                    }}
+                  >
+                    {t.amount}
+                  </Text>
+                  <Text
+                    style={{
+                      color: theme.textSecondary,
+                      fontSize: 12,
+                      fontWeight: "500",
+                    }}
+                  >
+                    Max: $
+                    {currentGoal
+                      ? (
+                          currentGoal.target_amount - currentGoal.current_amount
+                        ).toFixed(2)
+                      : "0.00"}
+                  </Text>
+                </View>
                 <View
-                  className="flex items-center "
                   style={{
+                    flexDirection: "row",
+                    alignItems: "center",
                     borderWidth: 1,
                     borderColor: theme.border,
                     borderRadius: 12,
@@ -1360,6 +1723,7 @@ export default function SavingsScreen() {
                   padding: 16,
                   borderRadius: 12,
                   alignItems: "center",
+                  marginTop: 10,
                 }}
                 onPress={handleAddAmount}
               >
@@ -1413,6 +1777,134 @@ export default function SavingsScreen() {
             </View>
 
             <View className="space-y-5">
+              {/* Goal History Section */}
+              {currentGoal && (
+                <View
+                  className="mb-4 p-3 rounded-lg border"
+                  style={{
+                    backgroundColor: theme.background,
+                    borderColor: theme.border,
+                  }}
+                >
+                  <View className="flex-row items-center mb-3">
+                    <View
+                      className="rounded-full mr-3 p-2"
+                      style={{
+                        backgroundColor: currentGoal.icon_color,
+                        borderWidth: 2,
+                        borderColor: currentGoal.icon_color,
+                      }}
+                    >
+                      {React.createElement(getGoalIcon(currentGoal.icon), {
+                        size: 16,
+                        color: "white",
+                      })}
+                    </View>
+                    <View className="flex-1">
+                      <Text
+                        className="font-bold text-lg"
+                        style={{ color: theme.text }}
+                      >
+                        {currentGoal.name}
+                      </Text>
+                      <Text
+                        className="text-sm"
+                        style={{ color: theme.textSecondary }}
+                      >
+                        {getGoalCategoryLabel(currentGoal.category)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Summary Stats */}
+                  <View className="flex-row justify-between items-center mb-2">
+                    <Text
+                      className="text-gray-600"
+                      style={{ color: theme.textSecondary }}
+                    >
+                      Target Amount:
+                    </Text>
+                    <Text className="font-medium" style={{ color: theme.text }}>
+                      {formatCurrencyText(currentGoal.target_amount)}
+                    </Text>
+                  </View>
+                  <View className="flex-row justify-between items-center mb-2">
+                    <Text
+                      className="text-gray-600"
+                      style={{ color: theme.textSecondary }}
+                    >
+                      Principal Amount:
+                    </Text>
+                    <Text className="font-bold text-lg text-green-600">
+                      {formatCurrencyText(currentGoal.current_amount)}
+                    </Text>
+                  </View>
+                  <View className="flex-row justify-between items-center">
+                    <Text
+                      className="text-gray-600"
+                      style={{ color: theme.textSecondary }}
+                    >
+                      Remaining Amount:
+                    </Text>
+                    <Text
+                      className={`font-bold ${
+                        currentGoal.target_amount -
+                          currentGoal.current_amount <=
+                        0
+                          ? "text-green-600"
+                          : "text-orange-600"
+                      }`}
+                    >
+                      {formatCurrencyText(
+                        currentGoal.target_amount - currentGoal.current_amount
+                      )}
+                    </Text>
+                  </View>
+
+                  {/* Progress Bar */}
+                  <View style={{ marginTop: 12 }}>
+                    <View
+                      style={{
+                        height: 8,
+                        backgroundColor: theme.border,
+                        borderRadius: 4,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <View
+                        style={{
+                          height: 8,
+                          borderRadius: 4,
+                          width: `${calculateProgress(currentGoal.current_amount, currentGoal.target_amount)}%`,
+                          backgroundColor: getProgressColor(
+                            calculateProgress(
+                              currentGoal.current_amount,
+                              currentGoal.target_amount
+                            )
+                          ),
+                        }}
+                      />
+                    </View>
+                    <Text
+                      style={{
+                        color: theme.textSecondary,
+                        fontSize: 12,
+                        textAlign: "center",
+                        marginTop: 4,
+                      }}
+                    >
+                      {Math.round(
+                        calculateProgress(
+                          currentGoal.current_amount,
+                          currentGoal.target_amount
+                        )
+                      )}
+                      % Complete
+                    </Text>
+                  </View>
+                </View>
+              )}
+
               <View>
                 <Text
                   style={{
@@ -1455,6 +1947,7 @@ export default function SavingsScreen() {
                   padding: 16,
                   borderRadius: 12,
                   alignItems: "center",
+                  marginTop: 10,
                 }}
                 onPress={handleAddAmount}
               >

@@ -25,7 +25,7 @@ import { supabase } from "~/lib";
 import { useFocusEffect } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAccount } from "~/lib";
-import { ChevronDown } from "lucide-react-native";
+import { ChevronDown, Wallet, X } from "lucide-react-native";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
 
@@ -67,7 +67,8 @@ const Debt_Loan = () => {
     payment_date: new Date().toISOString().split("T")[0],
   });
 
-  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
+  const [showAccountSelectionModal, setShowAccountSelectionModal] =
+    useState(false);
 
   const getCurrentUser = async () => {
     try {
@@ -1104,11 +1105,11 @@ const Debt_Loan = () => {
                     {t.account} *
                   </Text>
                   <TouchableOpacity
-                    className={`border rounded-lg p-3 flex-row justify-between items-center ${
+                    className={`border rounded-lg p-3 flex-row items-center ${
                       formData.account_id ? "border-gray-300" : "border-red-300"
                     }`}
                     style={{
-                      backgroundColor: theme.background,
+                      backgroundColor: theme.inputBackground,
                       borderColor: formData.account_id
                         ? theme.border
                         : "#ef4444",
@@ -1121,23 +1122,45 @@ const Debt_Loan = () => {
                         );
                         return;
                       }
-                      // Show account selection dropdown
-                      setShowAccountDropdown(!showAccountDropdown);
+                      setShowAccountSelectionModal(true);
                     }}
                   >
-                    <Text
-                      style={{
-                        color: formData.account_id
-                          ? theme.text
-                          : theme.textSecondary,
-                      }}
-                    >
-                      {formData.account_id
-                        ? accounts.find((acc) => acc.id === formData.account_id)
-                            ?.name
-                        : `${t.selectAccount} *`}
-                    </Text>
-                    <Text style={{ color: theme.textMuted }}>V</Text>
+                    <Wallet size={20} color={theme.iconMuted} />
+                    <View style={{ marginLeft: 12, flex: 1 }}>
+                      <Text
+                        style={{
+                          color: formData.account_id
+                            ? theme.text
+                            : theme.textMuted,
+                          fontWeight: "500",
+                        }}
+                      >
+                        {formData.account_id
+                          ? accounts.find(
+                              (acc) => acc.id === formData.account_id
+                            )?.name
+                          : `${t.selectAccount} *`}
+                      </Text>
+                      {formData.account_id && (
+                        <Text
+                          style={{
+                            color: theme.textSecondary,
+                            fontSize: 12,
+                            marginTop: 2,
+                          }}
+                        >
+                          {
+                            accounts.find(
+                              (acc) => acc.id === formData.account_id
+                            )?.account_type
+                          }{" "}
+                          • $
+                          {accounts
+                            .find((acc) => acc.id === formData.account_id)
+                            ?.amount.toFixed(2)}
+                        </Text>
+                      )}
+                    </View>
                   </TouchableOpacity>
 
                   {!formData.account_id && (
@@ -1147,50 +1170,6 @@ const Debt_Loan = () => {
                     >
                       {t.selectAccount} {t.isRequired}
                     </Text>
-                  )}
-
-                  {showAccountDropdown && (
-                    <View
-                      className="mt-2 border rounded-lg max-h-40"
-                      style={{
-                        backgroundColor: theme.cardBackground,
-                        borderColor: theme.border,
-                      }}
-                    >
-                      <ScrollView>
-                        {accounts.map((account) => (
-                          <TouchableOpacity
-                            key={account.id}
-                            className={`p-3 border-b ${
-                              formData.account_id === account.id
-                                ? "bg-blue-50"
-                                : ""
-                            }`}
-                            style={{ borderColor: theme.border }}
-                            onPress={() => {
-                              setFormData({
-                                ...formData,
-                                account_id: account.id,
-                              });
-                              setShowAccountDropdown(false);
-                            }}
-                          >
-                            <Text
-                              className="font-medium"
-                              style={{ color: theme.text }}
-                            >
-                              {account.name}
-                            </Text>
-                            <Text
-                              className="text-sm"
-                              style={{ color: theme.textSecondary }}
-                            >
-                              {account.account_type}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
                   )}
                 </View>
 
@@ -1456,11 +1435,11 @@ const Debt_Loan = () => {
                     {t.account}
                   </Text>
                   <TouchableOpacity
-                    className={`border rounded-lg p-3 flex-row justify-between items-center ${
+                    className={`border rounded-lg p-3 flex-row items-center ${
                       formData.account_id ? "border-gray-300" : "border-red-300"
                     }`}
                     style={{
-                      backgroundColor: theme.background,
+                      backgroundColor: theme.inputBackground,
                       borderColor: formData.account_id
                         ? theme.border
                         : "#ef4444",
@@ -1473,23 +1452,45 @@ const Debt_Loan = () => {
                         );
                         return;
                       }
-                      // Show account selection dropdown
-                      setShowAccountDropdown(!showAccountDropdown);
+                      setShowAccountSelectionModal(true);
                     }}
                   >
-                    <Text
-                      style={{
-                        color: formData.account_id
-                          ? theme.text
-                          : theme.textSecondary,
-                      }}
-                    >
-                      {formData.account_id
-                        ? accounts.find((acc) => acc.id === formData.account_id)
-                            ?.name
-                        : "Select an account *"}
-                    </Text>
-                    <ChevronDown size={20} color="gray" />
+                    <Wallet size={20} color={theme.iconMuted} />
+                    <View style={{ marginLeft: 12, flex: 1 }}>
+                      <Text
+                        style={{
+                          color: formData.account_id
+                            ? theme.text
+                            : theme.textMuted,
+                          fontWeight: "500",
+                        }}
+                      >
+                        {formData.account_id
+                          ? accounts.find(
+                              (acc) => acc.id === formData.account_id
+                            )?.name
+                          : "Select an account *"}
+                      </Text>
+                      {formData.account_id && (
+                        <Text
+                          style={{
+                            color: theme.textSecondary,
+                            fontSize: 12,
+                            marginTop: 2,
+                          }}
+                        >
+                          {
+                            accounts.find(
+                              (acc) => acc.id === formData.account_id
+                            )?.account_type
+                          }{" "}
+                          • $
+                          {accounts
+                            .find((acc) => acc.id === formData.account_id)
+                            ?.amount.toFixed(2)}
+                        </Text>
+                      )}
+                    </View>
                   </TouchableOpacity>
 
                   {!formData.account_id && (
@@ -1499,50 +1500,6 @@ const Debt_Loan = () => {
                     >
                       Account selection is required
                     </Text>
-                  )}
-
-                  {showAccountDropdown && (
-                    <View
-                      className="mt-2 border rounded-lg max-h-40"
-                      style={{
-                        backgroundColor: theme.cardBackground,
-                        borderColor: theme.border,
-                      }}
-                    >
-                      <ScrollView>
-                        {accounts.map((account) => (
-                          <TouchableOpacity
-                            key={account.id}
-                            className={`p-3 border-b ${
-                              formData.account_id === account.id
-                                ? "bg-blue-50"
-                                : ""
-                            }`}
-                            style={{ borderColor: theme.border }}
-                            onPress={() => {
-                              setFormData({
-                                ...formData,
-                                account_id: account.id,
-                              });
-                              setShowAccountDropdown(false);
-                            }}
-                          >
-                            <Text
-                              className="font-medium"
-                              style={{ color: theme.text }}
-                            >
-                              {account.name}
-                            </Text>
-                            <Text
-                              className="text-sm"
-                              style={{ color: theme.textSecondary }}
-                            >
-                              {account.account_type}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
                   )}
                 </View>
 
@@ -1888,6 +1845,61 @@ const Debt_Loan = () => {
                       </View>
                     ))
                   )}
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Account Selection Modal */}
+        <Modal
+          visible={showAccountSelectionModal}
+          animationType="fade"
+          transparent={true}
+          onRequestClose={() => setShowAccountSelectionModal(false)}
+        >
+          <View className="flex-1 justify-center items-center bg-black/50 p-4">
+            <View className="bg-white rounded-2xl p-6 w-full max-w-md">
+              <View className="flex-row justify-between items-center mb-6">
+                <Text className="font-bold text-xl text-gray-900">
+                  {t.selectAccount}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowAccountSelectionModal(false)}
+                >
+                  <X size={24} color="#6b7280" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView className="max-h-[400px]">
+                <View className="flex-row flex-wrap justify-between">
+                  {accounts.map((account) => (
+                    <TouchableOpacity
+                      key={account.id}
+                      className={`w-1/2 p-4 items-center ${
+                        formData.account_id === account.id
+                          ? "bg-blue-50 rounded-lg"
+                          : ""
+                      }`}
+                      onPress={() => {
+                        setFormData({
+                          ...formData,
+                          account_id: account.id,
+                        });
+                        setShowAccountSelectionModal(false);
+                      }}
+                    >
+                      <View
+                        className="p-3 rounded-full mb-2"
+                        style={{ backgroundColor: `${theme.primary}20` }}
+                      >
+                        <Wallet size={24} color={theme.primary} />
+                      </View>
+                      <Text className="text-xs text-gray-700 text-center">
+                        {account.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </ScrollView>
             </View>
