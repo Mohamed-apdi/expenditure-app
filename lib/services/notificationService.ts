@@ -468,6 +468,10 @@ export const sendBudgetNotification = async (
   }
 };
 
+// Track last notification times to prevent spam
+const lastNotificationTimes = new Map<string, number>();
+const NOTIFICATION_COOLDOWN = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
 // Check all budgets and send appropriate notifications
 export const checkBudgetsAndNotify = async () => {
   try {
@@ -482,17 +486,31 @@ export const checkBudgetsAndNotify = async () => {
 
     // Get current budget progress
     const budgetProgress = await getBudgetProgress(user.id);
+    const now = Date.now();
 
     for (const budget of budgetProgress) {
       const percentage = budget.percentage;
+      const notificationKey = `budget-${budget.category}-${percentage >= 100 ? "exceeded" : "warning"}`;
+      const lastNotificationTime =
+        lastNotificationTimes.get(notificationKey) || 0;
+
+      // Only send notification if enough time has passed since last notification
+      if (now - lastNotificationTime < NOTIFICATION_COOLDOWN) {
+        console.log(
+          `Skipping notification for ${budget.category} - too recent`
+        );
+        continue;
+      }
 
       // Send notifications based on budget usage
       if (percentage >= 100) {
         // Budget exceeded (100% or more)
         await sendBudgetNotification(budget, "exceeded");
+        lastNotificationTimes.set(notificationKey, now);
       } else if (percentage >= 80) {
         // Budget warning (80% or more but less than 100%)
         await sendBudgetNotification(budget, "warning");
+        lastNotificationTimes.set(notificationKey, now);
       }
       // You can add more thresholds here if needed (e.g., 90%)
     }
@@ -521,13 +539,20 @@ export const checkDueSubscriptionsAndNotify = async () => {
 
     const today = new Date();
     const todayString = today.toISOString().split("T")[0];
+    const now = Date.now();
 
     for (const subscription of activeSubscriptions) {
       const nextPaymentDate = new Date(subscription.next_payment_date);
       const nextPaymentString = nextPaymentDate.toISOString().split("T")[0];
+      const notificationKey = `subscription-${subscription.id}-${todayString}`;
+      const lastNotificationTime =
+        lastNotificationTimes.get(notificationKey) || 0;
 
-      // Check if payment is due today
-      if (nextPaymentString === todayString) {
+      // Check if payment is due today and we haven't sent a notification recently
+      if (
+        nextPaymentString === todayString &&
+        now - lastNotificationTime >= NOTIFICATION_COOLDOWN
+      ) {
         // Send notification with interactive buttons
         await Notifications.scheduleNotificationAsync({
           content: {
@@ -556,7 +581,14 @@ export const checkDueSubscriptionsAndNotify = async () => {
           isOverdue: false,
         });
 
+        // Track this notification to prevent duplicates
+        lastNotificationTimes.set(notificationKey, now);
+
         console.log(`Sent notification for subscription: ${subscription.name}`);
+      } else if (nextPaymentString === todayString) {
+        console.log(
+          `Skipping notification for ${subscription.name} - already sent today`
+        );
       }
     }
   } catch (error) {
@@ -603,7 +635,7 @@ export const registerBackgroundTask = async () => {
         await BackgroundFetch.default.registerTaskAsync(
           SUBSCRIPTION_CHECK_TASK,
           {
-            minimumInterval: 12 * 60 * 60 * 1000, // 12 hours (more frequent)
+            minimumInterval: 24 * 60 * 60 * 1000, // 24 hours (once daily)
             stopOnTerminate: false,
             startOnBoot: true,
           }
@@ -619,8 +651,8 @@ export const registerBackgroundTask = async () => {
     // For Android, schedule recurring notifications as backup
     if (Platform.OS === "android") {
       try {
-        // Schedule daily checks for the next 30 days
-        for (let days = 1; days <= 30; days++) {
+        // Schedule daily checks for the next 7 days (reduced from 30)
+        for (let days = 1; days <= 7; days++) {
           const futureDate = new Date();
           futureDate.setDate(futureDate.getDate() + days);
           futureDate.setHours(9, 0, 0, 0); // 9 AM daily check
@@ -638,7 +670,7 @@ export const registerBackgroundTask = async () => {
             },
           });
         }
-        console.log("Android scheduled daily checks for 30 days");
+        console.log("Android scheduled daily checks for 7 days");
       } catch (error) {
         console.log("Failed to schedule Android daily checks:", error);
       }
@@ -711,8 +743,8 @@ export const scheduleBudgetCheckNotifications = async () => {
       }
     }
 
-    // Schedule budget checks every day at 8 PM for the next 7 days
-    for (let days = 1; days <= 7; days++) {
+    // Schedule budget checks every other day at 8 PM for the next 7 days
+    for (let days = 1; days <= 7; days += 2) {
       const checkDate = new Date();
       checkDate.setDate(checkDate.getDate() + days);
       checkDate.setHours(20, 0, 0, 0); // 8 PM
@@ -736,7 +768,9 @@ export const scheduleBudgetCheckNotifications = async () => {
       });
     }
 
-    console.log("Scheduled budget check notifications for the next 7 days");
+    console.log(
+      "Scheduled budget check notifications every other day for the next 7 days"
+    );
   } catch (error) {
     console.error("Error scheduling budget check notifications:", error);
   }

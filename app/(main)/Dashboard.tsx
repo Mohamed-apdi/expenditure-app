@@ -4,13 +4,8 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
-  RefreshControl,
   SafeAreaView,
   StatusBar,
-  TextInput,
-  Image,
-  ImageBackground,
   FlatList,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -731,14 +726,7 @@ export default function DashboardScreen() {
       {/* Header */}
       <DashboardHeader
         userName={userProfile.fullName}
-        userEmail={userProfile.email}
         userImageUrl={userProfile.image_url}
-        onLogoutPress={() => {
-          supabase.auth.signOut();
-          router.replace("/login");
-        }}
-        onSettingsPress={() => router.push("/(main)/SettingScreen")}
-        onNotificationPress={() => router.push("/(main)/notifications")}
       />
       <View className="">
         <View style={{ marginBottom: 20 }}>

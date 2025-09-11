@@ -374,15 +374,8 @@ export default function AddExpenseScreen() {
         }
       }
 
-      // Check budget thresholds after adding an expense
-      if (entryType === "Expense" && selectedCategory?.name) {
-        try {
-          await notificationService.checkBudgetsAndNotify();
-        } catch (error) {
-          console.error("Error checking budget notifications:", error);
-          // Don't fail the main operation if budget checking fails
-        }
-      }
+      // Budget notifications are handled by the background task system
+      // No need to check immediately to avoid excessive notifications
 
       Alert.alert(
         "Success!",

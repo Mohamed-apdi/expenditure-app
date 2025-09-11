@@ -185,19 +185,8 @@ export default function SubscriptionsScreen() {
         setSelectedAccount(accountsData[0]);
       }
 
-      // Schedule notifications for upcoming subscriptions and budget checks
-      if (user && notificationService) {
-        try {
-          if (notificationService.scheduleAllUpcomingNotifications) {
-            await notificationService.scheduleAllUpcomingNotifications();
-          }
-          if (notificationService.scheduleBudgetCheckNotifications) {
-            await notificationService.scheduleBudgetCheckNotifications();
-          }
-        } catch (error) {
-          console.error("Error scheduling notifications:", error);
-        }
-      }
+      // Only schedule notifications once per session to avoid duplicates
+      // This will be handled by the app's initialization instead
     } catch (error) {
       console.error("Error fetching data:", error);
       Alert.alert(t.error, t.failedToFetchData);
@@ -276,16 +265,8 @@ export default function SubscriptionsScreen() {
       fetchData();
 
       // Reschedule notifications based on new status
-      try {
-        if (
-          notificationService &&
-          notificationService.scheduleAllUpcomingNotifications
-        ) {
-          await notificationService.scheduleAllUpcomingNotifications();
-        }
-      } catch (error) {
-        console.error("Error rescheduling notifications:", error);
-      }
+      // Notifications will be handled by the app's background task system
+      // No need to reschedule here to avoid duplicates
     } catch (error) {
       console.error("Error toggling subscription:", error);
       Alert.alert(t.error, t.subscriptionToggleError);
@@ -388,16 +369,8 @@ export default function SubscriptionsScreen() {
       fetchData();
 
       // Reschedule notifications for all subscriptions
-      try {
-        if (
-          notificationService &&
-          notificationService.scheduleAllUpcomingNotifications
-        ) {
-          await notificationService.scheduleAllUpcomingNotifications();
-        }
-      } catch (error) {
-        console.error("Error rescheduling notifications:", error);
-      }
+      // Notifications will be handled by the app's background task system
+      // No need to reschedule here to avoid duplicates
     } catch (error) {
       console.error("Error saving subscription:", error);
       Alert.alert(t.error, t.subscriptionSaveError);

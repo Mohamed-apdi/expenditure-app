@@ -1,58 +1,25 @@
 import React from "react";
 import { View, Text, TouchableOpacity, Image } from "react-native";
-import {
-  User,
-  Settings,
-  LogOut,
-  Sun,
-  Moon,
-  Bell,
-  Calendar,
-  Search,
-  RefreshCw,
-  RefreshCcw,
-  Globe,
-} from "lucide-react-native";
+import { Settings, Sun, Moon, Bell } from "lucide-react-native";
 import { useColorScheme } from "~/lib";
-import { useTheme } from "~/lib";
 import { WalletDropdown } from "./WalletDropdown";
-import { useAccount } from "~/lib";
 import { useNotifications } from "~/lib";
 import { useRouter } from "expo-router";
-import { useLanguage } from "~/lib";
 
 interface DashboardHeaderProps {
   userName: string;
-  userEmail?: string;
   userImageUrl?: string;
-  onSettingsPress?: () => void;
-  onLogoutPress?: () => void;
   onNotificationPress?: () => void;
-  onCalendarPress?: () => void;
-  onSearchPress?: () => void;
-  onRefreshPress?: () => void;
 }
 
 export default function DashboardHeader({
   userName,
-  userEmail,
   userImageUrl,
-  onSettingsPress,
-  onLogoutPress,
   onNotificationPress,
-  onCalendarPress,
-  onSearchPress,
-  onRefreshPress,
 }: DashboardHeaderProps) {
-  const { selectedAccount } = useAccount();
   const { unreadCount } = useNotifications();
   const router = useRouter();
   const { isDarkColorScheme, toggleColorScheme } = useColorScheme();
-
-  const theme = useTheme();
-  const { t, language, setLanguage } = useLanguage();
-
-  const firstName = userName?.split(" ")[0] || "User";
 
   return (
     <View className="relative z-50">
