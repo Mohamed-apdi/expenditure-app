@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   StatusBar,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "~/lib";
@@ -710,13 +711,19 @@ export default function DashboardScreen() {
     };
     return categoryMap[categoryKey] || categoryKey;
   };
-  // if (loading && !refreshing) {
-  //   return (
-  //     <View className="flex-1 bg-[#F6F8FD] justify-center items-center">
-  //       <ActivityIndicator size="large" color="#2D6CF6" />
-  //     </View>
-  //   );
-  // }
+  if (loading && !refreshing) {
+    return (
+      <View
+        className="flex-1  justify-center items-center"
+        style={{ backgroundColor: theme.background }}
+      >
+        <ActivityIndicator size="large" color="#3b82f6" />
+        <Text className="mt-4 text-gray-600 dark:text-gray-300">
+          Loading data...
+        </Text>
+      </View>
+    );
+  }
   return (
     <SafeAreaView className="flex-1 pt-safe bg-[#3b82f6] relative">
       <StatusBar
@@ -727,6 +734,7 @@ export default function DashboardScreen() {
       <DashboardHeader
         userName={userProfile.fullName}
         userImageUrl={userProfile.image_url}
+        onNotificationPress={() => router.push("/(main)/notifications")}
       />
       <View className="">
         <View style={{ marginBottom: 20 }}>

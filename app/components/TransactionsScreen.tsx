@@ -373,9 +373,11 @@ export default function TransactionsScreen() {
   if (loading) {
     return (
       <SafeAreaView className="flex-1 py-safe">
-        <View className="flex-1 bg-gray-50 justify-center items-center">
+        <View className="flex-1 bg-gray-50 dark:bg-gray-900 justify-center items-center">
           <ActivityIndicator size="large" color="#3b82f6" />
-          <Text className="mt-4 text-gray-600">Loading transactions...</Text>
+          <Text className="mt-4 text-gray-600 dark:text-gray-300">
+            Loading transactions...
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -383,25 +385,26 @@ export default function TransactionsScreen() {
 
   return (
     <SafeAreaView className="flex-1">
-      <View className="flex-1 bg-gray-50">
+      <View className="flex-1 bg-gray-50 dark:bg-gray-900">
         {/* Header */}
-        <View className="p-4 bg-white border-b border-gray-200">
+        <View className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <View className="flex-row items-center mb-3">
             <TouchableOpacity onPress={() => router.back()} className="mr-3">
-              <ArrowLeft size={24} color="#374151" />
+              <ArrowLeft size={24} color={theme.icon} />
             </TouchableOpacity>
-            <Text className="text-xl font-bold text-gray-900">
+            <Text className="text-xl font-bold text-gray-900 dark:text-white">
               Transactions
             </Text>
           </View>
 
           {/* Search Bar */}
           <View className="flex-row items-center gap-2 mb-3">
-            <View className="flex-1 flex-row items-center bg-gray-100 rounded-lg px-3 py-2">
-              <Search size={18} color="#6b7280" />
+            <View className="flex-1 flex-row items-center bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2">
+              <Search size={18} color={theme.textMuted} />
               <TextInput
-                className="flex-1 ml-2"
+                className="flex-1 ml-2 text-gray-900 dark:text-white"
                 placeholder="Search transactions..."
+                placeholderTextColor={theme.placeholder}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
@@ -409,13 +412,13 @@ export default function TransactionsScreen() {
             {/* Add Transaction and Filter Buttons */}
             <View className="flex-row items-center gap-2">
               <TouchableOpacity
-                className="bg-blue-500 w-12 h-12 rounded-xl  justify-center items-center "
+                className="bg-blue-500 dark:bg-blue-600 w-12 h-12 rounded-xl  justify-center items-center "
                 onPress={openFilterModal}
               >
                 <Filter size={20} color="#f8fafc" />
               </TouchableOpacity>
               <TouchableOpacity
-                className="bg-blue-500 w-12 h-12 rounded-xl  justify-center items-center "
+                className="bg-blue-500 dark:bg-blue-600 w-12 h-12 rounded-xl  justify-center items-center "
                 onPress={() => router.push("/(expense)/AddExpense")}
               >
                 <Plus size={24} color="white" />
@@ -428,11 +431,11 @@ export default function TransactionsScreen() {
             {["all", "income", "expense", "transfer"].map((filter) => (
               <TouchableOpacity
                 key={filter}
-                className={`px-3 mr-2 py-1 rounded-full ${activeFilter === filter ? "bg-blue-500" : "bg-gray-200"}`}
+                className={`px-3 mr-2 py-1 rounded-full ${activeFilter === filter ? "bg-blue-500 dark:bg-blue-600" : "bg-gray-200 dark:bg-gray-700"}`}
                 onPress={() => setActiveFilter(filter)}
               >
                 <Text
-                  className={`${activeFilter === filter ? "text-white" : "text-gray-800"}`}
+                  className={`${activeFilter === filter ? "text-white" : "text-gray-800 dark:text-gray-200"}`}
                 >
                   {filter.charAt(0).toUpperCase() + filter.slice(1)}
                 </Text>
@@ -444,23 +447,23 @@ export default function TransactionsScreen() {
           <View className="gap-2 my-4">
             <View className="flex-row justify-between items-center gap-2">
               <TouchableOpacity
-                className="flex-1 bg-gray-100 p-3 rounded-lg flex-row items-center mr-2"
+                className="flex-1 bg-gray-100 dark:bg-gray-700 p-3 rounded-lg flex-row items-center mr-2"
                 onPress={() => openDatePicker("start")}
                 disabled={loading}
               >
                 <Calendar size={14} color="#3b82f6" />
-                <Text className="ml-2 text-blue-600 text-sm font-medium">
+                <Text className="ml-2 text-blue-600 dark:text-blue-400 text-sm font-medium">
                   From: {formatDate(pendingDateRange.startDate.toISOString())}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                className="flex-1 bg-gray-100 p-3 rounded-lg flex-row items-center"
+                className="flex-1 bg-gray-100 dark:bg-gray-700 p-3 rounded-lg flex-row items-center"
                 onPress={() => openDatePicker("end")}
                 disabled={loading}
               >
                 <Calendar size={14} color="#8b5cf6" />
-                <Text className="ml-2 text-purple-600 text-sm font-medium">
+                <Text className="ml-2 text-purple-600 dark:text-purple-400 text-sm font-medium">
                   To: {formatDate(pendingDateRange.endDate.toISOString())}
                 </Text>
               </TouchableOpacity>
@@ -469,7 +472,7 @@ export default function TransactionsScreen() {
             {/* Submit and Reset Buttons */}
             <View className="flex-row gap-2">
               <TouchableOpacity
-                className=" flex-1 bg-blue-500 py-3 rounded-lg flex-row items-center justify-center"
+                className=" flex-1 bg-blue-500 dark:bg-blue-600 py-3 rounded-lg flex-row items-center justify-center"
                 onPress={handleSubmitDateRange}
                 disabled={loading}
               >
@@ -489,7 +492,7 @@ export default function TransactionsScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
-                className="flex-1 bg-red-500 p-3 rounded-lg flex-row items-center justify-center"
+                className="flex-1 bg-red-500 dark:bg-red-600 p-3 rounded-lg flex-row items-center justify-center"
                 onPress={resetFilters}
                 disabled={loading}
               >
@@ -506,9 +509,9 @@ export default function TransactionsScreen() {
             </View>
 
             {/* Current active date range indicator */}
-            <View className="bg-gray-100 p-3 rounded-lg mt-2">
+            <View className="bg-gray-100 dark:bg-gray-700 p-3 rounded-lg mt-2">
               <Text
-                className="text-gray-600 text-xs text-center"
+                className="text-gray-600 dark:text-gray-300 text-xs text-center"
                 numberOfLines={1}
                 adjustsFontSizeToFit={true}
                 minimumFontScale={0.5}
@@ -530,16 +533,21 @@ export default function TransactionsScreen() {
           onRefresh={onRefresh}
           renderItem={({ item }) => (
             <TouchableOpacity
-              className="bg-white p-4 border-b border-gray-100"
+              className="bg-white dark:bg-gray-800 p-4 border-b border-gray-100 dark:border-gray-700"
               onPress={() => router.push(`/transaction-detail/${item.id}`)}
             >
               <View className="flex-row justify-between items-center">
                 <View className="flex-1">
-                  <Text className="font-medium text-gray-900" numberOfLines={1}>
+                  <Text
+                    className="font-medium text-gray-900 dark:text-white"
+                    numberOfLines={1}
+                  >
                     {item.description || item.category || "No description"}
                   </Text>
-                  <Text className="text-gray-500 text-sm">{item.category}</Text>
-                  <Text className="text-gray-400 text-xs mt-1">
+                  <Text className="text-gray-500 dark:text-gray-400 text-sm">
+                    {item.category}
+                  </Text>
+                  <Text className="text-gray-400 dark:text-gray-500 text-xs mt-1">
                     {formatDistanceToNow(new Date(item.created_at), {
                       addSuffix: true,
                     })}
@@ -549,38 +557,38 @@ export default function TransactionsScreen() {
                   <Text
                     className={`font-bold text-lg  ${
                       item.isTransfer
-                        ? "text-blue-500"
+                        ? "text-blue-500 dark:text-blue-400"
                         : item.type === "expense"
-                          ? "text-red-500"
-                          : "text-green-500"
+                          ? "text-red-500 dark:text-red-400"
+                          : "text-green-500 dark:text-green-400"
                     }`}
                   >
                     <View className="flex-row items-center">
                       {item.isTransfer ? (
                         <ArrowRightLeft size={16} color="#3b82f6" />
                       ) : item.type === "expense" ? (
-                        <Text className="font-bold text-lg text-red-500">
+                        <Text className="font-bold text-lg text-red-500 dark:text-red-400">
                           -
                         </Text>
                       ) : (
-                        <Text className="font-bold text-lg text-green-500">
+                        <Text className="font-bold text-lg text-green-500 dark:text-green-400">
                           +
                         </Text>
                       )}
                       <Text
                         className={`font-bold text-lg ${
                           item.isTransfer
-                            ? "text-blue-500"
+                            ? "text-blue-500 dark:text-blue-400"
                             : item.type === "expense"
-                              ? "text-red-500"
-                              : "text-green-500"
+                              ? "text-red-500 dark:text-red-400"
+                              : "text-green-500 dark:text-green-400"
                         }`}
                       >
                         ${Math.abs(item.amount).toFixed(2)}
                       </Text>
                     </View>
                   </Text>
-                  <Text className="text-gray-400 text-xs capitalize">
+                  <Text className="text-gray-400 dark:text-gray-500 text-xs capitalize">
                     {item.isTransfer ? "transfer" : item.type}
                   </Text>
                 </View>
@@ -588,19 +596,21 @@ export default function TransactionsScreen() {
             </TouchableOpacity>
           )}
           renderSectionHeader={({ section: { title } }) => (
-            <View className="bg-gray-50 px-4 py-2">
-              <Text className="font-bold text-gray-500">{title}</Text>
+            <View className="bg-gray-50 dark:bg-gray-800 px-4 py-2">
+              <Text className="font-bold text-gray-500 dark:text-gray-300">
+                {title}
+              </Text>
             </View>
           )}
           ListEmptyComponent={
             <View className="flex-1 justify-center items-center p-8">
-              <Text className="text-gray-500 text-center">
+              <Text className="text-gray-500 dark:text-gray-400 text-center">
                 {searchQuery || activeFilter !== "all"
                   ? `No transactions found${searchQuery ? ` for "${searchQuery}"` : ""}${activeFilter !== "all" ? ` in ${activeFilter}` : ""}`
                   : "No transactions yet"}
               </Text>
               {!searchQuery && activeFilter === "all" && (
-                <Text className="text-gray-400 text-center mt-2">
+                <Text className="text-gray-400 dark:text-gray-500 text-center mt-2">
                   Start by adding your first transaction
                 </Text>
               )}
@@ -627,7 +637,7 @@ export default function TransactionsScreen() {
                 >
                   <View
                     style={{
-                      backgroundColor: "white",
+                      backgroundColor: theme.cardBackground,
                       borderTopLeftRadius: 24,
                       borderTopRightRadius: 24,
                       padding: 20,
@@ -636,7 +646,7 @@ export default function TransactionsScreen() {
                     <View className="flex-row justify-between items-center mb-4">
                       <Text
                         style={{
-                          color: "#374151",
+                          color: theme.text,
                           fontSize: 18,
                           fontWeight: "bold",
                         }}
@@ -646,7 +656,7 @@ export default function TransactionsScreen() {
                           : "Select End Date"}
                       </Text>
                       <TouchableOpacity onPress={onDismiss}>
-                        <X size={24} color="#6b7280" />
+                        <X size={24} color={theme.textMuted} />
                       </TouchableOpacity>
                     </View>
 
@@ -673,7 +683,7 @@ export default function TransactionsScreen() {
 
                     <TouchableOpacity
                       style={{
-                        backgroundColor: "#3b82f6",
+                        backgroundColor: theme.primary,
                         padding: 16,
                         borderRadius: 12,
                         marginTop: 16,
@@ -682,7 +692,7 @@ export default function TransactionsScreen() {
                     >
                       <Text
                         style={{
-                          color: "white",
+                          color: theme.primaryText,
                           textAlign: "center",
                           fontWeight: "bold",
                         }}
@@ -726,39 +736,41 @@ export default function TransactionsScreen() {
           onRequestClose={() => setShowFilterModal(false)}
         >
           <View className="flex-1 justify-center items-center bg-black/50">
-            <View className="bg-white rounded-2xl mx-6 w-full max-w-md shadow-2xl">
+            <View className="bg-white dark:bg-gray-800 rounded-2xl mx-6 w-full max-w-md shadow-2xl">
               {/* Header */}
-              <View className="flex-row justify-between items-center p-6 border-b border-gray-200">
-                <Text className="text-xl font-bold text-gray-900">
+              <View className="flex-row justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
+                <Text className="text-xl font-bold text-gray-900 dark:text-white">
                   Filter Transactions
                 </Text>
               </View>
               <ScrollView className="max-h-96">
                 {/* Amount Range Filter */}
-                <View className="p-6 border-b border-gray-100">
-                  <Text className="text-lg font-semibold text-gray-900 mb-4">
+                <View className="p-6 border-b border-gray-100 dark:border-gray-700">
+                  <Text className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                     Amount Range
                   </Text>
                   <View className="flex-row gap-3">
                     <View className="flex-1">
-                      <Text className="text-sm text-gray-600 mb-2">
+                      <Text className="text-sm text-gray-600 dark:text-gray-300 mb-2">
                         Minimum Amount
                       </Text>
                       <TextInput
-                        className="border border-gray-300 rounded-lg px-4 py-3 text-gray-900"
+                        className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white"
                         placeholder="0"
+                        placeholderTextColor={theme.placeholder}
                         value={pendingMinAmount}
                         onChangeText={setPendingMinAmount}
                         keyboardType="numeric"
                       />
                     </View>
                     <View className="flex-1">
-                      <Text className="text-sm text-gray-600 mb-2">
+                      <Text className="text-sm text-gray-600 dark:text-gray-300 mb-2">
                         Maximum Amount
                       </Text>
                       <TextInput
-                        className="border border-gray-300 rounded-lg px-4 py-3 text-gray-900"
+                        className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg px-4 py-3 text-gray-900 dark:text-white"
                         placeholder="∞"
+                        placeholderTextColor={theme.placeholder}
                         value={pendingMaxAmount}
                         onChangeText={setPendingMaxAmount}
                         keyboardType="numeric"
@@ -769,7 +781,7 @@ export default function TransactionsScreen() {
 
                 {/* Category Filter */}
                 <View className="p-6">
-                  <Text className="text-lg font-semibold text-gray-900 mb-4">
+                  <Text className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
                     Categories
                   </Text>
                   {availableCategories.length > 0 ? (
@@ -780,15 +792,15 @@ export default function TransactionsScreen() {
                           onPress={() => toggleCategory(category)}
                           className={`px-4 py-2 rounded-full border ${
                             pendingSelectedCategories.includes(category)
-                              ? "bg-blue-500 border-blue-500"
-                              : "bg-gray-100 border-gray-300"
+                              ? "bg-blue-500 dark:bg-blue-600 border-blue-500 dark:border-blue-600"
+                              : "bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600"
                           }`}
                         >
                           <Text
                             className={`text-sm font-medium ${
                               pendingSelectedCategories.includes(category)
                                 ? "text-white"
-                                : "text-gray-700"
+                                : "text-gray-700 dark:text-gray-300"
                             }`}
                           >
                             {category}
@@ -797,7 +809,7 @@ export default function TransactionsScreen() {
                       ))}
                     </View>
                   ) : (
-                    <Text className="text-gray-500 text-center py-4">
+                    <Text className="text-gray-500 dark:text-gray-400 text-center py-4">
                       No categories available
                     </Text>
                   )}
@@ -805,17 +817,17 @@ export default function TransactionsScreen() {
               </ScrollView>
 
               {/* Footer Actions */}
-              <View className="flex-row gap-3 p-6 border-t border-gray-200">
+              <View className="flex-row gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
                 <TouchableOpacity
-                  className="flex-1 bg-gray-100 py-3 rounded-lg"
+                  className="flex-1 bg-gray-100 dark:bg-gray-700 py-3 rounded-lg"
                   onPress={cancelFilters}
                 >
-                  <Text className="text-center font-semibold text-gray-700">
+                  <Text className="text-center font-semibold text-gray-700 dark:text-gray-300">
                     Cancel
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  className="flex-1 bg-blue-500 py-3 rounded-lg"
+                  className="flex-1 bg-blue-500 dark:bg-blue-600 py-3 rounded-lg"
                   onPress={applyFilters}
                 >
                   <Text className="text-center font-semibold text-white">

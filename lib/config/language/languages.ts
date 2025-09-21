@@ -242,6 +242,7 @@ export const LANGUAGES = {
     renameMainAccount: "Rename Main Account",
     addAnotherAccount: "Add Another Account",
     skipForNow: "Skip for now",
+    previous: "Previous",
     createMainAccount: "Create Main Account",
     openingBalanceNote: "Opening Balance won't count as income",
     renameAccount: "Rename Account",
@@ -699,6 +700,12 @@ export const LANGUAGES = {
     failedToFetchReports: "Failed to fetch transaction reports: {errorMessage}",
     unknownError: "Unknown error occurred",
     errorMessage: "Failed to generate {format} report. Please try again.",
+
+    // AccountSetupScreen translations
+    customizeYourAccounts:
+      "We've created your main account. You can customize it or add more accounts",
+    deleteAccountConfirmation: "Are you sure you want to delete this account?",
+    yourAccounts: "Your Accounts",
   },
 
   so: {
@@ -948,7 +955,8 @@ export const LANGUAGES = {
       "Waxaad beddeli kartaa magaca akoonkaaga ugu weyn ama ku dar akoon kale",
     renameMainAccount: "Beddeli Akoonka Ugu Weyn",
     addAnotherAccount: "Ku dar Akoon Kale",
-    skipForNow: "Ka saar hadda",
+    skipForNow: "Ka bood",
+    previous: "Ku soo laabo",
     createMainAccount: "Abuur Akoonka Ugu Weyn",
 
     // Profile Setup translations
@@ -1412,5 +1420,12 @@ export const LANGUAGES = {
     unknownError: "Khalad aan la aqoon",
     errorMessage:
       "Khalad ayaa dhacay sameynta Warbixinada {format}. Fadlan isku day mar kale.",
+
+    // AccountSetupScreen translations Somali
+    customizeYourAccounts:
+      "Akaawnkaaga ugu weyn ayaan kuu abuurnay. Waxaad u habeyn kartaa ama ku dari kartaa akaawn kale.",
+    deleteAccountConfirmation:
+      "Ma hubtaa inaad rabtid inaad ka tirtitid  Akoonkaaga?",
+    yourAccounts: "Akoonadaada",
   },
 };

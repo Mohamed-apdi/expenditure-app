@@ -135,6 +135,9 @@ const Accounts = () => {
         style={{ backgroundColor: theme.background }}
       >
         <ActivityIndicator size="large" color="#3b82f6" />
+        <Text className="mt-4 text-gray-600 dark:text-gray-300">
+          Loading accounts...
+        </Text>
       </SafeAreaView>
     );
   }

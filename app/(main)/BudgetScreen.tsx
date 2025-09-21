@@ -11,6 +11,7 @@ import {
   PanResponder,
   RefreshControl,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import {
   Plus,
@@ -458,7 +459,21 @@ export default function BudgetScreen() {
 
   // Debt/Loan tab content
   const DebtLoanTab = () => <Debt_Loan />;
-
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center">
+        <View
+          className="flex-1 bg-gray-50 dark:bg-gray-900 justify-center items-center"
+          style={{ backgroundColor: theme.background }}
+        >
+          <ActivityIndicator size="large" color="#3b82f6" />
+          <Text className="mt-4 text-gray-600 dark:text-gray-300">
+            Loading budgets...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
   return (
     <SafeAreaView style={{ flex: 1, paddingTop: 0 }}>
       <View className="flex-1">

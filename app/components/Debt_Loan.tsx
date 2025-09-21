@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PersonalLoan, LoanRepayment, Account } from "~/lib";
@@ -502,8 +503,9 @@ const Debt_Loan = () => {
         style={{ backgroundColor: theme.background }}
       >
         <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#3b82f6" />
           <Text className="text-lg" style={{ color: theme.textSecondary }}>
-            {t.loadingLoans}
+            loading loans...
           </Text>
         </View>
       </SafeAreaView>

@@ -9,6 +9,7 @@ import {
   Alert,
   RefreshControl,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import {
   Plus,
@@ -357,6 +358,21 @@ const Investments = () => {
   const totalReturnPercentage =
     totalInvested > 0 ? (totalProfitLoss / totalInvested) * 100 : 0;
 
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center">
+        <View
+          className="flex-1justify-center items-center"
+          style={{ backgroundColor: theme.background }}
+        >
+          <ActivityIndicator size="large" color="#3b82f6" />
+          <Text className="mt-4 text-gray-600 dark:text-gray-300">
+            Loading investments...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <ScrollView

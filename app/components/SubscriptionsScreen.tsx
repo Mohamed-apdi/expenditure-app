@@ -11,6 +11,7 @@ import {
   Pressable,
   Image,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import {
   Calendar,
@@ -463,17 +464,16 @@ export default function SubscriptionsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView
-        style={{
-          flex: 1,
-          backgroundColor: theme.background,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Text style={{ color: theme.textSecondary }}>
-          {t.loadingSubscriptions}
-        </Text>
+      <SafeAreaView className="flex-1 items-center justify-center">
+        <View
+          className="flex-1 bg-gray-50 dark:bg-gray-900 justify-center items-center"
+          style={{ backgroundColor: theme.background }}
+        >
+          <ActivityIndicator size="large" color="#3b82f6" />
+          <Text className="mt-4 text-gray-600 dark:text-gray-300">
+            Loading subscriptions...
+          </Text>
+        </View>
       </SafeAreaView>
     );
   }

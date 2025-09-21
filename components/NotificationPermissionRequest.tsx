@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Alert } from "react-native";
 import { Bell, X } from "lucide-react-native";
 import { requestNotificationPermissions } from "~/lib/services/notificationService";
 import { isExpoGo } from "~/lib";
+import * as Notifications from "expo-notifications";
 
 interface NotificationPermissionRequestProps {
   onPermissionGranted?: () => void;
@@ -17,10 +18,28 @@ export default function NotificationPermissionRequest({
   const [isRequesting, setIsRequesting] = useState(false);
 
   useEffect(() => {
-    // Only show the request if not in Expo Go
-    if (!isExpoGo) {
-      setShowRequest(true);
-    }
+    // Check if we should show the permission request
+    const checkPermissionStatus = async () => {
+      // Don't show in Expo Go
+      if (isExpoGo) {
+        return;
+      }
+
+      try {
+        // Check current permission status
+        const { status } = await Notifications.getPermissionsAsync();
+
+        // Only show request if permission is not granted
+        if (status !== "granted") {
+          setShowRequest(true);
+        }
+      } catch (error) {
+        console.error("Error checking notification permissions:", error);
+        // If we can't check, don't show the request
+      }
+    };
+
+    checkPermissionStatus();
   }, []);
 
   const handleRequestPermission = async () => {

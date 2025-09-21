@@ -10,6 +10,7 @@ import {
   Alert,
   Pressable,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import {
   Calendar,
@@ -479,7 +480,21 @@ export default function SavingsScreen() {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
   };
-
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 items-center justify-center">
+        <View
+          className="flex-1 bg-gray-50 dark:bg-gray-900 justify-center items-center"
+          style={{ backgroundColor: theme.background }}
+        >
+          <ActivityIndicator size="large" color="#3b82f6" />
+          <Text className="mt-4 text-gray-600 dark:text-gray-300">
+            Loading savings...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
   return (
     <View>
       <ScrollView

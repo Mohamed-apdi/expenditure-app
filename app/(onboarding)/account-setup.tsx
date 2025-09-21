@@ -727,8 +727,7 @@ export default function PostSignupSetupScreen() {
                 fontWeight: "400",
               }}
             >
-              {t.customizeYourAccounts ||
-                "We've created your main account. You can customize it or add more accounts"}
+              {t.customizeYourAccounts}
             </Text>
           </View>
 
@@ -752,9 +751,7 @@ export default function PostSignupSetupScreen() {
                   }}
                   onPress={handleCreateMainAccount}
                   disabled={creatingMainAccount}
-                  accessibilityLabel={
-                    t.createMainAccount || "Create Main Account"
-                  }
+                  accessibilityLabel={t.createMainAccount}
                   testID="create-main-account-button"
                 >
                   {creatingMainAccount ? (
@@ -767,7 +764,7 @@ export default function PostSignupSetupScreen() {
                         fontWeight: "700",
                       }}
                     >
-                      {t.createMainAccount || "Create Main Account"}
+                      {t.createMainAccount}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -785,7 +782,7 @@ export default function PostSignupSetupScreen() {
                       textAlign: "center",
                     }}
                   >
-                    {t.yourAccounts || "Your Accounts"}
+                    {t.yourAccounts}
                   </Text>
 
                   {accounts.map((account) => (
@@ -939,9 +936,7 @@ export default function PostSignupSetupScreen() {
                     marginBottom: 16,
                   }}
                   onPress={() => setShowAddAccountModal(true)}
-                  accessibilityLabel={
-                    t.addAnotherAccount || "Add Another Account"
-                  }
+                  accessibilityLabel={t.addAnotherAccount}
                   testID="add-another-account-button"
                 >
                   <Plus
@@ -956,7 +951,7 @@ export default function PostSignupSetupScreen() {
                       fontWeight: "700",
                     }}
                   >
-                    {t.addAnotherAccount || "Add Another Account"}
+                    {t.addAnotherAccount}
                   </Text>
                 </TouchableOpacity>
               </>
@@ -971,7 +966,7 @@ export default function PostSignupSetupScreen() {
                 paddingHorizontal: 24,
               }}
               onPress={handleSkip}
-              accessibilityLabel={t.continueToProfile || "Continue to Profile"}
+              accessibilityLabel={t.continueToProfile}
               testID="continue-button"
             >
               <Text
@@ -1038,7 +1033,7 @@ export default function PostSignupSetupScreen() {
                     fontWeight: "700",
                   }}
                 >
-                  {t.editAccount || "Edit Account"}
+                  {t.editAccount}
                 </Text>
                 <TouchableOpacity
                   onPress={() => {
@@ -1065,7 +1060,7 @@ export default function PostSignupSetupScreen() {
                       marginBottom: 12,
                     }}
                   >
-                    {t.accountName || "Account Name"}
+                    {t.accountName}
                   </Text>
                   <TextInput
                     style={{
@@ -1078,12 +1073,12 @@ export default function PostSignupSetupScreen() {
                       fontSize: 16,
                       fontWeight: "500",
                     }}
-                    placeholder={t.enterAccountName || "Enter account name"}
+                    placeholder={t.enterAccountName}
                     placeholderTextColor={theme.placeholder}
                     value={newAccountName}
                     onChangeText={setNewAccountName}
                     autoFocus={true}
-                    accessibilityLabel={t.accountName || "Account Name"}
+                    accessibilityLabel={t.accountName}
                     testID="account-name-input"
                   />
                 </View>
@@ -1098,7 +1093,7 @@ export default function PostSignupSetupScreen() {
                       marginBottom: 12,
                     }}
                   >
-                    {t.amount || "Amount"}
+                    {t.amount}
                   </Text>
                   <View
                     style={{
@@ -1151,7 +1146,7 @@ export default function PostSignupSetupScreen() {
 
                         setNewAccountAmount(formattedValue);
                       }}
-                      accessibilityLabel={t.amount || "Amount"}
+                      accessibilityLabel={t.amount}
                       testID="amount-input"
                     />
                   </View>
@@ -1167,7 +1162,7 @@ export default function PostSignupSetupScreen() {
                       marginBottom: 12,
                     }}
                   >
-                    {t.accountType || "Account Type"}
+                    {t.AccountType}
                   </Text>
                   <TouchableOpacity
                     style={{
