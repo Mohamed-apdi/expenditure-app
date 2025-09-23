@@ -13,7 +13,6 @@ import { useAccount } from "~/lib";
 
 export function WalletDropdown() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isSelecting, setIsSelecting] = useState(false);
   const { selectedAccount, setSelectedAccount, accounts, refreshAccounts } =
     useAccount();
   const theme = useTheme();
@@ -48,16 +47,9 @@ export function WalletDropdown() {
   // Remove the immediate refresh logic that was causing issues
   // Accounts are now auto-loaded by AccountContext
 
-  const handleAccountSelection = async (account: any) => {
-    try {
-      setIsSelecting(true);
-      await setSelectedAccount(account);
-      setIsDropdownOpen(false);
-    } catch (error) {
-      console.error("Error selecting account:", error);
-    } finally {
-      setIsSelecting(false);
-    }
+  const handleAccountSelection = (account: any) => {
+    setSelectedAccount(account);
+    setIsDropdownOpen(false);
   };
 
   // If we have accounts but no selected account, show the first account
@@ -78,14 +70,9 @@ export function WalletDropdown() {
           className="flex-row items-center"
           onPress={() => setIsDropdownOpen(!isDropdownOpen)}
           activeOpacity={0.7}
-          disabled={isSelecting}
         >
           <Text className="text-xl font-bold text-white pr-2">
-            {isSelecting ? (
-              <Loader size={20} color="white" className="animate-spin" />
-            ) : (
-              displayAccount?.name || "Select Account"
-            )}
+            {displayAccount?.name || "Select Account"}
           </Text>
           <ChevronDown size={16} color="#fff" className="ml-1" />
         </TouchableOpacity>
@@ -150,7 +137,6 @@ export function WalletDropdown() {
                   }}
                   onPress={() => handleAccountSelection(account)}
                   activeOpacity={0.7}
-                  disabled={isSelecting}
                 >
                   <View className="flex-row items-center justify-between w-full">
                     <View className="flex-1 mr-4">

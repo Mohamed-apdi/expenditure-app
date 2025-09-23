@@ -56,11 +56,7 @@ export default function DashboardScreen() {
   }>({ income: 0, expense: 0, balance: 0 });
 
   // Use centralized data hook
-  const {
-    data: dashboardData,
-    isLoading,
-    refetch,
-  } = useDashboardData(userId, selectedAccount?.id);
+  const { data: dashboardData, isLoading, refetch } = useDashboardData(userId);
 
   // Derived state from centralized data
   const [userProfile, setUserProfile] = useState({

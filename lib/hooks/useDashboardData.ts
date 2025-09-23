@@ -10,9 +10,9 @@ import { fetchAccounts } from "../services/accounts";
 import type { Transaction } from "../types/types";
 
 // �� CENTRALIZED DATA HOOK - Fetch all data once
-export const useDashboardData = (userId: string | null, accountId?: string) => {
+export const useDashboardData = (userId: string | null) => {
   return useQuery({
-    queryKey: ["dashboard-data", userId, accountId],
+    queryKey: ["dashboard-data", userId],
     queryFn: async () => {
       if (!userId) throw new Error("User ID required");
 
@@ -31,14 +31,9 @@ export const useDashboardData = (userId: string | null, accountId?: string) => {
         fetchAccounts(userId),
       ]);
 
-      // Filter transactions by account if needed
-      const filteredTransactions = accountId
-        ? transactions.filter((t: Transaction) => t.account_id === accountId)
-        : transactions;
-
       return {
         profile,
-        transactions: filteredTransactions,
+        transactions, // Return all transactions, filter client-side
         financialSummary,
         categorySummary,
         accounts,
@@ -61,9 +56,17 @@ export const useUserProfile = (userId: string | null) => {
 };
 
 export const useTransactions = (userId: string | null, accountId?: string) => {
-  const { data, isLoading, error } = useDashboardData(userId, accountId);
+  const { data, isLoading, error } = useDashboardData(userId);
+
+  // Filter transactions client-side
+  const filteredTransactions = accountId
+    ? data?.transactions?.filter(
+        (t: Transaction) => t.account_id === accountId
+      ) || []
+    : data?.transactions || [];
+
   return {
-    data: data?.transactions || [],
+    data: filteredTransactions,
     isLoading,
     error,
   };
@@ -73,9 +76,35 @@ export const useFinancialSummary = (
   userId: string | null,
   accountId?: string
 ) => {
-  const { data, isLoading, error } = useDashboardData(userId, accountId);
+  const { data, isLoading, error } = useDashboardData(userId);
+
+  // Filter transactions for financial summary if accountId is provided
+  const filteredTransactions = accountId
+    ? data?.transactions?.filter(
+        (t: Transaction) => t.account_id === accountId
+      ) || []
+    : data?.transactions || [];
+
+  // Calculate financial summary from filtered transactions
+  const financialSummary = data?.financialSummary;
+  if (accountId && filteredTransactions.length > 0) {
+    // Recalculate summary for specific account
+    const income = filteredTransactions
+      .filter((t: Transaction) => t.type === "income")
+      .reduce((sum, t) => sum + (t.amount || 0), 0);
+    const expense = filteredTransactions
+      .filter((t: Transaction) => t.type === "expense")
+      .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+    return {
+      data: { ...financialSummary, income, expense, balance: income - expense },
+      isLoading,
+      error,
+    };
+  }
+
   return {
-    data: data?.financialSummary,
+    data: financialSummary,
     isLoading,
     error,
   };
@@ -85,9 +114,44 @@ export const useCategorySummary = (
   userId: string | null,
   accountId?: string
 ) => {
-  const { data, isLoading, error } = useDashboardData(userId, accountId);
+  const { data, isLoading, error } = useDashboardData(userId);
+
+  // Filter transactions for category summary if accountId is provided
+  const filteredTransactions = accountId
+    ? data?.transactions?.filter(
+        (t: Transaction) => t.account_id === accountId
+      ) || []
+    : data?.transactions || [];
+
+  // Calculate category summary from filtered transactions
+  const categorySummary = data?.categorySummary;
+  if (accountId && filteredTransactions.length > 0) {
+    // Recalculate category summary for specific account
+    const categoryMap = new Map();
+    filteredTransactions
+      .filter((t: Transaction) => t.type === "expense" && t.category)
+      .forEach((t: Transaction) => {
+        const category = t.category!;
+        const amount = t.amount || 0;
+        categoryMap.set(category, (categoryMap.get(category) || 0) + amount);
+      });
+
+    const recalculatedSummary = Array.from(categoryMap.entries()).map(
+      ([category, amount]) => ({
+        category,
+        amount,
+      })
+    );
+
+    return {
+      data: recalculatedSummary,
+      isLoading,
+      error,
+    };
+  }
+
   return {
-    data: data?.categorySummary,
+    data: categorySummary,
     isLoading,
     error,
   };
@@ -97,7 +161,7 @@ export const useAccountBalances = (
   userId: string | null,
   accountId?: string
 ) => {
-  const { data, isLoading, error } = useDashboardData(userId, accountId);
+  const { data, isLoading, error } = useDashboardData(userId);
   return {
     data: data?.accounts,
     isLoading,
@@ -110,15 +174,21 @@ export const useRecentTransactions = (
   accountId?: string,
   limit: number = 6
 ) => {
-  const { data, isLoading, error } = useDashboardData(userId, accountId);
+  const { data, isLoading, error } = useDashboardData(userId);
 
-  const recentTransactions =
-    data?.transactions
-      ?.sort(
-        (a: Transaction, b: Transaction) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      )
-      .slice(0, limit) || [];
+  // Filter transactions client-side
+  const filteredTransactions = accountId
+    ? data?.transactions?.filter(
+        (t: Transaction) => t.account_id === accountId
+      ) || []
+    : data?.transactions || [];
+
+  const recentTransactions = filteredTransactions
+    .sort(
+      (a: Transaction, b: Transaction) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+    .slice(0, limit);
 
   return {
     data: recentTransactions,
@@ -133,41 +203,51 @@ export const useMonthData = (
   year: number,
   accountId?: string
 ) => {
-  const { data, isLoading, error } = useDashboardData(userId, accountId);
+  const { data, isLoading, error } = useDashboardData(userId);
 
-  const monthData = data?.transactions
-    ? (() => {
-        const startDate = new Date(year, month, 1).toISOString().split("T")[0];
-        const endDate = new Date(year, month + 1, 0)
-          .toISOString()
-          .split("T")[0];
+  // Filter transactions client-side
+  const filteredTransactions = accountId
+    ? data?.transactions?.filter(
+        (t: Transaction) => t.account_id === accountId
+      ) || []
+    : data?.transactions || [];
 
-        const monthTransactions = data.transactions.filter(
-          (t: Transaction) => t.date >= startDate && t.date <= endDate
-        );
+  const monthData =
+    filteredTransactions.length > 0
+      ? (() => {
+          const startDate = new Date(year, month, 1)
+            .toISOString()
+            .split("T")[0];
+          const endDate = new Date(year, month + 1, 0)
+            .toISOString()
+            .split("T")[0];
 
-        let monthIncome = 0;
-        let monthExpense = 0;
+          const monthTransactions = filteredTransactions.filter(
+            (t: Transaction) => t.date >= startDate && t.date <= endDate
+          );
 
-        monthTransactions.forEach((t: Transaction) => {
-          const amount = t.amount || 0;
-          if (t.type === "income") {
-            monthIncome += amount;
-          } else if (t.type === "expense") {
-            monthExpense += amount;
-          }
-        });
+          let monthIncome = 0;
+          let monthExpense = 0;
 
-        return {
-          transactions: monthTransactions,
-          summary: {
-            income: monthIncome,
-            expense: monthExpense,
-            balance: monthIncome - monthExpense,
-          },
-        };
-      })()
-    : null;
+          monthTransactions.forEach((t: Transaction) => {
+            const amount = t.amount || 0;
+            if (t.type === "income") {
+              monthIncome += amount;
+            } else if (t.type === "expense") {
+              monthExpense += amount;
+            }
+          });
+
+          return {
+            transactions: monthTransactions,
+            summary: {
+              income: monthIncome,
+              expense: monthExpense,
+              balance: monthIncome - monthExpense,
+            },
+          };
+        })()
+      : null;
 
   return {
     data: monthData,

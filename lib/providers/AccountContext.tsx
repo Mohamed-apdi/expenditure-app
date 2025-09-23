@@ -13,7 +13,7 @@ import { fetchAllTransactionsAndTransfers } from "../services/transactions";
 
 interface AccountContextType {
   selectedAccount: Account | null;
-  setSelectedAccount: (account: Account | null) => Promise<void>;
+  setSelectedAccount: (account: Account | null) => void;
   accounts: Account[];
   loading: boolean;
   refreshAccounts: () => Promise<void>;
@@ -30,7 +30,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   );
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(false); // Start with false since we'll load on mount
-  const [isUpdatingDefault, setIsUpdatingDefault] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
 
   // Auto-load accounts when the provider mounts
@@ -116,26 +115,9 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   };
 
   // Function to handle account selection
-  const setSelectedAccount = async (account: Account | null) => {
-    try {
-      if (account && !isUpdatingDefault) {
-        setIsUpdatingDefault(true);
-        console.log("Setting selected account to:", account.name);
-
-        // Update local state
-        setSelectedAccountState(account);
-
-        console.log("Successfully updated selected account:", account.name);
-      } else if (!account) {
-        setSelectedAccountState(null);
-      }
-    } catch (error) {
-      console.error("Error updating account selection:", error);
-      // Fallback: just update local state without database changes
-      setSelectedAccountState(account);
-    } finally {
-      setIsUpdatingDefault(false);
-    }
+  const setSelectedAccount = (account: Account | null) => {
+    console.log("Setting selected account to:", account?.name || "null");
+    setSelectedAccountState(account);
   };
 
   // Function to load accounts - only called when explicitly requested
@@ -164,7 +146,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         setAccounts(fetchedAccounts);
 
         // Only set default selected account if no account is currently selected
-        if (!selectedAccount && !isUpdatingDefault) {
+        if (!selectedAccount) {
           const accountToSelect = fetchedAccounts[0];
           if (accountToSelect) {
             console.log(
@@ -223,7 +205,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         setAccounts(fetchedAccounts);
 
         // Only set default selected account if no account is currently selected
-        if (!selectedAccount && !isUpdatingDefault) {
+        if (!selectedAccount) {
           const accountToSelect = fetchedAccounts[0];
           if (accountToSelect) {
             console.log(
@@ -248,13 +230,11 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [selectedAccount, isUpdatingDefault]);
+  }, [selectedAccount]);
 
   // Function to refresh balances after transaction changes
   const refreshBalances = async () => {
-    if (!isUpdatingDefault) {
-      await updateAccountBalances();
-    }
+    await updateAccountBalances();
   };
 
   // Remove all automatic loading logic that causes infinite loops
@@ -269,7 +249,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     calculateAccountBalance,
     refreshBalances,
     loadAccounts: initializeAccounts, // Expose the manual trigger
-    isUpdatingDefault,
     hasInitialized,
     initializeAccounts,
   };
