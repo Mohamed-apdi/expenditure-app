@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  ScrollView,
   Text,
   TouchableOpacity,
   View,
@@ -11,20 +10,10 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { supabase } from "~/lib";
-import {
-  getFinancialSummary,
-  getRecentTransactions,
-  getAccountBalances,
-  type FinancialSummary,
-  type CategorySummary,
-} from "~/lib";
-import { fetchExpenses } from "~/lib";
-import { fetchAllTransactionsAndTransfers } from "~/lib";
-import { fetchProfile } from "~/lib";
 import { useAccount } from "~/lib";
-
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
+import { useDashboardData } from "~/lib/hooks/useDashboardData";
 import DashboardHeader from "~/components/(Dashboard)/DashboardHeader";
 import MonthYearScroller from "~/components/(Dashboard)/MonthYearScroll";
 import NotificationPermissionRequest from "~/components/NotificationPermissionRequest";
@@ -41,34 +30,15 @@ type Transaction = {
   account_id: string;
 };
 
-type QuickAction = {
-  title: string;
-  icon: React.ComponentType<{ size: number; color: string }>;
-  color: string;
-  screen: string;
-};
-
 export default function DashboardScreen() {
   const router = useRouter();
   const { t } = useLanguage();
+  const { selectedAccount, refreshBalances, accounts } = useAccount();
+  const theme = useTheme();
 
-  const { selectedAccount, refreshBalances, accounts } = useAccount(); // Remove initializeAccounts since it's auto-loaded
-  const [userProfile, setUserProfile] = useState({
-    fullName: "",
-    email: "",
-    image_url: "",
-  });
-  const [todaySpending, setTodaySpending] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [financialSummary, setFinancialSummary] =
-    useState<FinancialSummary | null>(null);
-  const [categorySummary, setCategorySummary] = useState<CategorySummary[]>([]);
-  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
-  const [accountBalances, setAccountBalances] = useState<
-    { name: string; balance: number; type: string }[]
-  >([]);
+  // Get user ID
+  const [userId, setUserId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
   const [selectedMonth, setSelectedMonth] = useState<{
     month: number;
     year: number;
@@ -79,285 +49,57 @@ export default function DashboardScreen() {
   const [filteredTransactions, setFilteredTransactions] = useState<
     Transaction[]
   >([]);
+  const [currentMonthData, setCurrentMonthData] = useState<{
+    income: number;
+    expense: number;
+    balance: number;
+  }>({ income: 0, expense: 0, balance: 0 });
 
-  const theme = useTheme();
+  // Use centralized data hook
+  const {
+    data: dashboardData,
+    isLoading,
+    refetch,
+  } = useDashboardData(userId, selectedAccount?.id);
 
-  // Category totals
-  const [totalIncome, setTotalIncome] = useState(0);
-  const [totalExpense, setTotalExpense] = useState(0);
+  // Derived state from centralized data
+  const [userProfile, setUserProfile] = useState({
+    fullName: "",
+    email: "",
+    image_url: "",
+  });
 
-  const fetchData = async () => {
-    try {
-      // Prevent multiple simultaneous calls
-      if (loading) {
-        console.log("Dashboard - Already loading, skipping fetchData call");
-        return;
-      }
-
-      console.log("Dashboard - Starting fetchData...");
-      setLoading(true);
+  // Get user ID on mount
+  useEffect(() => {
+    const getUser = async () => {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-
-      if (!user) {
-        console.log("User not authenticated yet, skipping data fetch");
-        setLoading(false);
-        return;
+      if (user) {
+        setUserId(user.id);
       }
+    };
+    getUser();
+  }, []);
 
-      console.log(
-        "Dashboard - User authenticated, fetching data for user:",
-        user.id
-      );
-
-      // Profile
-      const profileData = await fetchProfile(user.id);
+  // Process data when dashboardData changes
+  useEffect(() => {
+    if (dashboardData?.profile) {
       setUserProfile({
-        fullName: profileData?.full_name || "",
-        email: user.email || "",
-        image_url: profileData?.image_url || "",
+        fullName: dashboardData.profile.full_name || "",
+        email: dashboardData.profile.email || "",
+        image_url: dashboardData.profile.image_url || "",
       });
-
-      // Refresh account balances to ensure real-time display
-      console.log("Dashboard - Refreshing account balances...");
-      await refreshBalances();
-      console.log("Dashboard - Account balances refreshed");
-
-      // If no account is selected, show all data
-      if (!selectedAccount) {
-        console.log("Dashboard - No account selected, showing all data");
-        // Financial Summary
-        const summary = await getFinancialSummary(user.id);
-        console.log("Dashboard - Financial summary:", summary);
-        setFinancialSummary(summary);
-        setTotalIncome(summary.totalIncome);
-        setTotalExpense(summary.totalExpenses);
-
-        // Today's spending (expenses only)
-        const today = new Date();
-        const startOfToday = new Date(today.setHours(0, 0, 0, 0))
-          .toISOString()
-          .split("T")[0];
-        const endOfToday = new Date(today.setHours(23, 59, 59, 999))
-          .toISOString()
-          .split("T")[0];
-
-        // Get all transactions and filter for today's expenses
-        const allTransactions = await fetchAllTransactionsAndTransfers(user.id);
-        console.log(
-          "Dashboard - All transactions fetched:",
-          allTransactions.length
-        );
-        const todayExpenses = allTransactions.filter(
-          (t) =>
-            t.type === "expense" &&
-            t.date >= startOfToday &&
-            t.date <= endOfToday
-        );
-
-        const todayTotal = todayExpenses.reduce(
-          (sum, item) => sum + (item?.amount || 0),
-          0
-        );
-        setTodaySpending(todayTotal);
-        console.log("Dashboard - Today's spending:", todayTotal);
-
-        // Category Summary - use expenses
-        const allExpenses = await fetchExpenses(user.id);
-        const categoryMap = new Map<string, number>();
-        allExpenses
-          .filter((e) => e.entry_type === "Expense")
-          .forEach((e) => {
-            const current = categoryMap.get(e.category) || 0;
-            categoryMap.set(e.category, current + e.amount);
-          });
-
-        const categorySummary: CategorySummary[] = Array.from(
-          categoryMap.entries()
-        ).map(([category, amount]) => ({
-          category,
-          amount,
-          count: allExpenses.filter(
-            (e) => e.category === category && e.entry_type === "Expense"
-          ).length,
-          percentage: 0, // Will be calculated later if needed
-        }));
-        setCategorySummary(categorySummary);
-
-        // Account Balances
-        const balances = await getAccountBalances(user.id);
-        setAccountBalances(
-          balances.map((b) => ({
-            name: b.name,
-            balance: b.balance,
-            type: b.account_type,
-          }))
-        );
-
-        // Recent transactions - use transactions table (including transfers)
-        const recent = allTransactions
-          .sort(
-            (a, b) =>
-              new Date(b.created_at).getTime() -
-              new Date(a.created_at).getTime()
-          )
-          .slice(0, 8);
-        setRecentTransactions(recent);
-        console.log("Dashboard - Recent transactions set:", recent.length);
-      } else {
-        console.log(
-          "Dashboard - Account selected, filtering data for:",
-          selectedAccount.name
-        );
-        // Filter data for selected account
-        const accountId = selectedAccount.id;
-
-        // Get transactions for selected account
-        const accountTransactions = await fetchAllTransactionsAndTransfers(
-          user.id
-        );
-        const accountTransactionsFiltered = accountTransactions.filter(
-          (t) => t.account_id === accountId
-        );
-        console.log(
-          "Dashboard - Filtered transactions for account:",
-          accountTransactionsFiltered.length
-        );
-
-        // Calculate totals for selected account
-        const accountIncome = accountTransactionsFiltered
-          .filter((t) => t.type === "income")
-          .reduce((sum, item) => sum + (item?.amount || 0), 0);
-
-        const accountExpensesTotal = accountTransactionsFiltered
-          .filter((t) => t.type === "expense")
-          .reduce((sum, item) => sum + (item?.amount || 0), 0);
-
-        console.log(
-          "Dashboard - Account income:",
-          accountIncome,
-          "expenses:",
-          accountExpensesTotal
-        );
-
-        // Set financial summary for selected account
-        setFinancialSummary({
-          totalAssets: selectedAccount.amount,
-          totalLiabilities: 0,
-          netWorth: selectedAccount.amount,
-          totalIncome: accountIncome,
-          totalExpenses: accountExpensesTotal,
-          balance: accountIncome - accountExpensesTotal,
-        });
-
-        setTotalIncome(accountIncome);
-        setTotalExpense(accountExpensesTotal);
-
-        // Today's spending for selected account
-        const today = new Date();
-        const startOfToday = new Date(today.setHours(0, 0, 0, 0))
-          .toISOString()
-          .split("T")[0];
-        const endOfToday = new Date(today.setHours(23, 59, 59, 999))
-          .toISOString()
-          .split("T")[0];
-
-        const todayExpenses = accountTransactionsFiltered.filter(
-          (t) =>
-            t.type === "expense" &&
-            t.date >= startOfToday &&
-            t.date <= endOfToday
-        );
-
-        const todayTotal = todayExpenses.reduce(
-          (sum, item) => sum + (item?.amount || 0),
-          0
-        );
-        setTodaySpending(todayTotal);
-        console.log("Dashboard - Today's spending for account:", todayTotal);
-
-        // Category summary for selected account
-        const categoryMap = new Map<string, number>();
-        accountTransactionsFiltered
-          .filter((t) => t.type === "expense")
-          .forEach((t) => {
-            const current = categoryMap.get(t.category || "") || 0;
-            categoryMap.set(t.category || "", current + t.amount);
-          });
-
-        const accountCategorySummary: CategorySummary[] = Array.from(
-          categoryMap.entries()
-        ).map(([category, amount]) => ({
-          category,
-          amount,
-          count: accountTransactionsFiltered.filter(
-            (t) => t.category === category && t.type === "expense"
-          ).length,
-          percentage: (amount / accountExpensesTotal) * 100,
-        }));
-
-        setCategorySummary(accountCategorySummary);
-
-        // Account balances (show only selected account)
-        setAccountBalances([
-          {
-            name: selectedAccount.name,
-            balance: selectedAccount.amount,
-            type: selectedAccount.account_type, // Changed from group_name to account_type
-          },
-        ]);
-
-        // Recent transactions for selected account (including transfers)
-        const recent = accountTransactionsFiltered
-          .sort(
-            (a, b) =>
-              new Date(b.created_at).getTime() -
-              new Date(a.created_at).getTime()
-          )
-          .slice(0, 8);
-        setRecentTransactions(recent);
-        console.log(
-          "Dashboard - Recent transactions for account set:",
-          recent.length
-        );
-      }
-
-      console.log("Dashboard - fetchData completed successfully");
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
     }
-  };
-
-  // Update the handleMonthChange function
-  const handleMonthChange = React.useCallback(
-    async (month: number, year: number) => {
-      if (!loading) {
-        setSelectedMonth({ month, year });
-        // The fetchMonthData will now update the filteredTransactions
-      }
-    },
-    [loading]
-  );
+  }, [dashboardData]);
 
   // Memoize fetchMonthData to prevent infinite loops
   const fetchMonthData = React.useCallback(
     async (month: number, year: number) => {
       try {
-        // Prevent multiple simultaneous calls
-        if (loading) {
-          console.log("Dashboard - Already loading month data, skipping call");
+        if (!dashboardData?.transactions) {
           return { income: 0, expense: 0, balance: 0 };
         }
-
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!user) return { income: 0, expense: 0, balance: 0 };
 
         // Get first and last day of selected month
         const startDate = new Date(year, month, 1).toISOString().split("T")[0];
@@ -365,28 +107,16 @@ export default function DashboardScreen() {
           .toISOString()
           .split("T")[0];
 
-        // Fetch transactions for selected month
-        let monthTransactions;
+        // Filter transactions for selected month
+        let monthTransactions = dashboardData.transactions.filter(
+          (t: Transaction) => t.date >= startDate && t.date <= endDate
+        );
+
+        // If account is selected, filter by account
         if (selectedAccount) {
-          // Filter by selected account
-          monthTransactions = await fetchAllTransactionsAndTransfers(user.id);
           monthTransactions = monthTransactions.filter(
-            (t) =>
-              t.account_id === selectedAccount.id &&
-              t.date >= startDate &&
-              t.date <= endDate
+            (t: Transaction) => t.account_id === selectedAccount.id
           );
-          console.log(
-            "Dashboard - Fetching month data for account:",
-            selectedAccount.name
-          );
-        } else {
-          // Fetch all transactions
-          monthTransactions = await fetchAllTransactionsAndTransfers(user.id);
-          monthTransactions = monthTransactions.filter(
-            (t) => t.date >= startDate && t.date <= endDate
-          );
-          console.log("Dashboard - Fetching month data for all accounts");
         }
 
         let monthIncome = 0;
@@ -400,7 +130,6 @@ export default function DashboardScreen() {
           } else if (t.type === "expense") {
             monthExpense += amount;
           }
-          // Include transfer transactions in the list
           monthTransactionsList.push(t as Transaction);
         });
 
@@ -416,10 +145,8 @@ export default function DashboardScreen() {
         // Calculate balance based on whether an account is selected
         let balance;
         if (selectedAccount) {
-          // For selected account, show the actual account balance
           balance = selectedAccount.amount || 0;
         } else {
-          // For all accounts, show the monthly transaction balance
           balance = monthIncome - monthExpense;
         }
 
@@ -433,91 +160,67 @@ export default function DashboardScreen() {
         return { income: 0, expense: 0, balance: 0 };
       }
     },
-    [selectedAccount?.id, loading]
+    [dashboardData?.transactions, selectedAccount?.id]
+  );
+
+  // Update the handleMonthChange function
+  const handleMonthChange = React.useCallback(
+    async (month: number, year: number) => {
+      setSelectedMonth({ month, year });
+      // Fetch data for the selected month
+      const monthData = await fetchMonthData(month, year);
+      setCurrentMonthData(monthData);
+      return monthData;
+    },
+    [fetchMonthData]
   );
 
   // Refetch data when selected account changes
   useEffect(() => {
-    if (selectedAccount && !loading && !refreshing) {
-      console.log(
-        "Dashboard - selectedAccount changed to:",
-        selectedAccount.name
-      );
-      fetchData();
+    if (selectedAccount && !isLoading && !refreshing) {
+      // Data will be automatically refetched by the hook due to accountId change
 
       // Also refresh the MonthYearScroller data for the current month
       const current = new Date();
       const currentMonth = current.getMonth();
       const currentYear = current.getFullYear();
-      fetchMonthData(currentMonth, currentYear);
+      fetchMonthData(currentMonth, currentYear).then(setCurrentMonthData);
     }
-  }, [selectedAccount?.id]); // Only depend on selectedAccount.id, not the entire object
+  }, [selectedAccount?.id, isLoading, refreshing, fetchMonthData]);
 
+  // Initial month data load
   useEffect(() => {
-    // Initial load - fetch data immediately when component mounts
-    const checkAuthAndFetch = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
-          console.log(
-            "Dashboard - Initial load, user authenticated, fetching data..."
-          );
-          fetchData(); // Accounts are already loaded by AccountContext
-
-          // Also load initial month data
-          const current = new Date();
-          const currentMonth = current.getMonth();
-          const currentYear = current.getFullYear();
-          fetchMonthData(currentMonth, currentYear);
-        }
-      } catch (error) {
-        console.error("Error in initial auth check:", error);
-      }
-    };
-    checkAuthAndFetch();
-    return () => {
-      setLoading(false);
-      setRefreshing(false);
-    };
-  }, []); // Empty dependency array for initial load only
-
-  // Additional effect to handle when selectedAccount becomes available
-  useEffect(() => {
-    if (selectedAccount && !financialSummary && !loading && !refreshing) {
-      console.log(
-        "Dashboard - selectedAccount available, fetching data for:",
-        selectedAccount.name
-      );
-      fetchData();
-    }
-  }, [selectedAccount, financialSummary, loading, refreshing]);
-
-  // Refresh MonthYearScroller when accounts change (e.g., new account added)
-  useEffect(() => {
-    if (accounts.length > 0 && selectedAccount && !loading && !refreshing) {
-      console.log(
-        "Dashboard - Accounts updated, refreshing MonthYearScroller..."
-      );
+    if (dashboardData?.transactions && !isLoading) {
       const current = new Date();
       const currentMonth = current.getMonth();
       const currentYear = current.getFullYear();
-      fetchMonthData(currentMonth, currentYear);
+      fetchMonthData(currentMonth, currentYear).then(setCurrentMonthData);
     }
-  }, [accounts.length, selectedAccount, loading, refreshing]);
+  }, [dashboardData?.transactions, isLoading, fetchMonthData]);
 
-  const onRefresh = React.useCallback(() => {
-    if (!loading && !refreshing) {
+  // Refresh MonthYearScroller when accounts change
+  useEffect(() => {
+    if (accounts.length > 0 && selectedAccount && !isLoading && !refreshing) {
+      const current = new Date();
+      const currentMonth = current.getMonth();
+      const currentYear = current.getFullYear();
+      fetchMonthData(currentMonth, currentYear).then(setCurrentMonthData);
+    }
+  }, [accounts.length, selectedAccount, isLoading, refreshing, fetchMonthData]);
+
+  const onRefresh = React.useCallback(async () => {
+    if (!isLoading && !refreshing) {
       setRefreshing(true);
-      fetchData();
+      await refreshBalances(); // Refresh account balances
+      await refetch(); // Refetch all data
+      setRefreshing(false);
     }
-  }, []); // Remove selectedAccount dependency to prevent infinite loop
+  }, [isLoading, refreshing, refreshBalances, refetch]);
 
-  if (loading && !refreshing) {
+  if (isLoading && !refreshing) {
     return (
       <View
-        className="flex-1  justify-center items-center"
+        className="flex-1 justify-center items-center"
         style={{ backgroundColor: theme.background }}
       >
         <ActivityIndicator size="large" color="#3b82f6" />
@@ -527,6 +230,7 @@ export default function DashboardScreen() {
       </View>
     );
   }
+
   return (
     <SafeAreaView className="flex-1 pt-safe bg-[#3b82f6] relative">
       <StatusBar
@@ -543,7 +247,7 @@ export default function DashboardScreen() {
         <View style={{ marginBottom: 20 }}>
           <MonthYearScroller
             onMonthChange={handleMonthChange}
-            fetchMonthData={fetchMonthData}
+            monthData={currentMonthData}
           />
         </View>
       </View>
@@ -553,7 +257,7 @@ export default function DashboardScreen() {
 
       {/* Recent Transactions */}
       <View
-        className="flex-1  rounded-t-3xl"
+        className="flex-1 rounded-t-3xl"
         style={{ backgroundColor: theme.background }}
       >
         <View className="px-5 pt-6 pb-2 flex-1">

@@ -14,24 +14,9 @@ import { useAccount } from "~/lib";
 export function WalletDropdown() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSelecting, setIsSelecting] = useState(false);
-  const {
-    selectedAccount,
-    setSelectedAccount,
-    accounts,
-    loading,
-    refreshAccounts,
-  } = useAccount();
+  const { selectedAccount, setSelectedAccount, accounts, refreshAccounts } =
+    useAccount();
   const theme = useTheme();
-
-  // Debug logging
-  console.log(
-    "WalletDropdown - loading:",
-    loading,
-    "accounts:",
-    accounts.length,
-    "selectedAccount:",
-    selectedAccount?.name
-  );
 
   // Auto-refresh accounts when component mounts or when accounts are empty
   useEffect(() => {
@@ -44,13 +29,13 @@ export function WalletDropdown() {
 
   // Auto-refresh accounts when accounts array is empty and not loading
   useEffect(() => {
-    if (accounts.length === 0 && !loading) {
+    if (accounts.length === 0) {
       console.log("WalletDropdown - Auto-refreshing accounts");
       refreshAccounts();
 
       // Set up a timer to keep trying if accounts are still empty
       const timer = setTimeout(() => {
-        if (accounts.length === 0 && !loading) {
+        if (accounts.length === 0) {
           console.log("WalletDropdown - Retrying account refresh after delay");
           refreshAccounts();
         }
@@ -58,7 +43,7 @@ export function WalletDropdown() {
 
       return () => clearTimeout(timer);
     }
-  }, [accounts.length, loading, refreshAccounts]);
+  }, [accounts.length, refreshAccounts]);
 
   // Remove the immediate refresh logic that was causing issues
   // Accounts are now auto-loaded by AccountContext
@@ -74,15 +59,6 @@ export function WalletDropdown() {
       setIsSelecting(false);
     }
   };
-
-  // Show loading state while accounts are being fetched
-  if (loading) {
-    return (
-      <View className="flex-row items-center mx-3">
-        <Loader size={20} color="white" className="animate-spin" />
-      </View>
-    );
-  }
 
   // If we have accounts but no selected account, show the first account
   const displayAccount = selectedAccount || accounts[0];

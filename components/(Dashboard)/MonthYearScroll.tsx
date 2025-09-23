@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { FlatList, Text, TouchableOpacity, View } from "react-native";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react-native";
 import { useLanguage } from "~/lib";
+import { useAccount } from "~/lib";
 
 const months = [
   "JAN",
@@ -19,8 +20,7 @@ const months = [
 ];
 
 type MonthYearScrollerProps = {
-  onMonthChange: (month: number, year: number) => void;
-  fetchMonthData: (
+  onMonthChange: (
     month: number,
     year: number
   ) => Promise<{
@@ -28,21 +28,22 @@ type MonthYearScrollerProps = {
     expense: number;
     balance: number;
   }>;
+  monthData?: {
+    income: number;
+    expense: number;
+    balance: number;
+  };
 };
 
 export default function MonthYearScroller({
   onMonthChange,
-  fetchMonthData,
+  monthData = { income: 0, expense: 0, balance: 0 },
 }: MonthYearScrollerProps) {
   const current = new Date();
   const currentYear = current.getFullYear();
   const currentMonth = current.getMonth();
   const { t } = useLanguage();
-  const [monthData, setMonthData] = useState<{
-    income: number;
-    expense: number;
-    balance: number;
-  }>({ income: 0, expense: 0, balance: 0 });
+  const { selectedAccount } = useAccount();
 
   // Add ref for FlatList to enable programmatic scrolling
   const flatListRef = useRef<FlatList>(null);
@@ -87,22 +88,11 @@ export default function MonthYearScroller({
     const monthIndex = months.indexOf(monthStr);
     const year = parseInt(yearStr);
 
-    // Fetch data for the selected month
-    const loadMonthData = async () => {
-      try {
-        const data = await fetchMonthData(monthIndex, year);
-        setMonthData(data);
-        onMonthChange(monthIndex, year);
-      } catch (error) {
-        console.error("Error loading month data:", error);
-      }
-    };
-
-    // Only load data if we have valid month/year values
+    // Only call onMonthChange if we have valid month/year values
     if (monthIndex >= 0 && year > 0) {
-      loadMonthData();
+      onMonthChange(monthIndex, year);
     }
-  }, [selected, fetchMonthData, onMonthChange]);
+  }, [selected, onMonthChange]);
 
   return (
     <View className="py-4">
@@ -139,10 +129,15 @@ export default function MonthYearScroller({
       <View className="px-6 mt-6">
         <View className="rounded-2xl">
           <Text className="text-white/80 text-xs text-center mb-1">
-            {t.currentBalance}
+            {selectedAccount
+              ? `${selectedAccount.name} - ${t.currentBalance}`
+              : t.currentBalance}
           </Text>
           <Text className="text-white text-3xl font-extrabold text-center mb-6">
-            ${monthData.balance.toLocaleString()}
+            $
+            {selectedAccount
+              ? selectedAccount.amount?.toFixed(0)
+              : monthData.balance.toLocaleString()}
           </Text>
 
           <View className="flex-row justify-between px-3">
