@@ -1,13 +1,6 @@
 import { useState, useEffect } from "react";
-import {
-  TouchableOpacity,
-  Text,
-  View,
-  FlatList,
-  Modal,
-  ScrollView,
-} from "react-native";
-import { ChevronDown, Loader, X } from "lucide-react-native";
+import { TouchableOpacity, Text, View, Modal, ScrollView } from "react-native";
+import { ChevronDown, X } from "lucide-react-native";
 import { useTheme } from "~/lib";
 import { useAccount } from "~/lib";
 
@@ -17,54 +10,40 @@ export function WalletDropdown() {
     useAccount();
   const theme = useTheme();
 
-  // Auto-refresh accounts when component mounts or when accounts are empty
   useEffect(() => {
-    // Always try to refresh accounts when component mounts
     if (accounts.length === 0) {
-      console.log("WalletDropdown - Component mounted, refreshing accounts");
       refreshAccounts();
     }
-  }, []); // Only run once when component mounts
+  }, []);
 
-  // Auto-refresh accounts when accounts array is empty and not loading
   useEffect(() => {
     if (accounts.length === 0) {
-      console.log("WalletDropdown - Auto-refreshing accounts");
       refreshAccounts();
-
-      // Set up a timer to keep trying if accounts are still empty
       const timer = setTimeout(() => {
         if (accounts.length === 0) {
-          console.log("WalletDropdown - Retrying account refresh after delay");
           refreshAccounts();
         }
-      }, 2000); // Wait 2 seconds before retrying
-
+      }, 2000);
       return () => clearTimeout(timer);
     }
   }, [accounts.length, refreshAccounts]);
-
-  // Remove the immediate refresh logic that was causing issues
-  // Accounts are now auto-loaded by AccountContext
 
   const handleAccountSelection = (account: any) => {
     setSelectedAccount(account);
     setIsDropdownOpen(false);
   };
 
-  // If we have accounts but no selected account, show the first account
   const displayAccount = selectedAccount || accounts[0];
   if (!displayAccount) {
     return (
       <View className="flex-row items-center mx-3">
-        <Loader size={20} color="white" className="animate-spin" />
+        <Text className="text-white">Loading...</Text>
       </View>
     );
   }
 
   return (
     <View className="relative">
-      {/* Wallet dropdown button with balance refresh */}
       <View className="flex-row items-center mx-3">
         <TouchableOpacity
           className="flex-row items-center"
@@ -78,7 +57,6 @@ export function WalletDropdown() {
         </TouchableOpacity>
       </View>
 
-      {/* Account Selection Modal */}
       <Modal
         visible={isDropdownOpen}
         animationType="fade"

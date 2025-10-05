@@ -7,9 +7,8 @@ import React, {
   useCallback,
 } from "react";
 import { supabase } from "../database/supabase";
-import { fetchAccounts, updateAccount } from "../services/accounts";
+import { fetchAccounts } from "../services/accounts";
 import type { Account } from "../types/types";
-import { fetchAllTransactionsAndTransfers } from "../services/transactions";
 
 interface AccountContextType {
   selectedAccount: Account | null;
@@ -40,10 +39,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           data: { user },
         } = await supabase.auth.getUser();
         if (user) {
-          console.log(
-            "AccountContext - Auto-loading accounts for user:",
-            user.id
-          );
           await loadAccounts();
         }
       } catch (error) {
@@ -70,15 +65,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       const account = fetchedAccounts.find((acc) => acc.id === accountId);
       if (!account) return 0;
 
-      // Always return the current amount from the accounts table
-      // Transfers now create expense/income transactions that properly update account balances
       const currentBalance = account.amount || 0;
-
-      console.log(
-        `Account ${account.name} balance from database:`,
-        currentBalance
-      );
-
       return currentBalance;
     } catch (error) {
       console.error("Error calculating account balance:", error);
@@ -107,16 +94,12 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           setSelectedAccountState(updatedSelectedAccount);
         }
       }
-
-      console.log("Updated account balances from database");
     } catch (error) {
       console.error("Error updating account balances:", error);
     }
   };
 
-  // Function to handle account selection
   const setSelectedAccount = (account: Account | null) => {
-    console.log("Setting selected account to:", account?.name || "null");
     setSelectedAccountState(account);
   };
 
@@ -126,44 +109,32 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
     try {
       setLoading(true);
-      console.log("Starting to load accounts...");
-
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (!user) {
-        console.log("User not authenticated, skipping account load");
         setLoading(false);
         return;
       }
 
-      console.log("User authenticated, fetching accounts for:", user.id);
       const fetchedAccounts = await fetchAccounts(user.id);
-      console.log("Fetched accounts:", fetchedAccounts.length);
 
       if (fetchedAccounts && fetchedAccounts.length > 0) {
         setAccounts(fetchedAccounts);
 
-        // Only set default selected account if no account is currently selected
         if (!selectedAccount) {
           const accountToSelect = fetchedAccounts[0];
           if (accountToSelect) {
-            console.log(
-              "Setting initial selected account to:",
-              accountToSelect.name
-            );
             setSelectedAccountState(accountToSelect);
           }
         }
       } else {
-        console.log("No accounts found in database");
         setAccounts([]);
         setSelectedAccountState(null);
       }
 
       setHasInitialized(true);
-      console.log("Finished loading accounts");
     } catch (error) {
       console.error("Error loading accounts:", error);
       setAccounts([]);
@@ -173,56 +144,40 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Function to manually trigger account loading (called from Dashboard)
   const initializeAccounts = useCallback(async () => {
-    // Always try to load accounts when explicitly requested
-    // This handles the case where accounts were created during signup
     await loadAccounts();
   }, []);
 
-  // Function to refresh accounts (called when needed)
   const refreshAccounts = useCallback(async () => {
     try {
       setHasInitialized(false);
       setLoading(true);
-      console.log("Refreshing accounts...");
-
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (!user) {
-        console.log("User not authenticated, skipping account refresh");
         setLoading(false);
         return;
       }
 
-      console.log("User authenticated, refreshing accounts for:", user.id);
       const fetchedAccounts = await fetchAccounts(user.id);
-      console.log("Refreshed accounts:", fetchedAccounts.length);
 
       if (fetchedAccounts && fetchedAccounts.length > 0) {
         setAccounts(fetchedAccounts);
 
-        // Only set default selected account if no account is currently selected
         if (!selectedAccount) {
           const accountToSelect = fetchedAccounts[0];
           if (accountToSelect) {
-            console.log(
-              "Setting refreshed selected account to:",
-              accountToSelect.name
-            );
             setSelectedAccountState(accountToSelect);
           }
         }
       } else {
-        console.log("No accounts found after refresh");
         setAccounts([]);
         setSelectedAccountState(null);
       }
 
       setHasInitialized(true);
-      console.log("Finished refreshing accounts");
     } catch (error) {
       console.error("Error refreshing accounts:", error);
       setAccounts([]);
@@ -232,13 +187,9 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     }
   }, [selectedAccount]);
 
-  // Function to refresh balances after transaction changes
   const refreshBalances = async () => {
     await updateAccountBalances();
   };
-
-  // Remove all automatic loading logic that causes infinite loops
-  // Only load accounts when explicitly requested
 
   const value = {
     selectedAccount,
@@ -248,8 +199,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     refreshAccounts,
     calculateAccountBalance,
     refreshBalances,
-    loadAccounts: initializeAccounts, // Expose the manual trigger
-    hasInitialized,
     initializeAccounts,
   };
 
