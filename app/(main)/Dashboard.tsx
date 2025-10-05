@@ -4,47 +4,27 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
   RefreshControl,
   SafeAreaView,
   StatusBar,
-  TextInput,
-  Image,
-  ImageBackground,
-  FlatList,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { supabase } from "~/lib";
-import {
-  getFinancialSummary,
-  getRecentTransactions,
-  getAccountBalances,
-  type FinancialSummary,
-  type CategorySummary,
-} from "~/lib";
-import { fetchExpenses } from "~/lib";
+import { type FinancialSummary } from "~/lib";
 import { fetchTransactions } from "~/lib";
 import { fetchProfile } from "~/lib";
 import { useAccount } from "~/lib";
 
 import {
-  PieChart,
   TrendingUp,
-  ShoppingCart,
-  Truck,
   Zap,
   Film,
-  Heart,
   ShoppingBag,
   Book,
   MoreHorizontal,
-  Search,
-  Plus,
-  ChevronDown,
   Utensils,
   Home,
   Bus,
-  Ticket,
   HeartPulse,
   GraduationCap,
   Smile,
@@ -61,23 +41,14 @@ import {
   Sofa,
   Wrench,
   Receipt,
-  Landmark,
-  Gem,
   Clock,
   Briefcase,
-  LineChart,
   Percent,
-  Key,
-  Tag,
   Dice5,
-  Trophy,
   RefreshCw,
   Laptop,
-  Copyright,
   HandCoins,
   User,
-  TrendingDown,
-  TrendingUpDown,
   DollarSign,
   Award,
   ArrowRightLeft,
@@ -101,75 +72,35 @@ type Transaction = {
   account_id: string;
 };
 
-type QuickAction = {
-  title: string;
-  icon: React.ComponentType<{ size: number; color: string }>;
-  color: string;
-  screen: string;
-};
-
 export default function DashboardScreen() {
   const router = useRouter();
   const { t } = useLanguage();
 
-  const { selectedAccount, refreshBalances, accounts } = useAccount(); // Remove initializeAccounts since it's auto-loaded
+  const { selectedAccount, refreshBalances, accounts } = useAccount();
   const [userProfile, setUserProfile] = useState({
     fullName: "",
     email: "",
     image_url: "",
   });
-  const [todaySpending, setTodaySpending] = useState(0);
-  const [loading, setLoading] = useState(true);
   const [financialSummary, setFinancialSummary] =
     useState<FinancialSummary | null>(null);
-  const [categorySummary, setCategorySummary] = useState<CategorySummary[]>([]);
-  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
-  const [accountBalances, setAccountBalances] = useState<
-    { name: string; balance: number; type: string }[]
-  >([]);
   const [refreshing, setRefreshing] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState<{
-    month: number;
-    year: number;
-  }>({
-    month: new Date().getMonth(),
-    year: new Date().getFullYear(),
-  });
   const [filteredTransactions, setFilteredTransactions] = useState<
     Transaction[]
   >([]);
 
   const theme = useTheme();
 
-  // Category totals
-  const [totalIncome, setTotalIncome] = useState(0);
-  const [totalExpense, setTotalExpense] = useState(0);
-
-  const fetchData = async () => {
+  const fetchUserProfile = async () => {
     try {
-      // Prevent multiple simultaneous calls
-      if (loading) {
-        console.log("Dashboard - Already loading, skipping fetchData call");
-        return;
-      }
-
-      console.log("Dashboard - Starting fetchData...");
-      setLoading(true);
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (!user) {
-        console.log("User not authenticated yet, skipping data fetch");
-        setLoading(false);
+        console.log("User not authenticated yet, skipping profile fetch");
         return;
       }
-
-      console.log(
-        "Dashboard - User authenticated, fetching data for user:",
-        user.id
-      );
 
       // Profile
       const profileData = await fetchProfile(user.id);
@@ -178,239 +109,23 @@ export default function DashboardScreen() {
         email: user.email || "",
         image_url: profileData?.image_url || "",
       });
-
-      // Refresh account balances to ensure real-time display
-      console.log("Dashboard - Refreshing account balances...");
-      await refreshBalances();
-      console.log("Dashboard - Account balances refreshed");
-
-      // If no account is selected, show all data
-      if (!selectedAccount) {
-        console.log("Dashboard - No account selected, showing all data");
-        // Financial Summary
-        const summary = await getFinancialSummary(user.id);
-        console.log("Dashboard - Financial summary:", summary);
-        setFinancialSummary(summary);
-        setTotalIncome(summary.totalIncome);
-        setTotalExpense(summary.totalExpenses);
-
-        // Today's spending (expenses only)
-        const today = new Date();
-        const startOfToday = new Date(today.setHours(0, 0, 0, 0))
-          .toISOString()
-          .split("T")[0];
-        const endOfToday = new Date(today.setHours(23, 59, 59, 999))
-          .toISOString()
-          .split("T")[0];
-
-        // Get all transactions and filter for today's expenses
-        const allTransactions = await fetchTransactions(user.id);
-        console.log(
-          "Dashboard - All transactions fetched:",
-          allTransactions.length
-        );
-        const todayExpenses = allTransactions.filter(
-          (t) =>
-            t.type === "expense" &&
-            t.date >= startOfToday &&
-            t.date <= endOfToday
-        );
-
-        const todayTotal = todayExpenses.reduce(
-          (sum, item) => sum + (item?.amount || 0),
-          0
-        );
-        setTodaySpending(todayTotal);
-        console.log("Dashboard - Today's spending:", todayTotal);
-
-        // Category Summary - use expenses
-        const allExpenses = await fetchExpenses(user.id);
-        const categoryMap = new Map<string, number>();
-        allExpenses
-          .filter((e) => e.entry_type === "Expense")
-          .forEach((e) => {
-            const current = categoryMap.get(e.category) || 0;
-            categoryMap.set(e.category, current + e.amount);
-          });
-
-        const categorySummary: CategorySummary[] = Array.from(
-          categoryMap.entries()
-        ).map(([category, amount]) => ({
-          category,
-          amount,
-          count: allExpenses.filter(
-            (e) => e.category === category && e.entry_type === "Expense"
-          ).length,
-          percentage: 0, // Will be calculated later if needed
-        }));
-        setCategorySummary(categorySummary);
-
-        // Account Balances
-        const balances = await getAccountBalances(user.id);
-        setAccountBalances(
-          balances.map((b) => ({
-            name: b.name,
-            balance: b.balance,
-            type: b.account_type,
-          }))
-        );
-
-        // Recent transactions - use transactions table
-        const recent = allTransactions
-          .sort(
-            (a, b) =>
-              new Date(b.created_at).getTime() -
-              new Date(a.created_at).getTime()
-          )
-          .slice(0, 8);
-        setRecentTransactions(recent);
-        console.log("Dashboard - Recent transactions set:", recent.length);
-      } else {
-        console.log(
-          "Dashboard - Account selected, filtering data for:",
-          selectedAccount.name
-        );
-        // Filter data for selected account
-        const accountId = selectedAccount.id;
-
-        // Get transactions for selected account
-        const accountTransactions = await fetchTransactions(user.id);
-        const accountTransactionsFiltered = accountTransactions.filter(
-          (t) => t.account_id === accountId
-        );
-        console.log(
-          "Dashboard - Filtered transactions for account:",
-          accountTransactionsFiltered.length
-        );
-
-        // Calculate totals for selected account
-        const accountIncome = accountTransactionsFiltered
-          .filter((t) => t.type === "income")
-          .reduce((sum, item) => sum + (item?.amount || 0), 0);
-
-        const accountExpensesTotal = accountTransactionsFiltered
-          .filter((t) => t.type === "expense")
-          .reduce((sum, item) => sum + (item?.amount || 0), 0);
-
-        console.log(
-          "Dashboard - Account income:",
-          accountIncome,
-          "expenses:",
-          accountExpensesTotal
-        );
-
-        // Set financial summary for selected account
-        setFinancialSummary({
-          totalAssets: selectedAccount.amount,
-          totalLiabilities: 0,
-          netWorth: selectedAccount.amount,
-          totalIncome: accountIncome,
-          totalExpenses: accountExpensesTotal,
-          balance: accountIncome - accountExpensesTotal,
-        });
-
-        setTotalIncome(accountIncome);
-        setTotalExpense(accountExpensesTotal);
-
-        // Today's spending for selected account
-        const today = new Date();
-        const startOfToday = new Date(today.setHours(0, 0, 0, 0))
-          .toISOString()
-          .split("T")[0];
-        const endOfToday = new Date(today.setHours(23, 59, 59, 999))
-          .toISOString()
-          .split("T")[0];
-
-        const todayExpenses = accountTransactionsFiltered.filter(
-          (t) =>
-            t.type === "expense" &&
-            t.date >= startOfToday &&
-            t.date <= endOfToday
-        );
-
-        const todayTotal = todayExpenses.reduce(
-          (sum, item) => sum + (item?.amount || 0),
-          0
-        );
-        setTodaySpending(todayTotal);
-        console.log("Dashboard - Today's spending for account:", todayTotal);
-
-        // Category summary for selected account
-        const categoryMap = new Map<string, number>();
-        accountTransactionsFiltered
-          .filter((t) => t.type === "expense")
-          .forEach((t) => {
-            const current = categoryMap.get(t.category || "") || 0;
-            categoryMap.set(t.category || "", current + t.amount);
-          });
-
-        const accountCategorySummary: CategorySummary[] = Array.from(
-          categoryMap.entries()
-        ).map(([category, amount]) => ({
-          category,
-          amount,
-          count: accountTransactionsFiltered.filter(
-            (t) => t.category === category && t.type === "expense"
-          ).length,
-          percentage: (amount / accountExpensesTotal) * 100,
-        }));
-
-        setCategorySummary(accountCategorySummary);
-
-        // Account balances (show only selected account)
-        setAccountBalances([
-          {
-            name: selectedAccount.name,
-            balance: selectedAccount.amount,
-            type: selectedAccount.account_type, // Changed from group_name to account_type
-          },
-        ]);
-
-        // Recent transactions for selected account
-        const recent = accountTransactionsFiltered
-          .sort(
-            (a, b) =>
-              new Date(b.created_at).getTime() -
-              new Date(a.created_at).getTime()
-          )
-          .slice(0, 8);
-        setRecentTransactions(recent);
-        console.log(
-          "Dashboard - Recent transactions for account set:",
-          recent.length
-        );
-      }
-
-      console.log("Dashboard - fetchData completed successfully");
     } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      console.error("Error fetching profile:", error);
     }
   };
 
   // Update the handleMonthChange function
   const handleMonthChange = React.useCallback(
     async (month: number, year: number) => {
-      if (!loading) {
-        setSelectedMonth({ month, year });
-        // The fetchMonthData will now update the filteredTransactions
-      }
+      // The fetchMonthData will now update the filteredTransactions
     },
-    [loading]
+    []
   );
 
   // Memoize fetchMonthData to prevent infinite loops
   const fetchMonthData = React.useCallback(
     async (month: number, year: number) => {
       try {
-        // Prevent multiple simultaneous calls
-        if (loading) {
-          console.log("Dashboard - Already loading month data, skipping call");
-          return { income: 0, expense: 0, balance: 0 };
-        }
-
         const {
           data: { user },
         } = await supabase.auth.getUser();
@@ -434,17 +149,12 @@ export default function DashboardScreen() {
               t.date >= startDate &&
               t.date <= endDate
           );
-          console.log(
-            "Dashboard - Fetching month data for account:",
-            selectedAccount.name
-          );
         } else {
           // Fetch all transactions
           monthTransactions = await fetchTransactions(user.id);
           monthTransactions = monthTransactions.filter(
             (t) => t.date >= startDate && t.date <= endDate
           );
-          console.log("Dashboard - Fetching month data for all accounts");
         }
 
         let monthIncome = 0;
@@ -484,38 +194,18 @@ export default function DashboardScreen() {
         return { income: 0, expense: 0, balance: 0 };
       }
     },
-    [selectedAccount?.id, loading]
+    [selectedAccount?.id]
   );
 
-  // Refetch data when selected account changes
   useEffect(() => {
-    if (selectedAccount && !loading && !refreshing) {
-      console.log(
-        "Dashboard - selectedAccount changed to:",
-        selectedAccount.name
-      );
-      fetchData();
-
-      // Also refresh the MonthYearScroller data for the current month
-      const current = new Date();
-      const currentMonth = current.getMonth();
-      const currentYear = current.getFullYear();
-      fetchMonthData(currentMonth, currentYear);
-    }
-  }, [selectedAccount?.id]); // Only depend on selectedAccount.id, not the entire object
-
-  useEffect(() => {
-    // Initial load - fetch data immediately when component mounts
+    // Initial load - fetch profile when component mounts
     const checkAuthAndFetch = async () => {
       try {
         const {
           data: { user },
         } = await supabase.auth.getUser();
         if (user) {
-          console.log(
-            "Dashboard - Initial load, user authenticated, fetching data..."
-          );
-          fetchData(); // Accounts are already loaded by AccountContext
+          fetchUserProfile();
 
           // Also load initial month data
           const current = new Date();
@@ -528,86 +218,92 @@ export default function DashboardScreen() {
       }
     };
     checkAuthAndFetch();
-    return () => {
-      setLoading(false);
-      setRefreshing(false);
-    };
   }, []); // Empty dependency array for initial load only
 
-  // Additional effect to handle when selectedAccount becomes available
-  useEffect(() => {
-    if (selectedAccount && !financialSummary && !loading && !refreshing) {
-      console.log(
-        "Dashboard - selectedAccount available, fetching data for:",
-        selectedAccount.name
-      );
-      fetchData();
-    }
-  }, [selectedAccount, financialSummary, loading, refreshing]);
+  // Refresh balance when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
 
-  // Refresh MonthYearScroller when accounts change (e.g., new account added)
-  useEffect(() => {
-    if (accounts.length > 0 && selectedAccount && !loading && !refreshing) {
-      console.log(
-        "Dashboard - Accounts updated, refreshing MonthYearScroller..."
-      );
+      refreshBalances();
+
+      // Also refresh current month data to update income/expense
       const current = new Date();
       const currentMonth = current.getMonth();
       const currentYear = current.getFullYear();
       fetchMonthData(currentMonth, currentYear);
-    }
-  }, [accounts.length, selectedAccount, loading, refreshing]);
+    }, [refreshBalances, fetchMonthData])
+  );
 
-  const onRefresh = React.useCallback(() => {
-    if (!loading && !refreshing) {
+  const onRefresh = React.useCallback(async () => {
+    if (!refreshing) {
       setRefreshing(true);
-      fetchData();
+      try {
+        // Refresh user profile
+        await fetchUserProfile();
+
+        // Refresh account balances
+        await refreshBalances();
+
+        // Refresh current month data
+        const current = new Date();
+        const currentMonth = current.getMonth();
+        const currentYear = current.getFullYear();
+        await fetchMonthData(currentMonth, currentYear);
+
+      } catch (error) {
+        console.error("Error during manual refresh:", error);
+      } finally {
+        setRefreshing(false);
+      }
     }
-  }, []); // Remove selectedAccount dependency to prevent infinite loop
+  }, [refreshing, fetchUserProfile, refreshBalances, fetchMonthData]);
 
   const getCategoryIcon = (category: string) => {
     const icons: Record<string, React.ElementType> = {
-      // Expense categories
-      "Food & Drinks": Utensils,
-      "Home & Rent": Home,
-      Travel: Bus,
-      Bills: Zap,
-      Fun: Film,
-      Health: HeartPulse,
-      Shopping: ShoppingBag,
-      Learning: GraduationCap,
-      "Personal Care": Smile,
-      Insurance: Shield,
-      Loans: CreditCard,
-      Gifts: Gift,
-      Donations: HandHeart,
-      Vacation: Luggage,
-      Pets: PawPrint,
-      Children: Baby,
-      Subscriptions: Repeat,
-      "Gym & Sports": Dumbbell,
-      Electronics: Smartphone,
-      Furniture: Sofa,
-      Repairs: Wrench,
-      Taxes: Receipt,
+      // Expense categories (matching AddExpense.tsx translated names)
+      [t.foodAndDrinks]: Utensils,
+      [t.homeAndRent]: Home,
+      [t.travel]: Bus,
+      [t.bills]: Zap,
+      [t.fun]: Film,
+      [t.health]: HeartPulse,
+      [t.shopping]: ShoppingBag,
+      [t.learning]: GraduationCap,
+      [t.personalCare]: Smile,
+      [t.insurance]: Shield,
+      [t.loans]: CreditCard,
+      [t.gifts]: Gift,
+      [t.donations]: HandHeart,
+      [t.vacation]: Luggage,
+      [t.pets]: PawPrint,
+      [t.children]: Baby,
+      [t.subscriptions]: Repeat,
+      [t.gymAndSports]: Dumbbell,
+      [t.electronics]: Smartphone,
+      [t.furniture]: Sofa,
+      [t.repairs]: Wrench,
+      [t.taxes]: Receipt,
 
-      // Income categories
-      "Initial Balance": DollarSign,
-      Bonus: Zap,
-      "Part-time Work": Clock,
-      Business: Briefcase,
-      Investments: TrendingUp,
-      "Bank Interest": Percent,
-      "Rent Income": Home,
-      Sales: ShoppingBag,
-      Gambling: Dice5,
-      Awards: Award,
-      Refunds: RefreshCw,
-      Freelance: Laptop,
-      Royalties: Book,
-      Grants: HandCoins,
-      "Gifts Received": Gift,
-      Pension: User,
+      // Income categories (matching AddExpense.tsx translated names)
+      [t.jobSalary]: DollarSign,
+      [t.bonus]: Zap,
+      [t.partTimeWork]: Clock,
+      [t.business]: Briefcase,
+      [t.investments]: TrendingUp,
+      [t.bankInterest]: Percent,
+      [t.rentIncome]: Home,
+      [t.sales]: ShoppingBag,
+      [t.gambling]: Dice5,
+      [t.awards]: Award,
+      [t.refunds]: RefreshCw,
+      [t.freelance]: Laptop,
+      [t.royalties]: Book,
+      [t.grants]: HandCoins,
+      [t.giftsReceived]: Gift,
+      [t.pension]: User,
+
+      // Special categories (hardcoded in Debt_Loan component)
+      Loan: CreditCard,
       Transfer: ArrowRightLeft,
     };
     return icons[category] || MoreHorizontal;
@@ -615,104 +311,68 @@ export default function DashboardScreen() {
 
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
-      // Expense colors
-      "Food & Drinks": "#059669",
-      "Home & Rent": "#0891b2",
-      Travel: "#3b82f6",
-      Bills: "#f97316",
-      Fun: "#8b5cf6",
-      Health: "#dc2626",
-      Shopping: "#06b6d4",
-      Learning: "#84cc16",
-      "Personal Care": "#ec4899",
-      Insurance: "#14b8a6",
-      Loans: "#f97316",
-      Gifts: "#8b5cf6",
-      Donations: "#ef4444",
-      Vacation: "#3b82f6",
-      Pets: "#f59e0b",
-      Children: "#ec4899",
-      Subscriptions: "#8b5cf6",
-      "Gym & Sports": "#059669",
-      Electronics: "#64748b",
-      Furniture: "#f59e0b",
-      Repairs: "#3b82f6",
-      Taxes: "#ef4444",
+      // Expense colors (matching AddExpense.tsx translated names and colors)
+      [t.foodAndDrinks]: "#059669",
+      [t.homeAndRent]: "#0891b2",
+      [t.travel]: "#3b82f6",
+      [t.bills]: "#f97316",
+      [t.fun]: "#8b5cf6",
+      [t.health]: "#dc2626",
+      [t.shopping]: "#06b6d4",
+      [t.learning]: "#84cc16",
+      [t.personalCare]: "#ec4899",
+      [t.insurance]: "#14b8a6",
+      [t.loans]: "#f97316",
+      [t.gifts]: "#8b5cf6",
+      [t.donations]: "#ef4444",
+      [t.vacation]: "#3b82f6",
+      [t.pets]: "#f59e0b",
+      [t.children]: "#ec4899",
+      [t.subscriptions]: "#8b5cf6",
+      [t.gymAndSports]: "#059669",
+      [t.electronics]: "#64748b",
+      [t.furniture]: "#f59e0b",
+      [t.repairs]: "#3b82f6",
+      [t.taxes]: "#ef4444",
 
-      // Income colors
-      "Initial Balance": "#059669",
-      Bonus: "#3b82f6",
-      "Part-time Work": "#f97316",
-      Business: "#8b5cf6",
-      Investments: "#ef4444",
-      "Bank Interest": "#06b6d4",
-      "Rent Income": "#84cc16",
-      Sales: "#64748b",
-      Gambling: "#f43f5e",
-      Awards: "#8b5cf6",
-      Refunds: "#3b82f6",
-      Freelance: "#f97316",
-      Royalties: "#84cc16",
-      Grants: "#059669",
-      "Gifts Received": "#8b5cf6",
-      Pension: "#64748b",
+      // Income colors (matching AddExpense.tsx translated names and colors)
+      [t.jobSalary]: "#059669",
+      [t.bonus]: "#3b82f6",
+      [t.partTimeWork]: "#f97316",
+      [t.business]: "#8b5cf6",
+      [t.investments]: "#ef4444",
+      [t.bankInterest]: "#06b6d4",
+      [t.rentIncome]: "#84cc16",
+      [t.sales]: "#64748b",
+      [t.gambling]: "#f43f5e",
+      [t.awards]: "#8b5cf6",
+      [t.refunds]: "#3b82f6",
+      [t.freelance]: "#f97316",
+      [t.royalties]: "#84cc16",
+      [t.grants]: "#059669",
+      [t.giftsReceived]: "#8b5cf6",
+      [t.pension]: "#64748b",
+
+      // Special categories (hardcoded in Debt_Loan component)
+      Loan: "#f97316",
       Transfer: "#3b82f6",
     };
     return colors[category] || "#64748b";
   };
 
-  // Get translated category label
+  // Get translated category label - now categories are already translated
   const getCategoryLabel = (categoryKey: string) => {
-    const categoryMap: { [key: string]: string } = {
-      "Food & Drinks": t.foodAndDrinks,
-      "Home & Rent": t.homeAndRent,
-      Travel: t.travel,
-      Bills: t.bills,
-      Fun: t.fun,
-      Health: t.health,
-      Shopping: t.shopping,
-      Learning: t.learning,
-      "Personal Care": t.personalCare,
-      Insurance: t.insurance,
-      Loans: t.loans,
-      Gifts: t.gifts,
-      Donations: t.donations,
-      Vacation: t.vacation,
-      Pets: t.pets,
-      Children: t.children,
-      Subscriptions: t.subscriptions,
-      "Gym & Sports": t.gymAndSports,
-      Electronics: t.electronics,
-      Furniture: t.furniture,
-      Repairs: t.repairs,
-      Taxes: t.taxes,
-      "Initial Balance": t.InitialBalance,
-      Bonus: t.bonus,
-      "Part-time Work": t.partTimeWork,
-      Business: t.business,
-      Investments: t.investments,
-      "Bank Interest": t.bankInterest,
-      "Rent Income": t.rentIncome,
-      Sales: t.sales,
-      Gambling: t.gambling,
-      Awards: t.awards,
-      Refunds: t.refunds,
-      Freelance: t.freelance,
-      Royalties: t.royalties,
-      Grants: t.grants,
-      "Gifts Received": t.giftsReceived,
-      Pension: t.pension,
-      Transfer: t.transfer,
-    };
-    return categoryMap[categoryKey] || categoryKey;
+    // Since categories are now stored with translated names, return as-is
+    // Only handle special cases like Transfer and Loan
+    if (categoryKey === "Transfer") {
+      return t.transfer;
+    }
+    if (categoryKey === "Loan") {
+      return t.loans;
+    }
+    return categoryKey;
   };
-  // if (loading && !refreshing) {
-  //   return (
-  //     <View className="flex-1 bg-[#F6F8FD] justify-center items-center">
-  //       <ActivityIndicator size="large" color="#2D6CF6" />
-  //     </View>
-  //   );
-  // }
+
   return (
     <SafeAreaView className="flex-1 pt-safe bg-[#3b82f6] relative">
       <StatusBar
@@ -731,62 +391,98 @@ export default function DashboardScreen() {
         onSettingsPress={() => router.push("/(main)/SettingScreen")}
         onNotificationPress={() => router.push("/(main)/notifications")}
       />
-      <View className="">
-        <View style={{ marginBottom: 20 }}>
-          <MonthYearScroller
-            onMonthChange={handleMonthChange}
-            fetchMonthData={fetchMonthData}
+
+      <ScrollView
+        className="flex-1"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#3b82f6"]}
+            tintColor="#3b82f6"
           />
-        </View>
-      </View>
-
-      {/* Notification Permission Request */}
-      <NotificationPermissionRequest />
-
-      {/* Recent Transactions */}
-      <View
-        className="flex-1  rounded-t-3xl"
-        style={{ backgroundColor: theme.background }}
+        }
+        showsVerticalScrollIndicator={false}
       >
-        <View className="px-5 pt-6 pb-2 flex-1">
-          <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-lg font-bold" style={{ color: theme.text }}>
-              {t.recentTransactions}
-            </Text>
-            <View className="flex-row gap-2">
-              <TouchableOpacity
-                onPress={() => router.push("/components/TransactionsScreen")}
-              >
-                <Text className="text-blue-500">{t.seeMore}</Text>
-              </TouchableOpacity>
-            </View>
+        <View className="">
+          <View style={{ marginBottom: 20 }}>
+            <MonthYearScroller
+              onMonthChange={handleMonthChange}
+              fetchMonthData={fetchMonthData}
+            />
           </View>
+        </View>
 
-          <FlatList
-            data={filteredTransactions}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item: t }) => (
-              <MemoizedTransactionItem
-                transaction={t}
-                getCategoryIcon={getCategoryIcon}
-                getCategoryColor={getCategoryColor}
-                getCategoryLabel={getCategoryLabel}
-                onPress={() =>
-                  router.push(`/(transactions)/transaction-detail/${t.id}`)
-                }
-              />
-            )}
-            ListEmptyComponent={
-              <View className="p-4 bg-white rounded-xl items-center justify-center">
-                <Text className="text-sm text-gray-500">
-                  {t.noTransactionsForMonth}
+        {/* Notification Permission Request */}
+        <NotificationPermissionRequest />
+
+        {/* Recent Transactions - Simplified */}
+        <View
+          className="rounded-t-3xl"
+          style={{ backgroundColor: theme.background, minHeight: 400 }}
+        >
+          <View className="px-4 pt-6 pb-4">
+            <View className="flex-row justify-between items-center mb-4">
+              <View>
+                <Text style={{ color: theme.text, fontSize: 20, fontWeight: "bold" }}>
+                  {t.recentTransactions || "Recent Transactions"}
+                </Text>
+                <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 2 }}>
+                  {filteredTransactions.length} {filteredTransactions.length === 1 ? 'transaction' : 'transactions'}
                 </Text>
               </View>
-            }
-            showsVerticalScrollIndicator={false}
-          />
+              <TouchableOpacity
+                style={{
+                  backgroundColor: theme.cardBackground,
+                  paddingVertical: 8,
+                  paddingHorizontal: 16,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                }}
+                onPress={() => router.push("/components/TransactionsScreen")}
+              >
+                <Text style={{ color: theme.primary, fontWeight: "600", fontSize: 13 }}>
+                  {t.seeMore || "See All"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {filteredTransactions.length > 0 ? (
+              <View style={{ gap: 10 }}>
+                {filteredTransactions.slice(0, 10).map((transaction) => (
+                  <MemoizedTransactionItem
+                    key={transaction.id}
+                    transaction={transaction}
+                    getCategoryIcon={getCategoryIcon}
+                    getCategoryColor={getCategoryColor}
+                    getCategoryLabel={getCategoryLabel}
+                    onPress={() =>
+                      router.push(`/(transactions)/transaction-detail/${transaction.id}`)
+                    }
+                  />
+                ))}
+              </View>
+            ) : (
+              <View
+                style={{
+                  paddingVertical: 48,
+                  alignItems: "center",
+                  backgroundColor: theme.cardBackground,
+                  borderRadius: 16,
+                }}
+              >
+                <Text style={{ color: theme.textSecondary, fontSize: 16, fontWeight: "500" }}>
+                  {t.noTransactionsForMonth || "No transactions yet"}
+                </Text>
+                <Text style={{ color: theme.textMuted, fontSize: 14, marginTop: 8 }}>
+                  Add your first transaction
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

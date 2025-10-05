@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,13 +8,9 @@ import {
   TextInput,
   Alert,
   RefreshControl,
-  Dimensions,
 } from "react-native";
 import {
-  Plus,
   X,
-  Edit2,
-  Trash2,
   ChevronDown,
   TrendingUp,
   TrendingDown,
@@ -47,7 +43,6 @@ const Investments = () => {
   const { t } = useLanguage();
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -86,7 +81,6 @@ const Investments = () => {
   // Fetch investments and accounts
   const fetchData = async () => {
     try {
-      setLoading(true);
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -113,8 +107,6 @@ const Investments = () => {
     } catch (error) {
       console.error("Error fetching data:", error);
       Alert.alert(t.error, t.failedToFetchData);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -306,75 +298,104 @@ const Investments = () => {
     totalInvested > 0 ? (totalProfitLoss / totalInvested) * 100 : 0;
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
       <ScrollView
         className="flex-1"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Investments */}
-        <View style={{ paddingHorizontal: 16 }}>
-          <View className="flex-row justify-between items-center mb-4">
-            <Text
-              style={{
-                color: theme.text,
-                fontWeight: "bold",
-                fontSize: 20,
-                marginBottom: 16,
-              }}
-            >
-              {t.investments}
-            </Text>
+        {/* Header */}
+        <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
+          <View className="flex-row justify-between items-center mb-6">
+            <View>
+              <Text
+                style={{
+                  color: theme.text,
+                  fontWeight: "bold",
+                  fontSize: 24,
+                }}
+              >
+                {t.investments}
+              </Text>
+              <Text style={{ color: theme.textSecondary, fontSize: 14, marginTop: 4 }}>
+                {investments.length} {investments.length === 1 ? 'investment' : 'investments'}
+              </Text>
+            </View>
             <TouchableOpacity
               style={{
                 backgroundColor: theme.primary,
-                borderRadius: 8,
+                borderRadius: 12,
                 paddingVertical: 12,
-                paddingHorizontal: 16,
-                alignItems: "center",
-                flexDirection: "row",
+                paddingHorizontal: 20,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
               }}
               onPress={openAddModal}
             >
-              <Plus size={20} color={theme.primaryText} />
               <Text
                 style={{
                   color: theme.primaryText,
-                  fontWeight: "500",
-                  marginLeft: 8,
+                  fontWeight: "600",
                 }}
               >
                 {t.addInvestment}
               </Text>
             </TouchableOpacity>
           </View>
-          <View
-            style={{
-              marginBottom: 24,
-              backgroundColor: theme.cardBackground,
-              borderRadius: 12,
-            }}
-          >
-            <View className="flex-row justify-between mb-4">
-              <View className="flex-1 items-center">
-                <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
+
+          {/* Portfolio Summary - Simplified */}
+          <View style={{ marginBottom: 24, gap: 12 }}>
+            <View
+              style={{
+                backgroundColor: theme.cardBackground,
+                borderRadius: 16,
+                padding: 16,
+              }}
+            >
+              <View className="flex-row items-center mb-2">
+                <View style={{ backgroundColor: '#dbeafe', borderRadius: 20, padding: 8, marginRight: 8 }}>
+                  <DollarSign size={16} color="#3b82f6" />
+                </View>
+                <Text style={{ color: theme.textSecondary, fontSize: 12, fontWeight: "500" }}>
                   {t.totalInvested}
                 </Text>
-                <Text
-                  style={{
-                    color: theme.text,
-                    fontWeight: "bold",
-                    fontSize: 18,
-                  }}
-                >
-                  ${totalInvested.toFixed(2)}
-                </Text>
               </View>
-              <View className="flex-1 items-center">
-                <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
-                  {t.totalCurrentValue}
-                </Text>
+              <Text
+                style={{
+                  color: theme.text,
+                  fontWeight: "bold",
+                  fontSize: 28,
+                }}
+              >
+                ${totalInvested.toFixed(2)}
+              </Text>
+            </View>
+
+            <View className="flex-row gap-3">
+              <View
+                style={{
+                  flex: 1,
+                  backgroundColor: theme.cardBackground,
+                  borderRadius: 16,
+                  padding: 16,
+                }}
+              >
+                <View className="flex-row items-center mb-2">
+                  <View style={{ backgroundColor: totalCurrentValue >= totalInvested ? '#dcfce7' : '#fee2e2', borderRadius: 20, padding: 6, marginRight: 6 }}>
+                    {totalCurrentValue >= totalInvested ? (
+                      <TrendingUp size={14} color="#10b981" />
+                    ) : (
+                      <TrendingDown size={14} color="#ef4444" />
+                    )}
+                  </View>
+                  <Text style={{ color: theme.textSecondary, fontSize: 11, fontWeight: "500" }}>
+                    {t.totalCurrentValue}
+                  </Text>
+                </View>
                 <Text
                   style={{
                     color: theme.text,
@@ -385,10 +406,23 @@ const Investments = () => {
                   ${totalCurrentValue.toFixed(2)}
                 </Text>
               </View>
-              <View className="flex-1 items-center">
-                <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
-                  {t.totalProfitLoss}
-                </Text>
+
+              <View
+                style={{
+                  flex: 1,
+                  backgroundColor: theme.cardBackground,
+                  borderRadius: 16,
+                  padding: 16,
+                }}
+              >
+                <View className="flex-row items-center mb-2">
+                  <View style={{ backgroundColor: totalProfitLoss >= 0 ? '#dcfce7' : '#fee2e2', borderRadius: 20, padding: 6, marginRight: 6 }}>
+                    <BarChart3 size={14} color={totalProfitLoss >= 0 ? '#10b981' : '#ef4444'} />
+                  </View>
+                  <Text style={{ color: theme.textSecondary, fontSize: 11, fontWeight: "500" }}>
+                    {t.totalProfitLoss}
+                  </Text>
+                </View>
                 <Text
                   style={{
                     fontWeight: "bold",
@@ -400,8 +434,9 @@ const Investments = () => {
                 </Text>
                 <Text
                   style={{
-                    fontSize: 14,
+                    fontSize: 12,
                     color: getProfitLossColor(totalProfitLoss),
+                    marginTop: 2,
                   }}
                 >
                   {totalReturnPercentage.toFixed(2)}%
@@ -410,32 +445,22 @@ const Investments = () => {
             </View>
           </View>
 
-          {/* My Investments */}
-          <View
-            style={{
-              marginBottom: 24,
-              backgroundColor: theme.cardBackground,
-              borderRadius: 12,
-              padding: 16,
-            }}
-          >
-            <View className="flex-row justify-between items-center">
-              <Text
-                style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
-              >
-                {t.myInvestments}
-              </Text>
-            </View>
+          {/* My Investments - Simplified */}
+          <View style={{ marginBottom: 24 }}>
+            <Text style={{ color: theme.text, fontWeight: "bold", fontSize: 18, marginBottom: 12 }}>
+              {t.myInvestments}
+            </Text>
 
-            {loading ? (
-              <View style={{ paddingVertical: 32, alignItems: "center" }}>
-                <Text style={{ color: theme.textSecondary }}>
-                  {t.loadingInvestments}
-                </Text>
-              </View>
-            ) : investments.length === 0 ? (
-              <View style={{ paddingVertical: 32, alignItems: "center" }}>
-                <Text style={{ color: theme.textSecondary }}>
+            {investments.length === 0 ? (
+              <View
+                style={{
+                  paddingVertical: 48,
+                  alignItems: "center",
+                  backgroundColor: theme.cardBackground,
+                  borderRadius: 16,
+                }}
+              >
+                <Text style={{ color: theme.textSecondary, fontSize: 16, fontWeight: "500" }}>
                   {t.noInvestmentsYet}
                 </Text>
                 <Text
@@ -445,132 +470,160 @@ const Investments = () => {
                 </Text>
               </View>
             ) : (
-              <View style={{ marginTop: 16 }}>
-                {investments.map((investment) => (
-                  <View
-                    key={investment.id}
-                    style={{
-                      marginBottom: 16,
-                      padding: 16,
-                      backgroundColor: theme.background,
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      borderColor: theme.border,
-                    }}
-                  >
-                    <View className="flex-row justify-between items-start mb-3">
-                      <View className="flex-1">
-                        <Text
-                          style={{
-                            color: theme.text,
-                            fontWeight: "bold",
-                            fontSize: 18,
-                          }}
-                        >
-                          {investment.name}
-                        </Text>
-                        <Text
-                          style={{ color: theme.textSecondary, fontSize: 14 }}
-                        >
-                          {getInvestmentTypeLabel(investment.type)}
-                        </Text>
-                        {investment.account && (
+              <View style={{ gap: 12 }}>
+                {investments.map((investment) => {
+                  const profitLossPercentage = investment.invested_amount > 0
+                    ? (investment.profit_loss / investment.invested_amount) * 100
+                    : 0;
+                  const isProfit = investment.profit_loss >= 0;
+
+                  return (
+                    <View
+                      key={investment.id}
+                      style={{
+                        padding: 16,
+                        backgroundColor: theme.cardBackground,
+                        borderRadius: 16,
+                      }}
+                    >
+                      {/* Header */}
+                      <View className="flex-row justify-between items-start mb-3">
+                        <View className="flex-1">
                           <Text
                             style={{
-                              color: theme.textMuted,
-                              fontSize: 12,
-                              marginTop: 4,
+                              color: theme.text,
+                              fontWeight: "bold",
+                              fontSize: 18,
                             }}
                           >
-                            {investment.account.name}
+                            {investment.name}
                           </Text>
-                        )}
-                      </View>
-                      <View className="flex-row space-x-2 gap-2">
-                        <TouchableOpacity
-                          onPress={() => openEditModal(investment)}
-                          style={{
-                            padding: 8,
-                            backgroundColor: `${theme.primary}20`,
-                            borderRadius: 8,
-                          }}
-                        >
-                          <Edit2 size={16} color={theme.primary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleDeleteInvestment(investment.id)}
-                          style={{
-                            padding: 8,
-                            backgroundColor: "#fef2f2",
-                            borderRadius: 8,
-                          }}
-                        >
-                          <Trash2 size={16} color={theme.danger} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    <View className="flex-row justify-between items-center">
-                      <View className="flex-1">
-                        <View className="flex-row justify-between mb-1">
-                          <Text
-                            style={{ color: theme.textSecondary, fontSize: 14 }}
-                          >
-                            Invested
-                          </Text>
-                          <Text
-                            style={{ color: theme.text, fontWeight: "500" }}
-                          >
-                            ${investment.invested_amount.toFixed(2)}
-                          </Text>
+                          <View className="flex-row items-center mt-1" style={{ gap: 6 }}>
+                            <View
+                              style={{
+                                backgroundColor: '#e0e7ff',
+                                paddingHorizontal: 8,
+                                paddingVertical: 4,
+                                borderRadius: 12,
+                              }}
+                            >
+                              <Text
+                                style={{ color: '#4f46e5', fontSize: 11, fontWeight: "600" }}
+                              >
+                                {getInvestmentTypeLabel(investment.type)}
+                              </Text>
+                            </View>
+                            <View
+                              style={{
+                                backgroundColor: isProfit ? '#dcfce7' : '#fee2e2',
+                                paddingHorizontal: 8,
+                                paddingVertical: 4,
+                                borderRadius: 12,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  color: isProfit ? '#16a34a' : '#dc2626',
+                                  fontSize: 11,
+                                  fontWeight: "600"
+                                }}
+                              >
+                                {isProfit ? '+' : ''}{profitLossPercentage.toFixed(2)}%
+                              </Text>
+                            </View>
+                          </View>
                         </View>
-                        <View className="flex-row justify-between mb-1">
-                          <Text
-                            style={{ color: theme.textSecondary, fontSize: 14 }}
-                          >
-                            Current
+                      </View>
+
+                      {/* Amount Info */}
+                      <View className="flex-row justify-between items-center mb-3">
+                        <View>
+                          <Text style={{ color: theme.textSecondary, fontSize: 12, marginBottom: 4 }}>
+                            Current Value
                           </Text>
                           <Text
-                            style={{ color: theme.text, fontWeight: "500" }}
+                            style={{
+                              color: theme.text,
+                              fontWeight: "bold",
+                              fontSize: 24,
+                            }}
                           >
                             ${investment.current_value.toFixed(2)}
                           </Text>
                         </View>
+                        <View style={{ alignItems: "flex-end" }}>
+                          <Text style={{ color: theme.textSecondary, fontSize: 12, marginBottom: 4 }}>
+                            Profit/Loss
+                          </Text>
+                          <View className="flex-row items-center">
+                            {getProfitLossIcon(investment.profit_loss)}
+                            <Text
+                              style={{
+                                fontWeight: "bold",
+                                fontSize: 20,
+                                marginLeft: 4,
+                                color: getProfitLossColor(investment.profit_loss),
+                              }}
+                            >
+                              ${Math.abs(investment.profit_loss).toFixed(2)}
+                            </Text>
+                          </View>
+                        </View>
                       </View>
 
-                      <View style={{ alignItems: "flex-end" }}>
-                        <View className="flex-row items-center mb-1">
-                          {getProfitLossIcon(investment.profit_loss)}
-                          <Text
-                            style={{
-                              fontWeight: "bold",
-                              fontSize: 18,
-                              marginLeft: 4,
-                              color: getProfitLossColor(investment.profit_loss),
-                            }}
-                          >
-                            ${investment.profit_loss.toFixed(2)}
-                          </Text>
-                        </View>
-                        <Text
+                      {/* Progress Bar */}
+                      <View className="mb-3">
+                        <View
                           style={{
-                            fontSize: 14,
-                            color: getProfitLossColor(investment.profit_loss),
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: theme.border,
+                            overflow: 'hidden',
                           }}
                         >
-                          {investment.invested_amount > 0
-                            ? (
-                                (investment.profit_loss /
-                                  investment.invested_amount) *
-                                100
-                              ).toFixed(2)
-                            : "0.00"}
-                          %
-                        </Text>
+                          <View
+                            style={{
+                              height: '100%',
+                              width: `${Math.min(100, (investment.current_value / Math.max(investment.invested_amount, investment.current_value)) * 100)}%`,
+                              backgroundColor: isProfit ? '#10b981' : '#ef4444',
+                              borderRadius: 4,
+                            }}
+                          />
+                        </View>
+                        <View className="flex-row justify-between mt-1">
+                          <Text style={{ color: theme.textMuted, fontSize: 11 }}>
+                            Invested: ${investment.invested_amount.toFixed(2)}
+                          </Text>
+                          <Text style={{ color: theme.textMuted, fontSize: 11 }}>
+                            {investment.account?.name || 'N/A'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Actions */}
+                      <View className="flex-row gap-2 pt-3 border-t" style={{ borderColor: theme.border }}>
+                        <TouchableOpacity
+                          onPress={() => openEditModal(investment)}
+                          className="flex-1 py-2 rounded-lg"
+                          style={{ backgroundColor: '#e0e7ff' }}
+                        >
+                          <Text style={{ color: '#4f46e5', fontWeight: "600", fontSize: 13, textAlign: 'center' }}>
+                            Edit
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => handleDeleteInvestment(investment.id)}
+                          className="flex-1 py-2 rounded-lg"
+                          style={{ backgroundColor: '#fee2e2' }}
+                        >
+                          <Text style={{ color: '#dc2626', fontWeight: "600", fontSize: 13, textAlign: 'center' }}>
+                            Delete
+                          </Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             )}
           </View>

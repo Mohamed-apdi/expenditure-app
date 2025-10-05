@@ -39,7 +39,7 @@ import {
   type Notification,
   type NotificationType,
   type NotificationPriority,
-} from "~/lib";
+} from "~/lib/services/notifications";
 
 import Toast from "react-native-toast-message";
 
@@ -282,47 +282,20 @@ export default function NotificationsScreen() {
     }
   };
 
-  // Get notification priority color
-  const getPriorityColor = (priority: NotificationPriority) => {
-    switch (priority) {
-      case "urgent":
-        return "#ef4444";
-      case "high":
-        return "#f59e0b";
-      case "medium":
-        return "#3b82f6";
-      case "low":
-        return "#64748b";
-      default:
-        return theme.textSecondary;
-    }
-  };
-
   // Render notification item
   const renderNotificationItem = ({ item }: { item: Notification }) => {
     const isSelected = selectedIds.has(item.id);
-    const priorityColor = getPriorityColor(item.priority);
 
     return (
       <TouchableOpacity
         style={{
-          backgroundColor: isSelected
-            ? theme.primary + "20"
-            : item.is_read
-              ? theme.cardBackground
-              : theme.background,
+          backgroundColor: item.is_read ? theme.cardBackground : theme.inputBackground,
           borderRadius: 12,
-          padding: 16,
+          padding: 12,
           marginHorizontal: 16,
           marginVertical: 4,
           borderWidth: 1,
-          borderColor: isSelected
-            ? theme.primary
-            : item.is_read
-              ? theme.border
-              : theme.primary + "30",
-          borderLeftWidth: 4,
-          borderLeftColor: priorityColor,
+          borderColor: isSelected ? theme.primary : theme.border,
         }}
         onPress={() =>
           isSelectionMode
@@ -339,53 +312,49 @@ export default function NotificationsScreen() {
       >
         <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
           {/* Selection checkbox or notification icon */}
-          <View style={{ marginRight: 12, marginTop: 2 }}>
-            {isSelectionMode ? (
-              <View
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 10,
-                  borderWidth: 2,
-                  borderColor: isSelected ? theme.primary : theme.border,
-                  backgroundColor: isSelected ? theme.primary : "transparent",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {isSelected && <Check size={12} color="white" />}
-              </View>
-            ) : (
-              <View
-                style={{
-                  backgroundColor: theme.cardBackground,
-                  borderRadius: 20,
-                  padding: 8,
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                }}
-              >
-                {getNotificationIcon(item.type, item.priority)}
-              </View>
-            )}
-          </View>
+          {isSelectionMode ? (
+            <View
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: 10,
+                borderWidth: 2,
+                borderColor: isSelected ? theme.primary : theme.border,
+                backgroundColor: isSelected ? theme.primary : "transparent",
+                alignItems: "center",
+                justifyContent: "center",
+                marginRight: 12,
+                marginTop: 2,
+              }}
+            >
+              {isSelected && <Check size={12} color="white" />}
+            </View>
+          ) : (
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                justifyContent: "center",
+                alignItems: "center",
+                backgroundColor: theme.cardBackground,
+                marginRight: 12,
+              }}
+            >
+              {getNotificationIcon(item.type, item.priority)}
+            </View>
+          )}
 
           {/* Content */}
           <View style={{ flex: 1 }}>
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "flex-start",
-                marginBottom: 4,
-              }}
-            >
+            <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 4 }}>
               <Text
                 style={{
                   color: theme.text,
-                  fontSize: 16,
-                  fontWeight: item.is_read ? "500" : "700",
+                  fontSize: 15,
+                  fontWeight: item.is_read ? "500" : "600",
                   flex: 1,
-                  lineHeight: 22,
+                  lineHeight: 20,
                 }}
                 numberOfLines={2}
               >
@@ -396,9 +365,9 @@ export default function NotificationsScreen() {
               {!item.is_read && (
                 <View
                   style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
+                    width: 6,
+                    height: 6,
+                    borderRadius: 3,
                     backgroundColor: theme.primary,
                     marginLeft: 8,
                     marginTop: 7,
@@ -411,61 +380,38 @@ export default function NotificationsScreen() {
               style={{
                 color: theme.textSecondary,
                 fontSize: 14,
-                lineHeight: 20,
-                marginBottom: 8,
+                lineHeight: 18,
+                marginBottom: 6,
               }}
-              numberOfLines={3}
+              numberOfLines={2}
             >
               {item.message}
             </Text>
 
-            <View
+            <Text
               style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
+                color: theme.textSecondary,
+                fontSize: 12,
               }}
             >
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Clock size={12} color={theme.textSecondary} />
-                <Text
-                  style={{
-                    color: theme.textSecondary,
-                    fontSize: 12,
-                    marginLeft: 4,
-                  }}
-                >
-                  {formatDistanceToNow(new Date(item.created_at), {
-                    addSuffix: true,
-                  })}
-                </Text>
-              </View>
-
-              {/* Actions */}
-              {!isSelectionMode && (
-                <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    Alert.alert(
-                      "Delete Notification",
-                      "Are you sure you want to delete this notification?",
-                      [
-                        { text: "Cancel", style: "cancel" },
-                        {
-                          text: "Delete",
-                          style: "destructive",
-                          onPress: () => handleDeleteNotification(item.id),
-                        },
-                      ]
-                    );
-                  }}
-                  style={{ padding: 4 }}
-                >
-                  <Trash2 size={16} color={theme.textSecondary} />
-                </TouchableOpacity>
-              )}
-            </View>
+              {formatDistanceToNow(new Date(item.created_at), {
+                addSuffix: true,
+              })}
+            </Text>
           </View>
+
+          {/* Delete action */}
+          {!isSelectionMode && (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                handleDeleteNotification(item.id);
+              }}
+              style={{ padding: 4, marginLeft: 8 }}
+            >
+              <Trash2 size={16} color={theme.textSecondary} />
+            </TouchableOpacity>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -508,7 +454,7 @@ export default function NotificationsScreen() {
             style={{
               color: theme.text,
               fontSize: 20,
-              fontWeight: "700",
+              fontWeight: "600",
               marginLeft: 12,
             }}
           >
@@ -518,9 +464,12 @@ export default function NotificationsScreen() {
             <View
               style={{
                 backgroundColor: theme.primary,
-                borderRadius: 12,
-                paddingHorizontal: 8,
-                paddingVertical: 2,
+                borderRadius: 10,
+                minWidth: 20,
+                height: 20,
+                paddingHorizontal: 6,
+                justifyContent: "center",
+                alignItems: "center",
                 marginLeft: 8,
               }}
             >
@@ -531,18 +480,14 @@ export default function NotificationsScreen() {
           )}
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
           {isSelectionMode ? (
             <>
-              <TouchableOpacity
-                onPress={deleteSelectedNotifications}
-                disabled={selectedIds.size === 0}
-                style={{
-                  opacity: selectedIds.size === 0 ? 0.5 : 1,
-                }}
-              >
-                <Trash2 size={20} color="#ef4444" />
-              </TouchableOpacity>
+              {selectedIds.size > 0 && (
+                <TouchableOpacity onPress={deleteSelectedNotifications}>
+                  <Trash2 size={20} color="#ef4444" />
+                </TouchableOpacity>
+              )}
               <TouchableOpacity onPress={toggleSelectionMode}>
                 <Text
                   style={{
@@ -551,7 +496,7 @@ export default function NotificationsScreen() {
                     fontWeight: "600",
                   }}
                 >
-                  Cancel
+                  Done
                 </Text>
               </TouchableOpacity>
             </>
@@ -562,9 +507,6 @@ export default function NotificationsScreen() {
                   <CheckCheck size={20} color={theme.primary} />
                 </TouchableOpacity>
               )}
-              <TouchableOpacity onPress={toggleSelectionMode}>
-                <Settings size={20} color={theme.icon} />
-              </TouchableOpacity>
             </>
           )}
         </View>
@@ -580,12 +522,12 @@ export default function NotificationsScreen() {
             padding: 32,
           }}
         >
-          <BellOff size={64} color={theme.textSecondary} />
+          <BellOff size={48} color={theme.textSecondary} />
           <Text
             style={{
               color: theme.text,
-              fontSize: 18,
-              fontWeight: "600",
+              fontSize: 16,
+              fontWeight: "500",
               marginTop: 16,
             }}
           >
@@ -595,10 +537,11 @@ export default function NotificationsScreen() {
             style={{
               color: theme.textSecondary,
               textAlign: "center",
-              marginTop: 8,
+              marginTop: 4,
+              fontSize: 14,
             }}
           >
-            You're all caught up! New notifications will appear here.
+            You're all caught up!
           </Text>
         </View>
       ) : (

@@ -13,8 +13,6 @@ import {
 } from "react-native";
 import {
   Calendar,
-  Clock,
-  Plus,
   X,
   Trash2,
   DollarSign,
@@ -95,12 +93,10 @@ export default function SavingsScreen() {
   const theme = useTheme();
   const { t } = useLanguage();
   const [goals, setGoals] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showAccountDropdown, setShowAccountDropdown] = useState(false);
   const [totalSavings, setTotalSavings] = useState(0);
 
@@ -149,7 +145,6 @@ export default function SavingsScreen() {
   // Fetch goals and accounts from database
   const fetchData = async () => {
     try {
-      setLoading(true);
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -180,8 +175,6 @@ export default function SavingsScreen() {
     } catch (error) {
       console.error("Error fetching data:", error);
       Alert.alert(t.error, t.failedToFetchData);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -370,7 +363,11 @@ export default function SavingsScreen() {
   };
 
   const formatDate = (dateString: string) => {
-    const options = { year: "numeric", month: "short", day: "numeric" };
+    const options: Intl.DateTimeFormatOptions = {
+      year: "numeric",
+      month: "short",
+      day: "numeric"
+    };
     return new Date(dateString).toLocaleDateString(undefined, options);
   };
 
@@ -413,372 +410,404 @@ export default function SavingsScreen() {
   };
 
   return (
-    <View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
       <ScrollView
-        className="flex-1 p-4"
+        className="flex-1"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Total Savings Summary */}
-        <View
-          style={{
-            backgroundColor: theme.primary,
-            padding: 24,
-            borderRadius: 16,
-            marginBottom: 24,
-          }}
-        >
-          <Text
-            style={{
-              color: theme.primaryText,
-              fontSize: 18,
-              fontWeight: "500",
-            }}
-          >
-            {t.totalSavings}
-          </Text>
-          <Text
-            style={{
-              color: theme.primaryText,
-              fontSize: 30,
-              fontWeight: "bold",
-            }}
-          >
-            ${totalSavings.toFixed(2)}
-          </Text>
-          <Text style={{ color: `${theme.primaryText}80`, fontSize: 14 }}>
-            {t.acrossActiveGoals.replace(
-              "{count}",
-              goals.filter((g) => g.is_active).length.toString()
-            )}
-          </Text>
-        </View>
-
-        {/* Active Goals */}
-        <View style={{ marginBottom: 24 }}>
-          <View className="flex-row justify-between items-center mb-4">
-            <Text
-              style={{ color: theme.text, fontWeight: "bold", fontSize: 20 }}
-            >
-              {t.activeGoals}
-            </Text>
+        <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
+          {/* Header */}
+          <View className="flex-row justify-between items-center mb-6">
+            <View>
+              <Text
+                style={{
+                  color: theme.text,
+                  fontWeight: "bold",
+                  fontSize: 24,
+                }}
+              >
+                {t.totalSavings || "Savings Goals"}
+              </Text>
+              <Text style={{ color: theme.textSecondary, fontSize: 14, marginTop: 4 }}>
+                {goals.filter((g) => g.is_active).length} active • {goals.filter((g) => !g.is_active).length} inactive
+              </Text>
+            </View>
             <TouchableOpacity
               style={{
                 backgroundColor: theme.primary,
-                borderRadius: 8,
+                borderRadius: 12,
                 paddingVertical: 12,
-                paddingHorizontal: 12,
-                alignItems: "center",
+                paddingHorizontal: 20,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
               }}
               onPress={openAddModal}
             >
-              <Text style={{ color: theme.primaryText }}>{t.addGoal}</Text>
+              <Text style={{ color: theme.primaryText, fontWeight: "600" }}>
+                {t.addGoal}
+              </Text>
             </TouchableOpacity>
           </View>
 
-          {loading ? (
-            <View style={{ paddingVertical: 32, alignItems: "center" }}>
-              <Text style={{ color: theme.textSecondary, fontSize: 18 }}>
-                {t.loadingGoals}
-              </Text>
-            </View>
-          ) : goals.filter((goal) => goal.is_active).length === 0 ? (
-            <View style={{ paddingVertical: 32, alignItems: "center" }}>
-              <Text style={{ color: theme.textSecondary, fontSize: 18 }}>
-                {t.noActiveSavingsGoals}
-              </Text>
-              <Text
-                style={{ color: theme.textMuted, fontSize: 14, marginTop: 8 }}
-              >
-                {t.createFirstGoal}
-              </Text>
-            </View>
-          ) : (
-            goals
-              .filter((goal) => goal.is_active)
-              .map((goal) => {
-                const progress = calculateProgress(
-                  goal.current_amount,
-                  goal.target_amount
-                );
-                const daysLeft = Math.ceil(
-                  (new Date(goal.target_date).getTime() -
-                    new Date().getTime()) /
-                    (1000 * 60 * 60 * 24)
-                );
-
-                return (
-                  <Pressable
-                    key={goal.id}
-                    style={{
-                      marginBottom: 16,
-                      padding: 16,
-                      backgroundColor: theme.cardBackground,
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      borderColor: theme.border,
-                      shadowColor: theme.border,
-                      shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: 0.05,
-                      shadowRadius: 2,
-                      elevation: 1,
-                    }}
-                    onPress={() => openEditModal(goal)}
-                  >
-                    <View className="flex-row justify-between items-start mb-3">
-                      <View className="flex-row items-center flex-1">
-                        <View
-                          className="rounded-full mr-3 p-2"
-                          style={{
-                            backgroundColor: goal.icon_color,
-                            borderWidth: 2,
-                            borderColor: goal.icon_color,
-                          }}
-                        >
-                          {React.createElement(getGoalIcon(goal.icon), {
-                            size: 18,
-                            color: "white",
-                          })}
-                        </View>
-                        <View className="flex-1">
-                          <Text
-                            style={{
-                              color: theme.text,
-                              fontWeight: "600",
-                              fontSize: 18,
-                            }}
-                          >
-                            {goal.name}
-                          </Text>
-                          <Text
-                            style={{ color: theme.textSecondary, fontSize: 14 }}
-                          >
-                            {getGoalCategoryLabel(goal.category)}
-                          </Text>
-                        </View>
-                      </View>
-                      <Switch
-                        value={goal.is_active}
-                        onValueChange={() =>
-                          handleToggleGoalStatus(goal.id, goal.is_active)
-                        }
-                        trackColor={{ false: "#767577", true: theme.primary }}
-                        thumbColor="#f4f3f4"
-                      />
-                    </View>
-
-                    {/* Progress Bar */}
-                    <View style={{ marginBottom: 12 }}>
-                      <View className="flex-row justify-between items-center mb-2">
-                        <Text
-                          style={{ color: theme.textSecondary, fontSize: 14 }}
-                        >
-                          ${goal.current_amount.toFixed(2)} of $
-                          {goal.target_amount.toFixed(2)}
-                        </Text>
-                        <Text
-                          style={{
-                            color: theme.textSecondary,
-                            fontSize: 14,
-                            fontWeight: "500",
-                          }}
-                        >
-                          {Math.round(progress)}%
-                        </Text>
-                      </View>
-                      <View
-                        style={{
-                          height: 8,
-                          backgroundColor: theme.border,
-                          borderRadius: 4,
-                          overflow: "hidden",
-                        }}
-                      >
-                        <View
-                          style={{
-                            height: 8,
-                            borderRadius: 4,
-                            width: `${progress}%`,
-                            backgroundColor: getProgressColor(progress),
-                          }}
-                        />
-                      </View>
-                    </View>
-
-                    {/* Goal Details */}
-                    <View className="flex-row justify-between items-center mb-3">
-                      <View className="flex-row items-center">
-                        <Calendar size={14} color={theme.textMuted} />
-                        <Text
-                          style={{
-                            color: theme.textSecondary,
-                            fontSize: 14,
-                            marginLeft: 8,
-                          }}
-                        >
-                          {t.target}: {formatDate(goal.target_date)}
-                        </Text>
-                      </View>
-                      <View className="flex-row items-center">
-                        <Clock size={14} color={theme.textMuted} />
-                        <Text
-                          style={{
-                            color: theme.textSecondary,
-                            fontSize: 14,
-                            marginLeft: 8,
-                          }}
-                        >
-                          {daysLeft > 0
-                            ? `${daysLeft} ${t.daysLeft}`
-                            : "Overdue"}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {goal.account && (
-                      <Text
-                        style={{
-                          color: theme.textSecondary,
-                          fontSize: 14,
-                          marginBottom: 12,
-                        }}
-                      >
-                        {t.account}: {goal.account.name}
-                      </Text>
-                    )}
-
-                    {/* Action Buttons */}
-                    <View className="flex-row space-x-2 gap-2">
-                      <TouchableOpacity
-                        style={{
-                          flex: 1,
-                          backgroundColor: "#10b981",
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          alignItems: "center",
-                        }}
-                        onPress={() => openAddAmountModal(goal, "add")}
-                      >
-                        <Text style={{ color: "white", fontWeight: "500" }}>
-                          {t.addAmount}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={{
-                          flex: 1,
-                          backgroundColor: "#f59e0b",
-                          paddingVertical: 8,
-                          borderRadius: 8,
-                          alignItems: "center",
-                        }}
-                        onPress={() => openAddAmountModal(goal, "withdraw")}
-                      >
-                        <Text style={{ color: "white", fontWeight: "500" }}>
-                          {t.withdrawAmount}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </Pressable>
-                );
-              })
-          )}
-        </View>
-
-        {/* Inactive Goals */}
-        <View
-          style={{
-            backgroundColor: theme.cardBackground,
-            padding: 24,
-            borderRadius: 16,
-            shadowColor: theme.border,
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.05,
-            shadowRadius: 2,
-            elevation: 1,
-          }}
-        >
-          <Text
+          {/* Total Savings Card - Simplified */}
+          <View
             style={{
-              color: theme.text,
-              fontWeight: "bold",
-              fontSize: 20,
+              backgroundColor: theme.primary,
+              padding: 20,
+              borderRadius: 16,
               marginBottom: 24,
             }}
           >
-            {t.inactiveGoals}
-          </Text>
-          {goals.filter((goal) => !goal.is_active).length === 0 ? (
-            <View style={{ paddingVertical: 16, alignItems: "center" }}>
-              <Text style={{ color: theme.textSecondary, fontSize: 18 }}>
-                {t.no} {t.inactiveGoals}
+            <View className="flex-row items-center mb-2">
+              <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20, padding: 8, marginRight: 8 }}>
+                <PiggyBank size={20} color={theme.primaryText} />
+              </View>
+              <Text
+                style={{
+                  color: theme.primaryText,
+                  fontSize: 14,
+                  fontWeight: "500",
+                  opacity: 0.9,
+                }}
+              >
+                {t.totalSavings || "Total Savings"}
               </Text>
             </View>
-          ) : (
-            goals
-              .filter((goal) => !goal.is_active)
-              .map((goal) => (
-                <Pressable
-                  key={goal.id}
-                  style={{
-                    marginBottom: 16,
-                    padding: 16,
-                    backgroundColor: theme.background,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: theme.border,
-                    opacity: 0.8,
-                  }}
-                  onPress={() => openEditModal(goal)}
+            <Text
+              style={{
+                color: theme.primaryText,
+                fontSize: 32,
+                fontWeight: "bold",
+                marginBottom: 4,
+              }}
+            >
+              ${totalSavings.toFixed(2)}
+            </Text>
+            <Text style={{ color: theme.primaryText, fontSize: 13, opacity: 0.8 }}>
+              {t.acrossActiveGoals?.replace(
+                "{count}",
+                goals.filter((g) => g.is_active).length.toString()
+              ) || `Across ${goals.filter((g) => g.is_active).length} active goals`}
+            </Text>
+          </View>
+
+          {/* Active Goals - Simplified */}
+          <View style={{ marginBottom: 24 }}>
+            <Text style={{ color: theme.text, fontWeight: "bold", fontSize: 18, marginBottom: 12 }}>
+              {t.activeGoals || "Active Goals"}
+            </Text>
+
+            {goals.filter((goal) => goal.is_active).length === 0 ? (
+              <View
+                style={{
+                  paddingVertical: 48,
+                  alignItems: "center",
+                  backgroundColor: theme.cardBackground,
+                  borderRadius: 16,
+                }}
+              >
+                <Text style={{ color: theme.textSecondary, fontSize: 16, fontWeight: "500" }}>
+                  {t.noActiveSavingsGoals}
+                </Text>
+                <Text
+                  style={{ color: theme.textMuted, fontSize: 14, marginTop: 8 }}
                 >
-                  <View className="flex-row justify-between items-start">
-                    <View className="flex-row items-center flex-1">
-                      <View
-                        className=" rounded-full mr-3"
+                  {t.createFirstGoal}
+                </Text>
+              </View>
+            ) : (
+              <View style={{ gap: 12 }}>
+                {goals
+                  .filter((goal) => goal.is_active)
+                  .map((goal) => {
+                    const progress = calculateProgress(
+                      goal.current_amount,
+                      goal.target_amount
+                    );
+                    const daysLeft = Math.ceil(
+                      (new Date(goal.target_date).getTime() -
+                        new Date().getTime()) /
+                        (1000 * 60 * 60 * 24)
+                    );
+                    const isOverdue = daysLeft < 0;
+
+                    return (
+                      <Pressable
+                        key={goal.id}
                         style={{
-                          backgroundColor: goal.icon_color,
-                          borderWidth: 2,
-                          borderColor: goal.icon_color,
+                          padding: 16,
+                          backgroundColor: theme.cardBackground,
+                          borderRadius: 16,
                         }}
+                        onPress={() => openEditModal(goal)}
                       >
-                        {React.createElement(getGoalIcon(goal.icon), {
-                          size: 18,
-                          color: "white",
-                        })}
-                      </View>
-                      <View className="flex-1">
-                        <Text
-                          style={{
-                            color: theme.text,
-                            fontWeight: "600",
-                            fontSize: 18,
-                          }}
-                        >
-                          {goal.name}
-                        </Text>
-                        <Text
-                          style={{ color: theme.textSecondary, fontSize: 14 }}
-                        >
-                          {getGoalCategoryLabel(goal.category)} • Paused
-                        </Text>
-                      </View>
-                    </View>
-                    <Switch
-                      value={goal.is_active}
-                      onValueChange={() =>
-                        handleToggleGoalStatus(goal.id, goal.is_active)
-                      }
-                      trackColor={{ false: "#767577", true: theme.primary }}
-                      thumbColor="#f4f3f4"
-                    />
-                  </View>
-                </Pressable>
-              ))
+                        {/* Header */}
+                        <View className="flex-row justify-between items-start mb-3">
+                          <View className="flex-row items-center flex-1">
+                            <View
+                              style={{
+                                backgroundColor: goal.icon_color,
+                                borderRadius: 24,
+                                padding: 10,
+                                marginRight: 12,
+                              }}
+                            >
+                              {React.createElement(getGoalIcon(goal.icon), {
+                                size: 20,
+                                color: "white",
+                              })}
+                            </View>
+                            <View className="flex-1">
+                              <Text
+                                style={{
+                                  color: theme.text,
+                                  fontWeight: "bold",
+                                  fontSize: 18,
+                                }}
+                              >
+                                {goal.name}
+                              </Text>
+                              <View className="flex-row items-center mt-1" style={{ gap: 6 }}>
+                                <View
+                                  style={{
+                                    backgroundColor: `${goal.icon_color}20`,
+                                    paddingHorizontal: 8,
+                                    paddingVertical: 4,
+                                    borderRadius: 12,
+                                  }}
+                                >
+                                  <Text
+                                    style={{ color: goal.icon_color, fontSize: 11, fontWeight: "600" }}
+                                  >
+                                    {getGoalCategoryLabel(goal.category)}
+                                  </Text>
+                                </View>
+                                <View
+                                  style={{
+                                    backgroundColor: progress >= 100 ? '#dcfce7' : progress >= 75 ? '#e0e7ff' : '#fef3c7',
+                                    paddingHorizontal: 8,
+                                    paddingVertical: 4,
+                                    borderRadius: 12,
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      color: progress >= 100 ? '#16a34a' : progress >= 75 ? '#4f46e5' : '#d97706',
+                                      fontSize: 11,
+                                      fontWeight: "600"
+                                    }}
+                                  >
+                                    {Math.round(progress)}%
+                                  </Text>
+                                </View>
+                              </View>
+                            </View>
+                          </View>
+                          <Switch
+                            value={goal.is_active}
+                            onValueChange={() =>
+                              handleToggleGoalStatus(goal.id, goal.is_active)
+                            }
+                            trackColor={{ false: "#767577", true: theme.primary }}
+                            thumbColor="#f4f3f4"
+                          />
+                        </View>
+
+                        {/* Amount Info */}
+                        <View className="flex-row justify-between items-center mb-3">
+                          <View>
+                            <Text style={{ color: theme.textSecondary, fontSize: 12, marginBottom: 4 }}>
+                              Current / Target
+                            </Text>
+                            <Text
+                              style={{
+                                color: theme.text,
+                                fontWeight: "bold",
+                                fontSize: 20,
+                              }}
+                            >
+                              ${goal.current_amount.toFixed(2)}
+                            </Text>
+                          </View>
+                          <View style={{ alignItems: "flex-end" }}>
+                            <Text style={{ color: theme.textSecondary, fontSize: 12, marginBottom: 4 }}>
+                              Remaining
+                            </Text>
+                            <Text
+                              style={{
+                                fontWeight: "bold",
+                                fontSize: 20,
+                                color: getProgressColor(progress),
+                              }}
+                            >
+                              ${(goal.target_amount - goal.current_amount).toFixed(2)}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Progress Bar */}
+                        <View className="mb-3">
+                          <View
+                            style={{
+                              height: 8,
+                              backgroundColor: theme.border,
+                              borderRadius: 4,
+                              overflow: "hidden",
+                            }}
+                          >
+                            <View
+                              style={{
+                                height: 8,
+                                borderRadius: 4,
+                                width: `${Math.min(progress, 100)}%`,
+                                backgroundColor: getProgressColor(progress),
+                              }}
+                            />
+                          </View>
+                          <View className="flex-row justify-between mt-1">
+                            <Text style={{ color: theme.textMuted, fontSize: 11 }}>
+                              Target: ${goal.target_amount.toFixed(2)}
+                            </Text>
+                            <Text style={{ color: theme.textMuted, fontSize: 11 }}>
+                              {isOverdue ? '⚠️ Overdue' : `${daysLeft} days left`}
+                            </Text>
+                          </View>
+                        </View>
+
+                        {/* Action Buttons */}
+                        <View className="flex-row gap-2 pt-3 border-t" style={{ borderColor: theme.border }}>
+                          <TouchableOpacity
+                            style={{
+                              flex: 1,
+                              backgroundColor: "#dcfce7",
+                              paddingVertical: 10,
+                              borderRadius: 8,
+                              alignItems: "center",
+                            }}
+                            onPress={() => openAddAmountModal(goal, "add")}
+                          >
+                            <Text style={{ color: "#16a34a", fontWeight: "600", fontSize: 13 }}>
+                              {t.addAmount}
+                            </Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={{
+                              flex: 1,
+                              backgroundColor: "#fef3c7",
+                              paddingVertical: 10,
+                              borderRadius: 8,
+                              alignItems: "center",
+                            }}
+                            onPress={() => openAddAmountModal(goal, "withdraw")}
+                          >
+                            <Text style={{ color: "#d97706", fontWeight: "600", fontSize: 13 }}>
+                              {t.withdrawAmount}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+              </View>
+            )}
+          </View>
+
+          {/* Inactive Goals - Simplified */}
+          {goals.filter((goal) => !goal.is_active).length > 0 && (
+            <View style={{ marginBottom: 24 }}>
+              <Text
+                style={{
+                  color: theme.text,
+                  fontWeight: "bold",
+                  fontSize: 18,
+                  marginBottom: 12,
+                }}
+              >
+                {t.inactiveGoals || "Inactive Goals"}
+              </Text>
+              <View style={{ gap: 12 }}>
+                {goals
+                  .filter((goal) => !goal.is_active)
+                  .map((goal) => {
+                    const progress = calculateProgress(
+                      goal.current_amount,
+                      goal.target_amount
+                    );
+
+                    return (
+                      <Pressable
+                        key={goal.id}
+                        style={{
+                          padding: 16,
+                          backgroundColor: theme.cardBackground,
+                          borderRadius: 16,
+                          opacity: 0.7,
+                        }}
+                        onPress={() => openEditModal(goal)}
+                      >
+                        <View className="flex-row justify-between items-center">
+                          <View className="flex-row items-center flex-1">
+                            <View
+                              style={{
+                                backgroundColor: goal.icon_color,
+                                borderRadius: 24,
+                                padding: 10,
+                                marginRight: 12,
+                                opacity: 0.6,
+                              }}
+                            >
+                              {React.createElement(getGoalIcon(goal.icon), {
+                                size: 20,
+                                color: "white",
+                              })}
+                            </View>
+                            <View className="flex-1">
+                              <Text
+                                style={{
+                                  color: theme.text,
+                                  fontWeight: "600",
+                                  fontSize: 16,
+                                }}
+                              >
+                                {goal.name}
+                              </Text>
+                              <View className="flex-row items-center mt-1" style={{ gap: 6 }}>
+                                <Text
+                                  style={{ color: theme.textSecondary, fontSize: 12 }}
+                                >
+                                  {getGoalCategoryLabel(goal.category)}
+                                </Text>
+                                <Text style={{ color: theme.textMuted, fontSize: 12 }}>•</Text>
+                                <Text style={{ color: theme.textMuted, fontSize: 12 }}>
+                                  {Math.round(progress)}% complete
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                          <Switch
+                            value={goal.is_active}
+                            onValueChange={() =>
+                              handleToggleGoalStatus(goal.id, goal.is_active)
+                            }
+                            trackColor={{ false: "#767577", true: theme.primary }}
+                            thumbColor="#f4f3f4"
+                          />
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+              </View>
+            </View>
           )}
         </View>
       </ScrollView>
 
-      {/* Add/Edit Goal Modal */}
+      {/* Add/Edit Goal Modal - Simplified */}
       <Modal
         visible={isModalVisible}
         animationType="fade"
@@ -797,264 +826,211 @@ export default function SavingsScreen() {
           <View
             style={{
               backgroundColor: theme.cardBackground,
-              borderRadius: 16,
-              padding: 24,
+              borderRadius: 20,
+              padding: 20,
               width: "100%",
               maxWidth: 400,
               maxHeight: "90%",
             }}
           >
             <ScrollView showsVerticalScrollIndicator={false}>
-              <View className="flex-row justify-between items-center mb-6">
+              {/* Header */}
+              <View className="flex-row justify-between items-center mb-5">
                 <Text
                   style={{
                     color: theme.text,
                     fontWeight: "bold",
-                    fontSize: 20,
+                    fontSize: 22,
                   }}
                 >
                   {isEditMode ? t.editGoal : t.addGoal}
                 </Text>
-                <View className="flex-row justify-center items-center gap-2">
-                  {isEditMode && currentGoal ? (
+                <View className="flex-row items-center gap-2">
+                  {isEditMode && currentGoal && (
                     <TouchableOpacity
-                      className="p-2"
+                      style={{
+                        backgroundColor: '#fee2e2',
+                        padding: 8,
+                        borderRadius: 8,
+                      }}
                       onPress={() => handleDelete(currentGoal.id)}
                     >
-                      <Trash2 size={18} color={theme.danger} />
+                      <Trash2 size={16} color="#dc2626" />
                     </TouchableOpacity>
-                  ) : null}
+                  )}
                   <TouchableOpacity onPress={() => setIsModalVisible(false)}>
                     <X size={24} color={theme.textMuted} />
                   </TouchableOpacity>
                 </View>
               </View>
 
-              <View className="space-y-5">
-                {/* Icon and Color Selection */}
-                <View className="flex-row space-x-4 gap-2 items-center">
-                  <View className="flex-1">
-                    <Text
-                      style={{
-                        color: theme.text,
-                        marginBottom: 8,
-                        fontWeight: "500",
-                      }}
-                    >
-                      {t.goalIcon}
-                    </Text>
-                    <TouchableOpacity
-                      style={{
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        borderRadius: 12,
-                        padding: 16,
-                        backgroundColor: theme.background,
-                        flexDirection: "row",
-                        alignItems: "center",
-                      }}
-                      onPress={() => setIsIconModalVisible(true)}
-                    >
-                      <View
-                        className="rounded-full mr-2"
-                        style={{
-                          backgroundColor: formData.icon_color,
-                          borderWidth: 2,
-                          borderColor: formData.icon_color,
-                        }}
-                      >
-                        {React.createElement(getGoalIcon(formData.icon), {
-                          size: 18,
-                          color: "white",
-                        })}
-                      </View>
-                      <Text style={{ color: theme.text }}>
-                        {t.selectGoalIcon}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                  <View className="flex-1">
-                    <Text
-                      style={{
-                        color: theme.text,
-                        marginBottom: 8,
-                        fontWeight: "500",
-                      }}
-                    >
-                      {t.goalColor}
-                    </Text>
-                    <TouchableOpacity
-                      style={{
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        borderRadius: 12,
-                        padding: 16,
-                        backgroundColor: theme.background,
-                        flexDirection: "row",
-                        alignItems: "center",
-                      }}
-                      onPress={() => setIsColorModalVisible(true)}
-                    >
-                      <View
-                        className="w-6 h-6 rounded-full mr-3 "
-                        style={{ backgroundColor: formData.icon_color }}
-                      />
-                      <Text style={{ color: theme.text }}>
-                        {t.selectGoalColor}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                <View className="mt-2">
-                  <Text
+              {/* Icon & Color - Inline Selector */}
+              <View className="mb-4">
+                <Text style={{ color: theme.text, marginBottom: 8, fontWeight: "500", fontSize: 13 }}>
+                  {t.goalIcon || "Icon & Color"}
+                </Text>
+                <View className="flex-row gap-2">
+                  <TouchableOpacity
                     style={{
-                      color: theme.text,
-                      marginBottom: 8,
-                      fontWeight: "500",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 12,
+                      padding: 12,
+                      backgroundColor: theme.background,
+                      flex: 1,
                     }}
+                    onPress={() => setIsIconModalVisible(true)}
                   >
-                    {t.goalName}
-                  </Text>
-                  <TextInput
+                    <View
+                      style={{
+                        backgroundColor: formData.icon_color,
+                        borderRadius: 20,
+                        padding: 8,
+                        marginRight: 8,
+                      }}
+                    >
+                      {React.createElement(getGoalIcon(formData.icon), {
+                        size: 16,
+                        color: "white",
+                      })}
+                    </View>
+                    <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+                      Change
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
                     style={{
                       borderWidth: 1,
                       borderColor: theme.border,
                       borderRadius: 12,
-                      padding: 16,
-                      backgroundColor: theme.background,
-                      color: theme.text,
-                    }}
-                    placeholder={t.enterGoalName}
-                    placeholderTextColor={theme.textMuted}
-                    value={formData.name}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, name: text })
-                    }
-                  />
-                </View>
-
-                <View className="mt-2">
-                  <Text
-                    style={{
-                      color: theme.text,
-                      marginBottom: 8,
-                      fontWeight: "500",
-                    }}
-                  >
-                    {t.goalCategory}
-                  </Text>
-                  <TouchableOpacity
-                    style={{
-                      borderWidth: 1,
-                      borderColor: theme.border,
-                      borderRadius: 8,
                       padding: 12,
-                      flexDirection: "row",
-                      justifyContent: "space-between",
+                      backgroundColor: theme.background,
+                      justifyContent: "center",
                       alignItems: "center",
+                      width: 60,
                     }}
-                    onPress={() =>
-                      setShowCategoryDropdown(!showCategoryDropdown)
-                    }
+                    onPress={() => setIsColorModalVisible(true)}
                   >
-                    <Text
-                      style={{
-                        color: formData.category ? theme.text : theme.textMuted,
-                      }}
-                    >
-                      {formData.category
-                        ? getGoalCategoryLabel(formData.category)
-                        : t.selectGoalCategory}
-                    </Text>
-                    <ChevronDown size={16} color={theme.textMuted} />
-                  </TouchableOpacity>
-
-                  {showCategoryDropdown && (
                     <View
                       style={{
-                        marginTop: 8,
-                        borderWidth: 1,
+                        width: 32,
+                        height: 32,
+                        borderRadius: 16,
+                        backgroundColor: formData.icon_color,
+                        borderWidth: 2,
                         borderColor: theme.border,
-                        borderRadius: 8,
-                        backgroundColor: theme.cardBackground,
-                        maxHeight: 160,
                       }}
-                    >
-                      <ScrollView>
-                        {goalCategories.map((category) => (
-                          <TouchableOpacity
-                            key={category.key}
-                            style={{
-                              padding: 12,
-                              borderBottomWidth: 1,
-                              borderBottomColor: theme.border,
-                              backgroundColor:
-                                formData.category === category.key
-                                  ? `${theme.primary}20`
-                                  : "transparent",
-                            }}
-                            onPress={() => {
-                              setFormData({
-                                ...formData,
-                                category: category.key,
-                              });
-                              setShowCategoryDropdown(false);
-                            }}
-                          >
-                            <Text
-                              style={{ color: theme.text, fontWeight: "500" }}
-                            >
-                              {category.label}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  )}
+                    />
+                  </TouchableOpacity>
                 </View>
+              </View>
 
-                <View className="mt-2">
-                  <Text
-                    style={{
-                      color: theme.text,
-                      marginBottom: 8,
-                      fontWeight: "500",
-                    }}
-                  >
-                    {t.account}
-                  </Text>
-                  <TouchableOpacity
-                    style={{
+              {/* Goal Name */}
+              <View className="mb-4">
+                <Text style={{ color: theme.text, marginBottom: 8, fontWeight: "500", fontSize: 13 }}>
+                  {t.goalName || "Goal Name"} *
+                </Text>
+                <TextInput
+                  style={{
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 12,
+                    padding: 14,
+                    backgroundColor: theme.background,
+                    color: theme.text,
+                    fontSize: 15,
+                  }}
+                  placeholder={t.enterGoalName || "e.g., New Car"}
+                  placeholderTextColor={theme.textMuted}
+                  value={formData.name}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, name: text })
+                  }
+                />
+              </View>
+
+              {/* Category - Simple Selection */}
+              <View className="mb-4">
+                <Text style={{ color: theme.text, marginBottom: 8, fontWeight: "500", fontSize: 13 }}>
+                  {t.goalCategory || "Category"} *
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }}>
+                  <View className="flex-row gap-2 px-1">
+                    {goalCategories.map((category) => (
+                      <TouchableOpacity
+                        key={category.key}
+                        style={{
+                          paddingVertical: 10,
+                          paddingHorizontal: 16,
+                          borderRadius: 20,
+                          borderWidth: 1,
+                          borderColor: formData.category === category.key ? theme.primary : theme.border,
+                          backgroundColor: formData.category === category.key ? `${theme.primary}20` : theme.background,
+                        }}
+                        onPress={() => {
+                          setFormData({ ...formData, category: category.key });
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: formData.category === category.key ? theme.primary : theme.textSecondary,
+                            fontSize: 13,
+                            fontWeight: formData.category === category.key ? "600" : "400",
+                          }}
+                        >
+                          {category.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+
+              {/* Account */}
+              <View className="mb-4">
+                <Text style={{ color: theme.text, marginBottom: 8, fontWeight: "500", fontSize: 13 }}>
+                  {t.account || "Account"} *
+                </Text>
+                <TouchableOpacity
+                  style={{
                       borderWidth: 1,
                       borderColor: theme.border,
-                      borderRadius: 8,
-                      padding: 12,
+                      borderRadius: 12,
+                      padding: 14,
                       flexDirection: "row",
                       justifyContent: "space-between",
                       alignItems: "center",
+                      backgroundColor: theme.background,
                     }}
                     onPress={() => setShowAccountDropdown(!showAccountDropdown)}
                   >
                     <Text
                       style={{
                         color: selectedAccount ? theme.text : theme.textMuted,
+                        fontSize: 14,
                       }}
+                      numberOfLines={1}
                     >
-                      {selectedAccount ? selectedAccount.name : t.selectAccount}
+                      {selectedAccount ? selectedAccount.name : "Select"}
                     </Text>
-                    <ChevronDown size={16} color={theme.textMuted} />
+                    <ChevronDown size={14} color={theme.textMuted} />
                   </TouchableOpacity>
-
                   {showAccountDropdown && (
                     <View
                       style={{
-                        marginTop: 8,
+                        marginTop: 4,
                         borderWidth: 1,
                         borderColor: theme.border,
-                        borderRadius: 8,
+                        borderRadius: 12,
                         backgroundColor: theme.cardBackground,
-                        maxHeight: 160,
+                        maxHeight: 180,
+                        position: 'absolute',
+                        top: 68,
+                        left: 0,
+                        right: 0,
+                        zIndex: 1000,
                       }}
                     >
                       <ScrollView>
@@ -1075,17 +1051,10 @@ export default function SavingsScreen() {
                               setShowAccountDropdown(false);
                             }}
                           >
-                            <Text
-                              style={{ color: theme.text, fontWeight: "500" }}
-                            >
+                            <Text style={{ color: theme.text, fontSize: 14 }}>
                               {account.name}
                             </Text>
-                            <Text
-                              style={{
-                                color: theme.textSecondary,
-                                fontSize: 14,
-                              }}
-                            >
+                            <Text style={{ color: theme.textSecondary, fontSize: 12 }}>
                               {account.account_type}
                             </Text>
                           </TouchableOpacity>
@@ -1093,17 +1062,13 @@ export default function SavingsScreen() {
                       </ScrollView>
                     </View>
                   )}
-                </View>
+              </View>
 
-                <View className="mt-2">
-                  <Text
-                    style={{
-                      color: theme.text,
-                      marginBottom: 8,
-                      fontWeight: "500",
-                    }}
-                  >
-                    {t.targetAmount}
+              {/* Target Amount & Date - Side by Side */}
+              <View className="flex-row gap-3 mb-4">
+                <View className="flex-1">
+                  <Text style={{ color: theme.text, marginBottom: 8, fontWeight: "500", fontSize: 13 }}>
+                    {t.targetAmount || "Target Amount"} *
                   </Text>
                   <View
                     style={{
@@ -1115,12 +1080,12 @@ export default function SavingsScreen() {
                       backgroundColor: theme.background,
                     }}
                   >
-                    <View style={{ paddingHorizontal: 16 }}>
-                      <DollarSign size={18} color={theme.textMuted} />
+                    <View style={{ paddingLeft: 12 }}>
+                      <DollarSign size={16} color={theme.textMuted} />
                     </View>
                     <TextInput
-                      style={{ flex: 1, padding: 16, color: theme.text }}
-                      placeholder={t.enterAmount}
+                      style={{ flex: 1, padding: 14, color: theme.text, fontSize: 15 }}
+                      placeholder="0.00"
                       placeholderTextColor={theme.textMuted}
                       keyboardType="numeric"
                       value={formData.target_amount}
@@ -1131,60 +1096,16 @@ export default function SavingsScreen() {
                   </View>
                 </View>
 
-                {isEditMode && (
-                  <View>
-                    <Text
-                      style={{
-                        color: theme.text,
-                        marginBottom: 8,
-                        fontWeight: "500",
-                      }}
-                    >
-                      {t.currentAmount}
-                    </Text>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        borderRadius: 12,
-                        backgroundColor: theme.background,
-                      }}
-                    >
-                      <View style={{ paddingHorizontal: 16 }}>
-                        <DollarSign size={18} color={theme.textMuted} />
-                      </View>
-                      <TextInput
-                        style={{ flex: 1, padding: 16, color: theme.text }}
-                        placeholder={t.enterAmount}
-                        placeholderTextColor={theme.textMuted}
-                        keyboardType="numeric"
-                        value={formData.current_amount}
-                        onChangeText={(text) =>
-                          setFormData({ ...formData, current_amount: text })
-                        }
-                      />
-                    </View>
-                  </View>
-                )}
-
-                <View className="mt-2">
-                  <Text
-                    style={{
-                      color: theme.text,
-                      marginBottom: 8,
-                      fontWeight: "500",
-                    }}
-                  >
-                    {t.targetDate}
+                <View className="flex-1">
+                  <Text style={{ color: theme.text, marginBottom: 8, fontWeight: "500", fontSize: 13 }}>
+                    {t.targetDate || "Target Date"} *
                   </Text>
                   <TouchableOpacity
                     style={{
                       borderWidth: 1,
                       borderColor: theme.border,
                       borderRadius: 12,
-                      padding: 16,
+                      padding: 14,
                       backgroundColor: theme.background,
                       flexDirection: "row",
                       alignItems: "center",
@@ -1194,83 +1115,87 @@ export default function SavingsScreen() {
                   >
                     <Text
                       style={{
-                        color: formData.target_date
-                          ? theme.text
-                          : theme.textMuted,
+                        color: formData.target_date ? theme.text : theme.textMuted,
+                        fontSize: 14,
                       }}
+                      numberOfLines={1}
                     >
                       {formData.target_date
-                        ? formatDate(formData.target_date)
-                        : t.selectTargetDate}
+                        ? formatDate(formData.target_date).replace(',', '')
+                        : "Select"}
                     </Text>
-                    <Calendar size={20} color={theme.textMuted} />
+                    <Calendar size={14} color={theme.textMuted} />
                   </TouchableOpacity>
                 </View>
+              </View>
 
-                <View className="mt-2">
-                  <Text
-                    style={{
-                      color: theme.text,
-                      marginBottom: 8,
-                      fontWeight: "500",
-                    }}
-                  >
-                    {t.goalDescription}
+              {/* Current Amount (Edit Mode Only) */}
+              {isEditMode && (
+                <View className="mb-4">
+                  <Text style={{ color: theme.text, marginBottom: 8, fontWeight: "500", fontSize: 13 }}>
+                    {t.currentAmount || "Current Amount"}
                   </Text>
-                  <TextInput
+                  <View
                     style={{
+                      flexDirection: "row",
+                      alignItems: "center",
                       borderWidth: 1,
                       borderColor: theme.border,
                       borderRadius: 12,
-                      padding: 16,
                       backgroundColor: theme.background,
-                      color: theme.text,
-                    }}
-                    placeholder={t.enterGoalDescription}
-                    placeholderTextColor={theme.textMuted}
-                    value={formData.description}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, description: text })
-                    }
-                    multiline
-                  />
-                </View>
-
-                <View className="flex-row justify-between items-center">
-                  <Text style={{ color: theme.text, fontWeight: "500" }}>
-                    {t.active}
-                  </Text>
-                  <Switch
-                    value={formData.is_active}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, is_active: value })
-                    }
-                    trackColor={{ false: "#767577", true: theme.primary }}
-                    thumbColor="#f4f3f4"
-                  />
-                </View>
-
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: theme.primary,
-                    padding: 16,
-                    borderRadius: 12,
-                    alignItems: "center",
-                    marginTop: 8,
-                  }}
-                  onPress={handleSave}
-                >
-                  <Text
-                    style={{
-                      color: theme.primaryText,
-                      fontWeight: "500",
-                      fontSize: 18,
                     }}
                   >
-                    {isEditMode ? t.updateGoal : t.saveGoal}
-                  </Text>
-                </TouchableOpacity>
+                    <View style={{ paddingLeft: 12 }}>
+                      <DollarSign size={16} color={theme.textMuted} />
+                    </View>
+                    <TextInput
+                      style={{ flex: 1, padding: 14, color: theme.text, fontSize: 15 }}
+                      placeholder="0.00"
+                      placeholderTextColor={theme.textMuted}
+                      keyboardType="numeric"
+                      value={formData.current_amount}
+                      onChangeText={(text) =>
+                        setFormData({ ...formData, current_amount: text })
+                      }
+                    />
+                  </View>
+                </View>
+              )}
+
+              {/* Active Toggle & Save Button */}
+              <View className="flex-row items-center justify-between py-3 px-2 mb-4" style={{ backgroundColor: theme.background, borderRadius: 12 }}>
+                <Text style={{ color: theme.text, fontWeight: "500", fontSize: 14 }}>
+                  {t.active || "Active Goal"}
+                </Text>
+                <Switch
+                  value={formData.is_active}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, is_active: value })
+                  }
+                  trackColor={{ false: "#767577", true: theme.primary }}
+                  thumbColor="#f4f3f4"
+                />
               </View>
+
+              <TouchableOpacity
+                style={{
+                  backgroundColor: theme.primary,
+                  padding: 16,
+                  borderRadius: 12,
+                  alignItems: "center",
+                }}
+                onPress={handleSave}
+              >
+                <Text
+                  style={{
+                    color: theme.primaryText,
+                    fontWeight: "600",
+                    fontSize: 16,
+                  }}
+                >
+                  {isEditMode ? t.updateGoal || "Update Goal" : t.saveGoal || "Save Goal"}
+                </Text>
+              </TouchableOpacity>
             </ScrollView>
           </View>
         </View>
@@ -1631,6 +1556,6 @@ export default function SavingsScreen() {
           minimumDate={new Date()}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }

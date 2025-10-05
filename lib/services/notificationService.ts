@@ -1,4 +1,5 @@
 import * as Notifications from "expo-notifications";
+import { SchedulableTriggerInputTypes } from "expo-notifications";
 import * as TaskManager from "expo-task-manager";
 import { Platform } from "react-native";
 import { isExpoGo } from "../utils/expoGoUtils";
@@ -70,7 +71,6 @@ export const setupNotificationCategories = async () => {
       ],
       {
         intentIdentifiers: [],
-        hiddenPreviewsBodyPlaceholder: "Subscription payment due",
         customDismissAction: false,
       }
     );
@@ -98,7 +98,6 @@ export const setupNotificationCategories = async () => {
       ],
       {
         intentIdentifiers: [],
-        hiddenPreviewsBodyPlaceholder: "Budget alert",
         customDismissAction: false,
       }
     );
@@ -126,7 +125,6 @@ export const setupNotificationCategories = async () => {
       ],
       {
         intentIdentifiers: [],
-        hiddenPreviewsBodyPlaceholder: "Budget exceeded",
         customDismissAction: false,
       }
     );
@@ -159,7 +157,6 @@ export const requestNotificationPermissions = async () => {
           allowDisplayInCarPlay: true,
           allowCriticalAlerts: true,
           allowProvisional: false,
-          allowAnnouncements: true,
         },
         android: {
           allowAlert: true,
@@ -200,7 +197,8 @@ export const scheduleSubscriptionNotification = async (
   // Cancel any existing notification for this subscription
   await Notifications.cancelScheduledNotificationAsync(identifier);
 
-  const trigger = {
+  const trigger: Notifications.DateTriggerInput = {
+    type: SchedulableTriggerInputTypes.DATE,
     date: scheduledDate,
   };
 
@@ -234,7 +232,7 @@ export const handleNotificationResponse = async (
   response: Notifications.NotificationResponse
 ) => {
   const { notification, actionIdentifier } = response;
-  const notificationData = notification.request.content.data;
+  const notificationData = notification.request.content.data as any;
 
   try {
     // Get current user
@@ -247,12 +245,12 @@ export const handleNotificationResponse = async (
     }
 
     // Handle subscription notifications
-    if (notificationData.subscriptionId) {
-      const subscriptionId = notificationData.subscriptionId;
-      const amount = notificationData.amount;
-      const accountId = notificationData.accountId;
-      const billingCycle = notificationData.billingCycle;
-      const subscriptionName = notificationData.subscriptionName;
+    if (notificationData?.subscriptionId) {
+      const subscriptionId = notificationData.subscriptionId as string;
+      const amount = notificationData.amount as number;
+      const accountId = notificationData.accountId as string;
+      const billingCycle = notificationData.billingCycle as string;
+      const subscriptionName = notificationData.subscriptionName as string;
 
       if (actionIdentifier === "PAY_NOW") {
         // Process the payment automatically
@@ -315,7 +313,7 @@ export const handleNotificationResponse = async (
             body: `Don't forget to check your ${category} budget`,
             data: notificationData,
           },
-          trigger: { date: reminderTime },
+          trigger: { type: SchedulableTriggerInputTypes.DATE, date: reminderTime },
         });
       } else if (actionIdentifier === "ADJUST_BUDGET") {
         // Show guidance for adjusting budget
@@ -633,6 +631,7 @@ export const registerBackgroundTask = async () => {
               data: { type: "daily-check" },
             },
             trigger: {
+              type: SchedulableTriggerInputTypes.DATE,
               date: futureDate,
             },
           });
@@ -729,6 +728,7 @@ export const scheduleBudgetCheckNotifications = async () => {
           sound: "notification.wav",
         },
         trigger: {
+          type: SchedulableTriggerInputTypes.DATE,
           date: checkDate,
         },
       });

@@ -30,6 +30,9 @@ export * from "./generators/csvGenerator";
 // Notification service (default export)
 export { default as notificationService } from "./services/notificationService";
 
+// Notification functions
+export * from "./services/notifications";
+
 // Types
 export * from "./types/types";
 

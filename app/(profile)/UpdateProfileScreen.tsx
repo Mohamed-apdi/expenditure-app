@@ -18,10 +18,6 @@ import {
   User,
   Mail,
   Phone,
-  Shield,
-  Bell,
-  Info,
-  ChevronRight,
 } from "lucide-react-native";
 import { supabase } from "~/lib";
 import * as ImagePicker from "expo-image-picker";
@@ -56,9 +52,6 @@ export default function UpdateProfileScreen() {
     phone: userProfile?.phone || "",
     image_url: userProfile?.image_url || "",
   });
-  console.log("Image URL:", formData.image_url);
-  console.log("Full user data:", formData);
-  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [hasChanges, setHasChanges] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -153,15 +146,13 @@ export default function UpdateProfileScreen() {
       return;
     }
 
-    setLoading(true);
-
     try {
       const { error } = await supabase
         .from("profiles")
         .update({
           full_name: formData.fullName,
           phone: formData.phone,
-          image_url: formData.image_url, // This will be included in the update
+          image_url: formData.image_url,
         })
         .eq("id", currentUserId);
 
@@ -183,8 +174,6 @@ export default function UpdateProfileScreen() {
     } catch (error: any) {
       console.error("Update error:", error);
       Alert.alert(t.error, error.message || t.failedToUpdateProfile);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -212,8 +201,6 @@ export default function UpdateProfileScreen() {
   const uploadImage = async (base64Data: string): Promise<string | null> => {
     if (!currentUserId) return null;
 
-    setLoading(true);
-
     try {
       // Create a unique filename
       const fileName = `profile_${currentUserId}_${Date.now()}.jpg`;
@@ -238,8 +225,6 @@ export default function UpdateProfileScreen() {
       console.error("Upload error:", error);
       Alert.alert(t.error, error.message || t.failedToUploadImage);
       return null;
-    } finally {
-      setLoading(false);
     }
   };
   const handleChangePhoto = () => {
@@ -295,110 +280,144 @@ export default function UpdateProfileScreen() {
     }
   };
   return (
-    <ScrollView>
-      <SafeAreaView
+    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.background }}>
+      <KeyboardAvoidingView
         className="flex-1"
-        style={{ backgroundColor: theme.background }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <KeyboardAvoidingView
-          className="flex-1"
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ borderBottomColor: theme.border }}
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingHorizontal: 16,
+            paddingVertical: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border,
+          }}
         >
-          {/* Header */}
-          <View className="flex-row justify-between items-center px-6 py-4 border-b border-slate-700">
-            <TouchableOpacity className="p-2" onPress={handleCancel}>
-              <X size={24} color={theme.icon} />
-            </TouchableOpacity>
-            <Text style={{ color: theme.text }} className=" text-lg font-bold">
-              {t.updateProfile}
-            </Text>
-            <TouchableOpacity
-              className={`py-2 px-4 rounded-lg ${!hasChanges || loading ? "bg-slate-700" : "bg-emerald-500"}`}
-              onPress={handleSave}
-              disabled={!hasChanges || loading}
+          <TouchableOpacity
+            style={{
+              padding: 8,
+              borderRadius: 12,
+              backgroundColor: theme.cardBackground,
+            }}
+            onPress={handleCancel}
+          >
+            <X size={22} color={theme.textMuted} />
+          </TouchableOpacity>
+          <Text style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}>
+            {t.updateProfile || "Edit Profile"}
+          </Text>
+          <TouchableOpacity
+            style={{
+              paddingVertical: 10,
+              paddingHorizontal: 20,
+              borderRadius: 12,
+              backgroundColor: hasChanges ? theme.primary : theme.cardBackground,
+            }}
+            onPress={handleSave}
+            disabled={!hasChanges}
+          >
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: "600",
+                color: hasChanges ? theme.primaryText : theme.textMuted,
+              }}
             >
-              <Text
-                className={`text-sm font-bold ${!hasChanges || loading ? "text-slate-500" : "text-white"}`}
-              >
-                {loading ? t.saving : t.save}
-              </Text>
-            </TouchableOpacity>
-          </View>
+              {t.save}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-            {/* Profile Photo Section */}
-            <View className="items-center py-8 px-6">
-              <View className="relative mb-3">
+        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+          <View style={{ paddingHorizontal: 16, paddingVertical: 20 }}>
+            {/* Profile Photo */}
+            <View style={{ alignItems: "center", marginBottom: 32 }}>
+              <View className="relative">
                 {formData.image_url ? (
                   <Image
                     source={{ uri: formData.image_url }}
-                    className="w-32 h-32 rounded-full border-4 border-emerald-500"
                     style={{
-                      width: 128,
-                      height: 128,
-                      borderColor: theme.border,
+                      width: 100,
+                      height: 100,
+                      borderRadius: 50,
+                      borderWidth: 3,
+                      borderColor: theme.primary,
                     }}
                   />
                 ) : (
                   <View
-                    className="w-32 h-32 rounded-full  border-4 justify-center items-center"
                     style={{
+                      width: 100,
+                      height: 100,
+                      borderRadius: 50,
                       backgroundColor: theme.cardBackground,
+                      borderWidth: 3,
                       borderColor: theme.border,
-                      borderWidth: 4,
+                      justifyContent: "center",
+                      alignItems: "center",
                     }}
                   >
-                    <User size={40} color={theme.icon} />
+                    <User size={36} color={theme.textMuted} />
                   </View>
                 )}
                 <TouchableOpacity
-                  className="absolute bottom-0 right-0 w-9 h-9 rounded-full justify-center items-center border-[3px]"
                   style={{
+                    position: "absolute",
+                    bottom: 0,
+                    right: 0,
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
                     backgroundColor: theme.primary,
-                    borderColor: theme.border,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderWidth: 3,
+                    borderColor: theme.background,
                   }}
                   onPress={handleChangePhoto}
                 >
-                  <Camera size={16} color="#ffffff" />
+                  <Camera size={14} color={theme.primaryText} />
                 </TouchableOpacity>
               </View>
-              <Text
-                className=" text-sm text-center"
-                style={{ color: theme.textSecondary }}
-              >
-                {t.tapToChangePhoto}
+              <Text style={{ color: theme.textMuted, fontSize: 12, marginTop: 12 }}>
+                {t.tapToChangePhoto || "Tap to change photo"}
               </Text>
             </View>
 
             {/* Form Fields */}
-            <View className="px-6">
+            <View style={{ gap: 16 }}>
               {/* Full Name */}
-              <View className="mb-6">
-                <Text
-                  style={{ color: theme.text }}
-                  className=" text-sm font-semibold mb-2"
-                >
-                  {t.fullName}
+              <View>
+                <Text style={{ color: theme.text, fontSize: 13, fontWeight: "500", marginBottom: 8 }}>
+                  {t.fullName} *
                 </Text>
                 <View
-                  className="flex-row items-center rounded-xl border px-4"
                   style={{
-                    backgroundColor: theme.inputBackground,
-                    borderColor: theme.inputBorder,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: errors.fullName ? "#ef4444" : theme.border,
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                    backgroundColor: theme.background,
                   }}
                 >
-                  <User
-                    size={20}
-                    color={theme.textSecondary}
-                    className="mr-3"
-                  />
+                  <User size={18} color={theme.textMuted} />
                   <TextInput
                     ref={fullNameRef}
-                    className="flex-1 py-4 text-white text-base"
+                    style={{
+                      flex: 1,
+                      padding: 14,
+                      color: theme.text,
+                      fontSize: 15,
+                      marginLeft: 8,
+                    }}
                     placeholder={t.enterYourFullName}
-                    placeholderTextColor={theme.placeholder}
-                    style={{ color: theme.text }}
+                    placeholderTextColor={theme.textMuted}
                     value={formData.fullName}
                     onChangeText={(value) => updateFormData("fullName", value)}
                     autoCapitalize="words"
@@ -406,112 +425,114 @@ export default function UpdateProfileScreen() {
                   />
                 </View>
                 {errors.fullName && (
-                  <Text className="text-red-500 text-xs mt-1 ml-1">
+                  <Text style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>
                     {errors.fullName}
                   </Text>
                 )}
               </View>
 
-              {/* Email */}
-              <View className="mb-6">
-                <Text
-                  style={{ color: theme.text }}
-                  className=" text-sm font-semibold mb-2"
-                >
+              {/* Email (Read-only) */}
+              <View>
+                <Text style={{ color: theme.text, fontSize: 13, fontWeight: "500", marginBottom: 8 }}>
                   {t.emailAddress}
                 </Text>
                 <View
-                  className="flex-row items-center rounded-xl border px-4"
                   style={{
-                    backgroundColor: theme.inputBackground,
-                    borderColor: theme.inputBorder,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                    backgroundColor: theme.cardBackground,
+                    opacity: 0.6,
                   }}
                 >
-                  <Mail
-                    size={20}
-                    color={theme.textSecondary}
-                    className="mr-3"
-                  />
+                  <Mail size={18} color={theme.textMuted} />
                   <TextInput
                     ref={emailRef}
-                    className="flex-1 py-4 text-slate-400 text-base"
+                    style={{
+                      flex: 1,
+                      padding: 14,
+                      color: theme.textSecondary,
+                      fontSize: 15,
+                      marginLeft: 8,
+                    }}
                     value={formData.email}
                     editable={false}
-                    selectTextOnFocus={false}
                   />
                 </View>
-                {errors.email && (
-                  <Text className="text-red-500 text-xs mt-1 ml-1">
-                    {errors.email}
-                  </Text>
-                )}
+                <Text style={{ color: theme.textMuted, fontSize: 11, marginTop: 4 }}>
+                  Email cannot be changed
+                </Text>
               </View>
 
               {/* Phone Number */}
-              <View className="mb-6">
-                <Text
-                  style={{ color: theme.text }}
-                  className=" text-sm font-semibold mb-2"
-                >
-                  {t.phoneNumber}
+              <View>
+                <Text style={{ color: theme.text, fontSize: 13, fontWeight: "500", marginBottom: 8 }}>
+                  {t.phoneNumber} *
                 </Text>
                 <View
-                  className="flex-row items-center rounded-xl border px-4"
                   style={{
-                    backgroundColor: theme.inputBackground,
-                    borderColor: theme.inputBorder,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: errors.phone ? "#ef4444" : theme.border,
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                    backgroundColor: theme.background,
                   }}
                 >
-                  <Phone
-                    size={20}
-                    color={theme.textSecondary}
-                    className="mr-3"
-                  />
+                  <Phone size={18} color={theme.textMuted} />
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginLeft: 8,
+                      paddingRight: 8,
+                      borderRightWidth: 1,
+                      borderRightColor: theme.border,
+                    }}
+                  >
+                    <Text style={{ color: theme.text, fontSize: 15, fontWeight: "500" }}>
+                      +252
+                    </Text>
+                  </View>
                   <TextInput
                     ref={phoneRef}
-                    className="flex-1 py-4 text-white text-base"
-                    placeholder={t.enterYourPhoneNumber}
-                    placeholderTextColor={theme.placeholder}
-                    style={{ color: theme.text }}
-                    value={formData.phone}
-                    onChangeText={(value) => updateFormData("phone", value)}
+                    style={{
+                      flex: 1,
+                      padding: 14,
+                      color: theme.text,
+                      fontSize: 15,
+                      paddingLeft: 12,
+                    }}
+                    placeholder="61 234 5678"
+                    placeholderTextColor={theme.textMuted}
+                    value={formData.phone.startsWith('+252') ? formData.phone.substring(4).trim() : formData.phone}
+                    onChangeText={(value) => {
+                      // Automatically add +252 prefix
+                      const cleanValue = value.replace(/[^\d\s]/g, '');
+                      updateFormData("phone", `+252 ${cleanValue}`);
+                    }}
                     keyboardType="phone-pad"
                     returnKeyType="done"
                   />
                 </View>
-                {errors.phone && (
-                  <Text className="text-red-500 text-xs mt-1 ml-1">
+                {errors.phone ? (
+                  <Text style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>
                     {errors.phone}
                   </Text>
+                ) : (
+                  <Text style={{ color: theme.textMuted, fontSize: 11, marginTop: 4 }}>
+                    Somalia country code (+252) included
+                  </Text>
                 )}
-                <Text
-                  className=" text-xs mt-1 ml-1"
-                  style={{ color: theme.textSecondary }}
-                >
-                  {t.includeCountryCode}
-                </Text>
               </View>
             </View>
-
-            {/* Info Box */}
-            <View
-              className="flex-row items-start mx-6 my-4 p-4 rounded-xl border"
-              style={{
-                backgroundColor: theme.cardBackground,
-                borderColor: "#3b82f6",
-              }}
-            >
-              <Info size={20} color="#3b82f6" />
-              <Text
-                className="text-sm ml-3 flex-1"
-                style={{ color: theme.textSecondary }}
-              >
-                {t.profileInfoEncrypted}
-              </Text>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    </ScrollView>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
