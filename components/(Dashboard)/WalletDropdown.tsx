@@ -24,14 +24,14 @@ export function WalletDropdown() {
   const theme = useTheme();
 
   // Debug logging
-  console.log(
-    "WalletDropdown - loading:",
-    loading,
-    "accounts:",
-    accounts.length,
-    "selectedAccount:",
-    selectedAccount?.name
-  );
+  // console.log(
+  //   "WalletDropdown - loading:",
+  //   loading,
+  //   "accounts:",
+  //   accounts.length,
+  //   "selectedAccount:",
+  //   selectedAccount?.name
+  // );
 
   // Auto-refresh accounts when component mounts or when accounts are empty
   useEffect(() => {

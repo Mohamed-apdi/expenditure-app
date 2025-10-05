@@ -21,11 +21,12 @@ import {
   deleteRepayment,
 } from "~/lib";
 import { fetchAccounts } from "~/lib";
+import { addTransaction } from "~/lib";
 import { supabase } from "~/lib";
 import { useFocusEffect } from "@react-navigation/native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAccount } from "~/lib";
-import { ChevronDown } from "lucide-react-native";
+import { ChevronDown, X, TrendingUp, TrendingDown } from "lucide-react-native";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
 
@@ -34,7 +35,6 @@ const Debt_Loan = () => {
   const { t } = useLanguage();
   const [loans, setLoans] = useState<PersonalLoan[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -85,7 +85,6 @@ const Debt_Loan = () => {
   const loadData = async () => {
     if (!currentUser) return;
 
-    setLoading(true);
     try {
       const [loansData, accountsData] = await Promise.all([
         getUserLoans(currentUser),
@@ -134,8 +133,6 @@ const Debt_Loan = () => {
     } catch (error) {
       console.error("Error loading data:", error);
       Alert.alert(t.error, t.failedToLoadData);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -227,6 +224,23 @@ const Debt_Loan = () => {
         status: "active",
       });
 
+      // Create a transaction for the loan
+      const transactionType = formData.type === "loan_taken" ? "income" : "expense";
+      const transactionDescription = formData.type === "loan_taken"
+        ? `Loan taken from ${formData.party_name}`
+        : `Loan given to ${formData.party_name}`;
+
+      await addTransaction({
+        user_id: currentUser,
+        account_id: formData.account_id,
+        amount: parseFloat(formData.principal_amount),
+        description: transactionDescription,
+        date: new Date().toISOString().split("T")[0],
+        category: "Loan",
+        is_recurring: false,
+        type: transactionType,
+      });
+
       setLoans([newLoan, ...loans]);
       setShowAddModal(false);
       resetForm();
@@ -302,6 +316,10 @@ const Debt_Loan = () => {
       await loadData();
       refreshAccounts();
 
+      // Note: Transaction updates for loan edits should be handled manually through the transactions screen
+      // This is because loan edits can be complex (changing amounts, accounts, etc.) and may require
+      // more sophisticated transaction management than can be safely automated here.
+
       Alert.alert(t.success, t.loanUpdated);
     } catch (error) {
       console.error("Error updating loan:", error);
@@ -365,6 +383,25 @@ const Debt_Loan = () => {
         amount: parseFloat(repaymentData.amount),
         payment_date: repaymentData.payment_date,
       });
+
+      // Create a transaction for the repayment
+      if (selectedLoan.account_id && currentUser) {
+        const transactionType = selectedLoan.type === "loan_taken" ? "expense" : "income";
+        const transactionDescription = selectedLoan.type === "loan_taken"
+          ? `Loan repayment to ${selectedLoan.party_name}`
+          : `Loan repayment from ${selectedLoan.party_name}`;
+
+        await addTransaction({
+          user_id: currentUser,
+          account_id: selectedLoan.account_id,
+          amount: parseFloat(repaymentData.amount),
+          description: transactionDescription,
+          date: repaymentData.payment_date,
+          category: "Loan Repayment",
+          is_recurring: false,
+          type: transactionType,
+        });
+      }
 
       setRepayments([newRepayment, ...repayments]);
 
@@ -494,21 +531,6 @@ const Debt_Loan = () => {
     return effectiveBalance < loanAmount;
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView
-        className="flex-1"
-        style={{ backgroundColor: theme.background }}
-      >
-        <View className="flex-1 justify-center items-center">
-          <Text className="text-lg" style={{ color: theme.textSecondary }}>
-            {t.loadingLoans}
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView
       className="flex-1"
@@ -520,17 +542,22 @@ const Debt_Loan = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Loans & Debt */}
-        <View className="px-4">
-          <View className="flex-row justify-between items-center mb-4">
-            <Text
-              className="font-bold text-xl mb-4"
-              style={{ color: theme.text }}
-            >
-              {t.debtLoan}
-            </Text>
+        {/* Header */}
+        <View className="px-4 py-4">
+          <View className="flex-row justify-between items-center mb-6">
+            <View>
+              <Text
+                className="font-bold text-2xl"
+                style={{ color: theme.text }}
+              >
+                {t.debtLoan}
+              </Text>
+              <Text className="text-sm mt-1" style={{ color: theme.textSecondary }}>
+                {loans.length} {loans.length === 1 ? 'loan' : 'loans'} • {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}
+              </Text>
+            </View>
             <TouchableOpacity
-              className="bg-blue-500 rounded-lg py-3 px-4 items-center flex-row"
+              className="bg-blue-500 rounded-xl py-3 px-6 shadow-sm"
               onPress={() => {
                 if (accounts.length === 0) {
                   Alert.alert(t.noAccountsForLoan, t.createAccountFirstForLoan);
@@ -539,143 +566,73 @@ const Debt_Loan = () => {
                 setShowAddModal(true);
               }}
             >
-              <Text className="text-white font-medium">{t.addLoan}</Text>
+              <Text className="text-white font-semibold">{t.addLoan}</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Summary Cards */}
-          <View
-            className="mb-6 rounded-xl p-4"
-            style={{ backgroundColor: theme.cardBackground }}
-          >
-            <View className="flex-row justify-between">
-              <View className="flex-1 items-center">
+          {/* Summary Cards - Simplified */}
+          <View className="flex-row gap-3 mb-6">
+            <View
+              className="flex-1 rounded-2xl p-4"
+              style={{ backgroundColor: theme.cardBackground }}
+            >
+              <View className="flex-row items-center mb-2">
+                <View className="bg-blue-100 rounded-full p-2 mr-2">
+                  <TrendingUp size={16} color="#3b82f6" />
+                </View>
                 <Text
-                  className="text-sm"
+                  className="text-xs font-medium"
                   style={{ color: theme.textSecondary }}
                 >
                   {t.totalLoans}
                 </Text>
-                <Text className="font-bold text-lg text-blue-600">
-                  {formatCurrencyText(
-                    loans
-                      .filter((loan) => loan.type === "loan_given")
-                      .reduce((sum, loan) => sum + loan.remaining_amount, 0)
-                  )}
-                </Text>
               </View>
-              <View className="flex-1 items-center">
+              <Text className="font-bold text-xl text-blue-600">
+                {formatCurrencyText(
+                  loans
+                    .filter((loan) => loan.type === "loan_given")
+                    .reduce((sum, loan) => sum + loan.remaining_amount, 0)
+                )}
+              </Text>
+            </View>
+
+            <View
+              className="flex-1 rounded-2xl p-4"
+              style={{ backgroundColor: theme.cardBackground }}
+            >
+              <View className="flex-row items-center mb-2">
+                <View className="bg-red-100 rounded-full p-2 mr-2">
+                  <TrendingDown size={16} color="#ef4444" />
+                </View>
                 <Text
-                  className="text-sm"
+                  className="text-xs font-medium"
                   style={{ color: theme.textSecondary }}
                 >
                   {t.totalDebts}
                 </Text>
-                <Text className="font-bold text-lg text-red-600">
-                  {formatCurrencyText(
-                    loans
-                      .filter((loan) => loan.type === "loan_taken")
-                      .reduce((sum, loan) => sum + loan.remaining_amount, 0)
-                  )}
-                </Text>
               </View>
-              <View className="flex-1 items-center">
-                <Text
-                  className="text-sm"
-                  style={{ color: theme.textSecondary }}
-                >
-                  {t.availableAccounts}
-                </Text>
-                <Text className="font-bold text-lg text-green-600">
-                  {accounts.length}
-                </Text>
-                <Text className="text-xs" style={{ color: theme.textMuted }}>
-                  {accounts.length === 0
-                    ? t.createAccountsFirst
-                    : t.readyForLoans}
-                </Text>
-              </View>
-            </View>
-
-            {/* Account Balance Impact Summary */}
-            {accounts.length > 0 && (
-              <View
-                className="mt-4 pt-4 border-t"
-                style={{ borderColor: theme.border }}
-              >
-                <Text
-                  className="text-sm font-medium mb-2 text-center"
-                  style={{ color: theme.textSecondary }}
-                >
-                  {t.accountBalanceImpact}
-                </Text>
-                <View className="flex-row justify-between">
-                  <View className="flex-1 items-center">
-                    <Text
-                      className="text-xs"
-                      style={{ color: theme.textSecondary }}
-                    >
-                      {t.moneyInAccounts}
-                    </Text>
-                    <Text className="font-bold text-sm text-green-600">
-                      {formatCurrencyText(
-                        accounts.reduce(
-                          (sum, acc) => sum + (acc.amount || 0),
-                          0
-                        )
-                      )}
-                    </Text>
-                  </View>
-                  <View className="flex-1 items-center">
-                    <Text
-                      className="text-xs"
-                      style={{ color: theme.textSecondary }}
-                    >
-                      {t.netLoanImpact}
-                    </Text>
-                    <Text
-                      className={`font-bold text-sm ${
-                        loans.reduce((sum, loan) => {
-                          if (loan.type === "loan_taken") {
-                            return sum + loan.remaining_amount; // Money in from debt
-                          } else {
-                            return sum - loan.remaining_amount; // Money out from given loans
-                          }
-                        }, 0) >= 0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {formatCurrencyText(
-                        loans.reduce((sum, loan) => {
-                          if (loan.type === "loan_taken") {
-                            return sum + loan.remaining_amount; // Money in from debt
-                          } else {
-                            return sum - loan.remaining_amount; // Money out from given loans
-                          }
-                        }, 0)
-                      )}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            )}
-          </View>
-
-          {/* My Loans */}
-          <View
-            className="mb-6 rounded-xl p-4"
-            style={{ backgroundColor: theme.cardBackground }}
-          >
-            <View className="flex-row justify-between items-center">
-              <Text className="font-bold text-xl" style={{ color: theme.text }}>
-                {t.myLoans}
+              <Text className="font-bold text-xl text-red-600">
+                {formatCurrencyText(
+                  loans
+                    .filter((loan) => loan.type === "loan_taken")
+                    .reduce((sum, loan) => sum + loan.remaining_amount, 0)
+                )}
               </Text>
             </View>
+          </View>
+
+          {/* My Loans - Simplified */}
+          <View className="mb-6">
+            <Text className="font-bold text-lg mb-3" style={{ color: theme.text }}>
+              {t.myLoans}
+            </Text>
 
             {loans.length === 0 ? (
-              <View className="py-8 items-center">
-                <Text style={{ color: theme.textSecondary }}>
+              <View
+                className="py-12 items-center rounded-2xl"
+                style={{ backgroundColor: theme.cardBackground }}
+              >
+                <Text className="text-base font-medium" style={{ color: theme.textSecondary }}>
                   {t.noLoansYet}
                 </Text>
                 <Text
@@ -686,183 +643,159 @@ const Debt_Loan = () => {
                 </Text>
               </View>
             ) : (
-              <View className="mt-4">
+              <View style={{ gap: 12 }}>
                 {loans.map((loan) => (
                   <View
                     key={loan.id}
-                    className="mb-4 p-4 rounded-xl border"
+                    className="p-4 rounded-2xl"
                     style={{
-                      backgroundColor: theme.background,
-                      borderColor: theme.border,
+                      backgroundColor: theme.cardBackground,
                     }}
                   >
+                    {/* Header */}
                     <View className="flex-row justify-between items-start mb-3">
                       <View className="flex-1">
                         <Text
-                          className="font-bold text-sm"
+                          className="font-bold text-lg"
                           style={{ color: theme.text }}
                         >
                           {loan.party_name}
                         </Text>
-                        <View className="flex-row items-center space-x-2 mt-1">
-                          <Text
-                            className="text-xs font-medium"
-                            style={{ color: getTypeColor(loan.type) }}
+                        <View className="flex-row items-center mt-1" style={{ gap: 6 }}>
+                          <View
+                            className="px-2 py-1 rounded-full"
+                            style={{ backgroundColor: loan.type === "loan_given" ? "#dbeafe" : "#fee2e2" }}
                           >
-                            {loan.type === "loan_given"
-                              ? t.loanGiven
-                              : t.loanTaken}
-                          </Text>
-                          <Text style={{ color: theme.textMuted }}>•</Text>
-                          <Text
-                            className="text-xs font-medium"
-                            style={{ color: getStatusColor(loan.status) }}
-                          >
-                            {t[loan.status] ||
-                              loan.status.charAt(0).toUpperCase() +
-                                loan.status.slice(1)}
-                          </Text>
-                        </View>
-                        {loan.account_id && (
-                          <View className="mt-2">
                             <Text
-                              className="text-xs"
-                              style={{ color: theme.textMuted }}
+                              className="text-xs font-semibold"
+                              style={{ color: getTypeColor(loan.type) }}
                             >
-                              Account:{" "}
-                              {accounts.find(
-                                (acc) => acc.id === loan.account_id
-                              )?.name || "Unknown Account"}
-                            </Text>
-                            <Text
-                              className="text-xs"
-                              style={{ color: theme.textMuted }}
-                            >
-                              Balance:{" "}
-                              {formatCurrencyText(
-                                accounts.find(
-                                  (acc) => acc.id === loan.account_id
-                                )?.amount || 0
-                              )}
+                              {loan.type === "loan_given" ? t.loanGiven : t.loanTaken}
                             </Text>
                           </View>
-                        )}
-                      </View>
-                      <View className="flex-row space-x-2">
-                        <TouchableOpacity
-                          onPress={() => handleViewRepayments(loan)}
-                          className="p-2 bg-blue-100 rounded-lg mr-2"
-                        >
-                          <Text className="text-blue-600 font-medium text-xs">
-                            {t.repayments}
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => openEditModal(loan)}
-                          className="p-2 bg-blue-100 rounded-lg mr-2"
-                        >
-                          <Text className="text-blue-600 font-medium text-xs">
-                            {t.Edit}
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          onPress={() => handleDeleteLoan(loan)}
-                          className="p-2 bg-red-100 rounded-lg mr-2"
-                        >
-                          <Text className="text-red-600 font-medium text-xs">
-                            {t.delete}
-                          </Text>
-                        </TouchableOpacity>
+                          <View
+                            className="px-2 py-1 rounded-full"
+                            style={{
+                              backgroundColor: loan.status === "settled"
+                                ? "#dcfce7"
+                                : loan.status === "partial"
+                                  ? "#fef3c7"
+                                  : "#e0e7ff"
+                            }}
+                          >
+                            <Text
+                              className="text-xs font-semibold"
+                              style={{ color: getStatusColor(loan.status) }}
+                            >
+                              {t[loan.status] || loan.status.charAt(0).toUpperCase() + loan.status.slice(1)}
+                            </Text>
+                          </View>
+                        </View>
                       </View>
                     </View>
 
-                    <View className="flex-row justify-between items-center">
-                      <View className="flex-1">
-                        <View className="flex-row justify-between mb-1">
-                          <Text
-                            className="text-sm"
-                            style={{ color: theme.textSecondary }}
-                          >
-                            {t.Principal}
-                          </Text>
-                          <Text
-                            className="font-medium"
-                            style={{ color: theme.text }}
-                          >
-                            {formatCurrencyText(loan.principal_amount)}
-                          </Text>
-                        </View>
-                        <View className="flex-row justify-between mb-1">
-                          <Text
-                            className="text-sm"
-                            style={{ color: theme.textSecondary }}
-                          >
-                            {t.remaining}
-                          </Text>
-                          <Text
-                            className="font-medium"
-                            style={{ color: theme.text }}
-                          >
-                            {formatCurrencyText(loan.remaining_amount)}
-                          </Text>
-                        </View>
+                    {/* Amount Info */}
+                    <View className="flex-row justify-between items-center mb-3">
+                      <View>
+                        <Text className="text-xs mb-1" style={{ color: theme.textSecondary }}>
+                          {t.remaining}
+                        </Text>
+                        <Text
+                          className="font-bold text-2xl"
+                          style={{ color: getTypeColor(loan.type) }}
+                        >
+                          {formatCurrencyText(loan.remaining_amount)}
+                        </Text>
+                      </View>
+                      <View className="items-end">
+                        <Text className="text-xs mb-1" style={{ color: theme.textSecondary }}>
+                          {t.Principal}
+                        </Text>
+                        <Text
+                          className="font-medium text-lg"
+                          style={{ color: theme.text }}
+                        >
+                          {formatCurrencyText(loan.principal_amount)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Progress Bar */}
+                    <View className="mb-3">
+                      <View
+                        className="h-2 rounded-full overflow-hidden"
+                        style={{ backgroundColor: theme.border }}
+                      >
+                        <View
+                          className="h-full rounded-full"
+                          style={{
+                            backgroundColor: getTypeColor(loan.type),
+                            width: `${loan.principal_amount > 0 ? ((loan.principal_amount - loan.remaining_amount) / loan.principal_amount) * 100 : 0}%`
+                          }}
+                        />
+                      </View>
+                      <Text className="text-xs mt-1 text-right" style={{ color: theme.textMuted }}>
+                        {loan.principal_amount > 0
+                          ? ((loan.principal_amount - loan.remaining_amount) / loan.principal_amount * 100).toFixed(0)
+                          : 0}% repaid
+                      </Text>
+                    </View>
+
+                    {/* Additional Info */}
+                    {(loan.interest_rate || loan.due_date) && (
+                      <View className="flex-row gap-4 mb-3">
                         {loan.interest_rate && (
-                          <View className="flex-row justify-between mb-1">
-                            <Text
-                              className="text-sm"
-                              style={{ color: theme.textSecondary }}
-                            >
-                              {t.interest}
+                          <View className="flex-row items-center">
+                            <Text className="text-xs" style={{ color: theme.textSecondary }}>
+                              {t.interest}:
                             </Text>
-                            <Text
-                              className="font-medium"
-                              style={{ color: theme.text }}
-                            >
+                            <Text className="text-xs font-medium ml-1" style={{ color: theme.text }}>
                               {loan.interest_rate}%
                             </Text>
                           </View>
                         )}
                         {loan.due_date && (
-                          <View className="flex-row justify-between mb-1">
-                            <Text
-                              className="text-sm"
-                              style={{ color: theme.textSecondary }}
-                            >
-                              {t.dueDate}
+                          <View className="flex-row items-center">
+                            <Text className="text-xs" style={{ color: theme.textSecondary }}>
+                              {t.dueDate}:
                             </Text>
-                            <Text
-                              className="font-medium"
-                              style={{ color: theme.text }}
-                            >
+                            <Text className="text-xs font-medium ml-1" style={{ color: theme.text }}>
                               {formatDate(loan.due_date)}
                             </Text>
                           </View>
                         )}
                       </View>
+                    )}
 
-                      <View className="items-end ml-2">
-                        <View className="flex-row items-center mb-1">
-                          <Text
-                            className="font-bold text-lg ml-1"
-                            style={{ color: getTypeColor(loan.type) }}
-                          >
-                            {formatCurrencyText(loan.remaining_amount)}
-                          </Text>
-                        </View>
-                        <Text
-                          className="text-sm"
-                          style={{ color: getTypeColor(loan.type) }}
-                        >
-                          {loan.principal_amount > 0
-                            ? (
-                                (loan.remaining_amount /
-                                  loan.principal_amount) *
-                                100
-                              ).toFixed(1)
-                            : "0.0"}
-                          % {t.remaining}
+                    {/* Actions */}
+                    <View className="flex-row gap-2 pt-3 border-t" style={{ borderColor: theme.border }}>
+                      <TouchableOpacity
+                        onPress={() => handleViewRepayments(loan)}
+                        className="flex-1 py-2 rounded-lg"
+                        style={{ backgroundColor: "#dbeafe" }}
+                      >
+                        <Text className="text-blue-600 font-semibold text-xs text-center">
+                          {t.repayments}
                         </Text>
-                      </View>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => openEditModal(loan)}
+                        className="flex-1 py-2 rounded-lg"
+                        style={{ backgroundColor: "#e0e7ff" }}
+                      >
+                        <Text className="text-indigo-600 font-semibold text-xs text-center">
+                          {t.Edit}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleDeleteLoan(loan)}
+                        className="flex-1 py-2 rounded-lg"
+                        style={{ backgroundColor: "#fee2e2" }}
+                      >
+                        <Text className="text-red-600 font-semibold text-xs text-center">
+                          {t.delete}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   </View>
                 ))}
@@ -892,12 +825,7 @@ const Debt_Loan = () => {
                     {t.addLoan}
                   </Text>
                   <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                    <Text
-                      className="text-xl"
-                      style={{ color: theme.textSecondary }}
-                    >
-                      X
-                    </Text>
+                    <X size={24} color={theme.textSecondary} />
                   </TouchableOpacity>
                 </View>
 
@@ -905,7 +833,7 @@ const Debt_Loan = () => {
                   <Text className="mb-1" style={{ color: theme.text }}>
                     {t.loanType}
                   </Text>
-                  <View className="flex-row space-x-2">
+                  <View className="flex-row" style={{ gap: 8 }}>
                     <TouchableOpacity
                       className={`flex-1 p-3 rounded-lg border ${
                         formData.type === "loan_taken"
@@ -1028,7 +956,7 @@ const Debt_Loan = () => {
                             {t.insufficientBalance}
                           </Text>
                           <Text className="text-red-600 text-sm mt-1">
-                            {Text.AccountBalance}:{" "}
+                            Account Balance:{" "}
                             {formatCurrencyText(
                               getSelectedAccount()?.amount || 0
                             )}
@@ -1137,7 +1065,7 @@ const Debt_Loan = () => {
                             ?.name
                         : `${t.selectAccount} *`}
                     </Text>
-                    <Text style={{ color: theme.textMuted }}>V</Text>
+                    <ChevronDown size={16} color={theme.textMuted} />
                   </TouchableOpacity>
 
                   {!formData.account_id && (
@@ -1239,12 +1167,7 @@ const Debt_Loan = () => {
                     {t.editLoan}
                   </Text>
                   <TouchableOpacity onPress={() => setShowEditModal(false)}>
-                    <Text
-                      className="text-xl"
-                      style={{ color: theme.textSecondary }}
-                    >
-                      ✕
-                    </Text>
+                    <X size={24} color={theme.textSecondary} />
                   </TouchableOpacity>
                 </View>
 
@@ -1252,7 +1175,7 @@ const Debt_Loan = () => {
                   <Text className="mb-1" style={{ color: theme.text }}>
                     {t.loanType}
                   </Text>
-                  <View className="flex-row space-x-2">
+                  <View className="flex-row" style={{ gap: 8 }}>
                     <TouchableOpacity
                       className={`flex-1 p-3 rounded-lg border ${
                         formData.type === "loan_taken"
@@ -1489,7 +1412,7 @@ const Debt_Loan = () => {
                             ?.name
                         : "Select an account *"}
                     </Text>
-                    <ChevronDown size={20} color="gray" />
+                    <ChevronDown size={20} color={theme.textMuted} />
                   </TouchableOpacity>
 
                   {!formData.account_id && (
@@ -1592,12 +1515,7 @@ const Debt_Loan = () => {
                   {t.repayments} - {selectedLoan?.party_name}
                 </Text>
                 <TouchableOpacity onPress={() => setShowRepaymentModal(false)}>
-                  <Text
-                    className="text-xl"
-                    style={{ color: theme.textSecondary }}
-                  >
-                    ✕
-                  </Text>
+                  <X size={24} color={theme.textSecondary} />
                 </TouchableOpacity>
               </View>
 
@@ -1668,7 +1586,7 @@ const Debt_Loan = () => {
                       </Text>
                     </View>
                   ) : (
-                    <View className="space-y-4">
+                    <View style={{ gap: 16 }}>
                       <View>
                         <Text className="mb-1" style={{ color: theme.text }}>
                           {t.repaymentAmount} ($)

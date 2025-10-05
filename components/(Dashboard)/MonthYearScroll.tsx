@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { FlatList, Text, TouchableOpacity, View } from "react-native";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react-native";
-import { useLanguage } from "~/lib";
+import { useLanguage, useAccount } from "~/lib";
 
 const months = [
   "JAN",
@@ -38,11 +38,18 @@ export default function MonthYearScroller({
   const currentYear = current.getFullYear();
   const currentMonth = current.getMonth();
   const { t } = useLanguage();
+  const { selectedAccount, accounts } = useAccount();
   const [monthData, setMonthData] = useState<{
     income: number;
     expense: number;
     balance: number;
   }>({ income: 0, expense: 0, balance: 0 });
+
+  // Calculate current balance from selected account only
+  const currentBalance = useMemo(() => {
+    // Only show selected account balance, not sum of all accounts
+    return selectedAccount?.amount || 0;
+  }, [selectedAccount]);
 
   // Add ref for FlatList to enable programmatic scrolling
   const flatListRef = useRef<FlatList>(null);
@@ -142,7 +149,7 @@ export default function MonthYearScroller({
             {t.currentBalance}
           </Text>
           <Text className="text-white text-3xl font-extrabold text-center mb-6">
-            ${monthData.balance.toLocaleString()}
+            ${currentBalance.toLocaleString()}
           </Text>
 
           <View className="flex-row justify-between px-3">

@@ -3,19 +3,19 @@ import { useState, useEffect } from "react";
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   SectionList,
   TextInput,
-  ActivityIndicator,
 } from "react-native";
-import { Filter, Search, Plus, ArrowLeft } from "lucide-react-native";
+import { Search, ArrowLeft } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { supabase } from "~/lib";
 import { fetchTransactions } from "~/lib";
 import { useAccount } from "~/lib";
 import { formatDistanceToNow } from "date-fns";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 
 type Transaction = {
   id: string;
@@ -35,17 +35,17 @@ type TransactionSection = {
 
 export default function TransactionsScreen() {
   const router = useRouter();
+  const theme = useTheme();
+  const { t } = useLanguage();
   const { selectedAccount } = useAccount();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
   const [transactions, setTransactions] = useState<TransactionSection[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   // Fetch transactions from database
   const fetchUserTransactions = async () => {
     try {
-      setLoading(true);
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -71,7 +71,6 @@ export default function TransactionsScreen() {
     } catch (error) {
       console.error("Error fetching transactions:", error);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   };
@@ -144,52 +143,93 @@ export default function TransactionsScreen() {
     }))
     .filter((section) => section.data.length > 0);
 
-  if (loading) {
-    return (
-      <SafeAreaView className="flex-1 py-safe">
-        <View className="flex-1 bg-gray-50 justify-center items-center">
-          <ActivityIndicator size="large" color="#3b82f6" />
-          <Text className="mt-4 text-gray-600">Loading transactions...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
-    <SafeAreaView className="flex-1 py-safe">
-      <View className="flex-1 bg-gray-50">
+    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.background }}>
+      <View className="flex-1">
         {/* Header */}
-        <View className="p-4 bg-white border-b border-gray-200">
-          <View className="flex-row items-center mb-3">
-            <TouchableOpacity onPress={() => router.back()} className="mr-3">
-              <ArrowLeft size={24} color="#374151" />
-            </TouchableOpacity>
-            <Text className="text-xl font-bold text-gray-900">
-              Transactions
-            </Text>
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingVertical: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border,
+            backgroundColor: theme.background,
+          }}
+        >
+          <View className="flex-row items-center justify-between mb-4">
+            <View className="flex-row items-center flex-1">
+              <TouchableOpacity
+                style={{
+                  padding: 8,
+                  borderRadius: 12,
+                  backgroundColor: theme.cardBackground,
+                  marginRight: 12,
+                }}
+                onPress={() => router.back()}
+              >
+                <ArrowLeft size={22} color={theme.textMuted} />
+              </TouchableOpacity>
+              <View>
+                <Text style={{ color: theme.text, fontSize: 20, fontWeight: "bold" }}>
+                  {t.transactions || "Transactions"}
+                </Text>
+                <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 2 }}>
+                  {transactions.reduce((sum, section) => sum + section.data.length, 0)} total
+                </Text>
+              </View>
+            </View>
           </View>
 
           {/* Search Bar */}
-          <View className="flex-row items-center bg-gray-100 rounded-lg px-3 py-2 mb-3">
-            <Search size={18} color="#6b7280" />
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: theme.cardBackground,
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              borderWidth: 1,
+              borderColor: theme.border,
+              marginBottom: 12,
+            }}
+          >
+            <Search size={18} color={theme.textMuted} />
             <TextInput
-              className="flex-1 ml-2"
-              placeholder="Search transactions..."
+              style={{
+                flex: 1,
+                padding: 12,
+                color: theme.text,
+                fontSize: 15,
+                marginLeft: 8,
+              }}
+              placeholder={t.searchTransactions || "Search..."}
+              placeholderTextColor={theme.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
           </View>
 
-          {/* Filter Buttons */}
-          <View className="flex-row space-x-2">
-            {["all", "income", "expense", "transfer", "loan"].map((filter) => (
+          {/* Filter Chips */}
+          <View className="flex-row gap-2">
+            {["all", "income", "expense"].map((filter) => (
               <TouchableOpacity
                 key={filter}
-                className={`px-3 py-1 rounded-full ${activeFilter === filter ? "bg-blue-500" : "bg-gray-200"}`}
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 16,
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  borderColor: activeFilter === filter ? theme.primary : theme.border,
+                  backgroundColor: activeFilter === filter ? `${theme.primary}20` : theme.background,
+                }}
                 onPress={() => setActiveFilter(filter)}
               >
                 <Text
-                  className={`${activeFilter === filter ? "text-white" : "text-gray-800"}`}
+                  style={{
+                    color: activeFilter === filter ? theme.primary : theme.textSecondary,
+                    fontSize: 13,
+                    fontWeight: activeFilter === filter ? "600" : "400",
+                  }}
                 >
                   {filter.charAt(0).toUpperCase() + filter.slice(1)}
                 </Text>
@@ -200,42 +240,86 @@ export default function TransactionsScreen() {
 
         {/* Transactions List */}
         <SectionList
-          className="flex-1"
           sections={filteredTransactions}
           keyExtractor={(item) => item.id}
           refreshing={refreshing}
           onRefresh={onRefresh}
+          style={{ backgroundColor: theme.background }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12 }}
           renderItem={({ item }) => (
             <TouchableOpacity
-              className="bg-white p-4 border-b border-gray-100"
-              onPress={() => router.push(`/transaction-detail/${item.id}`)}
+              style={{
+                backgroundColor: theme.cardBackground,
+                padding: 16,
+                borderRadius: 16,
+                marginBottom: 12,
+              }}
+              onPress={() => router.push(`/(transactions)/transaction-detail/${item.id}` as any)}
             >
-              <View className="flex-row justify-between items-center">
+              <View className="flex-row justify-between items-start">
                 <View className="flex-1">
-                  <Text className="font-medium text-gray-900" numberOfLines={1}>
+                  <Text
+                    style={{ color: theme.text, fontSize: 16, fontWeight: "600" }}
+                    numberOfLines={1}
+                  >
                     {item.description || item.category || "No description"}
                   </Text>
-                  <Text className="text-gray-500 text-sm">{item.category}</Text>
-                  <Text className="text-gray-400 text-xs mt-1">
-                    {formatDistanceToNow(new Date(item.created_at), {
-                      addSuffix: true,
-                    })}
+                  <View className="flex-row items-center mt-1" style={{ gap: 6 }}>
+                    {item.category && (
+                      <View
+                        style={{
+                          backgroundColor: item.type === "expense"
+                            ? '#fee2e2'
+                            : item.type === "income"
+                              ? '#dcfce7'
+                              : '#dbeafe',
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          borderRadius: 12,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: item.type === "expense"
+                              ? '#dc2626'
+                              : item.type === "income"
+                                ? '#16a34a'
+                                : '#3b82f6',
+                            fontSize: 11,
+                            fontWeight: "600"
+                          }}
+                        >
+                          {item.category}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={{ color: theme.textMuted, fontSize: 11, marginTop: 4 }}>
+                    {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
                   </Text>
                 </View>
-                <View className="items-end">
+                <View style={{ alignItems: "flex-end", marginLeft: 12 }}>
                   <Text
-                    className={`font-bold text-lg ${
-                      item.type === "expense"
-                        ? "text-red-500"
+                    style={{
+                      fontSize: 20,
+                      fontWeight: "bold",
+                      color: item.type === "expense"
+                        ? "#ef4444"
                         : item.type === "income"
-                          ? "text-green-500"
-                          : "text-blue-500"
-                    }`}
+                          ? "#10b981"
+                          : "#3b82f6",
+                    }}
                   >
-                    {item.type === "expense" ? "-" : "+"}$
-                    {Math.abs(item.amount).toFixed(2)}
+                    {item.type === "expense" ? "-" : "+"}${Math.abs(item.amount).toFixed(2)}
                   </Text>
-                  <Text className="text-gray-400 text-xs capitalize">
+                  <Text
+                    style={{
+                      color: theme.textMuted,
+                      fontSize: 11,
+                      marginTop: 2,
+                      textTransform: "capitalize",
+                    }}
+                  >
                     {item.type}
                   </Text>
                 </View>
@@ -243,33 +327,35 @@ export default function TransactionsScreen() {
             </TouchableOpacity>
           )}
           renderSectionHeader={({ section: { title } }) => (
-            <View className="bg-gray-50 px-4 py-2">
-              <Text className="font-bold text-gray-500">{title}</Text>
+            <View style={{ paddingVertical: 8, paddingHorizontal: 4 }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 14, fontWeight: "600" }}>
+                {title}
+              </Text>
             </View>
           )}
           ListEmptyComponent={
-            <View className="flex-1 justify-center items-center p-8">
-              <Text className="text-gray-500 text-center">
+            <View
+              style={{
+                paddingVertical: 64,
+                alignItems: "center",
+                backgroundColor: theme.cardBackground,
+                borderRadius: 16,
+                marginTop: 20,
+              }}
+            >
+              <Text style={{ color: theme.textSecondary, fontSize: 16, fontWeight: "500" }}>
                 {searchQuery || activeFilter !== "all"
-                  ? `No transactions found${searchQuery ? ` for "${searchQuery}"` : ""}${activeFilter !== "all" ? ` in ${activeFilter}` : ""}`
+                  ? "No transactions found"
                   : "No transactions yet"}
               </Text>
-              {!searchQuery && activeFilter === "all" && (
-                <Text className="text-gray-400 text-center mt-2">
-                  Start by adding your first transaction
-                </Text>
-              )}
+              <Text style={{ color: theme.textMuted, fontSize: 14, marginTop: 8 }}>
+                {searchQuery || activeFilter !== "all"
+                  ? "Try adjusting your filters"
+                  : "Start by adding your first transaction"}
+              </Text>
             </View>
           }
         />
-
-        {/* Add Transaction Button */}
-        {/* <TouchableOpacity
-          className="absolute bottom-6 right-6 bg-blue-500 w-14 h-14 rounded-full justify-center items-center shadow-lg"
-          onPress={() => router.push('/(expense)/AddExpense')}
-        >
-          <Plus size={24} color="white" />
-        </TouchableOpacity> */}
       </View>
     </SafeAreaView>
   );

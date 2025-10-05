@@ -6,43 +6,28 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Share,
-  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   ChevronLeft,
-  Edit3,
-  Trash2,
-  Calendar,
   Tag,
   CreditCard,
-  Repeat,
   ArrowUpRight,
   ArrowDownLeft,
   ArrowRightLeft,
   Receipt,
-  Share2,
-  Copy,
   MapPin,
-  Clock,
-  User,
   Building,
   Wallet,
   TrendingUp,
-  TrendingDown,
-  CheckCircle,
   AlertCircle,
-  DollarSign,
-  Hash,
   FileText,
   Heart,
 } from "lucide-react-native";
 import { supabase } from "~/lib";
 import { format, formatDistanceToNow } from "date-fns";
 import { useTheme } from "~/lib";
-import Toast from "react-native-toast-message";
 
 type Transaction = {
   id: string;
@@ -87,14 +72,11 @@ export default function TransactionDetailScreen() {
   const { id } = useLocalSearchParams();
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState(false);
   const theme = useTheme();
 
   // Fetch transaction data
   const fetchTransaction = async () => {
     try {
-      setLoading(true);
-
       // First, get the basic transaction data
       const { data: transactionData, error: transactionError } = await supabase
         .from("transactions")
@@ -203,81 +185,7 @@ export default function TransactionDetailScreen() {
     fetchTransaction();
   }, [id]);
 
-  const handleDelete = async () => {
-    Alert.alert(
-      "Delete Transaction",
-      "Are you sure you want to delete this transaction? This action cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setDeleting(true);
 
-              // Delete from appropriate table
-              const table =
-                transaction?.type === "expense" ? "expenses" : "transactions";
-              const { error } = await supabase
-                .from(table)
-                .delete()
-                .eq("id", id);
-
-              if (error) throw error;
-
-              Toast.show({
-                type: "success",
-                text1: "Transaction Deleted",
-                text2: "The transaction has been successfully deleted.",
-              });
-
-              router.back();
-            } catch (error) {
-              console.error("Error deleting transaction:", error);
-              Alert.alert("Error", "Failed to delete transaction");
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleShare = async () => {
-    if (!transaction) return;
-
-    const shareText = `Transaction Details:
-Amount: ${transaction.type === "expense" ? "-" : "+"}$${transaction.amount.toFixed(2)}
-Category: ${transaction.category || "N/A"}
-Description: ${transaction.description || "N/A"}
-Date: ${format(new Date(transaction.date), "MMMM d, yyyy")}
-Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
-
-    try {
-      await Share.share({
-        message: shareText,
-        title: "Transaction Details",
-      });
-    } catch (error) {
-      console.error("Error sharing transaction:", error);
-    }
-  };
-
-  const copyToClipboard = async (text: string, label: string) => {
-    try {
-      // Note: React Native doesn't have built-in clipboard API
-      // You might want to add @react-native-clipboard/clipboard package
-      Toast.show({
-        type: "success",
-        text1: "Copied",
-        text2: `${label} copied to clipboard`,
-      });
-    } catch (error) {
-      console.error("Error copying to clipboard:", error);
-    }
-  };
 
   const getCategoryIcon = (category: string, type: string) => {
     if (type === "transfer") return ArrowRightLeft;
@@ -344,13 +252,8 @@ Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
   if (loading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-        >
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
           <ActivityIndicator size="large" color={theme.primary} />
-          <Text style={{ color: theme.textSecondary, marginTop: 16 }}>
-            Loading transaction details...
-          </Text>
         </View>
       </SafeAreaView>
     );
@@ -359,46 +262,24 @@ Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
   if (!transaction) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            padding: 24,
-          }}
-        >
-          <AlertCircle size={48} color={theme.textSecondary} />
-          <Text
-            style={{
-              color: theme.text,
-              fontSize: 18,
-              fontWeight: "600",
-              marginTop: 16,
-            }}
-          >
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", padding: 24 }}>
+          <AlertCircle size={64} color={theme.textMuted} />
+          <Text style={{ color: theme.text, fontSize: 18, fontWeight: "600", marginTop: 16 }}>
             Transaction Not Found
           </Text>
-          <Text
-            style={{
-              color: theme.textSecondary,
-              textAlign: "center",
-              marginTop: 8,
-            }}
-          >
-            The transaction you're looking for doesn't exist or has been
-            deleted.
+          <Text style={{ color: theme.textSecondary, textAlign: "center", marginTop: 8, marginBottom: 24 }}>
+            This transaction doesn't exist or has been deleted
           </Text>
           <TouchableOpacity
             style={{
               backgroundColor: theme.primary,
               paddingHorizontal: 24,
               paddingVertical: 12,
-              borderRadius: 8,
-              marginTop: 24,
+              borderRadius: 12,
             }}
             onPress={() => router.back()}
           >
-            <Text style={{ color: "white", fontWeight: "600" }}>Go Back</Text>
+            <Text style={{ color: theme.primaryText, fontWeight: "600" }}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -422,188 +303,118 @@ Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
       <View
         style={{
           flexDirection: "row",
-          justifyContent: "space-between",
           alignItems: "center",
-          paddingHorizontal: 20,
+          paddingHorizontal: 16,
           paddingVertical: 16,
           borderBottomWidth: 1,
           borderBottomColor: theme.border,
+          gap: 12,
         }}
       >
-        <TouchableOpacity onPress={() => router.back()}>
-          <ChevronLeft size={24} color={theme.icon} />
+        <TouchableOpacity
+          style={{
+            padding: 8,
+            borderRadius: 12,
+            backgroundColor: theme.cardBackground,
+          }}
+          onPress={() => router.back()}
+        >
+          <ChevronLeft size={22} color={theme.textMuted} />
         </TouchableOpacity>
 
-        <Text style={{ color: theme.text, fontSize: 18, fontWeight: "600" }}>
+        <Text style={{ color: theme.text, fontSize: 20, fontWeight: "bold" }}>
           Transaction Details
         </Text>
-
-        <View style={{ flexDirection: "row", gap: 16 }}>
-          <TouchableOpacity onPress={handleShare}>
-            <Share2 size={24} color={theme.icon} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() =>
-              router.push(`/(transactions)/edit-transaction/${transaction.id}`)
-            }
-            disabled={deleting}
-          >
-            <Edit3 size={24} color={theme.icon} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleDelete} disabled={deleting}>
-            {deleting ? (
-              <ActivityIndicator size="small" color={theme.textSecondary} />
-            ) : (
-              <Trash2 size={24} color="#ef4444" />
-            )}
-          </TouchableOpacity>
-        </View>
       </View>
 
       <ScrollView
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 20 }}
       >
-        {/* Transaction Header Card */}
+        {/* Amount Card */}
         <View
           style={{
-            margin: 20,
             backgroundColor: theme.cardBackground,
             borderRadius: 16,
             padding: 24,
-            borderWidth: 1,
-            borderColor: theme.border,
+            marginBottom: 20,
+            alignItems: "center",
           }}
         >
-          <View style={{ alignItems: "center" }}>
-            <View
-              style={{
-                backgroundColor: transactionColor + "20",
-                borderRadius: 50,
-                padding: 16,
-                marginBottom: 16,
-              }}
-            >
-              <TransactionIcon size={32} color={transactionColor} />
-            </View>
-
-            <Text
-              style={{
-                color: theme.textSecondary,
-                fontSize: 14,
-                marginBottom: 8,
-              }}
-            >
-              {transaction.type === "expense"
-                ? "Amount Spent"
-                : transaction.type === "income"
-                  ? "Amount Received"
-                  : "Amount Transferred"}
-            </Text>
-
-            <Text
-              style={{
-                color: transactionColor,
-                fontSize: 42,
-                fontWeight: "700",
-                marginBottom: 8,
-              }}
-            >
-              {transaction.type === "expense"
-                ? "-"
-                : transaction.type === "income"
-                  ? "+"
-                  : ""}
-              ${transaction.amount.toFixed(2)}
-            </Text>
-
-            <View
-              style={{
-                backgroundColor: theme.success + "20",
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 20,
-                flexDirection: "row",
-                alignItems: "center",
-              }}
-            >
-              <CheckCircle size={14} color={theme.success} />
-              <Text
-                style={{
-                  color: theme.success,
-                  marginLeft: 6,
-                  fontSize: 12,
-                  fontWeight: "600",
-                }}
-              >
-                {transaction.type.charAt(0).toUpperCase() +
-                  transaction.type.slice(1)}{" "}
-                Completed
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Transaction Details */}
-        <View style={{ paddingHorizontal: 20 }}>
-          {/* Basic Information */}
           <View
             style={{
-              backgroundColor: theme.cardBackground,
-              borderRadius: 12,
-              padding: 20,
+              backgroundColor: transactionColor + "20",
+              borderRadius: 40,
+              padding: 16,
               marginBottom: 16,
-              borderWidth: 1,
-              borderColor: theme.border,
+            }}
+          >
+            <TransactionIcon size={28} color={transactionColor} />
+          </View>
+
+          <Text style={{ color: theme.textSecondary, fontSize: 13, marginBottom: 8 }}>
+            {transaction.type === "expense"
+              ? "Amount Spent"
+              : transaction.type === "income"
+                ? "Amount Received"
+                : "Amount Transferred"}
+          </Text>
+
+          <Text
+            style={{
+              color: transactionColor,
+              fontSize: 36,
+              fontWeight: "bold",
+              marginBottom: 12,
+            }}
+          >
+            {transaction.type === "expense" ? "-" : transaction.type === "income" ? "+" : ""}
+            ${transaction.amount.toFixed(2)}
+          </Text>
+
+          <View
+            style={{
+              backgroundColor: transactionColor + "15",
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 12,
             }}
           >
             <Text
               style={{
-                color: theme.text,
-                fontSize: 16,
+                color: transactionColor,
+                fontSize: 12,
                 fontWeight: "600",
-                marginBottom: 16,
+                textTransform: "capitalize",
               }}
             >
-              Transaction Information
+              {transaction.type}
             </Text>
+          </View>
+        </View>
 
+        {/* Details Card */}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 16,
+          }}
+        >
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: "bold", marginBottom: 16 }}>
+            Details
+          </Text>
+
+          <View style={{ gap: 12 }}>
             {/* Description */}
             {transaction.description && (
-              <View style={{ marginBottom: 16 }}>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginBottom: 8,
-                  }}
-                >
-                  <FileText size={16} color={theme.textSecondary} />
-                  <Text
-                    style={{
-                      color: theme.textSecondary,
-                      fontSize: 12,
-                      marginLeft: 8,
-                      textTransform: "uppercase",
-                      letterSpacing: 0.5,
-                    }}
-                  >
-                    Description
-                  </Text>
-                  <TouchableOpacity
-                    style={{ marginLeft: "auto" }}
-                    onPress={() =>
-                      copyToClipboard(
-                        transaction.description || "",
-                        "Description"
-                      )
-                    }
-                  >
-                    <Copy size={14} color={theme.textSecondary} />
-                  </TouchableOpacity>
-                </View>
-                <Text style={{ color: theme.text, fontSize: 16 }}>
+              <View>
+                <Text style={{ color: theme.textMuted, fontSize: 11, marginBottom: 4 }}>
+                  Description
+                </Text>
+                <Text style={{ color: theme.text, fontSize: 15 }}>
                   {transaction.description}
                 </Text>
               </View>
@@ -611,39 +422,20 @@ Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
 
             {/* Category */}
             {transaction.category && (
-              <View style={{ marginBottom: 16 }}>
+              <View>
+                <Text style={{ color: theme.textMuted, fontSize: 11, marginBottom: 4 }}>
+                  Category
+                </Text>
                 <View
                   style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginBottom: 8,
+                    backgroundColor: categoryColor + "20",
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    borderRadius: 12,
+                    alignSelf: 'flex-start',
                   }}
                 >
-                  <Tag size={16} color={theme.textSecondary} />
-                  <Text
-                    style={{
-                      color: theme.textSecondary,
-                      fontSize: 12,
-                      marginLeft: 8,
-                      textTransform: "uppercase",
-                      letterSpacing: 0.5,
-                    }}
-                  >
-                    Category
-                  </Text>
-                </View>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <View
-                    style={{
-                      backgroundColor: categoryColor + "20",
-                      borderRadius: 8,
-                      padding: 8,
-                      marginRight: 12,
-                    }}
-                  >
-                    <CategoryIcon size={16} color={categoryColor} />
-                  </View>
-                  <Text style={{ color: theme.text, fontSize: 16 }}>
+                  <Text style={{ color: categoryColor, fontSize: 13, fontWeight: "600" }}>
                     {transaction.category}
                   </Text>
                 </View>
@@ -651,482 +443,166 @@ Type: ${transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}`;
             )}
 
             {/* Date */}
-            <View style={{ marginBottom: 16 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 8,
-                }}
-              >
-                <Calendar size={16} color={theme.textSecondary} />
-                <Text
-                  style={{
-                    color: theme.textSecondary,
-                    fontSize: 12,
-                    marginLeft: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  Transaction Date
-                </Text>
-              </View>
-              <Text style={{ color: theme.text, fontSize: 16 }}>
+            <View>
+              <Text style={{ color: theme.textMuted, fontSize: 11, marginBottom: 4 }}>
+                Date
+              </Text>
+              <Text style={{ color: theme.text, fontSize: 15, marginBottom: 2 }}>
                 {format(new Date(transaction.date), "EEEE, MMMM d, yyyy")}
               </Text>
-              <Text
-                style={{
-                  color: theme.textSecondary,
-                  fontSize: 14,
-                  marginTop: 4,
-                }}
-              >
-                {formatDistanceToNow(new Date(transaction.date), {
-                  addSuffix: true,
-                })}
-              </Text>
-            </View>
-
-            {/* Transaction ID */}
-            <View>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 8,
-                }}
-              >
-                <Hash size={16} color={theme.textSecondary} />
-                <Text
-                  style={{
-                    color: theme.textSecondary,
-                    fontSize: 12,
-                    marginLeft: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  Transaction ID
-                </Text>
-                <TouchableOpacity
-                  style={{ marginLeft: "auto" }}
-                  onPress={() =>
-                    copyToClipboard(transaction.id, "Transaction ID")
-                  }
-                >
-                  <Copy size={14} color={theme.textSecondary} />
-                </TouchableOpacity>
-              </View>
-              <Text
-                style={{
-                  color: theme.text,
-                  fontSize: 14,
-                  fontFamily: "monospace",
-                }}
-              >
-                {transaction.id}
+              <Text style={{ color: theme.textMuted, fontSize: 12 }}>
+                {formatDistanceToNow(new Date(transaction.date), { addSuffix: true })}
               </Text>
             </View>
           </View>
+        </View>
 
-          {/* Account Information */}
+        {/* Account Card */}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 16,
+          }}
+        >
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: "bold", marginBottom: 12 }}>
+            {transaction.type === "transfer" ? "Accounts" : "Account"}
+          </Text>
+
+          {transaction.type === "transfer" ? (
+            <View style={{ gap: 12 }}>
+              {/* From Account */}
+              {transaction.from_account && (
+                <View>
+                  <Text style={{ color: theme.textMuted, fontSize: 11, marginBottom: 4 }}>
+                    From
+                  </Text>
+                  <View className="flex-row items-center">
+                    <View
+                      style={{
+                        backgroundColor: '#fee2e2',
+                        borderRadius: 20,
+                        padding: 6,
+                        marginRight: 8,
+                      }}
+                    >
+                      <Wallet size={14} color="#ef4444" />
+                    </View>
+                    <View>
+                      <Text style={{ color: theme.text, fontSize: 15, fontWeight: "500" }}>
+                        {transaction.from_account.name}
+                      </Text>
+                      <Text style={{ color: theme.textSecondary, fontSize: 12 }}>
+                        {transaction.from_account.account_type}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              {/* To Account */}
+              {transaction.to_account && (
+                <View>
+                  <Text style={{ color: theme.textMuted, fontSize: 11, marginBottom: 4 }}>
+                    To
+                  </Text>
+                  <View className="flex-row items-center">
+                    <View
+                      style={{
+                        backgroundColor: '#dcfce7',
+                        borderRadius: 20,
+                        padding: 6,
+                        marginRight: 8,
+                      }}
+                    >
+                      <Wallet size={14} color="#10b981" />
+                    </View>
+                    <View>
+                      <Text style={{ color: theme.text, fontSize: 15, fontWeight: "500" }}>
+                        {transaction.to_account.name}
+                      </Text>
+                      <Text style={{ color: theme.textSecondary, fontSize: 12 }}>
+                        {transaction.to_account.account_type}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
+            </View>
+          ) : (
+            // Single Account
+            transaction.account && (
+              <View className="flex-row items-center">
+                <View
+                  style={{
+                    backgroundColor: transactionColor + "20",
+                    borderRadius: 20,
+                    padding: 8,
+                    marginRight: 10,
+                  }}
+                >
+                  <Wallet size={16} color={transactionColor} />
+                </View>
+                <View>
+                  <Text style={{ color: theme.text, fontSize: 15, fontWeight: "500" }}>
+                    {transaction.account.name}
+                  </Text>
+                  <Text style={{ color: theme.textSecondary, fontSize: 12 }}>
+                    {transaction.account.account_type} • ${transaction.account.amount.toFixed(2)}
+                  </Text>
+                </View>
+              </View>
+            )
+          )}
+        </View>
+
+        {/* Additional Info (if any) */}
+        {(transaction.is_recurring || transaction.notes) && (
           <View
             style={{
               backgroundColor: theme.cardBackground,
-              borderRadius: 12,
-              padding: 20,
-              marginBottom: 16,
-              borderWidth: 1,
-              borderColor: theme.border,
+              borderRadius: 16,
+              padding: 16,
             }}
           >
-            <Text
-              style={{
-                color: theme.text,
-                fontSize: 16,
-                fontWeight: "600",
-                marginBottom: 16,
-              }}
-            >
-              Account Details
-            </Text>
-
-            {transaction.type === "transfer" ? (
-              <>
-                {/* From Account */}
-                {transaction.from_account && (
-                  <View style={{ marginBottom: 16 }}>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        marginBottom: 8,
-                      }}
-                    >
-                      <ArrowUpRight size={16} color={theme.textSecondary} />
-                      <Text
-                        style={{
-                          color: theme.textSecondary,
-                          fontSize: 12,
-                          marginLeft: 8,
-                          textTransform: "uppercase",
-                          letterSpacing: 0.5,
-                        }}
-                      >
-                        From Account
-                      </Text>
-                    </View>
-                    <View
-                      style={{ flexDirection: "row", alignItems: "center" }}
-                    >
-                      <View
-                        style={{
-                          backgroundColor: theme.primary + "20",
-                          borderRadius: 8,
-                          padding: 8,
-                          marginRight: 12,
-                        }}
-                      >
-                        <Wallet size={16} color={theme.primary} />
-                      </View>
-                      <View>
-                        <Text style={{ color: theme.text, fontSize: 16 }}>
-                          {transaction.from_account.name}
-                        </Text>
-                        <Text
-                          style={{ color: theme.textSecondary, fontSize: 14 }}
-                        >
-                          {transaction.from_account.account_type}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
-
-                {/* To Account */}
-                {transaction.to_account && (
-                  <View>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        marginBottom: 8,
-                      }}
-                    >
-                      <ArrowDownLeft size={16} color={theme.textSecondary} />
-                      <Text
-                        style={{
-                          color: theme.textSecondary,
-                          fontSize: 12,
-                          marginLeft: 8,
-                          textTransform: "uppercase",
-                          letterSpacing: 0.5,
-                        }}
-                      >
-                        To Account
-                      </Text>
-                    </View>
-                    <View
-                      style={{ flexDirection: "row", alignItems: "center" }}
-                    >
-                      <View
-                        style={{
-                          backgroundColor: theme.success + "20",
-                          borderRadius: 8,
-                          padding: 8,
-                          marginRight: 12,
-                        }}
-                      >
-                        <Wallet size={16} color={theme.success} />
-                      </View>
-                      <View>
-                        <Text style={{ color: theme.text, fontSize: 16 }}>
-                          {transaction.to_account.name}
-                        </Text>
-                        <Text
-                          style={{ color: theme.textSecondary, fontSize: 14 }}
-                        >
-                          {transaction.to_account.account_type}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                )}
-              </>
-            ) : (
-              // Single Account (Income/Expense)
-              transaction.account && (
-                <View>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <Wallet size={16} color={theme.textSecondary} />
-                    <Text
-                      style={{
-                        color: theme.textSecondary,
-                        fontSize: 12,
-                        marginLeft: 8,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      Account
-                    </Text>
-                  </View>
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <View
-                      style={{
-                        backgroundColor: transactionColor + "20",
-                        borderRadius: 8,
-                        padding: 8,
-                        marginRight: 12,
-                      }}
-                    >
-                      <Wallet size={16} color={transactionColor} />
-                    </View>
-                    <View>
-                      <Text style={{ color: theme.text, fontSize: 16 }}>
-                        {transaction.account.name}
-                      </Text>
-                      <Text
-                        style={{ color: theme.textSecondary, fontSize: 14 }}
-                      >
-                        {transaction.account.account_type} • $
-                        {transaction.account.amount.toFixed(2)}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              )
-            )}
-          </View>
-
-          {/* Additional Details */}
-          {(transaction.is_recurring ||
-            transaction.location ||
-            transaction.notes) && (
-            <View
-              style={{
-                backgroundColor: theme.cardBackground,
-                borderRadius: 12,
-                padding: 20,
-                marginBottom: 16,
-                borderWidth: 1,
-                borderColor: theme.border,
-              }}
-            >
-              <Text
-                style={{
-                  color: theme.text,
-                  fontSize: 16,
-                  fontWeight: "600",
-                  marginBottom: 16,
-                }}
-              >
-                Additional Information
-              </Text>
-
-              {/* Recurring */}
+            <View style={{ gap: 12 }}>
               {transaction.is_recurring && (
-                <View style={{ marginBottom: 16 }}>
+                <View>
+                  <Text style={{ color: theme.textMuted, fontSize: 11, marginBottom: 4 }}>
+                    Recurring
+                  </Text>
                   <View
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginBottom: 8,
+                      backgroundColor: `${theme.primary}15`,
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 12,
+                      alignSelf: 'flex-start',
                     }}
                   >
-                    <Repeat size={16} color={theme.textSecondary} />
-                    <Text
-                      style={{
-                        color: theme.textSecondary,
-                        fontSize: 12,
-                        marginLeft: 8,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      Recurring
+                    <Text style={{ color: theme.primary, fontSize: 13, fontWeight: "600" }}>
+                      {transaction.recurrence_interval
+                        ? transaction.recurrence_interval.charAt(0).toUpperCase() + transaction.recurrence_interval.slice(1)
+                        : "Yes"}
                     </Text>
                   </View>
-                  <Text style={{ color: theme.text, fontSize: 16 }}>
-                    {transaction.recurrence_interval?.charAt(0).toUpperCase() +
-                      transaction.recurrence_interval?.slice(1) || "Yes"}
-                  </Text>
                 </View>
               )}
 
-              {/* Location */}
-              {transaction.location && (
-                <View style={{ marginBottom: 16 }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <MapPin size={16} color={theme.textSecondary} />
-                    <Text
-                      style={{
-                        color: theme.textSecondary,
-                        fontSize: 12,
-                        marginLeft: 8,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      Location
-                    </Text>
-                  </View>
-                  <Text style={{ color: theme.text, fontSize: 16 }}>
-                    {transaction.location}
-                  </Text>
-                </View>
-              )}
-
-              {/* Notes */}
               {transaction.notes && (
                 <View>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <FileText size={16} color={theme.textSecondary} />
-                    <Text
-                      style={{
-                        color: theme.textSecondary,
-                        fontSize: 12,
-                        marginLeft: 8,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.5,
-                      }}
-                    >
-                      Notes
-                    </Text>
-                  </View>
-                  <Text style={{ color: theme.text, fontSize: 16 }}>
+                  <Text style={{ color: theme.textMuted, fontSize: 11, marginBottom: 4 }}>
+                    Notes
+                  </Text>
+                  <Text style={{ color: theme.text, fontSize: 15 }}>
                     {transaction.notes}
                   </Text>
                 </View>
               )}
             </View>
-          )}
-
-          {/* Metadata */}
-          <View
-            style={{
-              backgroundColor: theme.cardBackground,
-              borderRadius: 12,
-              padding: 20,
-              borderWidth: 1,
-              borderColor: theme.border,
-            }}
-          >
-            <Text
-              style={{
-                color: theme.text,
-                fontSize: 16,
-                fontWeight: "600",
-                marginBottom: 16,
-              }}
-            >
-              Metadata
-            </Text>
-
-            <View style={{ marginBottom: 16 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 8,
-                }}
-              >
-                <Clock size={16} color={theme.textSecondary} />
-                <Text
-                  style={{
-                    color: theme.textSecondary,
-                    fontSize: 12,
-                    marginLeft: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  Created
-                </Text>
-              </View>
-              <Text style={{ color: theme.text, fontSize: 16 }}>
-                {format(
-                  new Date(transaction.created_at),
-                  "EEEE, MMMM d, yyyy 'at' h:mm a"
-                )}
-              </Text>
-              <Text
-                style={{
-                  color: theme.textSecondary,
-                  fontSize: 14,
-                  marginTop: 4,
-                }}
-              >
-                {formatDistanceToNow(new Date(transaction.created_at), {
-                  addSuffix: true,
-                })}
-              </Text>
-            </View>
-
-            <View>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginBottom: 8,
-                }}
-              >
-                <DollarSign size={16} color={theme.textSecondary} />
-                <Text
-                  style={{
-                    color: theme.textSecondary,
-                    fontSize: 12,
-                    marginLeft: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  Transaction Type
-                </Text>
-              </View>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <View
-                  style={{
-                    backgroundColor: transactionColor + "20",
-                    borderRadius: 6,
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: transactionColor,
-                      fontSize: 12,
-                      fontWeight: "600",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {transaction.type}
-                  </Text>
-                </View>
-              </View>
-            </View>
           </View>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

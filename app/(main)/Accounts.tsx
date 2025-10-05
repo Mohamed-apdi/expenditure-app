@@ -5,10 +5,9 @@ import {
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
-  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { MoreHorizontal, X, Plus } from "lucide-react-native";
+import { X } from "lucide-react-native";
 import { fetchAccounts, createAccount, Account } from "~/lib";
 import { supabase } from "~/lib";
 import AddAccount from "../account-details/add-account";
@@ -41,7 +40,6 @@ const Accounts = () => {
   const router = useRouter();
   const { refreshAccounts: refreshContextAccounts } = useAccount();
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const theme = useTheme();
@@ -49,7 +47,6 @@ const Accounts = () => {
 
   const loadAccounts = async () => {
     try {
-      setLoading(true);
       setError(null);
 
       // Get the current user first
@@ -69,8 +66,6 @@ const Accounts = () => {
       setError(
         error instanceof Error ? error.message : "Failed to load accounts"
       );
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -159,152 +154,216 @@ const Accounts = () => {
     });
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView
-        className="flex-1 items-center justify-center"
-        style={{ backgroundColor: theme.background }}
-      >
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView
-      className="flex-1 py-safe"
+      className="flex-1"
       style={{ backgroundColor: theme.background }}
     >
-      {error && (
-        <View
-          className="border p-4 rounded-lg mx-6 mt-4"
-          style={{
-            backgroundColor: theme.cardBackground,
-            borderColor: theme.border,
-          }}
-        >
-          <Text style={{ color: theme.text }}>{error}</Text>
-          <TouchableOpacity
-            onPress={() => setError(null)}
-            className="absolute top-3 right-3"
-          >
-            <X size={16} color="#ef4444" />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Header */}
-      <View className="flex-row justify-between items-center p-6">
-        <Text className="text-2xl font-bold" style={{ color: theme.text }}>
-          {t.accounts}
-        </Text>
-        <TouchableOpacity
-          className="bg-blue-500 rounded-lg py-3 px-3 items-center"
-          onPress={() => setShowAddAccount(true)}
-        >
-          <Text className="text-white">{t.addAccount}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Summary Cards */}
-      <View className="flex-row px-6 mb-6 gap-4">
-        <View
-          className="flex-1 p-4 rounded-xl border shadow-sm"
-          style={{
-            backgroundColor: theme.cardBackground,
-            borderColor: theme.border,
-          }}
-        >
-          <Text className="text-sm mb-1" style={{ color: theme.textSecondary }}>
-            {t.total}
-          </Text>
-          <Text className="text-green-600 text-xl font-bold">
-            ${total.toFixed(2)}
-          </Text>
-        </View>
-      </View>
-
-      {/* Accounts List */}
-      <ScrollView className="flex-1 px-6 pb-6">
-        {accountGroups
-          .filter(
-            (group) =>
-              accounts.some((account) => account.account_type === group.name) // Changed from group_name to account_type
-          )
-          .map((group) => (
-            <View key={group.id} className="mb-6">
-              <Text
-                className="font-bold text-lg mb-3"
-                style={{ color: theme.text }}
-              >
-                {group.name === "Cash"
-                  ? t.cash
-                  : group.name === "SIM Card"
-                    ? t.simCard
-                    : group.name === "Debit Card"
-                      ? t.debitCard
-                      : group.name === "Savings"
-                        ? t.savings
-                        : group.name === "Top-Up/Prepaid"
-                          ? t.topup
-                          : group.name === "Investments"
-                            ? t.investments
-                            : group.name === "Overdrafts"
-                              ? t.overdrafts
-                              : group.name === "Loan"
-                                ? t.loan
-                                : group.name === "Insurance"
-                                  ? t.insurance
-                                  : group.name === "Card"
-                                    ? t.card
-                                    : group.name === "Others"
-                                      ? t.others
-                                      : group.name}
+      <ScrollView className="flex-1">
+        <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
+          {/* Header */}
+          <View className="flex-row justify-between items-center mb-6">
+            <View>
+              <Text style={{ color: theme.text, fontSize: 24, fontWeight: "bold" }}>
+                {t.accounts}
               </Text>
-              <View className="gap-3">
-                {accounts
-                  .filter((account) => account.account_type === group.name) // Changed from group_name to account_type
-                  .map((account) => (
-                    <TouchableOpacity
-                      key={account.id}
-                      className="flex-row justify-between p-5 rounded-xl border shadow-sm"
-                      style={{
-                        backgroundColor: theme.cardBackground,
-                        borderColor: theme.border,
-                      }}
-                      onPress={() => handleAccountPress(account.id)}
-                    >
-                      <View className="flex-1">
-                        <Text
-                          className="font-semibold text-lg"
-                          style={{ color: theme.text }}
-                        >
-                          {account.name}
-                        </Text>
-                        {account.description && (
-                          <Text
-                            className="text-sm mt-1"
-                            style={{ color: theme.textSecondary }}
-                          >
-                            {account.description}
-                          </Text>
-                        )}
-                      </View>
-                      <Text
-                        className={`font-bold text-lg ${
-                          account.amount >= 0
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        ${account.amount?.toFixed(2) || "0.00"}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-              </View>
+              <Text style={{ color: theme.textSecondary, fontSize: 14, marginTop: 4 }}>
+                {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'} • ${total.toFixed(2)} total
+              </Text>
             </View>
-          ))}
+            <TouchableOpacity
+              style={{
+                backgroundColor: theme.primary,
+                borderRadius: 12,
+                paddingVertical: 12,
+                paddingHorizontal: 20,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+              onPress={() => setShowAddAccount(true)}
+            >
+              <Text style={{ color: theme.primaryText, fontWeight: "600" }}>
+                {t.addAccount}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Error Message */}
+          {error && (
+            <View
+              style={{
+                backgroundColor: '#fee2e2',
+                padding: 12,
+                borderRadius: 12,
+                marginBottom: 16,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Text style={{ color: '#dc2626', flex: 1, fontSize: 14 }}>{error}</Text>
+              <TouchableOpacity onPress={() => setError(null)}>
+                <X size={18} color="#dc2626" />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Total Balance Card */}
+          <View
+            style={{
+              backgroundColor: theme.primary,
+              padding: 20,
+              borderRadius: 16,
+              marginBottom: 24,
+            }}
+          >
+            <Text style={{ color: theme.primaryText, fontSize: 14, fontWeight: "500", opacity: 0.9, marginBottom: 8 }}>
+              {t.total || "Total Balance"}
+            </Text>
+            <Text style={{ color: theme.primaryText, fontSize: 36, fontWeight: "bold" }}>
+              ${total.toFixed(2)}
+            </Text>
+          </View>
+
+          {/* Accounts by Type */}
+          {accounts.length === 0 ? (
+            <View
+              style={{
+                paddingVertical: 48,
+                alignItems: "center",
+                backgroundColor: theme.cardBackground,
+                borderRadius: 16,
+              }}
+            >
+              <Text style={{ color: theme.textSecondary, fontSize: 16, fontWeight: "500" }}>
+                No accounts yet
+              </Text>
+              <Text style={{ color: theme.textMuted, fontSize: 14, marginTop: 8 }}>
+                Create your first account
+              </Text>
+            </View>
+          ) : (
+            <View style={{ gap: 20 }}>
+              {accountGroups
+                .filter((group) =>
+                  accounts.some((account) => account.account_type === group.name)
+                )
+                .map((group) => (
+                  <View key={group.id}>
+                    <Text
+                      style={{
+                        color: theme.text,
+                        fontSize: 16,
+                        fontWeight: "bold",
+                        marginBottom: 12
+                      }}
+                    >
+                      {group.name === "Cash"
+                        ? t.cash
+                        : group.name === "SIM Card"
+                          ? t.simCard
+                          : group.name === "Debit Card"
+                            ? t.debitCard
+                            : group.name === "Savings"
+                              ? t.savings
+                              : group.name === "Top-Up/Prepaid"
+                                ? t.topup
+                                : group.name === "Investments"
+                                  ? t.investments
+                                  : group.name === "Overdrafts"
+                                    ? t.overdrafts
+                                    : group.name === "Loan"
+                                      ? t.loan
+                                      : group.name === "Insurance"
+                                        ? t.insurance
+                                        : group.name === "Card"
+                                          ? t.card
+                                          : group.name === "Others"
+                                            ? t.others
+                                            : group.name}
+                    </Text>
+                    <View style={{ gap: 12 }}>
+                      {accounts
+                        .filter((account) => account.account_type === group.name)
+                        .map((account) => (
+                          <TouchableOpacity
+                            key={account.id}
+                            style={{
+                              padding: 16,
+                              backgroundColor: theme.cardBackground,
+                              borderRadius: 16,
+                            }}
+                            onPress={() => handleAccountPress(account.id)}
+                          >
+                            <View className="flex-row justify-between items-start mb-2">
+                              <View className="flex-1">
+                                <Text
+                                  style={{
+                                    color: theme.text,
+                                    fontSize: 18,
+                                    fontWeight: "bold",
+                                  }}
+                                >
+                                  {account.name}
+                                </Text>
+                                <View
+                                  style={{
+                                    backgroundColor: account.amount >= 0 ? '#dcfce7' : '#fee2e2',
+                                    paddingHorizontal: 8,
+                                    paddingVertical: 4,
+                                    borderRadius: 12,
+                                    alignSelf: 'flex-start',
+                                    marginTop: 6,
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      color: account.amount >= 0 ? '#16a34a' : '#dc2626',
+                                      fontSize: 11,
+                                      fontWeight: "600"
+                                    }}
+                                  >
+                                    {group.name}
+                                  </Text>
+                                </View>
+                              </View>
+                              <View style={{ alignItems: "flex-end" }}>
+                                <Text
+                                  style={{
+                                    fontSize: 24,
+                                    fontWeight: "bold",
+                                    color: account.amount >= 0 ? "#10b981" : "#ef4444",
+                                  }}
+                                >
+                                  ${Math.abs(account.amount || 0).toFixed(2)}
+                                </Text>
+                                {account.amount < 0 && (
+                                  <Text style={{ color: "#ef4444", fontSize: 11, marginTop: 2 }}>
+                                    Overdraft
+                                  </Text>
+                                )}
+                              </View>
+                            </View>
+                            {account.description && (
+                              <View className="pt-3 border-t" style={{ borderColor: theme.border }}>
+                                <Text style={{ color: theme.textMuted, fontSize: 12 }}>
+                                  {account.description}
+                                </Text>
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                        ))}
+                    </View>
+                  </View>
+                ))}
+            </View>
+          )}
+        </View>
       </ScrollView>
+
 
       {/* Add Account Modal */}
       <AddAccount

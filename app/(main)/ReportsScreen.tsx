@@ -41,7 +41,7 @@ import {
   type TransactionReport,
 } from "~/lib";
 import { getCategoryColor, getColorByIndex } from "~/lib";
-import { sharePDF } from "~/lib/pdfGenerator";
+// import { sharePDF } from "~/lib/pdfGenerator";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
 
