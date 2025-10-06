@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
+  StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -420,6 +421,10 @@ export default function NotificationsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+        <StatusBar
+          barStyle={theme.isDark ? "light-content" : "dark-content"}
+          backgroundColor={theme.background}
+        />
         <View
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
         >
@@ -434,6 +439,10 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+      <StatusBar
+        barStyle={theme.isDark ? "light-content" : "dark-content"}
+        backgroundColor={theme.background}
+      />
       {/* Header */}
       <View
         style={{

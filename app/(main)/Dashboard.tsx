@@ -171,8 +171,11 @@ export default function DashboardScreen() {
           monthTransactionsList.push(t as Transaction);
         });
 
-        // Update the filtered transactions for the selected month
-        setFilteredTransactions(monthTransactionsList);
+        // Sort transactions by date (newest first) and update the filtered transactions for the selected month
+        const sortedTransactions = monthTransactionsList.sort((a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setFilteredTransactions(sortedTransactions);
 
         // Calculate balance based on whether an account is selected
         let balance;
@@ -198,6 +201,10 @@ export default function DashboardScreen() {
   );
 
   useEffect(() => {
+    // Set blue StatusBar for Dashboard
+    StatusBar.setBackgroundColor("#3b82f6", true);
+    StatusBar.setBarStyle("light-content", true);
+
     // Initial load - fetch profile when component mounts
     const checkAuthAndFetch = async () => {
       try {
@@ -218,11 +225,20 @@ export default function DashboardScreen() {
       }
     };
     checkAuthAndFetch();
-  }, []); // Empty dependency array for initial load only
+
+    // Cleanup function to reset StatusBar when component unmounts
+    return () => {
+      StatusBar.setBackgroundColor(theme.background, true);
+      StatusBar.setBarStyle(theme.isDark ? "light-content" : "dark-content", true);
+    };
+  }, [theme.background, theme.isDark]); // Empty dependency array for initial load only
 
   // Refresh balance when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
+      // Ensure StatusBar is blue when Dashboard comes into focus
+      StatusBar.setBackgroundColor("#3b82f6", true);
+      StatusBar.setBarStyle("light-content", true);
 
       refreshBalances();
 
@@ -374,24 +390,11 @@ export default function DashboardScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 pt-safe bg-[#3b82f6] relative">
+    <SafeAreaView className="flex-1">
       <StatusBar
-        barStyle={theme.isDark ? "light-content" : "dark-content"}
+        barStyle="light-content"
         backgroundColor="#3b82f6"
       />
-      {/* Header */}
-      <DashboardHeader
-        userName={userProfile.fullName}
-        userEmail={userProfile.email}
-        userImageUrl={userProfile.image_url}
-        onLogoutPress={() => {
-          supabase.auth.signOut();
-          router.replace("/login");
-        }}
-        onSettingsPress={() => router.push("/(main)/SettingScreen")}
-        onNotificationPress={() => router.push("/(main)/notifications")}
-      />
-
       <ScrollView
         className="flex-1"
         refreshControl={
@@ -404,8 +407,21 @@ export default function DashboardScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <View className="">
-          <View style={{ marginBottom: 20 }}>
+        {/* Blue Header Section */}
+        <View className="bg-[#3b82f6] pt-safe">
+          <DashboardHeader
+            userName={userProfile.fullName}
+            userEmail={userProfile.email}
+            userImageUrl={userProfile.image_url}
+            onLogoutPress={() => {
+              supabase.auth.signOut();
+              router.replace("/login");
+            }}
+            onSettingsPress={() => router.push("/(main)/SettingScreen")}
+            onNotificationPress={() => router.push("/(main)/notifications")}
+          />
+
+          <View className="px-4 pb-4">
             <MonthYearScroller
               onMonthChange={handleMonthChange}
               fetchMonthData={fetchMonthData}
@@ -413,8 +429,9 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Notification Permission Request */}
-        <NotificationPermissionRequest />
+        <View className="flex-1" style={{ backgroundColor: theme.background }}>
+          {/* Notification Permission Request */}
+          <NotificationPermissionRequest />
 
         {/* Recent Transactions - Simplified */}
         <View
@@ -426,9 +443,6 @@ export default function DashboardScreen() {
               <View>
                 <Text style={{ color: theme.text, fontSize: 20, fontWeight: "bold" }}>
                   {t.recentTransactions || "Recent Transactions"}
-                </Text>
-                <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 2 }}>
-                  {filteredTransactions.length} {filteredTransactions.length === 1 ? 'transaction' : 'transactions'}
                 </Text>
               </View>
               <TouchableOpacity
@@ -450,7 +464,7 @@ export default function DashboardScreen() {
 
             {filteredTransactions.length > 0 ? (
               <View style={{ gap: 10 }}>
-                {filteredTransactions.slice(0, 10).map((transaction) => (
+                {filteredTransactions.slice(0, 6).map((transaction) => (
                   <MemoizedTransactionItem
                     key={transaction.id}
                     transaction={transaction}
@@ -481,6 +495,7 @@ export default function DashboardScreen() {
               </View>
             )}
           </View>
+        </View>
         </View>
       </ScrollView>
     </SafeAreaView>

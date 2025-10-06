@@ -156,7 +156,7 @@ const Accounts = () => {
 
   return (
     <SafeAreaView
-      className="flex-1"
+      className="flex-1 pt-safe"
       style={{ backgroundColor: theme.background }}
     >
       <ScrollView className="flex-1">

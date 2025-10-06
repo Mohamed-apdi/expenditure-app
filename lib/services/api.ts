@@ -15,6 +15,36 @@ export const testAPIConnectivity = async () => {
   }
 };
 
+// Debug function to check user data without authentication
+export const debugUserData = async (userId: string) => {
+  try {
+    const url = `${REAL_API_URL}/debug/data/${userId}`;
+    console.log("🔍 Debug: Checking user data at:", url);
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log("📊 Debug response status:", response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("❌ Debug API error response:", errorText);
+      throw new Error(`Debug API call failed: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log("✅ Debug data received:", data);
+    return data;
+  } catch (error) {
+    console.error("❌ Debug API call error:", error);
+    throw error;
+  }
+};
+
 export interface TransactionReport {
   summary: {
     total_amount: number;
@@ -62,7 +92,9 @@ const apiCall = async (endpoint: string, params: Record<string, any> = {}) => {
     });
 
     const url = `${REAL_API_URL}${endpoint}${queryParams.toString() ? "?" + queryParams.toString() : ""}`;
-    console.log("Making API call to:", url);
+    console.log("🚀 Making API call to:", url);
+    console.log("📋 Request params:", params);
+    console.log("🔑 Using token:", accessToken ? `${accessToken.substring(0, 20)}...` : "No token");
 
     const response = await fetch(url, {
       method: "GET",
@@ -72,19 +104,39 @@ const apiCall = async (endpoint: string, params: Record<string, any> = {}) => {
       },
     });
 
-    console.log("API response status:", response.status);
+    console.log("📊 API response status:", response.status);
+    console.log("📊 API response headers:", Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("API error response:", errorText);
+      console.error("❌ API error response:", errorText);
       throw new Error(`API call failed: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    console.log("API response data:", data);
+    console.log("✅ API response data received:", data);
+    console.log("📊 Response data type:", typeof data);
+    console.log("📊 Response data keys:", data ? Object.keys(data) : "No data");
+
+    // Check if we have actual data in the response
+    if (data && data.summary) {
+      console.log("📈 Summary data:", data.summary);
+      if (data.summary.total_transactions !== undefined) {
+        console.log(`📊 Total transactions: ${data.summary.total_transactions}`);
+      }
+      if (data.category_breakdown) {
+        console.log(`📊 Categories found: ${Object.keys(data.category_breakdown).length}`);
+      }
+      if (data.transactions) {
+        console.log(`📊 Raw transactions count: ${data.transactions.length}`);
+      }
+    } else {
+      console.warn("⚠️ No summary data found in response");
+    }
+
     return data;
   } catch (error) {
-    console.error("API call error:", error);
+    console.error("❌ API call error:", error);
     throw error;
   }
 };
@@ -95,11 +147,132 @@ export const getTransactionReports = async (
   endDate?: string
 ): Promise<TransactionReport> => {
   const params: Record<string, any> = {};
-  if (accountId) params.account_id = accountId;
+  // Only add account_id if it's a valid non-empty string
+  if (accountId && accountId.trim()) {
+    params.account_id = accountId;
+  }
   if (startDate) params.start_date = startDate;
   if (endDate) params.end_date = endDate;
 
+  console.log("getTransactionReports params:", params);
   return apiCall("/reports/transactions", params);
+};
+
+export interface AccountReport {
+  summary: {
+    total_balance: number;
+    total_accounts: number;
+    total_transactions: number;
+  };
+  accounts: Array<{
+    id: string;
+    name: string;
+    type: string;
+    balance: number;
+    currency: string;
+    transaction_count: number;
+    created_at: string;
+  }>;
+}
+
+export const getAccountReports = async (
+  accountId?: string
+): Promise<AccountReport> => {
+  const params: Record<string, any> = {};
+  if (accountId && accountId.trim()) {
+    params.account_id = accountId;
+  }
+  return apiCall("/reports/accounts", params);
+};
+
+export interface BudgetReport {
+  summary: {
+    period: string;
+    total_budget: number;
+    total_spent: number;
+    total_remaining: number;
+    overall_percentage: number;
+  };
+  budget_comparison: Array<{
+    category: string;
+    budget: number;
+    spent: number;
+    remaining: number;
+    percentage: number;
+    status: string;
+  }>;
+  unbudgeted_spending: Record<string, number>;
+}
+
+export const getBudgetReports = async (
+  startDate?: string,
+  endDate?: string,
+  accountId?: string
+): Promise<BudgetReport> => {
+  const params: Record<string, any> = {};
+  if (startDate) params.start_date = startDate;
+  if (endDate) params.end_date = endDate;
+  if (accountId && accountId.trim()) {
+    params.account_id = accountId;
+  }
+  return apiCall("/reports/budgets", params);
+};
+
+export interface GoalReport {
+  summary: {
+    total_goals: number;
+    total_target: number;
+    total_saved: number;
+    total_remaining: number;
+    overall_percentage: number;
+    completed_goals: number;
+  };
+  goals: Array<{
+    id: string;
+    name: string;
+    target_amount: number;
+    current_amount: number;
+    remaining: number;
+    percentage: number;
+    deadline: string | null;
+    days_remaining: number | null;
+    status: string;
+  }>;
+}
+
+export const getGoalReports = async (): Promise<GoalReport> => {
+  return apiCall("/reports/goals", {});
+};
+
+export interface SubscriptionReport {
+  summary: {
+    total_subscriptions: number;
+    monthly_cost: number;
+    yearly_cost: number;
+    active_subscriptions: number;
+  };
+  subscriptions: Array<{
+    id: string;
+    name: string;
+    cost: number;
+    billing_cycle: string;
+    monthly_equivalent: number;
+    yearly_equivalent: number;
+    next_billing: string;
+    status: string;
+    category: string;
+  }>;
+  category_breakdown: Record<string, number>;
+}
+
+export const getSubscriptionReports = async (
+  accountId?: string
+): Promise<SubscriptionReport> => {
+  const params: Record<string, any> = {};
+  if (accountId && accountId.trim()) {
+    params.account_id = accountId;
+  }
+  return apiCall("/reports/subscriptions", params);
 };
 
 export const downloadReport = async (
@@ -112,8 +285,11 @@ export const downloadReport = async (
   const params: Record<string, any> = { format };
   if (startDate) params.start_date = startDate;
   if (endDate) params.end_date = endDate;
-  if (accountId) params.account_id = accountId;
+  if (accountId && accountId.trim()) {
+    params.account_id = accountId;
+  }
 
+  console.log("downloadReport params:", params);
   return apiCall(`/reports/download/${reportType}`, params);
 };
 

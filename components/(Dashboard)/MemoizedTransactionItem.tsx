@@ -2,6 +2,7 @@ import React, { memo } from "react";
 import { TouchableOpacity, View, Text } from "react-native";
 import { useRouter } from "expo-router";
 import { formatDistanceToNow } from "date-fns";
+import { useTheme } from "~/lib";
 import {
   Utensils,
   Home,
@@ -157,6 +158,7 @@ const MemoizedTransactionItem = memo<TransactionItemProps>(
     getCategoryLabel,
   }) => {
     const router = useRouter();
+    const theme = useTheme();
 
     // Use passed functions if available, otherwise use built-in mappings
     const IconComponent = getCategoryIcon
@@ -181,7 +183,10 @@ const MemoizedTransactionItem = memo<TransactionItemProps>(
 
     return (
       <TouchableOpacity onPress={handlePress}>
-        <View className="flex-row items-center p-4 bg-gray-50 rounded-xl gap-3 mb-2">
+        <View
+          className="flex-row items-center p-4 rounded-xl gap-3 mb-2"
+          style={{ backgroundColor: theme.cardBackground }}
+        >
           <View
             className="w-11 h-11 rounded-xl items-center justify-center"
             style={{ backgroundColor: `${color}20` }}
@@ -192,7 +197,8 @@ const MemoizedTransactionItem = memo<TransactionItemProps>(
             <View className="flex-1 flex-row items-center">
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <Text
-                  className="text-base font-semibold text-gray-900"
+                  className="text-base font-semibold"
+                  style={{ color: theme.text }}
                   numberOfLines={1}
                   ellipsizeMode="tail"
                 >
@@ -200,7 +206,8 @@ const MemoizedTransactionItem = memo<TransactionItemProps>(
                 </Text>
                 {transaction.description && (
                   <Text
-                    className="text-xs text-gray-500"
+                    className="text-xs"
+                    style={{ color: theme.textSecondary }}
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
@@ -221,7 +228,10 @@ const MemoizedTransactionItem = memo<TransactionItemProps>(
                   {transaction.type === "expense" ? "-" : "+"}$
                   {Math.abs(transaction.amount).toFixed(2)}
                 </Text>
-                <Text className="text-xs text-gray-500">
+                <Text
+                  className="text-xs"
+                  style={{ color: theme.textMuted }}
+                >
                   {formatDistanceToNow(new Date(transaction.created_at), {
                     addSuffix: true,
                   })}
