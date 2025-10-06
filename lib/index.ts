@@ -20,8 +20,8 @@ export {
 } from "./services/analytics";
 export * from "./services/loans";
 
-// API services
-export * from "./services/api";
+// Local reports services
+export * from "./services/localReports";
 
 // Generators
 export * from "./generators/pdfGenerator";
