@@ -25,7 +25,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
         height: 75,
         backgroundColor: theme.cardBackground,
         borderTopWidth: 1,
-        borderTopColor: theme.border,
+        borderTopColor: theme.isDark ? "#475569" : "#e2e8f0",
         paddingHorizontal: 8,
         paddingTop: 8,
         paddingBottom: 8,
@@ -79,8 +79,6 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
                 justifyContent: "center",
                 paddingVertical: 6,
                 paddingHorizontal: 16,
-                borderRadius: 16,
-                backgroundColor: isActive ? `${theme.primary}15` : "transparent",
               }}
             >
               <Icon

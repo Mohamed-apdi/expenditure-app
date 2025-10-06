@@ -303,6 +303,9 @@ const AddAccount = ({
             >
               <View
                 style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                   padding: 24,
                   borderBottomWidth: 1,
                   borderBottomColor: theme.border,
@@ -317,6 +320,9 @@ const AddAccount = ({
                 >
                   {t.selectGroup}
                 </Text>
+                <TouchableOpacity onPress={() => setShowGroupModal(false)}>
+                  <X size={24} color={theme.textMuted} />
+                </TouchableOpacity>
               </View>
               <FlatList
                 data={accountGroups}

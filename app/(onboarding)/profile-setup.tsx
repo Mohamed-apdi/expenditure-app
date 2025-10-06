@@ -10,6 +10,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   Image,
+  StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -21,7 +22,6 @@ import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
 import { supabase } from "~/lib";
 import { createProfile, updateProfile } from "~/lib";
-import { StatusBar } from "expo-status-bar";
 
 interface FormData {
   phone: string;
@@ -259,7 +259,10 @@ export default function ProfileSetupScreen() {
 
   return (
     <>
-      <StatusBar style="auto" />
+      <StatusBar
+        barStyle={theme.isDark ? "light-content" : "dark-content"}
+        backgroundColor={theme.background}
+      />
       <SafeAreaView
         className="flex-1"
         style={{ backgroundColor: theme.background }}

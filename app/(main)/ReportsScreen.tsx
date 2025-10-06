@@ -9,28 +9,28 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
+  StatusBar,
 } from "react-native";
 import {
   Calendar,
-  BarChart2,
-  PieChart,
   Filter,
-  Download,
-  FileText,
-  TrendingUp,
-  X,
   Wallet,
+  X,
+  FileText,
 } from "lucide-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   BarChart,
   PieChart as ChartKitPieChart,
-  LineChart,
 } from "react-native-chart-kit";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAccount } from "~/lib";
 import {
   getTransactionReports,
+  getAccountReports,
+  getBudgetReports,
+  getGoalReports,
+  getSubscriptionReports,
   downloadReport,
   generateLocalPDFReport,
   generateLocalCSVReport,
@@ -38,7 +38,12 @@ import {
   formatPercentage,
   formatDate,
   testAPIConnectivity,
+  debugUserData,
   type TransactionReport,
+  type AccountReport,
+  type BudgetReport,
+  type GoalReport,
+  type SubscriptionReport,
 } from "~/lib";
 import { getCategoryColor, getColorByIndex } from "~/lib";
 // import { sharePDF } from "~/lib/pdfGenerator";
@@ -52,11 +57,13 @@ export default function ReportsScreen() {
   const { t } = useLanguage();
   const { selectedAccount, accounts } = useAccount();
 
-  // Set default date range to today for both dates
+  // Set default date range to last 30 days
   const getDefaultDateRange = () => {
     const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
     return {
-      startDate: today,
+      startDate: thirtyDaysAgo,
       endDate: today,
     };
   };
@@ -72,18 +79,20 @@ export default function ReportsScreen() {
   const [loading, setLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState<
+    "transactions" | "accounts" | "budgets" | "goals" | "subscriptions"
+  >("transactions");
+
   // Report data states
   const [transactionData, setTransactionData] =
     useState<TransactionReport | null>(null);
+  const [accountData, setAccountData] = useState<AccountReport | null>(null);
+  const [budgetData, setBudgetData] = useState<BudgetReport | null>(null);
+  const [goalData, setGoalData] = useState<GoalReport | null>(null);
+  const [subscriptionData, setSubscriptionData] =
+    useState<SubscriptionReport | null>(null);
 
-  // Pie chart interaction states
-  const [selectedSegment, setSelectedSegment] = useState<{
-    name: string;
-    value: number;
-    color: string;
-    percentage: number;
-  } | null>(null);
-  const [segmentModalVisible, setSegmentModalVisible] = useState(false);
 
   // Helper functions for data aggregation (moved before useMemo to prevent hoisting issues)
   const aggregateByWeek = (dailyData: any[]) => {
@@ -221,32 +230,47 @@ export default function ReportsScreen() {
 
   const fetchTransactionReports = useCallback(async () => {
     if (!selectedAccount) {
-      console.log("No selected account, skipping fetch");
+      console.log("❌ No selected account, skipping fetch");
       return;
     }
 
     try {
       setLoading(true);
-      console.log(
-        "Fetching transaction reports for account:",
-        selectedAccount?.id,
-        "Date range:",
-        dateRange.startDate.toISOString().split("T")[0],
-        "to",
-        dateRange.endDate.toISOString().split("T")[0]
-      );
+      const startDateStr = dateRange.startDate.toISOString().split("T")[0];
+      const endDateStr = dateRange.endDate.toISOString().split("T")[0];
+
+      console.log("🚀 Fetching transaction reports:");
+      console.log("   📋 Account ID:", selectedAccount?.id);
+      console.log("   📋 Account Name:", selectedAccount?.name);
+      console.log("   📅 Date range:", startDateStr, "to", endDateStr);
 
       const data = await getTransactionReports(
         selectedAccount?.id,
-        dateRange.startDate.toISOString().split("T")[0],
-        dateRange.endDate.toISOString().split("T")[0]
+        startDateStr,
+        endDateStr
       );
 
-      console.log("Transaction reports data received:", data);
+      console.log("✅ Transaction reports data received:", data);
+
+      // Debug the received data
+      if (data) {
+        console.log("📊 Data summary:", data.summary);
+        console.log("📊 Categories:", Object.keys(data.category_breakdown || {}));
+        console.log("📊 Transactions count:", data.transactions?.length || 0);
+        console.log("📊 Daily trends count:", data.daily_trends?.length || 0);
+
+        if (data.summary?.total_transactions === 0) {
+          console.warn("⚠️ API returned 0 transactions - checking if this is correct");
+          console.log("📋 Full API response:", JSON.stringify(data, null, 2));
+        }
+      } else {
+        console.error("❌ No data received from API");
+      }
+
       setTransactionData(data);
       setIsInitialLoad(false);
     } catch (error) {
-      console.error("Error fetching transaction reports:", error);
+      console.error("❌ Error fetching transaction reports:", error);
       const errorMessage =
         error instanceof Error ? error.message : t.unknownError;
       Alert.alert(
@@ -257,23 +281,170 @@ export default function ReportsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [selectedAccount, dateRange.startDate, dateRange.endDate]);
+  }, [selectedAccount, dateRange.startDate, dateRange.endDate, t]);
 
-  // Optimized initial data loading - only test API once per session
-  useEffect(() => {
-    if (selectedAccount && isInitialLoad) {
-      console.log("Loading initial data with default dates...");
-      fetchTransactionReports();
+  const fetchAccountReports = useCallback(async () => {
+    if (!selectedAccount) {
+      console.log("No selected account, skipping fetch");
+      return;
     }
-  }, [selectedAccount, isInitialLoad, fetchTransactionReports]);
 
-  // Refresh transaction data only when date range changes (triggered by submit)
+    try {
+      setLoading(true);
+      console.log("Fetching account reports for account:", selectedAccount?.id);
+
+      const data = await getAccountReports(selectedAccount?.id);
+
+      console.log("Account reports data received:", data);
+      setAccountData(data);
+      setIsInitialLoad(false);
+    } catch (error) {
+      console.error("Error fetching account reports:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : t.unknownError;
+      Alert.alert(
+        t.error,
+        t.failedToFetchReports.replace("{errorMessage}", errorMessage)
+      );
+      setAccountData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedAccount, t]);
+
+  const fetchBudgetReports = useCallback(async () => {
+    if (!selectedAccount) {
+      console.log("No selected account, skipping fetch");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log("Fetching budget reports for account:", selectedAccount?.id);
+
+      const data = await getBudgetReports(
+        dateRange.startDate.toISOString().split("T")[0],
+        dateRange.endDate.toISOString().split("T")[0],
+        selectedAccount?.id
+      );
+
+      console.log("Budget reports data received:", data);
+      setBudgetData(data);
+      setIsInitialLoad(false);
+    } catch (error) {
+      console.error("Error fetching budget reports:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : t.unknownError;
+      Alert.alert(
+        t.error,
+        t.failedToFetchReports.replace("{errorMessage}", errorMessage)
+      );
+      setBudgetData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedAccount, dateRange.startDate, dateRange.endDate, t]);
+
+  const fetchGoalReports = useCallback(async () => {
+    try {
+      setLoading(true);
+      console.log("Fetching goal reports");
+
+      const data = await getGoalReports();
+
+      console.log("Goal reports data received:", data);
+      setGoalData(data);
+      setIsInitialLoad(false);
+    } catch (error) {
+      console.error("Error fetching goal reports:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : t.unknownError;
+      Alert.alert(
+        t.error,
+        t.failedToFetchReports.replace("{errorMessage}", errorMessage)
+      );
+      setGoalData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  const fetchSubscriptionReports = useCallback(async () => {
+    if (!selectedAccount) {
+      console.log("No selected account, skipping fetch");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log("Fetching subscription reports for account:", selectedAccount?.id);
+
+      const data = await getSubscriptionReports(selectedAccount?.id);
+
+      console.log("Subscription reports data received:", data);
+      setSubscriptionData(data);
+      setIsInitialLoad(false);
+    } catch (error) {
+      console.error("Error fetching subscription reports:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : t.unknownError;
+      Alert.alert(
+        t.error,
+        t.failedToFetchReports.replace("{errorMessage}", errorMessage)
+      );
+      setSubscriptionData(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedAccount, t]);
+
+  // Unified fetch function based on active tab
+  const fetchReports = useCallback(() => {
+    switch (activeTab) {
+      case "transactions":
+        fetchTransactionReports();
+        break;
+      case "accounts":
+        fetchAccountReports();
+        break;
+      case "budgets":
+        fetchBudgetReports();
+        break;
+      case "goals":
+        fetchGoalReports();
+        break;
+      case "subscriptions":
+        fetchSubscriptionReports();
+        break;
+    }
+  }, [
+    activeTab,
+    fetchTransactionReports,
+    fetchAccountReports,
+    fetchBudgetReports,
+    fetchGoalReports,
+    fetchSubscriptionReports,
+  ]);
+
+  // Fetch data when tab changes or account changes
   useEffect(() => {
-    if (selectedAccount && dateRange && !isInitialLoad) {
+    if (selectedAccount || activeTab === "goals") {
+      console.log("Fetching data for tab:", activeTab);
+      fetchReports();
+    }
+  }, [activeTab, selectedAccount, fetchReports]);
+
+  // Refresh data when date range changes (triggered by submit) for date-dependent tabs
+  useEffect(() => {
+    if (
+      (selectedAccount || activeTab === "goals") &&
+      !isInitialLoad &&
+      (activeTab === "transactions" || activeTab === "budgets")
+    ) {
       console.log("Date range changed via submit, refreshing data...");
-      fetchTransactionReports();
+      fetchReports();
     }
-  }, [dateRange, selectedAccount, fetchTransactionReports, isInitialLoad]);
+  }, [dateRange, selectedAccount, activeTab, fetchReports, isInitialLoad]);
 
   const handleDownload = async (format: "csv" | "pdf") => {
     try {
@@ -414,22 +585,42 @@ export default function ReportsScreen() {
     setDatePickerVisible(true);
   }, []);
 
-  // Function to handle pie chart segment selection
-  const handleSegmentPress = (segment: any) => {
-    const total = Object.values(
-      transactionData?.category_breakdown || {}
-    ).reduce((sum: number, item: any) => sum + Math.abs(item.amount), 0);
-    const percentage =
-      total > 0 ? (Math.abs(segment.population) / total) * 100 : 0;
+  // Debug function to check user data
+  const debugUserDataFunction = useCallback(async () => {
+    try {
+      const token = await import("expo-secure-store").then(m => m.getItemAsync("supabase_session"));
+      if (!token) {
+        Alert.alert("Debug Error", "No authentication token found");
+        return;
+      }
 
-    setSelectedSegment({
-      name: segment.name,
-      value: segment.population,
-      color: segment.color,
-      percentage: percentage,
-    });
-    setSegmentModalVisible(true);
-  };
+      const sessionData = JSON.parse(token);
+      const userId = sessionData.user?.id;
+
+      if (!userId) {
+        Alert.alert("Debug Error", "No user ID found in token");
+        return;
+      }
+
+      console.log("🔍 Debug: Checking user data for user:", userId);
+      const debugData = await debugUserData(userId);
+
+      Alert.alert(
+        "Debug Data",
+        `User: ${userId}\nExpenses: ${debugData.total_expenses}\nAccounts: ${debugData.total_accounts}\nAccount IDs: ${debugData.account_ids.join(", ")}`,
+        [
+          { text: "OK" },
+          {
+            text: "Log Details",
+            onPress: () => console.log("🔍 Full debug data:", debugData)
+          }
+        ]
+      );
+    } catch (error) {
+      console.error("Debug error:", error);
+      Alert.alert("Debug Error", error instanceof Error ? error.message : "Unknown error");
+    }
+  }, []);
 
   const renderTransactionTab = () => {
     if (!selectedAccount) {
@@ -475,6 +666,37 @@ export default function ReportsScreen() {
       );
     }
 
+    // Check if there's no data for the selected period
+    if (transactionData.summary.total_transactions === 0) {
+      return (
+        <View className="flex-1 justify-center items-center p-8">
+          <FileText size={48} color={theme.textMuted} />
+          <Text
+            style={{
+              color: theme.text,
+              fontSize: 18,
+              fontWeight: "600",
+              marginTop: 16,
+              textAlign: "center",
+            }}
+          >
+            No Transactions Found
+          </Text>
+          <Text
+            style={{
+              color: theme.textSecondary,
+              fontSize: 14,
+              marginTop: 8,
+              textAlign: "center",
+              paddingHorizontal: 32,
+            }}
+          >
+            There are no transactions for the selected date range. Try expanding your date range or add some transactions.
+          </Text>
+        </View>
+      );
+    }
+
     if (!processedChartData || !barChartData) {
       return (
         <View className="flex-1 justify-center items-center p-8">
@@ -488,247 +710,92 @@ export default function ReportsScreen() {
     return (
       <ScrollView className="flex-1">
         {/* Summary Cards */}
-        <View className="mb-4">
-          {/* First Row - Net Amount */}
-          <View className="flex-row justify-between mb-3">
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: theme.cardBackground,
-                padding: 16,
-                borderRadius: 12,
-                marginRight: 8,
-                shadowColor: theme.border,
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 2,
-                elevation: 1,
-              }}
-            >
-              <Text
-                style={{
-                  color: theme.primary,
-                  fontSize: 14,
-                  fontWeight: "500",
-                }}
-              >
-                {t.netAmount}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+            marginBottom: 16,
+          }}
+        >
+          <View className="flex-row justify-between items-center mb-3">
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+                {t.income}
               </Text>
-              <Text
-                style={{
-                  fontSize: 24,
-                  fontWeight: "bold",
-                  color:
-                    transactionData.summary.total_amount >= 0
-                      ? "#059669"
-                      : "#dc2626",
-                }}
-              >
-                {formatCurrency(transactionData.summary.total_amount)}
-              </Text>
-              <Text
-                style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}
-              >
-                {t.incomeExpenses}
+              <Text style={{ fontSize: 18, fontWeight: "600", color: "#059669", marginTop: 2 }}>
+                {formatCurrency(transactionData.summary.total_income)}
               </Text>
             </View>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: theme.cardBackground,
-                padding: 16,
-                borderRadius: 12,
-                marginLeft: 8,
-                shadowColor: theme.border,
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 2,
-                elevation: 1,
-              }}
-            >
-              <Text
-                style={{ color: "#8b5cf6", fontSize: 14, fontWeight: "500" }}
-              >
-                {t.transactions}
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+                {t.expenses}
               </Text>
-              <Text
-                style={{ fontSize: 24, fontWeight: "bold", color: "#7c3aed" }}
-              >
-                {transactionData.summary.total_transactions}
+              <Text style={{ fontSize: 18, fontWeight: "600", color: "#dc2626", marginTop: 2 }}>
+                {formatCurrency(transactionData.summary.total_expenses)}
               </Text>
             </View>
           </View>
-
-          {/* Second Row - Income and Expenses */}
-          <View className="flex-row justify-between">
-            <View
+          <View
+            style={{
+              borderTopWidth: 1,
+              borderTopColor: theme.border,
+              paddingTop: 12,
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ color: theme.text, fontSize: 14, fontWeight: "500" }}>
+              {t.netAmount}
+            </Text>
+            <Text
               style={{
-                flex: 1,
-                backgroundColor: theme.cardBackground,
-                padding: 16,
-                borderRadius: 12,
-                marginRight: 8,
-                shadowColor: theme.border,
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 2,
-                elevation: 1,
+                fontSize: 20,
+                fontWeight: "bold",
+                color:
+                  transactionData.summary.total_amount >= 0
+                    ? "#059669"
+                    : "#dc2626",
               }}
             >
-              <Text
-                style={{ color: "#059669", fontSize: 14, fontWeight: "500" }}
-              >
-                {t.income}
-              </Text>
-              <Text
-                style={{ fontSize: 20, fontWeight: "bold", color: "#047857" }}
-              >
-                +{formatCurrency(transactionData.summary.total_income)}
-              </Text>
-            </View>
-            <View
-              style={{
-                flex: 1,
-                backgroundColor: theme.cardBackground,
-                padding: 16,
-                borderRadius: 12,
-                marginLeft: 8,
-                shadowColor: theme.border,
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 2,
-                elevation: 1,
-              }}
-            >
-              <Text
-                style={{ color: "#dc2626", fontSize: 14, fontWeight: "500" }}
-              >
-                {t.expenses}
-              </Text>
-              <Text
-                style={{ fontSize: 20, fontWeight: "bold", color: "#b91c1c" }}
-              >
-                -{formatCurrency(transactionData.summary.total_expenses)}
-              </Text>
-            </View>
+              {formatCurrency(transactionData.summary.total_amount)}
+            </Text>
           </View>
         </View>
 
         {/* Category Breakdown Pie Chart */}
         <View
           style={{
-            marginBottom: 24,
+            marginBottom: 16,
             backgroundColor: theme.cardBackground,
             padding: 16,
             borderRadius: 12,
-            shadowColor: theme.border,
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.05,
-            shadowRadius: 2,
-            elevation: 1,
           }}
         >
-          <View className="flex-row justify-between items-center mb-4">
-            <Text
-              style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}
-            >
-              {t.spendingByCategory}
-            </Text>
-            <PieChart size={20} color="#8b5cf6" />
-          </View>
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
+            {t.spendingByCategory}
+          </Text>
           {pieChartData.length > 0 ? (
             <>
-              <TouchableOpacity
-                onPress={() => {
-                  // Show general chart info when tapping the chart area
-                  const total = pieChartData.reduce(
-                    (sum, item) => sum + item.population,
-                    0
-                  );
-                  setSelectedSegment({
-                    name: t.allCategories,
-                    value: total,
-                    color: "#8b5cf6",
-                    percentage: 100,
-                  });
-                  setSegmentModalVisible(true);
-                }}
-                activeOpacity={0.8}
-              >
-                <View
-                  style={{
-                    width: "100%",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    paddingHorizontal: 0,
+              <View style={{ alignItems: "center", marginBottom: 16 }}>
+                <ChartKitPieChart
+                  data={pieChartData}
+                  width={screenWidth - 64}
+                  height={200}
+                  chartConfig={{
+                    backgroundColor: theme.cardBackground,
+                    backgroundGradientFrom: theme.cardBackground,
+                    backgroundGradientTo: theme.cardBackground,
+                    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
                   }}
-                >
-                  <ChartKitPieChart
-                    data={pieChartData}
-                    width={screenWidth - 80}
-                    height={220}
-                    chartConfig={{
-                      backgroundColor: theme.cardBackground,
-                      backgroundGradientFrom: theme.cardBackground,
-                      backgroundGradientTo: theme.cardBackground,
-                      color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                    }}
-                    accessor="population"
-                    backgroundColor="transparent"
-                    paddingLeft="80"
-                    absolute
-                    hasLegend={false}
-                    center={[0, 0]}
-                    style={{
-                      alignSelf: "center",
-                      marginLeft: "auto",
-                      marginRight: "auto",
-                    }}
-                  />
-                </View>
-              </TouchableOpacity>
-
-              {/* Interactive Legend */}
-              <View className="mt-4">
-                <Text
-                  style={{
-                    color: theme.textSecondary,
-                    fontSize: 14,
-                    fontWeight: "600",
-                    marginBottom: 8,
-                  }}
-                >
-                  {t.tapCategoryForDetails}
-                </Text>
-                <View className="flex-row flex-wrap">
-                  {pieChartData.map((segment, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      onPress={() => handleSegmentPress(segment)}
-                      className="flex-row items-center mr-4 mb-2 p-2 rounded-lg"
-                      style={{
-                        backgroundColor: theme.background,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <View
-                        className="w-3 h-3 rounded-full mr-2"
-                        style={{ backgroundColor: segment.color }}
-                      />
-                      <Text
-                        style={{
-                          color: theme.text,
-                          fontSize: 14,
-                          fontWeight: "500",
-                        }}
-                      >
-                        {segment.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                  accessor="population"
+                  backgroundColor="transparent"
+                  paddingLeft="15"
+                  absolute
+                  hasLegend={true}
+                  center={[10, 0]}
+                />
               </View>
             </>
           ) : (
@@ -736,7 +803,7 @@ export default function ReportsScreen() {
               style={{
                 color: theme.textSecondary,
                 textAlign: "center",
-                paddingVertical: 32,
+                paddingVertical: 24,
               }}
             >
               {t.noDataAvailable}
@@ -747,31 +814,22 @@ export default function ReportsScreen() {
         {/* Daily Trends Bar Chart */}
         <View
           style={{
-            marginBottom: 24,
+            marginBottom: 16,
             backgroundColor: theme.cardBackground,
             padding: 16,
             borderRadius: 12,
-            shadowColor: theme.border,
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.05,
-            shadowRadius: 2,
-            elevation: 1,
           }}
         >
-          <View className="flex-row justify-between items-center mb-4">
-            <Text
-              style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}
-            >
-              {processedChartData.chartTitle}
-            </Text>
-            <BarChart2 size={20} color="#6366f1" />
-          </View>
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
+            {processedChartData.chartTitle}
+          </Text>
           {barChartData.datasets[0].data.length > 0 ? (
             <BarChart
               data={barChartData}
-              width={screenWidth - 48}
-              height={220}
+              width={screenWidth - 64}
+              height={200}
               yAxisLabel="$"
+              yAxisSuffix=""
               chartConfig={{
                 backgroundColor: theme.cardBackground,
                 backgroundGradientFrom: theme.cardBackground,
@@ -779,49 +837,24 @@ export default function ReportsScreen() {
                 decimalPlaces: 0,
                 color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
                 labelColor: (opacity = 1) => `rgba(156, 163, 175, ${opacity})`,
-                style: { borderRadius: 16 },
+                style: { borderRadius: 12 },
                 barPercentage: 0.7,
-                fillShadowGradient: "#8b5cf6",
-                fillShadowGradientOpacity: 0.3,
                 propsForBackgroundLines: {
-                  strokeDasharray: "5,5",
                   stroke: theme.border,
                   strokeWidth: 1,
                 },
-                propsForLabels: {
-                  fontSize: 12,
-                  fontWeight: "500",
-                },
               }}
-              style={{ marginVertical: 8, borderRadius: 16 }}
+              style={{ marginVertical: 8 }}
             />
           ) : (
             <Text
               style={{
-                color: theme.text,
+                color: theme.textSecondary,
                 textAlign: "center",
-                paddingVertical: 32,
+                paddingVertical: 24,
               }}
             >
               {t.noTrendDataAvailable}
-            </Text>
-          )}
-
-          {processedChartData.showingLimited && (
-            <Text
-              style={{
-                color: theme.textMuted,
-                fontSize: 12,
-                textAlign: "center",
-                marginTop: 8,
-              }}
-            >
-              {t.showingMostRecent
-                .replace("{max}", processedChartData.maxDataPoints.toString())
-                .replace(
-                  "{total}",
-                  processedChartData.chartData.length.toString()
-                )}
             </Text>
           )}
         </View>
@@ -829,20 +862,13 @@ export default function ReportsScreen() {
         {/* Category Breakdown Table */}
         <View
           style={{
-            marginBottom: 24,
+            marginBottom: 16,
             backgroundColor: theme.cardBackground,
             padding: 16,
             borderRadius: 12,
           }}
         >
-          <Text
-            style={{
-              color: theme.text,
-              fontSize: 18,
-              fontWeight: "bold",
-              marginBottom: 16,
-            }}
-          >
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
             {t.categoryBreakdown}
           </Text>
           {Object.entries(transactionData.category_breakdown).map(
@@ -853,24 +879,25 @@ export default function ReportsScreen() {
                   flexDirection: "row",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  paddingVertical: 12,
-                  borderBottomWidth: 1,
+                  paddingVertical: 10,
+                  borderBottomWidth:
+                    index < Object.keys(transactionData.category_breakdown).length - 1 ? 1 : 0,
                   borderBottomColor: theme.border,
                 }}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.text, fontWeight: "500" }}>
+                  <Text style={{ color: theme.text, fontWeight: "500", fontSize: 14 }}>
                     {category}
                   </Text>
-                  <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
+                  <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 2 }}>
                     {data.count} {t.transactionsCount}
                   </Text>
                 </View>
                 <View style={{ alignItems: "flex-end" }}>
-                  <Text style={{ color: theme.text, fontWeight: "bold" }}>
+                  <Text style={{ color: theme.text, fontWeight: "600", fontSize: 15 }}>
                     {formatCurrency(data.amount)}
                   </Text>
-                  <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
+                  <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 2 }}>
                     {formatPercentage(data.percentage)}
                   </Text>
                 </View>
@@ -882,148 +909,730 @@ export default function ReportsScreen() {
     );
   };
 
+  const renderAccountsTab = () => {
+    if (!selectedAccount) {
+      return (
+        <View className="flex-1 justify-center items-center p-8">
+          <Wallet size={48} color={theme.textMuted} />
+          <Text
+            style={{
+              color: theme.text,
+              fontSize: 18,
+              fontWeight: "600",
+              marginTop: 16,
+              textAlign: "center",
+            }}
+          >
+            {t.noAccountSelected}
+          </Text>
+        </View>
+      );
+    }
+
+    if (!accountData) {
+      return (
+        <View className="flex-1 justify-center items-center p-8">
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={{ color: theme.textSecondary, marginTop: 16 }}>
+            {t.loadingTransactionData.replace(
+              "{accountName}",
+              selectedAccount.name
+            )}
+          </Text>
+        </View>
+      );
+    }
+
+    // Check if there's no account data
+    if (accountData.accounts.length === 0) {
+      return (
+        <View className="flex-1 justify-center items-center p-8">
+          <Wallet size={48} color={theme.textMuted} />
+          <Text
+            style={{
+              color: theme.text,
+              fontSize: 18,
+              fontWeight: "600",
+              marginTop: 16,
+              textAlign: "center",
+            }}
+          >
+            No Account Data
+          </Text>
+          <Text
+            style={{
+              color: theme.textSecondary,
+              fontSize: 14,
+              marginTop: 8,
+              textAlign: "center",
+              paddingHorizontal: 32,
+            }}
+          >
+            Unable to load account information. Please try again later.
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <ScrollView className="flex-1">
+        {/* Summary Card */}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+            marginBottom: 16,
+          }}
+        >
+          <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+            Total Balance
+          </Text>
+          <Text
+            style={{
+              fontSize: 24,
+              fontWeight: "bold",
+              color: theme.text,
+              marginTop: 4,
+            }}
+          >
+            {formatCurrency(accountData.summary.total_balance)}
+          </Text>
+        </View>
+
+        {/* Account Details */}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+          }}
+        >
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
+            Account Details
+          </Text>
+          {accountData.accounts.map((account, index) => (
+            <View
+              key={account.id}
+              style={{
+                paddingVertical: 10,
+                borderBottomWidth:
+                  index < accountData.accounts.length - 1 ? 1 : 0,
+                borderBottomColor: theme.border,
+              }}
+            >
+              <View className="flex-row justify-between items-center">
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.text, fontWeight: "500", fontSize: 14 }}>
+                    {account.name}
+                  </Text>
+                  <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 2 }}>
+                    {account.type} • {account.transaction_count} transactions
+                  </Text>
+                </View>
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontWeight: "600",
+                    fontSize: 16,
+                  }}
+                >
+                  {formatCurrency(account.balance)}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    );
+  };
+
+  const renderBudgetsTab = () => {
+    if (!selectedAccount) {
+      return (
+        <View className="flex-1 justify-center items-center p-8">
+          <Wallet size={48} color={theme.textMuted} />
+          <Text
+            style={{
+              color: theme.text,
+              fontSize: 18,
+              fontWeight: "600",
+              marginTop: 16,
+              textAlign: "center",
+            }}
+          >
+            {t.noAccountSelected}
+          </Text>
+        </View>
+      );
+    }
+
+    if (!budgetData) {
+      return (
+        <View className="flex-1 justify-center items-center p-8">
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={{ color: theme.textSecondary, marginTop: 16 }}>
+            Loading budget data...
+          </Text>
+        </View>
+      );
+    }
+
+    // Check if there's no budget data
+    if (budgetData.budget_comparison.length === 0) {
+      return (
+        <View className="flex-1 justify-center items-center p-8">
+          <FileText size={48} color={theme.textMuted} />
+          <Text
+            style={{
+              color: theme.text,
+              fontSize: 18,
+              fontWeight: "600",
+              marginTop: 16,
+              textAlign: "center",
+            }}
+          >
+            No Budgets Found
+          </Text>
+          <Text
+            style={{
+              color: theme.textSecondary,
+              fontSize: 14,
+              marginTop: 8,
+              textAlign: "center",
+              paddingHorizontal: 32,
+            }}
+          >
+            You haven't set up any budgets yet. Create budgets to track your spending.
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <ScrollView className="flex-1">
+        {/* Summary Card */}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+            marginBottom: 16,
+          }}
+        >
+          <View className="flex-row justify-between items-center">
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+                Total Budget
+              </Text>
+              <Text style={{ fontSize: 18, fontWeight: "600", color: theme.text, marginTop: 2 }}>
+                {formatCurrency(budgetData.summary.total_budget)}
+              </Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+                Total Spent
+              </Text>
+              <Text style={{ fontSize: 18, fontWeight: "600", color: "#dc2626", marginTop: 2 }}>
+                {formatCurrency(budgetData.summary.total_spent)}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Budget Comparison */}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+          }}
+        >
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
+            Budget vs Actual
+          </Text>
+          {budgetData.budget_comparison.map((item, index) => (
+            <View
+              key={index}
+              style={{
+                paddingVertical: 10,
+                borderBottomWidth:
+                  index < budgetData.budget_comparison.length - 1 ? 1 : 0,
+                borderBottomColor: theme.border,
+              }}
+            >
+              <View className="flex-row justify-between items-center mb-2">
+                <Text style={{ color: theme.text, fontWeight: "500", fontSize: 14 }}>
+                  {item.category}
+                </Text>
+                <Text
+                  style={{
+                    color:
+                      item.status === "over"
+                        ? "#dc2626"
+                        : item.status === "near"
+                          ? "#f59e0b"
+                          : "#059669",
+                    fontWeight: "600",
+                    fontSize: 14,
+                  }}
+                >
+                  {formatPercentage(item.percentage)}
+                </Text>
+              </View>
+              <View
+                style={{
+                  height: 6,
+                  backgroundColor: theme.background,
+                  borderRadius: 3,
+                  overflow: "hidden",
+                }}
+              >
+                <View
+                  style={{
+                    height: "100%",
+                    width: `${Math.min(item.percentage, 100)}%`,
+                    backgroundColor:
+                      item.status === "over"
+                        ? "#dc2626"
+                        : item.status === "near"
+                          ? "#f59e0b"
+                          : "#059669",
+                  }}
+                />
+              </View>
+              <View className="flex-row justify-between mt-1">
+                <Text style={{ color: theme.textSecondary, fontSize: 12 }}>
+                  {formatCurrency(item.spent)} / {formatCurrency(item.budget)}
+                </Text>
+                <Text
+                  style={{
+                    color: item.remaining >= 0 ? "#059669" : "#dc2626",
+                    fontSize: 11,
+                  }}
+                >
+                  {formatCurrency(Math.abs(item.remaining))}{" "}
+                  {item.remaining >= 0 ? "left" : "over"}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    );
+  };
+
+  const renderGoalsTab = () => {
+    if (!goalData) {
+      return (
+        <View className="flex-1 justify-center items-center p-8">
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={{ color: theme.textSecondary, marginTop: 16 }}>
+            Loading goal data...
+          </Text>
+        </View>
+      );
+    }
+
+    // Check if there's no goal data
+    if (goalData.goals.length === 0) {
+      return (
+        <View className="flex-1 justify-center items-center p-8">
+          <FileText size={48} color={theme.textMuted} />
+          <Text
+            style={{
+              color: theme.text,
+              fontSize: 18,
+              fontWeight: "600",
+              marginTop: 16,
+              textAlign: "center",
+            }}
+          >
+            No Goals Set
+          </Text>
+          <Text
+            style={{
+              color: theme.textSecondary,
+              fontSize: 14,
+              marginTop: 8,
+              textAlign: "center",
+              paddingHorizontal: 32,
+            }}
+          >
+            You haven't created any financial goals yet. Set goals to track your savings progress.
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <ScrollView className="flex-1">
+        {/* Summary Card */}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+            marginBottom: 16,
+          }}
+        >
+          <View className="flex-row justify-between items-center">
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+                Total Target
+              </Text>
+              <Text style={{ fontSize: 18, fontWeight: "600", color: theme.text, marginTop: 2 }}>
+                {formatCurrency(goalData.summary.total_target)}
+              </Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+                Total Saved
+              </Text>
+              <Text style={{ fontSize: 18, fontWeight: "600", color: "#059669", marginTop: 2 }}>
+                {formatCurrency(goalData.summary.total_saved)}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Goals List */}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+          }}
+        >
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
+            Your Goals
+          </Text>
+          {goalData.goals.map((goal, index) => (
+            <View
+              key={goal.id}
+              style={{
+                paddingVertical: 10,
+                borderBottomWidth: index < goalData.goals.length - 1 ? 1 : 0,
+                borderBottomColor: theme.border,
+              }}
+            >
+              <View className="flex-row justify-between items-center mb-2">
+                <Text style={{ color: theme.text, fontWeight: "500", fontSize: 14 }}>
+                  {goal.name}
+                </Text>
+                <Text
+                  style={{
+                    color:
+                      goal.status === "completed"
+                        ? "#059669"
+                        : goal.status === "on_track"
+                          ? "#3b82f6"
+                          : "#f59e0b",
+                    fontWeight: "600",
+                    fontSize: 14,
+                  }}
+                >
+                  {formatPercentage(goal.percentage)}
+                </Text>
+              </View>
+              <View
+                style={{
+                  height: 6,
+                  backgroundColor: theme.background,
+                  borderRadius: 3,
+                  overflow: "hidden",
+                }}
+              >
+                <View
+                  style={{
+                    height: "100%",
+                    width: `${Math.min(goal.percentage, 100)}%`,
+                    backgroundColor:
+                      goal.status === "completed"
+                        ? "#059669"
+                        : goal.status === "on_track"
+                          ? "#3b82f6"
+                          : "#f59e0b",
+                  }}
+                />
+              </View>
+              <View className="flex-row justify-between mt-1">
+                <Text style={{ color: theme.textSecondary, fontSize: 12 }}>
+                  {formatCurrency(goal.current_amount)} / {formatCurrency(goal.target_amount)}
+                </Text>
+                {goal.days_remaining !== null && (
+                  <Text style={{ color: theme.textSecondary, fontSize: 11 }}>
+                    {goal.days_remaining} days left
+                  </Text>
+                )}
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    );
+  };
+
+  const renderSubscriptionsTab = () => {
+    if (!selectedAccount) {
+      return (
+        <View className="flex-1 justify-center items-center p-8">
+          <Wallet size={48} color={theme.textMuted} />
+          <Text
+            style={{
+              color: theme.text,
+              fontSize: 18,
+              fontWeight: "600",
+              marginTop: 16,
+              textAlign: "center",
+            }}
+          >
+            {t.noAccountSelected}
+          </Text>
+        </View>
+      );
+    }
+
+    if (!subscriptionData) {
+      return (
+        <View className="flex-1 justify-center items-center p-8">
+          <ActivityIndicator size="large" color={theme.primary} />
+          <Text style={{ color: theme.textSecondary, marginTop: 16 }}>
+            Loading subscription data...
+          </Text>
+        </View>
+      );
+    }
+
+    // Check if there's no subscription data
+    if (subscriptionData.subscriptions.length === 0) {
+      return (
+        <View className="flex-1 justify-center items-center p-8">
+          <FileText size={48} color={theme.textMuted} />
+          <Text
+            style={{
+              color: theme.text,
+              fontSize: 18,
+              fontWeight: "600",
+              marginTop: 16,
+              textAlign: "center",
+            }}
+          >
+            No Subscriptions Found
+          </Text>
+          <Text
+            style={{
+              color: theme.textSecondary,
+              fontSize: 14,
+              marginTop: 8,
+              textAlign: "center",
+              paddingHorizontal: 32,
+            }}
+          >
+            You don't have any active subscriptions. Add subscriptions to track recurring costs.
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <ScrollView className="flex-1">
+        {/* Summary Card */}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+            marginBottom: 16,
+          }}
+        >
+          <View className="flex-row justify-between items-center">
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+                Monthly Cost
+              </Text>
+              <Text style={{ fontSize: 18, fontWeight: "600", color: theme.text, marginTop: 2 }}>
+                {formatCurrency(subscriptionData.summary.monthly_cost)}
+              </Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+                Active Count
+              </Text>
+              <Text style={{ fontSize: 18, fontWeight: "600", color: theme.primary, marginTop: 2 }}>
+                {subscriptionData.summary.active_subscriptions}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Subscriptions List */}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+          }}
+        >
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
+            Active Subscriptions
+          </Text>
+          {subscriptionData.subscriptions.map((sub, index) => (
+            <View
+              key={sub.id}
+              style={{
+                paddingVertical: 10,
+                borderBottomWidth:
+                  index < subscriptionData.subscriptions.length - 1 ? 1 : 0,
+                borderBottomColor: theme.border,
+              }}
+            >
+              <View className="flex-row justify-between items-center">
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.text, fontWeight: "500", fontSize: 14 }}>
+                    {sub.name}
+                  </Text>
+                  <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 2 }}>
+                    {sub.billing_cycle} • {sub.category}
+                  </Text>
+                </View>
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontWeight: "600",
+                      fontSize: 15,
+                    }}
+                  >
+                    {formatCurrency(sub.cost)}
+                  </Text>
+                  <Text style={{ color: theme.textSecondary, fontSize: 11 }}>
+                    {formatCurrency(sub.monthly_equivalent)}/mo
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    );
+  };
+
+  const renderActiveTab = () => {
+    switch (activeTab) {
+      case "transactions":
+        return renderTransactionTab();
+      case "accounts":
+        return renderAccountsTab();
+      case "budgets":
+        return renderBudgetsTab();
+      case "goals":
+        return renderGoalsTab();
+      case "subscriptions":
+        return renderSubscriptionsTab();
+      default:
+        return renderTransactionTab();
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+      <StatusBar
+        barStyle={theme.isDark ? "light-content" : "dark-content"}
+        backgroundColor={theme.background}
+        translucent={false}
+      />
       <View className="flex-1">
         {/* Header */}
         <View
           style={{
-            backgroundColor: theme.cardBackground,
             padding: 16,
             borderBottomWidth: 1,
             borderBottomColor: theme.border,
           }}
         >
-          <View className="flex-row justify-between items-center mb-4">
-            <View>
-              <Text
-                style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}
-              >
-                {t.transactionReports}
+          <View className="flex-row justify-between items-center">
+            <Text style={{ color: theme.text, fontSize: 20, fontWeight: "600" }}>
+              {t.transactionReports}
+            </Text>
+            <TouchableOpacity
+              style={{
+                backgroundColor: theme.primary,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 6,
+              }}
+              onPress={debugUserDataFunction}
+            >
+              <Text style={{ color: "white", fontSize: 12, fontWeight: "500" }}>
+                Debug
               </Text>
-              {selectedAccount && (
-                <Text
-                  style={{
-                    color: theme.textSecondary,
-                    fontSize: 14,
-                    marginTop: 4,
-                  }}
-                >
-                  {t.showingDataFor} {selectedAccount.name}
-                </Text>
-              )}
-              {!selectedAccount && (
-                <Text style={{ color: "#d97706", fontSize: 14, marginTop: 4 }}>
-                  {t.pleaseSelectAccountWarning}
-                </Text>
-              )}
-            </View>
-            <View className="flex-row gap-2">
-              <TouchableOpacity
-                style={{
-                  backgroundColor: "#3b82f6",
-                  padding: 8,
-                  borderRadius: 8,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.05,
-                  shadowRadius: 2,
-                  elevation: 1,
-                }}
-                onPress={() => handleDownload("csv")}
-                disabled={loading}
-              >
-                <Download size={18} color="white" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{
-                  backgroundColor: "#10b981",
-                  padding: 8,
-                  borderRadius: 8,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 1 },
-                  shadowOpacity: 0.05,
-                  shadowRadius: 2,
-                  elevation: 1,
-                }}
-                onPress={() => handleDownload("pdf")}
-                disabled={loading}
-              >
-                <Download size={18} color="white" />
-              </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
           </View>
 
           {/* Date Range Picker */}
-          <View className="gap-2">
-            <View className="flex-row justify-between items-center gap-2">
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  backgroundColor: theme.background,
-                  padding: 12,
-                  borderRadius: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  marginRight: 8,
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                }}
-                onPress={() => openDatePicker("start")}
-                disabled={loading}
-              >
-                <Calendar size={14} color="#3b82f6" />
-                <Text
-                  style={{
-                    marginLeft: 8,
-                    color: "#1d4ed8",
-                    fontSize: 14,
-                    fontWeight: "500",
-                  }}
-                >
-                  {t.from}:{" "}
-                  {formatDate(pendingDateRange.startDate.toISOString())}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  backgroundColor: theme.background,
-                  padding: 12,
-                  borderRadius: 8,
-                  flexDirection: "row",
-                  alignItems: "center",
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                }}
-                onPress={() => openDatePicker("end")}
-                disabled={loading}
-              >
-                <Calendar size={14} color="#8b5cf6" />
-                <Text
-                  style={{
-                    marginLeft: 8,
-                    color: "#7c3aed",
-                    fontSize: 14,
-                    fontWeight: "500",
-                  }}
-                >
-                  {t.to}: {formatDate(pendingDateRange.endDate.toISOString())}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Submit Button */}
+          <View className="flex-row gap-2 mt-3">
             <TouchableOpacity
               style={{
-                backgroundColor: "#10b981",
-                padding: 12,
+                flex: 1,
+                backgroundColor: theme.background,
+                padding: 10,
                 borderRadius: 8,
                 flexDirection: "row",
                 alignItems: "center",
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+              onPress={() => openDatePicker("start")}
+              disabled={loading}
+            >
+              <Calendar size={16} color={theme.primary} />
+              <Text
+                style={{
+                  marginLeft: 6,
+                  color: theme.text,
+                  fontSize: 13,
+                  flex: 1,
+                }}
+              >
+                {formatDate(pendingDateRange.startDate.toISOString())}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                backgroundColor: theme.background,
+                padding: 10,
+                borderRadius: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+              onPress={() => openDatePicker("end")}
+              disabled={loading}
+            >
+              <Calendar size={16} color={theme.primary} />
+              <Text
+                style={{
+                  marginLeft: 6,
+                  color: theme.text,
+                  fontSize: 13,
+                  flex: 1,
+                }}
+              >
+                {formatDate(pendingDateRange.endDate.toISOString())}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={{
+                backgroundColor: theme.primary,
+                padding: 10,
+                borderRadius: 8,
                 justifyContent: "center",
-                opacity: loading ? 0.6 : 1,
+                alignItems: "center",
               }}
               onPress={handleSubmitDateRange}
               disabled={loading}
@@ -1031,37 +1640,130 @@ export default function ReportsScreen() {
               {loading ? (
                 <ActivityIndicator size="small" color="white" />
               ) : (
-                <Filter size={16} color="white" />
+                <Filter size={18} color="white" />
               )}
-              <Text
-                style={{ marginLeft: 8, color: "white", fontWeight: "600" }}
-              >
-                {loading ? t.loading : t.applyDateRange}
-              </Text>
             </TouchableOpacity>
-
-            {/* Current active date range indicator */}
-            <View
-              style={{
-                backgroundColor: theme.background,
-                padding: 8,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: theme.border,
-              }}
-            >
-              <Text
-                style={{
-                  color: theme.textSecondary,
-                  fontSize: 12,
-                  textAlign: "center",
-                }}
-              >
-                {t.showingData} {formatDate(dateRange.startDate.toISOString())}{" "}
-                - {formatDate(dateRange.endDate.toISOString())}
-              </Text>
-            </View>
           </View>
+        </View>
+
+        {/* Tab Navigation */}
+        <View
+          style={{
+            backgroundColor: theme.background,
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border,
+          }}
+        >
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View className="flex-row gap-2">
+              <TouchableOpacity
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 16,
+                  backgroundColor:
+                    activeTab === "transactions" ? theme.primary : theme.background,
+                }}
+                onPress={() => setActiveTab("transactions")}
+              >
+                <Text
+                  style={{
+                    color: activeTab === "transactions" ? "white" : theme.text,
+                    fontWeight: "500",
+                    fontSize: 14,
+                  }}
+                >
+                  Transactions
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 16,
+                  backgroundColor:
+                    activeTab === "subscriptions" ? theme.primary : theme.background,
+                }}
+                onPress={() => setActiveTab("subscriptions")}
+              >
+                <Text
+                  style={{
+                    color: activeTab === "subscriptions" ? "white" : theme.text,
+                    fontWeight: "500",
+                    fontSize: 14,
+                  }}
+                >
+                  Subscriptions
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 16,
+                  backgroundColor:
+                    activeTab === "budgets" ? theme.primary : theme.background,
+                }}
+                onPress={() => setActiveTab("budgets")}
+              >
+                <Text
+                  style={{
+                    color: activeTab === "budgets" ? "white" : theme.text,
+                    fontWeight: "500",
+                    fontSize: 14,
+                  }}
+                >
+                  Budgets
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 16,
+                  backgroundColor:
+                    activeTab === "goals" ? theme.primary : theme.background,
+                }}
+                onPress={() => setActiveTab("goals")}
+              >
+                <Text
+                  style={{
+                    color: activeTab === "goals" ? "white" : theme.text,
+                    fontWeight: "500",
+                    fontSize: 14,
+                  }}
+                >
+                  Goals
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 16,
+                  backgroundColor:
+                    activeTab === "accounts" ? theme.primary : theme.background,
+                }}
+                onPress={() => setActiveTab("accounts")}
+              >
+                <Text
+                  style={{
+                    color: activeTab === "accounts" ? "white" : theme.text,
+                    fontWeight: "500",
+                    fontSize: 14,
+                  }}
+                >
+                  Accounts
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </View>
 
         {/* Content */}
@@ -1074,7 +1776,7 @@ export default function ReportsScreen() {
               </Text>
             </View>
           ) : (
-            renderTransactionTab()
+            renderActiveTab()
           )}
         </View>
 
@@ -1189,185 +1891,6 @@ export default function ReportsScreen() {
           </>
         )}
 
-        {/* Segment Details Modal */}
-        {selectedSegment && (
-          <Modal
-            transparent={true}
-            animationType="fade"
-            visible={segmentModalVisible}
-            onRequestClose={() => setSegmentModalVisible(false)}
-          >
-            <View
-              style={{
-                flex: 1,
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: "rgba(0, 0, 0, 0.5)",
-              }}
-            >
-              <View
-                style={{
-                  backgroundColor: theme.cardBackground,
-                  borderRadius: 16,
-                  padding: 24,
-                  marginHorizontal: 32,
-                  minWidth: 280,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: 0.25,
-                  shadowRadius: 8,
-                  elevation: 8,
-                }}
-              >
-                {/* Header with category color */}
-                <View className="flex-row items-center mb-4">
-                  <View
-                    className="w-6 h-6 rounded-full mr-3"
-                    style={{ backgroundColor: selectedSegment.color }}
-                  />
-                  <Text
-                    style={{
-                      color: theme.text,
-                      fontSize: 20,
-                      fontWeight: "bold",
-                      flex: 1,
-                    }}
-                  >
-                    {selectedSegment.name}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setSegmentModalVisible(false)}
-                    className="p-1"
-                  >
-                    <X size={20} color={theme.textMuted} />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Amount and percentage */}
-                <View className="mb-4">
-                  <View
-                    style={{
-                      backgroundColor: theme.background,
-                      padding: 16,
-                      borderRadius: 8,
-                      marginBottom: 12,
-                      borderWidth: 1,
-                      borderColor: theme.border,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: theme.textSecondary,
-                        fontSize: 14,
-                        marginBottom: 4,
-                      }}
-                    >
-                      {t.amount}
-                    </Text>
-                    <Text
-                      style={{
-                        color: theme.text,
-                        fontSize: 24,
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {formatCurrency(Math.abs(selectedSegment.value))}
-                    </Text>
-                  </View>
-
-                  <View
-                    style={{
-                      backgroundColor: theme.background,
-                      padding: 16,
-                      borderRadius: 8,
-                      borderWidth: 1,
-                      borderColor: theme.border,
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: theme.textSecondary,
-                        fontSize: 14,
-                        marginBottom: 4,
-                      }}
-                    >
-                      {t.percentageOfTotal}
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 20,
-                        fontWeight: "600",
-                        color: selectedSegment.color,
-                      }}
-                    >
-                      {selectedSegment.percentage.toFixed(1)}%
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Transaction count if available */}
-                {selectedSegment.name !== t.allCategories &&
-                  transactionData?.category_breakdown[selectedSegment.name] && (
-                    <View
-                      style={{
-                        backgroundColor: theme.background,
-                        padding: 16,
-                        borderRadius: 8,
-                        marginBottom: 16,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          color: "#1d4ed8",
-                          fontSize: 14,
-                          marginBottom: 4,
-                        }}
-                      >
-                        {t.transactions}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: 18,
-                          fontWeight: "600",
-                          color: "#1e40af",
-                        }}
-                      >
-                        {
-                          transactionData.category_breakdown[
-                            selectedSegment.name
-                          ].count
-                        }{" "}
-                        {t.transactionsCount}
-                      </Text>
-                    </View>
-                  )}
-
-                {/* Close button */}
-                <TouchableOpacity
-                  onPress={() => setSegmentModalVisible(false)}
-                  style={{
-                    backgroundColor: "#8b5cf6",
-                    padding: 12,
-                    borderRadius: 12,
-                    marginTop: 8,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: "white",
-                      textAlign: "center",
-                      fontWeight: "600",
-                    }}
-                  >
-                    {t.close}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Modal>
-        )}
       </View>
     </SafeAreaView>
   );

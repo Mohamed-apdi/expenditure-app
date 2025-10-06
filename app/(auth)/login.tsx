@@ -8,7 +8,7 @@ import {
   Lock,
   Smartphone,
 } from "lucide-react-native";
-import { View, TextInput, TouchableOpacity, Alert } from "react-native";
+import { View, TextInput, TouchableOpacity, Alert, StatusBar } from "react-native";
 import { Text } from "~/components/ui/text";
 import { Button } from "~/components/ui/button";
 import { setItemAsync } from "expo-secure-store";
@@ -19,7 +19,6 @@ import * as AuthSession from "expo-auth-session";
 import Toast from "react-native-toast-message";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
-import { StatusBar } from "expo-status-bar";
 
 // Required for Expo OAuth
 WebBrowser.maybeCompleteAuthSession();
@@ -49,21 +48,21 @@ export default function LoginScreen() {
       Toast.show({
         type: "error",
         position: "top",
-        text1: t.error,
-        text2: t.missingCredentials,
-        visibilityTime: 6000, // 6 seconds
+        text1: "Login failed",
+        text2: "Please check your credentials and try again.",
+        visibilityTime: 6000,
         autoHide: true,
         topOffset: 50,
       });
-
       return;
     }
+
     Toast.show({
-      type: "success", // or 'error', 'info', custom
-      position: "top", // 'top' | 'bottom'
-      text1: t.success,
-      text2: t.loginSuccessfully,
-      visibilityTime: 6000, // 6 seconds
+      type: "success",
+      position: "top",
+      text1: "Welcome back!",
+      text2: "Successfully signed in",
+      visibilityTime: 3000,
       autoHide: true,
       topOffset: 50,
     });
@@ -73,7 +72,7 @@ export default function LoginScreen() {
     await setItemAsync("userId", data.user?.id);
     await setItemAsync("supabase_session", JSON.stringify(data.session));
 
-    router.push("../Dashboard" as any);
+    router.replace("/(main)/Dashboard");
   };
 
   const handleSocialLogin = async (provider: "google" | "github") => {
@@ -130,7 +129,10 @@ export default function LoginScreen() {
 
   return (
     <>
-      <StatusBar style="auto" />
+      <StatusBar
+        barStyle={theme.isDark ? "light-content" : "dark-content"}
+        backgroundColor={theme.background}
+      />
       <View
         style={{
           flex: 1,
