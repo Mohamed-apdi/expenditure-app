@@ -13,16 +13,33 @@ export interface PDFReportData {
 
 export const generatePDFReport = async (data: PDFReportData): Promise<string> => {
   const htmlContent = generateHTMLContent(data);
-  
+
   try {
     // Generate PDF using expo-print
     const { uri } = await Print.printToFileAsync({
       html: htmlContent,
       base64: false
     });
-    
-    console.log('PDF generated successfully at:', uri);
-    return uri;
+
+    // Move PDF to Documents directory for consistency
+    const documentsDir = FileSystem.documentDirectory;
+    if (!documentsDir) {
+      throw new Error('Documents directory not available');
+    }
+
+    // Generate unique filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+    const filename = `${data.title.toLowerCase().replace(/\s+/g, '_')}_${timestamp}.pdf`;
+    const documentsPath = `${documentsDir}${filename}`;
+
+    // Copy from temp location to Documents directory
+    await FileSystem.copyAsync({
+      from: uri,
+      to: documentsPath
+    });
+
+    console.log('PDF generated successfully at:', documentsPath);
+    return documentsPath;
   } catch (error) {
     console.error('Error generating PDF:', error);
     throw new Error('Failed to generate PDF report');
@@ -52,13 +69,13 @@ export const savePDFToDocuments = async (fileUri: string, fileName: string): Pro
     if (!documentsDir) {
       throw new Error('Documents directory not available');
     }
-    
+
     const newUri = `${documentsDir}${fileName}.pdf`;
     await FileSystem.copyAsync({
       from: fileUri,
       to: newUri
     });
-    
+
     console.log('PDF saved to documents directory:', newUri);
     return newUri;
   } catch (error) {
@@ -187,10 +204,10 @@ const generateHTMLContent = (data: PDFReportData): string => {
         <div class="summary-section">
           <div class="section-title">Summary</div>
           <div class="summary-grid">
-            ${Object.entries(data.summary).map(([key, value]) => `
+            ${data.summary.map(item => `
               <div class="summary-card">
-                <div class="summary-label">${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
-                <div class="summary-value">${formatValueForPDF(key, value)}</div>
+                <div class="summary-label">${item.label}</div>
+                <div class="summary-value">${item.value}</div>
               </div>
             `).join('')}
           </div>
@@ -255,5 +272,3 @@ export const formatCurrencyForPDF = (amount: number): string => {
 export const formatPercentageForPDF = (value: number): string => {
   return `${value.toFixed(1)}%`;
 };
-
-

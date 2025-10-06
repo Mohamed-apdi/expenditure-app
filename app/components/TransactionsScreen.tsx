@@ -11,7 +11,7 @@ import { Search, ArrowLeft } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { supabase } from "~/lib";
-import { fetchTransactions } from "~/lib";
+import { getTransactionsGroupedByDate } from "~/lib";
 import { useAccount } from "~/lib";
 import { formatDistanceToNow } from "date-fns";
 import { useTheme } from "~/lib";
@@ -43,7 +43,7 @@ export default function TransactionsScreen() {
   const [transactions, setTransactions] = useState<TransactionSection[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch transactions from database
+  // Fetch transactions from database using enhanced local functions
   const fetchUserTransactions = async () => {
     try {
       const {
@@ -55,18 +55,13 @@ export default function TransactionsScreen() {
         return;
       }
 
-      // Fetch all transactions for the user
-      let allTransactions = await fetchTransactions(user.id);
+      // Use the new enhanced function that handles filtering and grouping
+      const groupedTransactions = await getTransactionsGroupedByDate(user.id, {
+        accountId: selectedAccount?.id,
+        type: activeFilter === "all" ? undefined : activeFilter as "expense" | "income" | "transfer",
+        searchQuery: searchQuery,
+      });
 
-      // Filter by selected account if one is selected
-      if (selectedAccount) {
-        allTransactions = allTransactions.filter(
-          (t) => t.account_id === selectedAccount.id
-        );
-      }
-
-      // Group transactions by date
-      const groupedTransactions = groupTransactionsByDate(allTransactions);
       setTransactions(groupedTransactions);
     } catch (error) {
       console.error("Error fetching transactions:", error);
@@ -75,51 +70,11 @@ export default function TransactionsScreen() {
     }
   };
 
-  // Group transactions by date for section list
-  const groupTransactionsByDate = (
-    transactions: Transaction[]
-  ): TransactionSection[] => {
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const lastWeek = new Date(today);
-    lastWeek.setDate(lastWeek.getDate() - 7);
 
-    const todayStr = today.toISOString().split("T")[0];
-    const yesterdayStr = yesterday.toISOString().split("T")[0];
-    const lastWeekStr = lastWeek.toISOString().split("T")[0];
-
-    const todayTransactions = transactions.filter((t) => t.date === todayStr);
-    const yesterdayTransactions = transactions.filter(
-      (t) => t.date === yesterdayStr
-    );
-    const lastWeekTransactions = transactions.filter(
-      (t) => t.date < yesterdayStr && t.date >= lastWeekStr
-    );
-    const olderTransactions = transactions.filter((t) => t.date < lastWeekStr);
-
-    const sections: TransactionSection[] = [];
-
-    if (todayTransactions.length > 0) {
-      sections.push({ title: "Today", data: todayTransactions });
-    }
-    if (yesterdayTransactions.length > 0) {
-      sections.push({ title: "Yesterday", data: yesterdayTransactions });
-    }
-    if (lastWeekTransactions.length > 0) {
-      sections.push({ title: "Last Week", data: lastWeekTransactions });
-    }
-    if (olderTransactions.length > 0) {
-      sections.push({ title: "Older", data: olderTransactions });
-    }
-
-    return sections;
-  };
-
-  // Load transactions on component mount
+  // Load transactions on component mount and when filters change
   useEffect(() => {
     fetchUserTransactions();
-  }, [selectedAccount?.id]);
+  }, [selectedAccount?.id, activeFilter, searchQuery]);
 
   // Handle refresh
   const onRefresh = () => {
@@ -127,21 +82,8 @@ export default function TransactionsScreen() {
     fetchUserTransactions();
   };
 
-  // Filter transactions based on search and filter
-  const filteredTransactions = transactions
-    .map((section) => ({
-      ...section,
-      data: section.data.filter((item) => {
-        const matchesSearch =
-          item.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          false;
-        const matchesFilter =
-          activeFilter === "all" || item.type === activeFilter;
-        return matchesSearch && matchesFilter;
-      }),
-    }))
-    .filter((section) => section.data.length > 0);
+  // Transactions are already filtered by the service function
+  const filteredTransactions = transactions;
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: theme.background }}>

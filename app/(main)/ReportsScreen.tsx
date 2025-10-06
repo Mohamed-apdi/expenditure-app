@@ -17,6 +17,7 @@ import {
   Wallet,
   X,
   FileText,
+  Download,
 } from "lucide-react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
@@ -25,28 +26,25 @@ import {
 } from "react-native-chart-kit";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAccount } from "~/lib";
+import { supabase } from "~/lib";
 import {
-  getTransactionReports,
-  getAccountReports,
-  getBudgetReports,
-  getGoalReports,
-  getSubscriptionReports,
-  downloadReport,
-  generateLocalPDFReport,
-  generateLocalCSVReport,
+  getLocalTransactionReports,
+  getLocalAccountReports,
+  getLocalBudgetReports,
+  getLocalGoalReports,
+  getLocalSubscriptionReports,
   formatCurrency,
   formatPercentage,
   formatDate,
-  testAPIConnectivity,
-  debugUserData,
   type TransactionReport,
   type AccountReport,
   type BudgetReport,
   type GoalReport,
   type SubscriptionReport,
-} from "~/lib";
+} from "~/lib/services/localReports";
 import { getCategoryColor, getColorByIndex } from "~/lib";
-// import { sharePDF } from "~/lib/pdfGenerator";
+import { generatePDFReport, sharePDF } from "~/lib/generators/pdfGenerator";
+import { generateCSVReport, shareCSV } from "~/lib/generators/csvGenerator";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
 
@@ -229,22 +227,29 @@ export default function ReportsScreen() {
   }, [processedChartData]);
 
   const fetchTransactionReports = useCallback(async () => {
-    if (!selectedAccount) {
-      console.log("❌ No selected account, skipping fetch");
-      return;
-    }
-
     try {
       setLoading(true);
+
+      // Get current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.log("User not authenticated");
+        return;
+      }
+
       const startDateStr = dateRange.startDate.toISOString().split("T")[0];
       const endDateStr = dateRange.endDate.toISOString().split("T")[0];
 
-      console.log("🚀 Fetching transaction reports:");
+      console.log("🚀 Fetching transaction reports locally:");
+      console.log("   👤 User ID:", user.id);
       console.log("   📋 Account ID:", selectedAccount?.id);
-      console.log("   📋 Account Name:", selectedAccount?.name);
       console.log("   📅 Date range:", startDateStr, "to", endDateStr);
 
-      const data = await getTransactionReports(
+      const data = await getLocalTransactionReports(
+        user.id,
         selectedAccount?.id,
         startDateStr,
         endDateStr
@@ -258,13 +263,8 @@ export default function ReportsScreen() {
         console.log("📊 Categories:", Object.keys(data.category_breakdown || {}));
         console.log("📊 Transactions count:", data.transactions?.length || 0);
         console.log("📊 Daily trends count:", data.daily_trends?.length || 0);
-
-        if (data.summary?.total_transactions === 0) {
-          console.warn("⚠️ API returned 0 transactions - checking if this is correct");
-          console.log("📋 Full API response:", JSON.stringify(data, null, 2));
-        }
       } else {
-        console.error("❌ No data received from API");
+        console.error("❌ No data received from local function");
       }
 
       setTransactionData(data);
@@ -284,16 +284,22 @@ export default function ReportsScreen() {
   }, [selectedAccount, dateRange.startDate, dateRange.endDate, t]);
 
   const fetchAccountReports = useCallback(async () => {
-    if (!selectedAccount) {
-      console.log("No selected account, skipping fetch");
-      return;
-    }
-
     try {
       setLoading(true);
-      console.log("Fetching account reports for account:", selectedAccount?.id);
 
-      const data = await getAccountReports(selectedAccount?.id);
+      // Get current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.log("User not authenticated");
+        return;
+      }
+
+      console.log("Fetching account reports locally for user:", user.id);
+
+      const data = await getLocalAccountReports(user.id, selectedAccount?.id);
 
       console.log("Account reports data received:", data);
       setAccountData(data);
@@ -313,16 +319,23 @@ export default function ReportsScreen() {
   }, [selectedAccount, t]);
 
   const fetchBudgetReports = useCallback(async () => {
-    if (!selectedAccount) {
-      console.log("No selected account, skipping fetch");
-      return;
-    }
-
     try {
       setLoading(true);
-      console.log("Fetching budget reports for account:", selectedAccount?.id);
 
-      const data = await getBudgetReports(
+      // Get current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.log("User not authenticated");
+        return;
+      }
+
+      console.log("Fetching budget reports locally for user:", user.id);
+
+      const data = await getLocalBudgetReports(
+        user.id,
         dateRange.startDate.toISOString().split("T")[0],
         dateRange.endDate.toISOString().split("T")[0],
         selectedAccount?.id
@@ -348,9 +361,20 @@ export default function ReportsScreen() {
   const fetchGoalReports = useCallback(async () => {
     try {
       setLoading(true);
-      console.log("Fetching goal reports");
 
-      const data = await getGoalReports();
+      // Get current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.log("User not authenticated");
+        return;
+      }
+
+      console.log("Fetching goal reports locally for user:", user.id);
+
+      const data = await getLocalGoalReports(user.id);
 
       console.log("Goal reports data received:", data);
       setGoalData(data);
@@ -370,16 +394,22 @@ export default function ReportsScreen() {
   }, [t]);
 
   const fetchSubscriptionReports = useCallback(async () => {
-    if (!selectedAccount) {
-      console.log("No selected account, skipping fetch");
-      return;
-    }
-
     try {
       setLoading(true);
-      console.log("Fetching subscription reports for account:", selectedAccount?.id);
 
-      const data = await getSubscriptionReports(selectedAccount?.id);
+      // Get current user
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.log("User not authenticated");
+        return;
+      }
+
+      console.log("Fetching subscription reports locally for user:", user.id);
+
+      const data = await getLocalSubscriptionReports(user.id, selectedAccount?.id);
 
       console.log("Subscription reports data received:", data);
       setSubscriptionData(data);
@@ -428,7 +458,7 @@ export default function ReportsScreen() {
 
   // Fetch data when tab changes or account changes
   useEffect(() => {
-    if (selectedAccount || activeTab === "goals") {
+    if (selectedAccount || activeTab === "goals" || activeTab === "accounts") {
       console.log("Fetching data for tab:", activeTab);
       fetchReports();
     }
@@ -452,6 +482,405 @@ export default function ReportsScreen() {
       const startDate = dateRange.startDate.toISOString().split("T")[0];
       const endDate = dateRange.endDate.toISOString().split("T")[0];
 
+      // Handle subscription reports
+      if (activeTab === "subscriptions") {
+        if (!subscriptionData) {
+          Alert.alert(t.error, t.noDataForReport);
+          return;
+        }
+
+        if (format === "pdf") {
+          const pdfData = {
+            title: "Subscription Report",
+            subtitle: selectedAccount ? `Account: ${selectedAccount.name}` : "All Accounts",
+            dateRange: `Generated: ${formatDate(new Date().toISOString())}`,
+            summary: [
+              { label: "Total Subscriptions", value: subscriptionData.summary.total_subscriptions.toString() },
+              { label: "Active Subscriptions", value: subscriptionData.summary.active_subscriptions.toString() },
+              { label: "Monthly Cost", value: formatCurrency(subscriptionData.summary.monthly_cost) },
+              { label: "Yearly Cost", value: formatCurrency(subscriptionData.summary.yearly_cost) },
+            ],
+            charts: [],
+            tables: [
+              {
+                title: "Active Subscriptions",
+                headers: ["Name", "Category", "Billing Cycle", "Cost", "Monthly Equivalent"],
+                rows: subscriptionData.subscriptions.map(sub => [
+                  sub.name,
+                  sub.category,
+                  sub.billing_cycle,
+                  formatCurrency(sub.cost),
+                  formatCurrency(sub.monthly_equivalent),
+                ]),
+              },
+            ],
+          };
+
+          const filePath = await generatePDFReport(pdfData);
+          Alert.alert("PDF Generated", `Subscription report saved to Documents folder:\n${filePath}`, [
+            {
+              text: "Share",
+              onPress: async () => {
+                try {
+                  await sharePDF(filePath);
+                } catch (error) {
+                  console.error("Error sharing PDF:", error);
+                  Alert.alert("Error", "Failed to share PDF");
+                }
+              },
+            },
+            { text: "OK", style: "default" },
+          ]);
+        } else {
+          const csvData = {
+            title: "Subscription Report",
+            dateRange: `Generated: ${formatDate(new Date().toISOString())}`,
+            summary: [
+              { label: "Total Subscriptions", value: subscriptionData.summary.total_subscriptions.toString() },
+              { label: "Active Subscriptions", value: subscriptionData.summary.active_subscriptions.toString() },
+              { label: "Monthly Cost", value: formatCurrency(subscriptionData.summary.monthly_cost) },
+              { label: "Yearly Cost", value: formatCurrency(subscriptionData.summary.yearly_cost) },
+            ],
+            tables: [
+              {
+                title: "Active Subscriptions",
+                headers: ["Name", "Category", "Billing Cycle", "Cost", "Monthly Equivalent", "Next Billing"],
+                rows: subscriptionData.subscriptions.map(sub => [
+                  sub.name,
+                  sub.category,
+                  sub.billing_cycle,
+                  sub.cost.toString(),
+                  sub.monthly_equivalent.toString(),
+                  sub.next_billing,
+                ]),
+              },
+            ],
+          };
+
+          const filePath = await generateCSVReport(csvData);
+          Alert.alert("CSV Generated", `Subscription report saved to Documents folder:\n${filePath}`, [
+            {
+              text: "Share",
+              onPress: async () => {
+                try {
+                  await shareCSV(filePath);
+                } catch (error) {
+                  console.error("Error sharing CSV:", error);
+                  Alert.alert("Error", "Failed to share CSV");
+                }
+              },
+            },
+            { text: "OK", style: "default" },
+          ]);
+        }
+        return;
+      }
+
+      // Handle budget reports
+      if (activeTab === "budgets") {
+        if (!budgetData) {
+          Alert.alert(t.error, t.noDataForReport);
+          return;
+        }
+
+        if (format === "pdf") {
+          const pdfData = {
+            title: "Budget Report",
+            subtitle: selectedAccount ? `Account: ${selectedAccount.name}` : "All Accounts",
+            dateRange: budgetData.summary.period,
+            summary: [
+              { label: "Total Budget", value: formatCurrency(budgetData.summary.total_budget) },
+              { label: "Total Spent", value: formatCurrency(budgetData.summary.total_spent) },
+              { label: "Total Remaining", value: formatCurrency(budgetData.summary.total_remaining) },
+              { label: "Overall Progress", value: `${budgetData.summary.overall_percentage.toFixed(1)}%` },
+            ],
+            charts: [],
+            tables: [
+              {
+                title: "Budget vs Actual Spending",
+                headers: ["Category", "Budget", "Spent", "Remaining", "Progress", "Status"],
+                rows: budgetData.budget_comparison.map(item => [
+                  item.category,
+                  formatCurrency(item.budget),
+                  formatCurrency(item.spent),
+                  formatCurrency(item.remaining),
+                  `${item.percentage.toFixed(1)}%`,
+                  item.status.charAt(0).toUpperCase() + item.status.slice(1),
+                ]),
+              },
+              ...(Object.keys(budgetData.unbudgeted_spending).length > 0 ? [{
+                title: "Unbudgeted Spending",
+                headers: ["Category", "Amount"],
+                rows: Object.entries(budgetData.unbudgeted_spending).map(([category, amount]) => [
+                  category,
+                  formatCurrency(amount),
+                ]),
+              }] : []),
+            ],
+          };
+
+          const filePath = await generatePDFReport(pdfData);
+          Alert.alert("PDF Generated", `Budget report saved to Documents folder:\n${filePath}`, [
+            {
+              text: "Share",
+              onPress: async () => {
+                try {
+                  await sharePDF(filePath);
+                } catch (error) {
+                  console.error("Error sharing PDF:", error);
+                  Alert.alert("Error", "Failed to share PDF");
+                }
+              },
+            },
+            { text: "OK", style: "default" },
+          ]);
+        } else {
+          const csvData = {
+            title: "Budget Report",
+            dateRange: budgetData.summary.period,
+            summary: [
+              { label: "Total Budget", value: formatCurrency(budgetData.summary.total_budget) },
+              { label: "Total Spent", value: formatCurrency(budgetData.summary.total_spent) },
+              { label: "Total Remaining", value: formatCurrency(budgetData.summary.total_remaining) },
+              { label: "Overall Progress", value: `${budgetData.summary.overall_percentage.toFixed(1)}%` },
+            ],
+            tables: [
+              {
+                title: "Budget vs Actual Spending",
+                headers: ["Category", "Budget", "Spent", "Remaining", "Progress", "Status"],
+                rows: budgetData.budget_comparison.map(item => [
+                  item.category,
+                  item.budget.toString(),
+                  item.spent.toString(),
+                  item.remaining.toString(),
+                  item.percentage.toString(),
+                  item.status,
+                ]),
+              },
+              ...(Object.keys(budgetData.unbudgeted_spending).length > 0 ? [{
+                title: "Unbudgeted Spending",
+                headers: ["Category", "Amount"],
+                rows: Object.entries(budgetData.unbudgeted_spending).map(([category, amount]) => [
+                  category,
+                  amount.toString(),
+                ]),
+              }] : []),
+            ],
+          };
+
+          const filePath = await generateCSVReport(csvData);
+          Alert.alert("CSV Generated", `Budget report saved to Documents folder:\n${filePath}`, [
+            {
+              text: "Share",
+              onPress: async () => {
+                try {
+                  await shareCSV(filePath);
+                } catch (error) {
+                  console.error("Error sharing CSV:", error);
+                  Alert.alert("Error", "Failed to share CSV");
+                }
+              },
+            },
+            { text: "OK", style: "default" },
+          ]);
+        }
+        return;
+      }
+
+      // Handle goal reports
+      if (activeTab === "goals") {
+        if (!goalData) {
+          Alert.alert(t.error, t.noDataForReport);
+          return;
+        }
+
+        if (format === "pdf") {
+          const pdfData = {
+            title: "Goals Report",
+            subtitle: "Financial Goals Progress",
+            dateRange: `Generated: ${formatDate(new Date().toISOString())}`,
+            summary: [
+              { label: "Total Goals", value: goalData.summary.total_goals.toString() },
+              { label: "Completed Goals", value: goalData.summary.completed_goals.toString() },
+              { label: "Total Target", value: formatCurrency(goalData.summary.total_target) },
+              { label: "Total Saved", value: formatCurrency(goalData.summary.total_saved) },
+              { label: "Overall Progress", value: `${goalData.summary.overall_percentage.toFixed(1)}%` },
+            ],
+            charts: [],
+            tables: [
+              {
+                title: "Goals Progress",
+                headers: ["Goal Name", "Category", "Target Amount", "Current Amount", "Progress", "Status", "Days Remaining"],
+                rows: goalData.goals.map(goal => [
+                  goal.name,
+                  goal.category,
+                  formatCurrency(goal.target_amount),
+                  formatCurrency(goal.current_amount),
+                  `${goal.percentage.toFixed(1)}%`,
+                  goal.status.charAt(0).toUpperCase() + goal.status.slice(1),
+                  goal.days_remaining > 0 ? goal.days_remaining.toString() : "Overdue",
+                ]),
+              },
+            ],
+          };
+
+          const filePath = await generatePDFReport(pdfData);
+          Alert.alert("PDF Generated", `Goals report saved to Documents folder:\n${filePath}`, [
+            {
+              text: "Share",
+              onPress: async () => {
+                try {
+                  await sharePDF(filePath);
+                } catch (error) {
+                  console.error("Error sharing PDF:", error);
+                  Alert.alert("Error", "Failed to share PDF");
+                }
+              },
+            },
+            { text: "OK", style: "default" },
+          ]);
+        } else {
+          const csvData = {
+            title: "Goals Report",
+            dateRange: `Generated: ${formatDate(new Date().toISOString())}`,
+            summary: [
+              { label: "Total Goals", value: goalData.summary.total_goals.toString() },
+              { label: "Completed Goals", value: goalData.summary.completed_goals.toString() },
+              { label: "Total Target", value: formatCurrency(goalData.summary.total_target) },
+              { label: "Total Saved", value: formatCurrency(goalData.summary.total_saved) },
+              { label: "Overall Progress", value: `${goalData.summary.overall_percentage.toFixed(1)}%` },
+            ],
+            tables: [
+              {
+                title: "Goals Progress",
+                headers: ["Goal Name", "Category", "Target Amount", "Current Amount", "Progress", "Status", "Days Remaining", "Target Date"],
+                rows: goalData.goals.map(goal => [
+                  goal.name,
+                  goal.category,
+                  goal.target_amount.toString(),
+                  goal.current_amount.toString(),
+                  goal.percentage.toString(),
+                  goal.status,
+                  goal.days_remaining > 0 ? goal.days_remaining.toString() : "Overdue",
+                  goal.target_date,
+                ]),
+              },
+            ],
+          };
+
+          const filePath = await generateCSVReport(csvData);
+          Alert.alert("CSV Generated", `Goals report saved to Documents folder:\n${filePath}`, [
+            {
+              text: "Share",
+              onPress: async () => {
+                try {
+                  await shareCSV(filePath);
+                } catch (error) {
+                  console.error("Error sharing CSV:", error);
+                  Alert.alert("Error", "Failed to share CSV");
+                }
+              },
+            },
+            { text: "OK", style: "default" },
+          ]);
+        }
+        return;
+      }
+
+      // Handle account reports
+      if (activeTab === "accounts") {
+        if (!accountData) {
+          Alert.alert(t.error, t.noDataForReport);
+          return;
+        }
+
+        if (format === "pdf") {
+          const pdfData = {
+            title: "Account Report",
+            subtitle: "Account Summary and Details",
+            dateRange: `Generated: ${formatDate(new Date().toISOString())}`,
+            summary: [
+              { label: "Total Balance", value: formatCurrency(accountData.summary.total_balance) },
+              { label: "Total Accounts", value: accountData.summary.total_accounts.toString() },
+              { label: "Total Transactions", value: accountData.summary.total_transactions.toString() },
+            ],
+            charts: [],
+            tables: [
+              {
+                title: "Account Details",
+                headers: ["Account Name", "Type", "Balance", "Currency", "Transaction Count", "Created Date"],
+                rows: accountData.accounts.map(account => [
+                  account.name,
+                  account.type,
+                  formatCurrency(account.balance),
+                  account.currency,
+                  account.transaction_count.toString(),
+                  formatDate(account.created_at),
+                ]),
+              },
+            ],
+          };
+
+          const filePath = await generatePDFReport(pdfData);
+          Alert.alert("PDF Generated", `Account report saved to Documents folder:\n${filePath}`, [
+            {
+              text: "Share",
+              onPress: async () => {
+                try {
+                  await sharePDF(filePath);
+                } catch (error) {
+                  console.error("Error sharing PDF:", error);
+                  Alert.alert("Error", "Failed to share PDF");
+                }
+              },
+            },
+            { text: "OK", style: "default" },
+          ]);
+        } else {
+          const csvData = {
+            title: "Account Report",
+            dateRange: `Generated: ${formatDate(new Date().toISOString())}`,
+            summary: [
+              { label: "Total Balance", value: formatCurrency(accountData.summary.total_balance) },
+              { label: "Total Accounts", value: accountData.summary.total_accounts.toString() },
+              { label: "Total Transactions", value: accountData.summary.total_transactions.toString() },
+            ],
+            tables: [
+              {
+                title: "Account Details",
+                headers: ["Account Name", "Type", "Balance", "Currency", "Transaction Count", "Created Date"],
+                rows: accountData.accounts.map(account => [
+                  account.name,
+                  account.type,
+                  account.balance.toString(),
+                  account.currency,
+                  account.transaction_count.toString(),
+                  account.created_at,
+                ]),
+              },
+            ],
+          };
+
+          const filePath = await generateCSVReport(csvData);
+          Alert.alert("CSV Generated", `Account report saved to Documents folder:\n${filePath}`, [
+            {
+              text: "Share",
+              onPress: async () => {
+                try {
+                  await shareCSV(filePath);
+                } catch (error) {
+                  console.error("Error sharing CSV:", error);
+                  Alert.alert("Error", "Failed to share CSV");
+                }
+              },
+            },
+            { text: "OK", style: "default" },
+          ]);
+        }
+        return;
+      }
+
+      // Handle transaction reports
       if (!transactionData) {
         Alert.alert(t.error, t.noDataForReport);
         return;
@@ -460,87 +889,123 @@ export default function ReportsScreen() {
       if (format === "pdf") {
         // Generate PDF locally
         console.log("Generating PDF report...");
-        const filePath = await generateLocalPDFReport(
-          "transactions",
-          transactionData,
-          startDate && endDate ? { startDate, endDate } : undefined
-        );
 
+        const pdfData = {
+          title: "Transaction Report",
+          subtitle: selectedAccount ? `Account: ${selectedAccount.name}` : "All Accounts",
+          dateRange: `${formatDate(startDate)} - ${formatDate(endDate)}`,
+          summary: [
+            { label: "Total Income", value: formatCurrency(transactionData.summary.total_income) },
+            { label: "Total Expenses", value: formatCurrency(transactionData.summary.total_expenses) },
+            { label: "Net Amount", value: formatCurrency(transactionData.summary.total_amount) },
+            { label: "Total Transactions", value: transactionData.summary.total_transactions.toString() },
+            { label: "Average Transaction", value: formatCurrency(transactionData.summary.average_transaction) },
+          ],
+          charts: [], // Charts not supported in PDF yet
+          tables: [
+            {
+              title: "Category Breakdown",
+              headers: ["Category", "Amount", "Percentage", "Count"],
+              rows: Object.entries(transactionData.category_breakdown).map(
+                ([category, data]) => [
+                  category,
+                  formatCurrency(data.amount),
+                  formatPercentage(data.percentage),
+                  data.count.toString(),
+                ]
+              ),
+            },
+            {
+              title: "Daily Trends (Last 15 Days)",
+              headers: ["Date", "Amount"],
+              rows: transactionData.daily_trends
+                .slice(-15)
+                .map((trend) => [
+                  formatDate(trend.date),
+                  formatCurrency(Math.abs(trend.amount)),
+                ]),
+            },
+          ],
+        };
+
+        const filePath = await generatePDFReport(pdfData);
         console.log("PDF generated at:", filePath);
 
-        Alert.alert(t.pdfGeneratedSuccessfully, t.reportSavedToDevice, [
+        Alert.alert("PDF Generated", `Report saved to Documents folder:\n${filePath}`, [
           {
-            text: t.share,
+            text: "Share",
             onPress: async () => {
               try {
-                const { sharePDF } = await import(
-                  "~/lib/generators/pdfGenerator"
-                );
                 await sharePDF(filePath);
               } catch (error) {
                 console.error("Error sharing PDF:", error);
-                Alert.alert(t.error, t.failedToShare);
+                Alert.alert("Error", "Failed to share PDF");
               }
             },
           },
-          {
-            text: t.openFileManager,
-            onPress: () => {
-              Alert.alert(t.fileLocation, t.pdfSavedToDocuments, [
-                { text: t.ok },
-              ]);
-            },
-          },
-          {
-            text: t.done,
-            style: "cancel",
-          },
+          { text: "OK", style: "default" },
         ]);
       } else {
         // Generate CSV locally
         console.log("Generating CSV report...");
-        const filePath = await generateLocalCSVReport(
-          "transactions",
-          transactionData,
-          startDate && endDate ? { startDate, endDate } : undefined
-        );
 
+        const csvData = {
+          title: "Transaction Report",
+          dateRange: `${formatDate(startDate)} - ${formatDate(endDate)}`,
+          summary: [
+            { label: "Total Income", value: formatCurrency(transactionData.summary.total_income) },
+            { label: "Total Expenses", value: formatCurrency(transactionData.summary.total_expenses) },
+            { label: "Net Amount", value: formatCurrency(transactionData.summary.total_amount) },
+            { label: "Total Transactions", value: transactionData.summary.total_transactions.toString() },
+            { label: "Average Transaction", value: formatCurrency(transactionData.summary.average_transaction) },
+          ],
+          tables: [
+            {
+              title: "Category Breakdown",
+              headers: ["Category", "Amount", "Percentage", "Count"],
+              rows: Object.entries(transactionData.category_breakdown).map(
+                ([category, data]) => [
+                  category,
+                  data.amount.toString(),
+                  data.percentage.toString(),
+                  data.count.toString(),
+                ]
+              ),
+            },
+            {
+              title: "Daily Trends",
+              headers: ["Date", "Amount"],
+              rows: transactionData.daily_trends.map((trend) => [
+                trend.date,
+                Math.abs(trend.amount).toString(),
+              ]),
+            },
+          ],
+        };
+
+        const filePath = await generateCSVReport(csvData);
         console.log("CSV generated at:", filePath);
 
-        Alert.alert(t.csvGeneratedSuccessfully, t.reportSavedToDevice, [
+        Alert.alert("CSV Generated", `Report saved to Documents folder:\n${filePath}`, [
           {
-            text: t.share,
+            text: "Share",
             onPress: async () => {
               try {
-                const { shareCSV } = await import(
-                  "~/lib/generators/csvGenerator"
-                );
                 await shareCSV(filePath);
               } catch (error) {
                 console.error("Error sharing CSV:", error);
-                Alert.alert(t.error, t.failedToShare);
+                Alert.alert("Error", "Failed to share CSV");
               }
             },
           },
-          {
-            text: t.openFileManager,
-            onPress: () => {
-              Alert.alert(t.fileLocation, t.csvSavedToDocuments, [
-                { text: t.ok },
-              ]);
-            },
-          },
-          {
-            text: t.done,
-            style: "cancel",
-          },
+          { text: "OK", style: "default" },
         ]);
       }
     } catch (error) {
       console.error(`Error generating ${format.toUpperCase()} report:`, error);
       Alert.alert(
         t.error,
-        t.errorGeneratingReport.replace("{format}", format.toUpperCase())
+        `Failed to generate ${format.toUpperCase()} report`
       );
     } finally {
       setLoading(false);
@@ -585,42 +1050,6 @@ export default function ReportsScreen() {
     setDatePickerVisible(true);
   }, []);
 
-  // Debug function to check user data
-  const debugUserDataFunction = useCallback(async () => {
-    try {
-      const token = await import("expo-secure-store").then(m => m.getItemAsync("supabase_session"));
-      if (!token) {
-        Alert.alert("Debug Error", "No authentication token found");
-        return;
-      }
-
-      const sessionData = JSON.parse(token);
-      const userId = sessionData.user?.id;
-
-      if (!userId) {
-        Alert.alert("Debug Error", "No user ID found in token");
-        return;
-      }
-
-      console.log("🔍 Debug: Checking user data for user:", userId);
-      const debugData = await debugUserData(userId);
-
-      Alert.alert(
-        "Debug Data",
-        `User: ${userId}\nExpenses: ${debugData.total_expenses}\nAccounts: ${debugData.total_accounts}\nAccount IDs: ${debugData.account_ids.join(", ")}`,
-        [
-          { text: "OK" },
-          {
-            text: "Log Details",
-            onPress: () => console.log("🔍 Full debug data:", debugData)
-          }
-        ]
-      );
-    } catch (error) {
-      console.error("Debug error:", error);
-      Alert.alert("Debug Error", error instanceof Error ? error.message : "Unknown error");
-    }
-  }, []);
 
   const renderTransactionTab = () => {
     if (!selectedAccount) {
@@ -764,7 +1193,66 @@ export default function ReportsScreen() {
           </View>
         </View>
 
-        {/* Category Breakdown Pie Chart */}
+        {/* Download Section */}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: theme.border,
+          }}
+        >
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
+            Export Report
+          </Text>
+          <Text style={{ color: theme.textSecondary, fontSize: 14, marginBottom: 16 }}>
+            Download your transaction data as PDF or CSV files. Files are saved to your device's Documents folder.
+          </Text>
+          <View className="flex-row gap-3">
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                backgroundColor: theme.primary,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onPress={() => handleDownload("pdf")}
+              disabled={loading}
+            >
+              <FileText size={16} color="white" />
+              <Text style={{ color: "white", fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
+                PDF Report
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                backgroundColor: theme.cardBackground,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+              onPress={() => handleDownload("csv")}
+              disabled={loading}
+            >
+              <Download size={16} color={theme.text} />
+              <Text style={{ color: theme.text, fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
+                CSV Data
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
         <View
           style={{
             marginBottom: 16,
@@ -910,34 +1398,12 @@ export default function ReportsScreen() {
   };
 
   const renderAccountsTab = () => {
-    if (!selectedAccount) {
-      return (
-        <View className="flex-1 justify-center items-center p-8">
-          <Wallet size={48} color={theme.textMuted} />
-          <Text
-            style={{
-              color: theme.text,
-              fontSize: 18,
-              fontWeight: "600",
-              marginTop: 16,
-              textAlign: "center",
-            }}
-          >
-            {t.noAccountSelected}
-          </Text>
-        </View>
-      );
-    }
-
     if (!accountData) {
       return (
         <View className="flex-1 justify-center items-center p-8">
           <ActivityIndicator size="large" color={theme.primary} />
           <Text style={{ color: theme.textSecondary, marginTop: 16 }}>
-            {t.loadingTransactionData.replace(
-              "{accountName}",
-              selectedAccount.name
-            )}
+            Loading account data...
           </Text>
         </View>
       );
@@ -976,6 +1442,67 @@ export default function ReportsScreen() {
 
     return (
       <ScrollView className="flex-1">
+        {/* Download Section */}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: theme.border,
+          }}
+        >
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
+            Export Account Report
+          </Text>
+          <Text style={{ color: theme.textSecondary, fontSize: 14, marginBottom: 16 }}>
+            Download your account data as PDF or CSV files. Files are saved to your device's Documents folder.
+          </Text>
+          <View className="flex-row gap-3">
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                backgroundColor: theme.primary,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onPress={() => handleDownload("pdf")}
+              disabled={loading}
+            >
+              <FileText size={16} color="white" />
+              <Text style={{ color: "white", fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
+                PDF Report
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                backgroundColor: theme.cardBackground,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+              onPress={() => handleDownload("csv")}
+              disabled={loading}
+            >
+              <Download size={16} color={theme.text} />
+              <Text style={{ color: theme.text, fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
+                CSV Data
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Summary Card */}
         <View
           style={{
@@ -1111,6 +1638,67 @@ export default function ReportsScreen() {
 
     return (
       <ScrollView className="flex-1">
+        {/* Download Section */}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: theme.border,
+          }}
+        >
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
+            Export Budget Report
+          </Text>
+          <Text style={{ color: theme.textSecondary, fontSize: 14, marginBottom: 16 }}>
+            Download your budget analysis as PDF or CSV files. Files are saved to your device's Documents folder.
+          </Text>
+          <View className="flex-row gap-3">
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                backgroundColor: theme.primary,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onPress={() => handleDownload("pdf")}
+              disabled={loading}
+            >
+              <FileText size={16} color="white" />
+              <Text style={{ color: "white", fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
+                PDF Report
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                backgroundColor: theme.cardBackground,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+              onPress={() => handleDownload("csv")}
+              disabled={loading}
+            >
+              <Download size={16} color={theme.text} />
+              <Text style={{ color: theme.text, fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
+                CSV Data
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Summary Card */}
         <View
           style={{
@@ -1267,6 +1855,67 @@ export default function ReportsScreen() {
 
     return (
       <ScrollView className="flex-1">
+        {/* Download Section */}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: theme.border,
+          }}
+        >
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
+            Export Goals Report
+          </Text>
+          <Text style={{ color: theme.textSecondary, fontSize: 14, marginBottom: 16 }}>
+            Download your goals progress as PDF or CSV files. Files are saved to your device's Documents folder.
+          </Text>
+          <View className="flex-row gap-3">
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                backgroundColor: theme.primary,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onPress={() => handleDownload("pdf")}
+              disabled={loading}
+            >
+              <FileText size={16} color="white" />
+              <Text style={{ color: "white", fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
+                PDF Report
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                backgroundColor: theme.cardBackground,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+              onPress={() => handleDownload("csv")}
+              disabled={loading}
+            >
+              <Download size={16} color={theme.text} />
+              <Text style={{ color: theme.text, fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
+                CSV Data
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Summary Card */}
         <View
           style={{
@@ -1437,6 +2086,67 @@ export default function ReportsScreen() {
 
     return (
       <ScrollView className="flex-1">
+        {/* Download Section */}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            padding: 16,
+            borderRadius: 12,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: theme.border,
+          }}
+        >
+          <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
+            Export Subscription Report
+          </Text>
+          <Text style={{ color: theme.textSecondary, fontSize: 14, marginBottom: 16 }}>
+            Download your subscription data as PDF or CSV files. Files are saved to your device's Documents folder.
+          </Text>
+          <View className="flex-row gap-3">
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                backgroundColor: theme.primary,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              onPress={() => handleDownload("pdf")}
+              disabled={loading}
+            >
+              <FileText size={16} color="white" />
+              <Text style={{ color: "white", fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
+                PDF Report
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                backgroundColor: theme.cardBackground,
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                borderRadius: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+              onPress={() => handleDownload("csv")}
+              disabled={loading}
+            >
+              <Download size={16} color={theme.text} />
+              <Text style={{ color: theme.text, fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
+                CSV Data
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Summary Card */}
         <View
           style={{
@@ -1555,19 +2265,45 @@ export default function ReportsScreen() {
             <Text style={{ color: theme.text, fontSize: 20, fontWeight: "600" }}>
               {t.transactionReports}
             </Text>
-            <TouchableOpacity
-              style={{
-                backgroundColor: theme.primary,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 6,
-              }}
-              onPress={debugUserDataFunction}
-            >
-              <Text style={{ color: "white", fontSize: 12, fontWeight: "500" }}>
-                Debug
-              </Text>
-            </TouchableOpacity>
+            <View className="flex-row gap-2">
+              {/* Download Buttons */}
+              {(transactionData && activeTab === "transactions") || (subscriptionData && activeTab === "subscriptions") || (budgetData && activeTab === "budgets") || (goalData && activeTab === "goals") || (accountData && activeTab === "accounts") && (
+                <>
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: theme.cardBackground,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 6,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                    }}
+                    onPress={() => handleDownload("csv")}
+                    disabled={loading}
+                  >
+                    <Text style={{ color: theme.text, fontSize: 12, fontWeight: "500" }}>
+                      CSV
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: theme.cardBackground,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 6,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                    }}
+                    onPress={() => handleDownload("pdf")}
+                    disabled={loading}
+                  >
+                    <Text style={{ color: theme.text, fontSize: 12, fontWeight: "500" }}>
+                      PDF
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
           </View>
 
           {/* Date Range Picker */}
