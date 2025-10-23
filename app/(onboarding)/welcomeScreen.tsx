@@ -53,7 +53,7 @@ export default function WelcomeScreen() {
                 marginBottom: 16,
               }}
             >
-              Welcome to {t.appName}
+              {t.welcomeToApp.replace('{appName}', t.appName)}
             </Text>
 
             <Text
@@ -65,7 +65,7 @@ export default function WelcomeScreen() {
                 marginBottom: 8,
               }}
             >
-              Take control of your finances
+              {t.takeControlOfFinances}
             </Text>
 
             <Text
@@ -76,7 +76,7 @@ export default function WelcomeScreen() {
                 lineHeight: 24,
               }}
             >
-              Track expenses, manage budgets, and achieve your financial goals
+              {t.trackExpensesManageBudgets}
             </Text>
           </View>
 
@@ -101,7 +101,7 @@ export default function WelcomeScreen() {
                 marginRight: 8,
               }}
             >
-              Get Started
+              {t.getStarted}
             </Text>
             <ArrowRight size={20} color={theme.primaryText} />
           </TouchableOpacity>

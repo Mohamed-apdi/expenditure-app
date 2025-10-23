@@ -42,7 +42,7 @@ export default function PostSignupSetupScreen() {
         // If user is not authenticated, redirect to login
         Toast.show({
           type: "error",
-          text1: "Please sign in to continue",
+          text1: t.pleaseSignInToContinue,
         });
         router.replace("/(auth)/login");
         return;
@@ -63,8 +63,8 @@ export default function PostSignupSetupScreen() {
 
       Toast.show({
         type: "success",
-        text1: "Account created successfully!",
-        text2: "Welcome to your financial journey!",
+        text1: t.accountCreatedSuccessfully,
+        text2: t.welcomeToFinancialJourney,
       });
 
       // Navigate to login after account creation
@@ -73,8 +73,8 @@ export default function PostSignupSetupScreen() {
       console.error("Error creating account:", error);
       Toast.show({
         type: "error",
-        text1: "Failed to create account",
-        text2: "Please try again",
+        text1: t.failedToCreateAccount,
+        text2: t.pleaseTryAgain,
       });
     } finally {
       setCreatingAccount(false);
@@ -95,7 +95,7 @@ export default function PostSignupSetupScreen() {
           >
             <ActivityIndicator size="large" color={theme.primary} />
             <Text style={{ color: theme.textSecondary, marginTop: 16, fontSize: 16 }}>
-              Setting up your account...
+              {t.settingUpAccount}
             </Text>
           </View>
         </SafeAreaView>
@@ -133,7 +133,7 @@ export default function PostSignupSetupScreen() {
                 textAlign: "center",
               }}
             >
-              Create Your First Account
+              {t.createFirstAccount}
             </Text>
             <Text
               style={{
@@ -143,7 +143,7 @@ export default function PostSignupSetupScreen() {
                 lineHeight: 24,
               }}
             >
-              Let's create your main account to start tracking your finances
+              {t.createMainAccountToStart}
             </Text>
           </View>
 
@@ -173,7 +173,7 @@ export default function PostSignupSetupScreen() {
                     marginRight: 8,
                   }}
                 >
-                  Create Main Account
+                  {t.createMainAccount}
                 </Text>
                 <ArrowRight size={18} color={theme.primaryText} />
               </>
@@ -195,7 +195,7 @@ export default function PostSignupSetupScreen() {
                 fontWeight: "500",
               }}
             >
-              Skip for now
+              {t.skipForNow}
             </Text>
           </TouchableOpacity>
         </View>
