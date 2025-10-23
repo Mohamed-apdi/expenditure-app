@@ -1,296 +1,563 @@
-import { useState } from "react";
+"use client";
+
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
+  StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import {
-  X,
-  ShoppingCart,
-  Truck,
-  Zap,
-  Film,
-  Heart,
-  ShoppingBag,
-  Book,
-  MoreHorizontal,
-  Calendar,
-  ChevronDown,
-  Camera,
-  MapPin,
-  Tag,
-  ChevronRight,
-} from "lucide-react-native";
+import { X } from "lucide-react-native";
+import Toast from "react-native-toast-message";
+import { supabase } from "~/lib";
+import { useTheme } from "~/lib";
+import { fetchAccounts, updateAccountBalance } from "~/lib";
+import { addExpense } from "~/lib";
+import { addTransaction } from "~/lib";
+import { addTransfer } from "~/lib";
+import { addSubscription } from "~/lib";
+import type { Account } from "~/lib";
+import { notificationService } from "~/lib";
+import { useLanguage } from "~/lib";
 
-type Category = {
-  id: string;
-  name: string;
-  icon: React.ComponentType<{ size: number; color: string }>;
-  color: string;
-};
-
-type Frequency = "weekly" | "monthly" | "yearly";
+// Import the separated form components
+import ExpenseForm from "./components/ExpenseForm";
+import IncomeForm from "./components/IncomeForm";
+import TransferForm from "./components/TransferForm";
+import { getExpenseCategories, getIncomeCategories, type Category, type Frequency } from "./utils/categories";
 
 export default function AddExpenseScreen() {
   const router = useRouter();
+  const theme = useTheme();
+  const { t } = useLanguage();
+
+  // States
+  const [entryType, setEntryType] = useState("Expense");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [date, setDate] = useState(new Date());
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] = useState<Frequency>("monthly");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
 
-  const categories: Category[] = [
-    { id: "food", name: "Food", icon: ShoppingCart, color: "#10b981" },
-    { id: "transport", name: "Transport", icon: Truck, color: "#3b82f6" },
-    { id: "utilities", name: "Utilities", icon: Zap, color: "#f59e0b" },
-    { id: "entertainment", name: "Entertainment", icon: Film, color: "#8b5cf6" },
-    { id: "healthcare", name: "Healthcare", icon: Heart, color: "#ef4444" },
-    { id: "shopping", name: "Shopping", icon: ShoppingBag, color: "#06b6d4" },
-    { id: "education", name: "Education", icon: Book, color: "#84cc16" },
-    { id: "other", name: "Other", icon: MoreHorizontal, color: "#64748b" },
+  // Transfer-specific state
+  const [fromAccount, setFromAccount] = useState<Account | null>(null);
+  const [toAccount, setToAccount] = useState<Account | null>(null);
+  const [transferAmount, setTransferAmount] = useState("");
+
+  // Get categories based on entry type
+  const expenseCategories = getExpenseCategories(t);
+  const incomeCategories = getIncomeCategories(t);
+
+  // Create dynamic tabs with translations
+  const ENTRY_TABS = [
+    { id: "Income", label: t.income },
+    { id: "Expense", label: t.expense },
+    { id: "Transfer", label: t.transfer },
   ];
 
-  const quickAmounts = [10, 25, 50, 100];
+  useEffect(() => {
+    const loadAccounts = async () => {
+      try {
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
 
-  const handleSaveExpense = () => {
-    if (!amount || !selectedCategory || !description.trim()) {
-      Alert.alert("Missing Information", "Please fill in all required fields");
+        if (authError || !user) {
+          console.error("User not authenticated");
+          return;
+        }
+
+        const accountsData = await fetchAccounts(user.id);
+        setAccounts(accountsData);
+        if (accountsData.length > 0) {
+          setSelectedAccount(accountsData[0]);
+        }
+      } catch (error) {
+        console.error("Error loading accounts:", error);
+        Toast.show({
+          type: "error",
+          text1: t.error || "Error",
+          text2: t.failedToLoadAccounts || "Failed to load accounts",
+        });
+      }
+    };
+
+    loadAccounts();
+  }, []);
+
+  const handleEntryTypeChange = (type: string) => {
+    setEntryType(type);
+    setSelectedCategory(null);
+  };
+
+  const handleSaveExpense = async () => {
+    // Basic validation
+    if (!amount || !description.trim()) {
+      Toast.show({
+        type: "error",
+        text1: t.missingInfo || "Missing Information",
+        text2: t.pleaseFillRequiredFields || "Please fill all required fields",
+      });
       return;
     }
 
-    Alert.alert("Success", "Expense added successfully!", [
-      {
-        text: "Add Another",
-        onPress: () => {
-          setAmount("");
-          setDescription("");
-          setSelectedCategory(null);
-        },
-      },
-      { text: "Done", onPress: () => router.back() },
-    ]);
+    if (!selectedAccount) {
+      Toast.show({
+        type: "error",
+        text1: t.selectAccount || "Select Account",
+        text2: t.pleaseSelectAccount || "Please select an account",
+      });
+      return;
+    }
+
+    // Type-specific validation
+    if (entryType === "Income" && (!selectedCategory || !selectedCategory.name)) {
+      Toast.show({
+        type: "error",
+        text1: t.chooseCategory || "Choose Category",
+        text2: t.pleaseSelectCategoryForIncome || "Please select a category for income",
+      });
+      return;
+    }
+
+    if (entryType === "Expense") {
+      if (!selectedCategory || !selectedCategory.name) {
+        Toast.show({
+          type: "error",
+          text1: t.chooseCategory || "Choose Category",
+          text2: t.pleaseSelectCategoryForExpense || "Please select a category for expense",
+        });
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Please log in first");
+
+      const amountNum = Number.parseFloat(amount);
+
+      // For expenses, check account balance
+      if (entryType === "Expense") {
+        if (amountNum > selectedAccount.amount) {
+          Toast.show({
+            type: "error",
+            text1: t.insufficientFunds || "Insufficient Funds",
+            text2: `${t.yourAccountDoesntHaveEnoughBalance || "Your account doesn't have enough balance"} ${selectedAccount.name} ${t.forThisExpense || "for this expense"}.`,
+          });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // Add expense using the service
+      await addExpense({
+        user_id: user.id,
+        entry_type: entryType as "Income" | "Expense",
+        amount: amountNum,
+        category: selectedCategory!.name,
+        description: description.trim(),
+        is_recurring: isRecurring,
+        recurrence_interval: isRecurring ? recurringFrequency : undefined,
+        date: date.toISOString().split("T")[0],
+        account_id: selectedAccount.id,
+        is_essential: true,
+      });
+
+      // Add transaction using the service
+      await addTransaction({
+        user_id: user.id,
+        account_id: selectedAccount.id,
+        amount: amountNum,
+        description: description.trim(),
+        date: date.toISOString().split("T")[0],
+        category: selectedCategory?.name || "",
+        is_recurring: isRecurring,
+        recurrence_interval: isRecurring ? recurringFrequency : undefined,
+        type: entryType === "Income" ? "income" : "expense",
+      });
+
+      // Update account balance
+      const newBalance =
+        entryType === "Expense"
+          ? selectedAccount.amount - amountNum
+          : selectedAccount.amount + amountNum;
+
+      await updateAccountBalance(selectedAccount.id, newBalance);
+
+      // Auto-create subscription if this is a recurring expense
+      if (entryType === "Expense" && isRecurring && selectedCategory) {
+        try {
+          let nextPaymentDate = new Date();
+          switch (recurringFrequency) {
+            case "weekly":
+              nextPaymentDate.setDate(nextPaymentDate.getDate() + 7);
+              break;
+            case "monthly":
+              nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+              break;
+            case "yearly":
+              nextPaymentDate.setFullYear(nextPaymentDate.getFullYear() + 1);
+              break;
+            default:
+              nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
+          }
+
+          const billingCycle =
+            recurringFrequency === "weekly"
+              ? "weekly"
+              : recurringFrequency === "yearly"
+                ? "yearly"
+                : "monthly";
+
+          await addSubscription({
+            user_id: user.id,
+            account_id: selectedAccount.id,
+            name: description.trim() || selectedCategory.name,
+            amount: amountNum,
+            category: selectedCategory.name,
+            billing_cycle: billingCycle,
+            next_payment_date: nextPaymentDate.toISOString().split("T")[0],
+            is_active: true,
+            icon: "subscriptions",
+            icon_color: selectedCategory.color,
+            description: `Auto-created from recurring ${entryType.toLowerCase()}`,
+          });
+        } catch (subscriptionError) {
+          console.error("Error auto-creating subscription:", subscriptionError);
+        }
+      }
+
+      // Check budget thresholds
+      if (entryType === "Expense" && selectedCategory?.name) {
+        try {
+          await notificationService.checkBudgetsAndNotify();
+        } catch (error) {
+          console.error("Error checking budget notifications:", error);
+        }
+      }
+
+      Toast.show({
+        type: "success",
+        text1: "Success!",
+        text2: `Your ${entryType.toLowerCase()} has been saved!`,
+      });
+
+      setTimeout(() => {
+        router.push("/(main)/Dashboard");
+      }, 500);
+    } catch (error) {
+      console.error(error);
+      Toast.show({
+        type: "error",
+        text1: t.error || "Error",
+        text2: t.somethingWentWrongPleaseTryAgain || "Something went wrong. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
+  const handleTransfer = async () => {
+    if (!transferAmount || Number.parseFloat(transferAmount) <= 0) {
+      Toast.show({
+        type: "error",
+        text1: t.error || "Error",
+        text2: t.pleaseEnterValidTransferAmount || "Please enter a valid transfer amount",
+      });
+      return;
+    }
+
+    if (!fromAccount || !toAccount) {
+      Toast.show({
+        type: "error",
+        text1: "Select Accounts",
+        text2: "Please select both from and to accounts",
+      });
+      return;
+    }
+
+    if (fromAccount.id === toAccount.id) {
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Cannot transfer to the same account",
+      });
+      return;
+    }
+
+    const amountNum = Number.parseFloat(transferAmount);
+    if (amountNum > fromAccount.amount) {
+      Toast.show({
+        type: "error",
+        text1: "Insufficient Funds",
+        text2: "Insufficient balance in the from account",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("Please log in first");
+
+      // Add transfer record
+      await addTransfer({
+        user_id: user.id,
+        from_account_id: fromAccount.id,
+        to_account_id: toAccount.id,
+        amount: amountNum,
+        description: `Transfer from ${fromAccount.name} to ${toAccount.name}`,
+        date: date.toISOString().split("T")[0],
+      });
+
+      // Add EXPENSE transaction for FROM account
+      await addTransaction({
+        user_id: user.id,
+        account_id: fromAccount.id,
+        amount: amountNum,
+        description: `Transfer to ${toAccount.name}`,
+        date: date.toISOString().split("T")[0],
+        category: "Transfer",
+        is_recurring: false,
+        type: "expense",
+      });
+
+      // Add INCOME transaction for TO account
+      await addTransaction({
+        user_id: user.id,
+        account_id: toAccount.id,
+        amount: amountNum,
+        description: `Transfer from ${fromAccount.name}`,
+        date: date.toISOString().split("T")[0],
+        category: "Transfer",
+        is_recurring: false,
+        type: "income",
+      });
+
+      // Update account balances
+      await Promise.all([
+        updateAccountBalance(fromAccount.id, fromAccount.amount - amountNum),
+        updateAccountBalance(toAccount.id, toAccount.amount + amountNum),
+      ]);
+
+      Toast.show({
+        type: "success",
+        text1: "Transfer Successful!",
+        text2: `$${amountNum.toFixed(2)} transferred from ${fromAccount.name} to ${toAccount.name}`,
+      });
+
+      setTimeout(() => {
+        router.push("/(main)/Dashboard");
+      }, 500);
+    } catch (error) {
+      console.error(error);
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Transfer failed. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  const isFormValid = useCallback(() => {
+    if (entryType === "Transfer") {
+      return (
+        !!transferAmount &&
+        Number.parseFloat(transferAmount) > 0 &&
+        !!fromAccount &&
+        !!toAccount &&
+        fromAccount.id !== toAccount.id &&
+        !isSubmitting
+      );
+    }
+
+    // For Income and Expense
+    return (
+      !!amount &&
+      !!description.trim() &&
+      !!selectedAccount &&
+      !!selectedCategory &&
+      !isSubmitting
+    );
+  }, [
+    amount,
+    description,
+    selectedAccount,
+    selectedCategory,
+    entryType,
+    fromAccount,
+    toAccount,
+    transferAmount,
+    isSubmitting,
+  ]);
 
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+      <StatusBar
+        barStyle={theme.isDark ? "light-content" : "dark-content"}
+        backgroundColor={theme.background}
+      />
       <KeyboardAvoidingView
-        className="flex-1"
+        style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         {/* Header */}
-        <View className="flex-row justify-between items-center px-6 py-4 border-b border-slate-700">
-          <TouchableOpacity onPress={() => router.back()}>
-            <X size={24} color="#94a3b8" />
-          </TouchableOpacity>
-          <Text className="text-white text-lg font-bold">Add Expense</Text>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingHorizontal: 16,
+            paddingVertical: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border,
+          }}
+        >
           <TouchableOpacity
-            className={`py-2 px-4 rounded-lg ${
-              !amount || !selectedCategory || !description.trim()
-                ? "bg-slate-700"
-                : "bg-emerald-500"
-            }`}
-            onPress={handleSaveExpense}
-            disabled={!amount || !selectedCategory || !description.trim()}
+            style={{
+              padding: 8,
+              borderRadius: 12,
+              backgroundColor: theme.cardBackground,
+            }}
+            onPress={() => router.back()}
+          >
+            <X size={22} color={theme.textMuted} />
+          </TouchableOpacity>
+          <Text style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}>
+            {t.add_transaction || "Add Transaction"}
+          </Text>
+          <TouchableOpacity
+            style={{
+              paddingVertical: 10,
+              paddingHorizontal: 20,
+              borderRadius: 12,
+              backgroundColor: isFormValid() ? theme.primary : theme.cardBackground,
+            }}
+            onPress={entryType === "Transfer" ? handleTransfer : handleSaveExpense}
+            disabled={!isFormValid()}
           >
             <Text
-              className={`font-bold ${
-                !amount || !selectedCategory || !description.trim()
-                  ? "text-slate-500"
-                  : "text-white"
-              }`}
+              style={{
+                fontWeight: "600",
+                fontSize: 14,
+                color: isFormValid() ? theme.primaryText : theme.textMuted,
+              }}
             >
-              Save
+              {isSubmitting ? t.saving || "Saving..." : t.save || "Save"}
             </Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-          {/* Amount Input */}
-          <View className="px-6 py-8 items-center">
-            <Text className="text-slate-400 mb-4">Amount</Text>
-            <View className="flex-row items-center mb-6">
-              <Text className="text-emerald-500 text-3xl font-bold mr-2">$</Text>
-              <TextInput
-                className="text-white text-4xl font-bold min-w-[120px] text-center"
-                value={amount}
-                onChangeText={setAmount}
-                placeholder="0.00"
-                placeholderTextColor="#64748b"
-                keyboardType="numeric"
-                autoFocus
-              />
-            </View>
-
-            {/* Quick Amount Buttons */}
-            <View className="flex-row gap-3">
-              {quickAmounts.map((quickAmount) => (
+        <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+          {/* Type Tabs - Modern Pills */}
+          <View style={{ paddingHorizontal: 16, paddingVertical: 16, backgroundColor: theme.background }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {ENTRY_TABS.map((tab) => (
                 <TouchableOpacity
-                  key={quickAmount}
-                  className="bg-slate-800 py-2 px-4 rounded-full border border-slate-700"
-                  onPress={() => setAmount(quickAmount.toString())}
+                  key={tab.id}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    borderRadius: 20,
+                    backgroundColor: entryType === tab.id ? theme.primary : theme.cardBackground,
+                    borderWidth: 1,
+                    borderColor: entryType === tab.id ? theme.primary : theme.border,
+                  }}
+                  onPress={() => handleEntryTypeChange(tab.id)}
                 >
-                  <Text className="text-slate-400 font-medium">${quickAmount}</Text>
+                  <Text
+                    style={{
+                      textAlign: "center",
+                      fontWeight: entryType === tab.id ? "600" : "400",
+                      fontSize: 14,
+                      color: entryType === tab.id ? theme.primaryText : theme.textSecondary,
+                    }}
+                  >
+                    {tab.label}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
-          {/* Category Selection */}
-          <View className="px-6 mb-8">
-            <Text className="text-white text-lg font-bold mb-4">Category</Text>
-            <View className="flex-row flex-wrap gap-3">
-              {categories.map((category) => {
-                const IconComponent = category.icon;
-                return (
-                  <TouchableOpacity
-                    key={category.id}
-                    className={`w-[22%] aspect-square justify-center items-center rounded-xl border ${
-                      selectedCategory?.id === category.id
-                        ? "border-emerald-500 bg-emerald-500/10"
-                        : "border-slate-700 bg-slate-800"
-                    }`}
-                    onPress={() => setSelectedCategory(category)}
-                  >
-                    <View
-                      className={`w-8 h-8 rounded-full justify-center items-center ${
-                        selectedCategory?.id === category.id
-                          ? "bg-emerald-500"
-                          : `bg-[${category.color}20]`
-                      }`}
-                    >
-                      <IconComponent
-                        size={20}
-                        color={
-                          selectedCategory?.id === category.id
-                            ? "#ffffff"
-                            : category.color
-                        }
-                      />
-                    </View>
-                    <Text
-                      className={`mt-2 text-xs ${
-                        selectedCategory?.id === category.id
-                          ? "text-emerald-500 font-semibold"
-                          : "text-slate-400 font-medium"
-                      }`}
-                    >
-                      {category.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Description */}
-          <View className="px-6 mb-8">
-            <Text className="text-white text-lg font-bold mb-4">Description</Text>
-            <TextInput
-              className="bg-slate-800 rounded-xl border border-slate-700 p-4 text-white text-base h-24"
-              value={description}
-              onChangeText={setDescription}
-              placeholder="What did you spend on?"
-              placeholderTextColor="#64748b"
-              multiline
-              textAlignVertical="top"
+          {/* Render the appropriate form based on entry type */}
+          {entryType === "Expense" && (
+            <ExpenseForm
+              amount={amount}
+              setAmount={setAmount}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              description={description}
+              setDescription={setDescription}
+              selectedAccount={selectedAccount}
+              setSelectedAccount={setSelectedAccount}
+              date={date}
+              setDate={setDate}
+              isRecurring={isRecurring}
+              setIsRecurring={setIsRecurring}
+              recurringFrequency={recurringFrequency}
+              setRecurringFrequency={setRecurringFrequency}
+              categories={expenseCategories}
+              accounts={accounts}
+              theme={theme}
+              t={t}
             />
-          </View>
+          )}
 
-          {/* Date Selection */}
-          <View className="px-6 mb-8">
-            <Text className="text-white text-lg font-bold mb-4">Date</Text>
-            <TouchableOpacity className="flex-row items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
-              <Calendar size={20} color="#10b981" />
-              <Text className="text-white ml-3 flex-1">{formatDate(selectedDate)}</Text>
-              <ChevronDown size={16} color="#64748b" />
-            </TouchableOpacity>
-          </View>
+          {entryType === "Income" && (
+            <IncomeForm
+              amount={amount}
+              setAmount={setAmount}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              description={description}
+              setDescription={setDescription}
+              selectedAccount={selectedAccount}
+              setSelectedAccount={setSelectedAccount}
+              date={date}
+              setDate={setDate}
+              categories={incomeCategories}
+              accounts={accounts}
+              theme={theme}
+              t={t}
+            />
+          )}
 
-          {/* Recurring Option */}
-          <View className="px-6 mb-8">
-            <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-white text-lg font-bold">Recurring Expense</Text>
-              <TouchableOpacity
-                className={`w-12 h-7 rounded-full justify-center ${
-                  isRecurring ? "bg-emerald-500" : "bg-slate-700"
-                }`}
-                onPress={() => setIsRecurring(!isRecurring)}
-              >
-                <View
-                  className={`w-6 h-6 rounded-full bg-white ${
-                    isRecurring ? "self-end" : "self-start"
-                  }`}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {isRecurring && (
-              <View>
-                <Text className="text-slate-400 mb-3">Frequency</Text>
-                <View className="flex-row gap-3">
-                  {["weekly", "monthly", "yearly"].map((freq) => (
-                    <TouchableOpacity
-                      key={freq}
-                      className={`flex-1 py-3 rounded-lg border ${
-                        recurringFrequency === freq
-                          ? "bg-emerald-500 border-emerald-500"
-                          : "bg-slate-800 border-slate-700"
-                      }`}
-                      onPress={() => setRecurringFrequency(freq as Frequency)}
-                    >
-                      <Text
-                        className={`text-center font-medium ${
-                          recurringFrequency === freq
-                            ? "text-white font-semibold"
-                            : "text-slate-400"
-                        }`}
-                      >
-                        {freq.charAt(0).toUpperCase() + freq.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            )}
-          </View>
-
-          {/* Additional Options */}
-          <View className="px-6 mb-8 gap-3">
-            <TouchableOpacity className="flex-row items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
-              <Camera size={20} color="#3b82f6" />
-              <Text className="text-white ml-3 flex-1 font-medium">Scan Receipt</Text>
-              <ChevronRight size={16} color="#64748b" />
-            </TouchableOpacity>
-
-            <TouchableOpacity className="flex-row items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
-              <MapPin size={20} color="#8b5cf6" />
-              <Text className="text-white ml-3 flex-1 font-medium">Add Location</Text>
-              <ChevronRight size={16} color="#64748b" />
-            </TouchableOpacity>
-
-            <TouchableOpacity className="flex-row items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
-              <Tag size={20} color="#f59e0b" />
-              <Text className="text-white ml-3 flex-1 font-medium">Add Tags</Text>
-              <ChevronRight size={16} color="#64748b" />
-            </TouchableOpacity>
-          </View>
+          {entryType === "Transfer" && (
+            <TransferForm
+              transferAmount={transferAmount}
+              setTransferAmount={setTransferAmount}
+              fromAccount={fromAccount}
+              setFromAccount={setFromAccount}
+              toAccount={toAccount}
+              setToAccount={setToAccount}
+              accounts={accounts}
+              isSubmitting={isSubmitting}
+              handleTransfer={handleTransfer}
+              theme={theme}
+              t={t}
+            />
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

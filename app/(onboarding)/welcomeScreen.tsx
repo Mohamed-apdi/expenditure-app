@@ -1,78 +1,112 @@
-import { View, Text, TouchableOpacity, Dimensions } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StatusBar,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter } from "expo-router";
-import { PieChart, Users, TrendingUp, Shield, Zap, ArrowRight } from "lucide-react-native";
-
-const { width, height } = Dimensions.get("window");
+import { Wallet, ArrowRight } from "lucide-react-native";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const theme = useTheme();
+  const { t } = useLanguage();
+
+  const handleNavigate = () => {
+    router.push("/inputCategoriesScreen");
+  };
 
   return (
     <>
-    <Stack.Screen options={{ headerShown: false }} />
-    <SafeAreaView className="flex-1 bg-slate-900">
-      <View className="flex-1 px-6 justify-between py-10">
-        <View className="flex-row items-center justify-center gap-1.5">
-            <View className="w-6 h-2 bg-emerald-400 rounded-full" />
-            <View className="w-2 h-2 bg-white/30 rounded-full" />
-            <View className="w-2 h-2 bg-white/30 rounded-full" />
-        </View>
-        {/* Hero Illustration */}
-        <View className="items-center mt-10">
-          <View className="w-48 h-48 bg-slate-800 rounded-full justify-center items-center border-2 border-emerald-500 relative">
-            <PieChart size={80} color="#10b981" />
-            <View className="absolute bottom-5 right-5 bg-slate-700 rounded-xl p-2">
-              <Users size={40} color="#64748b" />
+      <StatusBar
+        barStyle={theme.isDark ? "light-content" : "dark-content"}
+        backgroundColor={theme.background}
+      />
+      <Stack.Screen options={{ headerShown: false }} />
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+        <View className="flex-1 px-8 justify-center">
+          {/* Hero Section */}
+          <View className="items-center mb-12">
+            <View
+              style={{
+                width: 120,
+                height: 120,
+                backgroundColor: theme.primary,
+                borderRadius: 60,
+                justifyContent: "center",
+                alignItems: "center",
+                marginBottom: 24,
+              }}
+            >
+              <Wallet size={50} color={theme.primaryText} />
             </View>
-          </View>
-        </View>
 
-        {/* Title and Tagline */}
-        <View className="items-center px-5">
-          <Text className="text-white text-3xl font-bold text-center mb-4">
-            Household Expenditure Predictor
-          </Text>
-          <Text className="text-emerald-500 text-lg text-center font-semibold mb-3">
-            Take control of household spending with AI-powered predictions
-          </Text>
-          <Text className="text-slate-400 text-base text-center leading-6">
-            Get accurate forecasts based on your family's spending patterns
-          </Text>
-        </View>
+            <Text
+              style={{
+                color: theme.text,
+                fontSize: 32,
+                fontWeight: "bold",
+                textAlign: "center",
+                marginBottom: 16,
+              }}
+            >
+              {t.welcomeToApp.replace('{appName}', t.appName)}
+            </Text>
 
-        {/* Features */}
-        <View className="flex-row justify-around px-5">
-          <View className="items-center flex-1">
-            <TrendingUp size={24} color="#10b981" />
-            <Text className="text-slate-200 text-sm mt-2 text-center font-medium">
-              Smart Predictions
+            <Text
+              style={{
+                color: theme.textSecondary,
+                fontSize: 18,
+                textAlign: "center",
+                lineHeight: 26,
+                marginBottom: 8,
+              }}
+            >
+              {t.takeControlOfFinances}
+            </Text>
+
+            <Text
+              style={{
+                color: theme.textSecondary,
+                fontSize: 16,
+                textAlign: "center",
+                lineHeight: 24,
+              }}
+            >
+              {t.trackExpensesManageBudgets}
             </Text>
           </View>
-          <View className="items-center flex-1">
-            <Shield size={24} color="#10b981" />
-            <Text className="text-slate-200 text-sm mt-2 text-center font-medium">
-              Secure & Private
-            </Text>
-          </View>
-          <View className="items-center flex-1">
-            <Zap size={24} color="#10b981" />
-            <Text className="text-slate-200 text-sm mt-2 text-center font-medium">
-              Real-time Insights
-            </Text>
-          </View>
-        </View>
 
-        {/* Get Started Button */}
-        <TouchableOpacity
-          className="bg-emerald-500 py-4 px-8 rounded-xl flex-row items-center justify-center mx-5 shadow-lg shadow-emerald-500/30"
-          onPress={() => router.push("/inputCategoriesScreen" as never)}
-        >
-          <Text className="text-white text-lg font-bold mr-2">Get Started</Text>
-          <ArrowRight size={20} color="#ffffff" />
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+          {/* Get Started Button */}
+          <TouchableOpacity
+            style={{
+              backgroundColor: theme.primary,
+              paddingVertical: 16,
+              paddingHorizontal: 32,
+              borderRadius: 12,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            onPress={handleNavigate}
+          >
+            <Text
+              style={{
+                color: theme.primaryText,
+                fontSize: 18,
+                fontWeight: "600",
+                marginRight: 8,
+              }}
+            >
+              {t.getStarted}
+            </Text>
+            <ArrowRight size={20} color={theme.primaryText} />
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     </>
   );
 }

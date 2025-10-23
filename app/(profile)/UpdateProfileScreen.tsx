@@ -12,22 +12,27 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { 
-  X, Camera, User, AtSign, Mail, Phone, Shield, 
-  Bell, Info, ChevronRight, Check 
+import {
+  X,
+  Camera,
+  User,
+  Mail,
+  Phone,
 } from "lucide-react-native";
-
+import { supabase } from "~/lib";
+import * as ImagePicker from "expo-image-picker";
+import { decode } from "base64-arraybuffer";
+import { useTheme } from "~/lib";
+import { useLanguage } from "~/lib";
 type FormData = {
   fullName: string;
-  username: string;
   email: string;
   phone: string;
-  profileImage: string;
+  image_url: string;
 };
 
 type Errors = {
   fullName?: string;
-  username?: string;
   email?: string;
   phone?: string;
 };
@@ -35,37 +40,56 @@ type Errors = {
 export default function UpdateProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const userProfile = params.userProfile ? JSON.parse(params.userProfile as string) : {};
+  const { t } = useLanguage();
+  const userProfile = params.userProfile
+    ? JSON.parse(params.userProfile as string)
+    : {};
   const focusField = params.focusField as string | undefined;
 
   const [formData, setFormData] = useState<FormData>({
     fullName: userProfile?.fullName || "",
-    username: userProfile?.username || "",
     email: userProfile?.email || "",
     phone: userProfile?.phone || "",
-    profileImage: userProfile?.profileImage || "",
+    image_url: userProfile?.image_url || "",
   });
-
-  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [hasChanges, setHasChanges] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Refs for focusing specific fields
   const fullNameRef = useRef<TextInput>(null);
-  const usernameRef = useRef<TextInput>(null);
   const emailRef = useRef<TextInput>(null);
   const phoneRef = useRef<TextInput>(null);
+  const theme = useTheme();
+
+  // Get current user ID when component mounts
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          setCurrentUserId(user.id);
+        } else {
+          Alert.alert(t.error, t.youNeedToBeLoggedIn);
+          router.back();
+        }
+      } catch (error) {
+        console.error("Error fetching user:", error);
+        Alert.alert(t.error, t.failedToFetchUser);
+        router.back();
+      }
+    };
+
+    fetchUser();
+  }, []);
 
   useEffect(() => {
-    // Focus specific field if passed from profile screen
     if (focusField) {
       setTimeout(() => {
         switch (focusField) {
           case "fullName":
             fullNameRef.current?.focus();
-            break;
-          case "username":
-            usernameRef.current?.focus();
             break;
           case "email":
             emailRef.current?.focus();
@@ -78,49 +102,37 @@ export default function UpdateProfileScreen() {
     }
   }, [focusField]);
 
-  const updateFormData = <K extends keyof FormData & keyof Errors>(key: K | keyof FormData, value: string) => {
+  const updateFormData = <K extends keyof FormData & keyof Errors>(
+    key: K | keyof FormData,
+    value: string
+  ) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
     setHasChanges(true);
-  
-    // Clear error for this field when user starts typing
-    if ((key in errors)) {
+    if (key in errors) {
       setErrors((prev) => ({ ...prev, [key]: undefined }));
     }
   };
 
   const validateForm = (): boolean => {
     const newErrors: Errors = {};
-
-    // Full Name validation
     if (!formData.fullName.trim()) {
-      newErrors.fullName = "Full name is required";
+      newErrors.fullName = t.fullNameRequired;
     } else if (formData.fullName.trim().length < 2) {
-      newErrors.fullName = "Full name must be at least 2 characters";
+      newErrors.fullName = t.fullNameMinLength;
     }
 
-    // Username validation
-    if (!formData.username.trim()) {
-      newErrors.username = "Username is required";
-    } else if (formData.username.length < 3) {
-      newErrors.username = "Username must be at least 3 characters";
-    } else if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
-      newErrors.username = "Username can only contain letters, numbers, and underscores";
-    }
-
-    // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email.trim()) {
-      newErrors.email = "Email is required";
+      newErrors.email = t.emailRequired;
     } else if (!emailRegex.test(formData.email)) {
-      newErrors.email = "Please enter a valid email address";
+      newErrors.email = t.validEmailAddress;
     }
 
-    // Phone validation
     const phoneRegex = /^\+?[\d\s\-()]+$/;
     if (!formData.phone.trim()) {
-      newErrors.phone = "Phone number is required";
+      newErrors.phone = t.phoneRequired;
     } else if (!phoneRegex.test(formData.phone)) {
-      newErrors.phone = "Please enter a valid phone number";
+      newErrors.phone = t.validPhoneNumber;
     }
 
     setErrors(newErrors);
@@ -128,215 +140,396 @@ export default function UpdateProfileScreen() {
   };
 
   const handleSave = async () => {
-    if (!validateForm()) {
+    if (!validateForm()) return;
+    if (!currentUserId) {
+      Alert.alert(t.error, t.userNotAuthenticated);
       return;
     }
 
-    setLoading(true);
-
     try {
-      // TODO: Implement actual API call to update profile
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: formData.fullName,
+          phone: formData.phone,
+          image_url: formData.image_url,
+        })
+        .eq("id", currentUserId);
 
-      Alert.alert("Success", "Profile updated successfully!", [
+      if (error) throw error;
+
+      Alert.alert(t.success, t.profileUpdatedSuccessfully, [
         {
-          text: "OK",
-          onPress: () => router.back(),
+          text: t.ok,
+          onPress: () =>
+            router.push({
+              pathname: "../(main)/SettingScreen",
+              params: {
+                updated: "true",
+                timestamp: Date.now(),
+              },
+            }),
         },
       ]);
-    } catch (error) {
-      Alert.alert("Error", "Failed to update profile. Please try again.");
-    } finally {
-      setLoading(false);
+    } catch (error: any) {
+      console.error("Update error:", error);
+      Alert.alert(t.error, error.message || t.failedToUpdateProfile);
     }
   };
 
   const handleCancel = () => {
     if (hasChanges) {
-      Alert.alert("Discard Changes", "You have unsaved changes. Are you sure you want to go back?", [
-        { text: "Keep Editing", style: "cancel" },
-        { text: "Discard", style: "destructive", onPress: () => router.back() },
+      Alert.alert(t.discardChanges, t.unsavedChangesMessage, [
+        { text: t.keepEditing, style: "cancel" },
+        {
+          text: t.discard,
+          style: "destructive",
+          onPress: () =>
+            router.push({
+              pathname: "../(main)/SettingScreen",
+              params: {
+                updated: "true",
+                timestamp: Date.now(),
+              },
+            }),
+        },
       ]);
     } else {
       router.back();
     }
   };
+  const uploadImage = async (base64Data: string): Promise<string | null> => {
+    if (!currentUserId) return null;
 
+    try {
+      // Create a unique filename
+      const fileName = `profile_${currentUserId}_${Date.now()}.jpg`;
+      const filePath = `profile_images/${fileName}`;
+
+      // Upload the image to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from("images")
+        .upload(filePath, decode(base64Data), {
+          contentType: "image/jpeg",
+        });
+
+      if (error) throw error;
+
+      // Get the public URL of the uploaded image
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("images").getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      Alert.alert(t.error, error.message || t.failedToUploadImage);
+      return null;
+    }
+  };
   const handleChangePhoto = () => {
-    Alert.alert("Change Profile Photo", "Choose an option", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Take Photo", onPress: () => console.log("Take photo") },
-      { text: "Choose from Library", onPress: () => console.log("Choose from library") },
-      { 
-        text: "Remove Photo", 
-        style: "destructive", 
-        onPress: () => updateFormData("profileImage", "") 
+    Alert.alert(t.changeProfilePhoto, t.chooseAnOption, [
+      { text: t.cancel, style: "cancel" },
+      {
+        text: t.takePhoto,
+        onPress: () => pickImage(true),
+      },
+      {
+        text: t.chooseFromLibrary,
+        onPress: () => pickImage(false),
+      },
+      {
+        text: t.removePhoto,
+        style: "destructive",
+        onPress: () => updateFormData("image_url", ""),
       },
     ]);
   };
 
+  const pickImage = async (useCamera: boolean) => {
+    try {
+      let result;
+
+      if (useCamera) {
+        result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 1,
+          base64: true,
+        });
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 1,
+          base64: true,
+        });
+      }
+
+      if (!result.canceled && result.assets[0].base64) {
+        const publicUrl = await uploadImage(result.assets[0].base64);
+        if (publicUrl) {
+          updateFormData("image_url", publicUrl);
+        }
+      }
+    } catch (error) {
+      console.error("Image picker error:", error);
+      Alert.alert(t.error, t.failedToPickImage);
+    }
+  };
   return (
-    <SafeAreaView className="flex-1 bg-slate-900">
-      <KeyboardAvoidingView 
-        className="flex-1" 
+    <SafeAreaView className="flex-1" style={{ backgroundColor: theme.background }}>
+      <KeyboardAvoidingView
+        className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         {/* Header */}
-        <View className="flex-row justify-between items-center px-6 py-4 border-b border-slate-700">
-          <TouchableOpacity className="p-2" onPress={handleCancel}>
-            <X size={24} color="#94a3b8" />
-          </TouchableOpacity>
-          <Text className="text-white text-lg font-bold">Update Profile</Text>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingHorizontal: 16,
+            paddingVertical: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border,
+          }}
+        >
           <TouchableOpacity
-            className={`py-2 px-4 rounded-lg ${(!hasChanges || loading) ? "bg-slate-700" : "bg-emerald-500"}`}
-            onPress={handleSave}
-            disabled={!hasChanges || loading}
+            style={{
+              padding: 8,
+              borderRadius: 12,
+              backgroundColor: theme.cardBackground,
+            }}
+            onPress={handleCancel}
           >
-            <Text className={`text-sm font-bold ${(!hasChanges || loading) ? "text-slate-500" : "text-white"}`}>
-              {loading ? "Saving..." : "Save"}
+            <X size={22} color={theme.textMuted} />
+          </TouchableOpacity>
+          <Text style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}>
+            {t.updateProfile || "Edit Profile"}
+          </Text>
+          <TouchableOpacity
+            style={{
+              paddingVertical: 10,
+              paddingHorizontal: 20,
+              borderRadius: 12,
+              backgroundColor: hasChanges ? theme.primary : theme.cardBackground,
+            }}
+            onPress={handleSave}
+            disabled={!hasChanges}
+          >
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: "600",
+                color: hasChanges ? theme.primaryText : theme.textMuted,
+              }}
+            >
+              {t.save}
             </Text>
           </TouchableOpacity>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-          {/* Profile Photo Section */}
-          <View className="items-center py-8 px-6">
-            <View className="relative mb-3">
-              {formData.profileImage ? (
-                <Image 
-                  source={{ uri: formData.profileImage }} 
-                  className="w-32 h-32 rounded-full border-4 border-emerald-500"
-                />
-              ) : (
-                <View className="w-32 h-32 rounded-full bg-slate-800 border-4 border-slate-700 justify-center items-center">
-                  <User size={40} color="#64748b" />
+          <View style={{ paddingHorizontal: 16, paddingVertical: 20 }}>
+            {/* Profile Photo */}
+            <View style={{ alignItems: "center", marginBottom: 32 }}>
+              <View className="relative">
+                {formData.image_url ? (
+                  <Image
+                    source={{ uri: formData.image_url }}
+                    style={{
+                      width: 100,
+                      height: 100,
+                      borderRadius: 50,
+                      borderWidth: 3,
+                      borderColor: theme.primary,
+                    }}
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: 100,
+                      height: 100,
+                      borderRadius: 50,
+                      backgroundColor: theme.cardBackground,
+                      borderWidth: 3,
+                      borderColor: theme.border,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <User size={36} color={theme.textMuted} />
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={{
+                    position: "absolute",
+                    bottom: 0,
+                    right: 0,
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: theme.primary,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderWidth: 3,
+                    borderColor: theme.background,
+                  }}
+                  onPress={handleChangePhoto}
+                >
+                  <Camera size={14} color={theme.primaryText} />
+                </TouchableOpacity>
+              </View>
+              <Text style={{ color: theme.textMuted, fontSize: 12, marginTop: 12 }}>
+                {t.tapToChangePhoto || "Tap to change photo"}
+              </Text>
+            </View>
+
+            {/* Form Fields */}
+            <View style={{ gap: 16 }}>
+              {/* Full Name */}
+              <View>
+                <Text style={{ color: theme.text, fontSize: 13, fontWeight: "500", marginBottom: 8 }}>
+                  {t.fullName} *
+                </Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: errors.fullName ? "#ef4444" : theme.border,
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                    backgroundColor: theme.background,
+                  }}
+                >
+                  <User size={18} color={theme.textMuted} />
+                  <TextInput
+                    ref={fullNameRef}
+                    style={{
+                      flex: 1,
+                      padding: 14,
+                      color: theme.text,
+                      fontSize: 15,
+                      marginLeft: 8,
+                    }}
+                    placeholder={t.enterYourFullName}
+                    placeholderTextColor={theme.textMuted}
+                    value={formData.fullName}
+                    onChangeText={(value) => updateFormData("fullName", value)}
+                    autoCapitalize="words"
+                    returnKeyType="next"
+                  />
                 </View>
-              )}
-              <TouchableOpacity 
-                className="absolute bottom-0 right-0 w-9 h-9 rounded-full bg-emerald-500 justify-center items-center border-[3px] border-slate-900"
-                onPress={handleChangePhoto}
-              >
-                <Camera size={16} color="#ffffff" />
-              </TouchableOpacity>
+                {errors.fullName && (
+                  <Text style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>
+                    {errors.fullName}
+                  </Text>
+                )}
+              </View>
+
+              {/* Email (Read-only) */}
+              <View>
+                <Text style={{ color: theme.text, fontSize: 13, fontWeight: "500", marginBottom: 8 }}>
+                  {t.emailAddress}
+                </Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                    backgroundColor: theme.cardBackground,
+                    opacity: 0.6,
+                  }}
+                >
+                  <Mail size={18} color={theme.textMuted} />
+                  <TextInput
+                    ref={emailRef}
+                    style={{
+                      flex: 1,
+                      padding: 14,
+                      color: theme.textSecondary,
+                      fontSize: 15,
+                      marginLeft: 8,
+                    }}
+                    value={formData.email}
+                    editable={false}
+                  />
+                </View>
+                <Text style={{ color: theme.textMuted, fontSize: 11, marginTop: 4 }}>
+                  Email cannot be changed
+                </Text>
+              </View>
+
+              {/* Phone Number */}
+              <View>
+                <Text style={{ color: theme.text, fontSize: 13, fontWeight: "500", marginBottom: 8 }}>
+                  {t.phoneNumber} *
+                </Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    borderWidth: 1,
+                    borderColor: errors.phone ? "#ef4444" : theme.border,
+                    borderRadius: 12,
+                    paddingHorizontal: 12,
+                    backgroundColor: theme.background,
+                  }}
+                >
+                  <Phone size={18} color={theme.textMuted} />
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginLeft: 8,
+                      paddingRight: 8,
+                      borderRightWidth: 1,
+                      borderRightColor: theme.border,
+                    }}
+                  >
+                    <Text style={{ color: theme.text, fontSize: 15, fontWeight: "500" }}>
+                      +252
+                    </Text>
+                  </View>
+                  <TextInput
+                    ref={phoneRef}
+                    style={{
+                      flex: 1,
+                      padding: 14,
+                      color: theme.text,
+                      fontSize: 15,
+                      paddingLeft: 12,
+                    }}
+                    placeholder="61 234 5678"
+                    placeholderTextColor={theme.textMuted}
+                    value={formData.phone.startsWith('+252') ? formData.phone.substring(4).trim() : formData.phone}
+                    onChangeText={(value) => {
+                      // Automatically add +252 prefix
+                      const cleanValue = value.replace(/[^\d\s]/g, '');
+                      updateFormData("phone", `+252 ${cleanValue}`);
+                    }}
+                    keyboardType="phone-pad"
+                    returnKeyType="done"
+                  />
+                </View>
+                {errors.phone ? (
+                  <Text style={{ color: "#ef4444", fontSize: 12, marginTop: 4 }}>
+                    {errors.phone}
+                  </Text>
+                ) : (
+                  <Text style={{ color: theme.textMuted, fontSize: 11, marginTop: 4 }}>
+                    Somalia country code (+252) included
+                  </Text>
+                )}
+              </View>
             </View>
-            <Text className="text-slate-400 text-sm text-center">Tap to change your profile photo</Text>
-          </View>
-
-          {/* Form Fields */}
-          <View className="px-6">
-            {/* Full Name */}
-            <View className="mb-6">
-              <Text className="text-white text-sm font-semibold mb-2">Full Name</Text>
-              <View className={`flex-row items-center bg-slate-800 rounded-xl border ${errors.fullName ? "border-red-500" : "border-slate-700"} px-4`}>
-                <User size={20} color="#64748b" className="mr-3" />
-                <TextInput
-                  ref={fullNameRef}
-                  className="flex-1 py-4 text-white text-base"
-                  placeholder="Enter your full name"
-                  placeholderTextColor="#64748b"
-                  value={formData.fullName}
-                  onChangeText={(value) => updateFormData("fullName", value)}
-                  autoCapitalize="words"
-                  returnKeyType="next"
-                  onSubmitEditing={() => usernameRef.current?.focus()}
-                />
-              </View>
-              {errors.fullName && <Text className="text-red-500 text-xs mt-1 ml-1">{errors.fullName}</Text>}
-            </View>
-
-            {/* Username */}
-            <View className="mb-6">
-              <Text className="text-white text-sm font-semibold mb-2">Username</Text>
-              <View className={`flex-row items-center bg-slate-800 rounded-xl border ${errors.username ? "border-red-500" : "border-slate-700"} px-4`}>
-                <AtSign size={20} color="#64748b" className="mr-3" />
-                <TextInput
-                  ref={usernameRef}
-                  className="flex-1 py-4 text-white text-base"
-                  placeholder="Enter your username"
-                  placeholderTextColor="#64748b"
-                  value={formData.username}
-                  onChangeText={(value) => updateFormData("username", value.toLowerCase())}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                  onSubmitEditing={() => emailRef.current?.focus()}
-                />
-              </View>
-              {errors.username && <Text className="text-red-500 text-xs mt-1 ml-1">{errors.username}</Text>}
-              <Text className="text-slate-400 text-xs mt-1 ml-1">Only letters, numbers, and underscores allowed</Text>
-            </View>
-
-            {/* Email */}
-            <View className="mb-6">
-              <Text className="text-white text-sm font-semibold mb-2">Email Address</Text>
-              <View className={`flex-row items-center bg-slate-800 rounded-xl border ${errors.email ? "border-red-500" : "border-slate-700"} px-4`}>
-                <Mail size={20} color="#64748b" className="mr-3" />
-                <TextInput
-                  ref={emailRef}
-                  className="flex-1 py-4 text-white text-base"
-                  placeholder="Enter your email address"
-                  placeholderTextColor="#64748b"
-                  value={formData.email}
-                  onChangeText={(value) => updateFormData("email", value.toLowerCase())}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="next"
-                  onSubmitEditing={() => phoneRef.current?.focus()}
-                />
-              </View>
-              {errors.email && <Text className="text-red-500 text-xs mt-1 ml-1">{errors.email}</Text>}
-            </View>
-
-            {/* Phone Number */}
-            <View className="mb-6">
-              <Text className="text-white text-sm font-semibold mb-2">Phone Number</Text>
-              <View className={`flex-row items-center bg-slate-800 rounded-xl border ${errors.phone ? "border-red-500" : "border-slate-700"} px-4`}>
-                <Phone size={20} color="#64748b" className="mr-3" />
-                <TextInput
-                  ref={phoneRef}
-                  className="flex-1 py-4 text-white text-base"
-                  placeholder="Enter your phone number"
-                  placeholderTextColor="#64748b"
-                  value={formData.phone}
-                  onChangeText={(value) => updateFormData("phone", value)}
-                  keyboardType="phone-pad"
-                  returnKeyType="done"
-                />
-              </View>
-              {errors.phone && <Text className="text-red-500 text-xs mt-1 ml-1">{errors.phone}</Text>}
-              <Text className="text-slate-400 text-xs mt-1 ml-1">Include country code (e.g., +1 555 123 4567)</Text>
-            </View>
-          </View>
-
-          {/* Additional Options */}
-          <View className="px-6 py-4 gap-3">
-            <TouchableOpacity className="flex-row items-center bg-slate-800 rounded-xl p-4 border border-slate-700">
-              <Shield size={20} color="#3b82f6" />
-              <View className="ml-4 flex-1">
-                <Text className="text-white text-base font-semibold">Privacy Settings</Text>
-                <Text className="text-slate-400 text-sm">Control who can see your profile</Text>
-              </View>
-              <ChevronRight size={20} color="#64748b" />
-            </TouchableOpacity>
-
-            <TouchableOpacity className="flex-row items-center bg-slate-800 rounded-xl p-4 border border-slate-700">
-              <Bell size={20} color="#8b5cf6" />
-              <View className="ml-4 flex-1">
-                <Text className="text-white text-base font-semibold">Notification Preferences</Text>
-                <Text className="text-slate-400 text-sm">Manage your notification settings</Text>
-              </View>
-              <ChevronRight size={20} color="#64748b" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Info Box */}
-          <View className="flex-row items-start bg-slate-800 mx-6 my-4 p-4 rounded-xl border border-blue-500">
-            <Info size={20} color="#3b82f6" className="mt-0.5" />
-            <Text className="text-slate-400 text-sm ml-3 flex-1">
-              Your profile information is encrypted and stored securely. We never share your personal data with third
-              parties.
-            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
