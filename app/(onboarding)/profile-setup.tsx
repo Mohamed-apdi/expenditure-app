@@ -160,7 +160,7 @@ export default function ProfileSetupScreen() {
       if (status !== "granted") {
         Alert.alert(
           t.error || "Error",
-          t.failedToPickImage || "Permission to access camera roll is required"
+          t.permissionToAccessCamera || "Permission to access camera roll is required"
         );
         return;
       }

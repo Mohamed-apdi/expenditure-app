@@ -187,20 +187,81 @@ export default function ReportsScreen() {
     };
   }, [transactionData, dateRange, t]);
 
+  // Function to translate category names
+  const translateCategory = (category: string) => {
+    const categoryMap: { [key: string]: string } = {
+      'Food & Drinks': t.foodAndDrinks,
+      'Home & Rent': t.homeAndRent,
+      'Travel': t.travel,
+      'Fun': t.fun,
+      'Health': t.health,
+      'Shopping': t.shopping,
+      'Learning': t.learning,
+      'Personal Care': t.personalCare,
+      'Loans': t.loans,
+      'Loan': t.loan,
+      'Transfer': t.transfer,
+      'Loan Repayment': t.loanRepayment,
+      'Gifts': t.gifts,
+      'Donations': t.donations,
+      'Vacation': t.vacation,
+      'Pets': t.pets,
+      'Children': t.children,
+      'Gym & Sports': t.gymAndSports,
+      'Electronics': t.electronics,
+      'Furniture': t.furniture,
+      'Repairs': t.repairs,
+      'Taxes': t.taxes,
+      'Initial Balance': t.InitialBalance,
+      'Bonus': t.bonus,
+      'Part-time Work': t.partTimeWork,
+      'Business': t.business,
+      'Bank Interest': t.bankInterest,
+      'Rent Income': t.rentIncome,
+      'Sales': t.sales,
+      'Gambling': t.gambling,
+      'Awards': t.awards,
+      'Refunds': t.refunds,
+      'Freelance': t.freelance,
+      'Royalties': t.royalties,
+      'Grants': t.grants,
+      'Gifts Received': t.giftsReceived,
+      'Pension': t.pension,
+      'Mobile Money': t.mobileMoney,
+      // Additional common categories
+      'Food': t.food,
+      'Rent': t.rent,
+      'Bills': t.bills,
+      'Subscriptions': t.subscriptions,
+      'Budgets': t.budgets,
+      'Reports': t.reports,
+      'Trends': t.trends,
+      'Cash': t.cash,
+      'Bank': t.bank,
+      'Cards': t.cards,
+      'Savings': t.savings,
+      'Investments': t.investments,
+      'Insurance': t.insurance,
+      'Others': t.others,
+    };
+
+    return categoryMap[category] || category;
+  };
+
   // Memoized pie chart data
   const pieChartData = useMemo(() => {
     if (!transactionData) return [];
 
     return Object.entries(transactionData.category_breakdown).map(
       ([category, data]) => ({
-        name: category,
+        name: translateCategory(category),
         population: Math.abs(data.amount),
         color: getCategoryColor(category),
         legendFontColor: "#64748b",
         legendFontSize: 12,
       })
     );
-  }, [transactionData]);
+  }, [transactionData, t]);
 
   // Memoized bar chart data
   const barChartData = useMemo(() => {
@@ -491,20 +552,20 @@ export default function ReportsScreen() {
 
         if (format === "pdf") {
           const pdfData = {
-            title: "Subscription Report",
-            subtitle: selectedAccount ? `Account: ${selectedAccount.name}` : "All Accounts",
-            dateRange: `Generated: ${formatDate(new Date().toISOString())}`,
+            title: t.subscriptionReport,
+            subtitle: selectedAccount ? `${t.account}: ${selectedAccount.name}` : t.allAccounts,
+            dateRange: `${t.generated}: ${formatDate(new Date().toISOString())}`,
             summary: [
-              { label: "Total Subscriptions", value: subscriptionData.summary.total_subscriptions.toString() },
-              { label: "Active Subscriptions", value: subscriptionData.summary.active_subscriptions.toString() },
-              { label: "Monthly Cost", value: formatCurrency(subscriptionData.summary.monthly_cost) },
-              { label: "Yearly Cost", value: formatCurrency(subscriptionData.summary.yearly_cost) },
+              { label: t.totalSubscriptions, value: subscriptionData.summary.total_subscriptions.toString() },
+              { label: t.activeSubscriptions, value: subscriptionData.summary.active_subscriptions.toString() },
+              { label: t.monthlyCost, value: formatCurrency(subscriptionData.summary.monthly_cost) },
+              { label: t.yearlyCost, value: formatCurrency(subscriptionData.summary.yearly_cost) },
             ],
             charts: [],
             tables: [
               {
-                title: "Active Subscriptions",
-                headers: ["Name", "Category", "Billing Cycle", "Cost", "Monthly Equivalent"],
+                title: t.activeSubscriptions,
+                headers: [t.name, t.category, t.billingCycle, t.cost, t.monthlyEquivalent],
                 rows: subscriptionData.subscriptions.map(sub => [
                   sub.name,
                   sub.category,
@@ -517,34 +578,34 @@ export default function ReportsScreen() {
           };
 
           const filePath = await generatePDFReport(pdfData);
-          Alert.alert("PDF Generated", `Subscription report saved to Documents folder:\n${filePath}`, [
+          Alert.alert(t.pdfGenerated, `${t.reportSavedToDocuments}:\n${filePath}`, [
             {
-              text: "Share",
+              text: t.share,
               onPress: async () => {
                 try {
                   await sharePDF(filePath);
                 } catch (error) {
                   console.error("Error sharing PDF:", error);
-                  Alert.alert("Error", "Failed to share PDF");
+                  Alert.alert(t.error, t.failedToSharePdf);
                 }
               },
             },
-            { text: "OK", style: "default" },
+            { text: t.ok, style: "default" },
           ]);
         } else {
           const csvData = {
-            title: "Subscription Report",
-            dateRange: `Generated: ${formatDate(new Date().toISOString())}`,
+            title: t.subscriptionReport,
+            dateRange: `${t.generated}: ${formatDate(new Date().toISOString())}`,
             summary: [
-              { label: "Total Subscriptions", value: subscriptionData.summary.total_subscriptions.toString() },
-              { label: "Active Subscriptions", value: subscriptionData.summary.active_subscriptions.toString() },
-              { label: "Monthly Cost", value: formatCurrency(subscriptionData.summary.monthly_cost) },
-              { label: "Yearly Cost", value: formatCurrency(subscriptionData.summary.yearly_cost) },
+              { label: t.totalSubscriptions, value: subscriptionData.summary.total_subscriptions.toString() },
+              { label: t.activeSubscriptions, value: subscriptionData.summary.active_subscriptions.toString() },
+              { label: t.monthlyCost, value: formatCurrency(subscriptionData.summary.monthly_cost) },
+              { label: t.yearlyCost, value: formatCurrency(subscriptionData.summary.yearly_cost) },
             ],
             tables: [
               {
-                title: "Active Subscriptions",
-                headers: ["Name", "Category", "Billing Cycle", "Cost", "Monthly Equivalent", "Next Billing"],
+                title: t.activeSubscriptions,
+                headers: [t.name, t.category, t.billingCycle, t.cost, t.monthlyEquivalent, t.nextBilling],
                 rows: subscriptionData.subscriptions.map(sub => [
                   sub.name,
                   sub.category,
@@ -558,19 +619,19 @@ export default function ReportsScreen() {
           };
 
           const filePath = await generateCSVReport(csvData);
-          Alert.alert("CSV Generated", `Subscription report saved to Documents folder:\n${filePath}`, [
+          Alert.alert(t.csvGenerated, `${t.reportSavedToDocuments}:\n${filePath}`, [
             {
-              text: "Share",
+              text: t.share,
               onPress: async () => {
                 try {
                   await shareCSV(filePath);
                 } catch (error) {
                   console.error("Error sharing CSV:", error);
-                  Alert.alert("Error", "Failed to share CSV");
+                  Alert.alert(t.error, t.failedToShareCsv);
                 }
               },
             },
-            { text: "OK", style: "default" },
+            { text: t.ok, style: "default" },
           ]);
         }
         return;
@@ -585,20 +646,20 @@ export default function ReportsScreen() {
 
         if (format === "pdf") {
           const pdfData = {
-            title: "Budget Report",
-            subtitle: selectedAccount ? `Account: ${selectedAccount.name}` : "All Accounts",
+            title: t.budgetReport,
+            subtitle: selectedAccount ? `${t.account}: ${selectedAccount.name}` : t.allAccounts,
             dateRange: budgetData.summary.period,
             summary: [
-              { label: "Total Budget", value: formatCurrency(budgetData.summary.total_budget) },
-              { label: "Total Spent", value: formatCurrency(budgetData.summary.total_spent) },
-              { label: "Total Remaining", value: formatCurrency(budgetData.summary.total_remaining) },
-              { label: "Overall Progress", value: `${budgetData.summary.overall_percentage.toFixed(1)}%` },
+              { label: t.totalBudget, value: formatCurrency(budgetData.summary.total_budget) },
+              { label: t.totalSpent, value: formatCurrency(budgetData.summary.total_spent) },
+              { label: t.totalRemaining, value: formatCurrency(budgetData.summary.total_remaining) },
+              { label: t.overallProgress, value: `${budgetData.summary.overall_percentage.toFixed(1)}%` },
             ],
             charts: [],
             tables: [
               {
-                title: "Budget vs Actual Spending",
-                headers: ["Category", "Budget", "Spent", "Remaining", "Progress", "Status"],
+                title: t.budgetVsActualSpending,
+                headers: [t.category, t.budget, t.spent, t.remaining, t.progress, t.status],
                 rows: budgetData.budget_comparison.map(item => [
                   item.category,
                   formatCurrency(item.budget),
@@ -609,8 +670,8 @@ export default function ReportsScreen() {
                 ]),
               },
               ...(Object.keys(budgetData.unbudgeted_spending).length > 0 ? [{
-                title: "Unbudgeted Spending",
-                headers: ["Category", "Amount"],
+                title: t.unbudgetedSpending,
+                headers: [t.category, t.amount],
                 rows: Object.entries(budgetData.unbudgeted_spending).map(([category, amount]) => [
                   category,
                   formatCurrency(amount),
@@ -620,34 +681,34 @@ export default function ReportsScreen() {
           };
 
           const filePath = await generatePDFReport(pdfData);
-          Alert.alert("PDF Generated", `Budget report saved to Documents folder:\n${filePath}`, [
+          Alert.alert(t.pdfGenerated, `${t.reportSavedToDocuments}:\n${filePath}`, [
             {
-              text: "Share",
+              text: t.share,
               onPress: async () => {
                 try {
                   await sharePDF(filePath);
                 } catch (error) {
                   console.error("Error sharing PDF:", error);
-                  Alert.alert("Error", "Failed to share PDF");
+                  Alert.alert(t.error, t.failedToSharePdf);
                 }
               },
             },
-            { text: "OK", style: "default" },
+            { text: t.ok, style: "default" },
           ]);
         } else {
           const csvData = {
-            title: "Budget Report",
+            title: t.budgetReport,
             dateRange: budgetData.summary.period,
             summary: [
-              { label: "Total Budget", value: formatCurrency(budgetData.summary.total_budget) },
-              { label: "Total Spent", value: formatCurrency(budgetData.summary.total_spent) },
-              { label: "Total Remaining", value: formatCurrency(budgetData.summary.total_remaining) },
-              { label: "Overall Progress", value: `${budgetData.summary.overall_percentage.toFixed(1)}%` },
+              { label: t.totalBudget, value: formatCurrency(budgetData.summary.total_budget) },
+              { label: t.totalSpent, value: formatCurrency(budgetData.summary.total_spent) },
+              { label: t.totalRemaining, value: formatCurrency(budgetData.summary.total_remaining) },
+              { label: t.overallProgress, value: `${budgetData.summary.overall_percentage.toFixed(1)}%` },
             ],
             tables: [
               {
-                title: "Budget vs Actual Spending",
-                headers: ["Category", "Budget", "Spent", "Remaining", "Progress", "Status"],
+                title: t.budgetVsActualSpending,
+                headers: [t.category, t.budget, t.spent, t.remaining, t.progress, t.status],
                 rows: budgetData.budget_comparison.map(item => [
                   item.category,
                   item.budget.toString(),
@@ -658,8 +719,8 @@ export default function ReportsScreen() {
                 ]),
               },
               ...(Object.keys(budgetData.unbudgeted_spending).length > 0 ? [{
-                title: "Unbudgeted Spending",
-                headers: ["Category", "Amount"],
+                title: t.unbudgetedSpending,
+                headers: [t.category, t.amount],
                 rows: Object.entries(budgetData.unbudgeted_spending).map(([category, amount]) => [
                   category,
                   amount.toString(),
@@ -669,19 +730,19 @@ export default function ReportsScreen() {
           };
 
           const filePath = await generateCSVReport(csvData);
-          Alert.alert("CSV Generated", `Budget report saved to Documents folder:\n${filePath}`, [
+          Alert.alert(t.csvGenerated, `${t.reportSavedToDocuments}:\n${filePath}`, [
             {
-              text: "Share",
+              text: t.share,
               onPress: async () => {
                 try {
                   await shareCSV(filePath);
                 } catch (error) {
                   console.error("Error sharing CSV:", error);
-                  Alert.alert("Error", "Failed to share CSV");
+                  Alert.alert(t.error, t.failedToShareCsv);
                 }
               },
             },
-            { text: "OK", style: "default" },
+            { text: t.ok, style: "default" },
           ]);
         }
         return;
@@ -696,21 +757,21 @@ export default function ReportsScreen() {
 
         if (format === "pdf") {
           const pdfData = {
-            title: "Goals Report",
-            subtitle: "Financial Goals Progress",
-            dateRange: `Generated: ${formatDate(new Date().toISOString())}`,
+            title: t.goalsReport,
+            subtitle: t.financialGoalsProgress,
+            dateRange: `${t.generated}: ${formatDate(new Date().toISOString())}`,
             summary: [
-              { label: "Total Goals", value: goalData.summary.total_goals.toString() },
-              { label: "Completed Goals", value: goalData.summary.completed_goals.toString() },
-              { label: "Total Target", value: formatCurrency(goalData.summary.total_target) },
-              { label: "Total Saved", value: formatCurrency(goalData.summary.total_saved) },
-              { label: "Overall Progress", value: `${goalData.summary.overall_percentage.toFixed(1)}%` },
+              { label: t.totalGoals, value: goalData.summary.total_goals.toString() },
+              { label: t.completedGoals, value: goalData.summary.completed_goals.toString() },
+              { label: t.totalTarget, value: formatCurrency(goalData.summary.total_target) },
+              { label: t.totalSaved, value: formatCurrency(goalData.summary.total_saved) },
+              { label: t.overallProgress, value: `${goalData.summary.overall_percentage.toFixed(1)}%` },
             ],
             charts: [],
             tables: [
               {
-                title: "Goals Progress",
-                headers: ["Goal Name", "Category", "Target Amount", "Current Amount", "Progress", "Status", "Days Remaining"],
+                title: t.goalsProgress,
+                headers: [t.goalName, t.category, t.targetAmount, t.currentAmount, t.progress, t.status, t.daysRemaining],
                 rows: goalData.goals.map(goal => [
                   goal.name,
                   goal.category,
@@ -718,42 +779,42 @@ export default function ReportsScreen() {
                   formatCurrency(goal.current_amount),
                   `${goal.percentage.toFixed(1)}%`,
                   goal.status.charAt(0).toUpperCase() + goal.status.slice(1),
-                  goal.days_remaining > 0 ? goal.days_remaining.toString() : "Overdue",
+                  goal.days_remaining > 0 ? goal.days_remaining.toString() : t.overdue,
                 ]),
               },
             ],
           };
 
           const filePath = await generatePDFReport(pdfData);
-          Alert.alert("PDF Generated", `Goals report saved to Documents folder:\n${filePath}`, [
+          Alert.alert(t.pdfGenerated, `${t.reportSavedToDocuments}:\n${filePath}`, [
             {
-              text: "Share",
+              text: t.share,
               onPress: async () => {
                 try {
                   await sharePDF(filePath);
                 } catch (error) {
                   console.error("Error sharing PDF:", error);
-                  Alert.alert("Error", "Failed to share PDF");
+                  Alert.alert(t.error, t.failedToSharePdf);
                 }
               },
             },
-            { text: "OK", style: "default" },
+            { text: t.ok, style: "default" },
           ]);
         } else {
           const csvData = {
-            title: "Goals Report",
-            dateRange: `Generated: ${formatDate(new Date().toISOString())}`,
+            title: t.goalsReport,
+            dateRange: `${t.generated}: ${formatDate(new Date().toISOString())}`,
             summary: [
-              { label: "Total Goals", value: goalData.summary.total_goals.toString() },
-              { label: "Completed Goals", value: goalData.summary.completed_goals.toString() },
-              { label: "Total Target", value: formatCurrency(goalData.summary.total_target) },
-              { label: "Total Saved", value: formatCurrency(goalData.summary.total_saved) },
-              { label: "Overall Progress", value: `${goalData.summary.overall_percentage.toFixed(1)}%` },
+              { label: t.totalGoals, value: goalData.summary.total_goals.toString() },
+              { label: t.completedGoals, value: goalData.summary.completed_goals.toString() },
+              { label: t.totalTarget, value: formatCurrency(goalData.summary.total_target) },
+              { label: t.totalSaved, value: formatCurrency(goalData.summary.total_saved) },
+              { label: t.overallProgress, value: `${goalData.summary.overall_percentage.toFixed(1)}%` },
             ],
             tables: [
               {
-                title: "Goals Progress",
-                headers: ["Goal Name", "Category", "Target Amount", "Current Amount", "Progress", "Status", "Days Remaining", "Target Date"],
+                title: t.goalsProgress,
+                headers: [t.goalName, t.category, t.targetAmount, t.currentAmount, t.progress, t.status, t.daysRemaining, t.targetDate],
                 rows: goalData.goals.map(goal => [
                   goal.name,
                   goal.category,
@@ -761,7 +822,7 @@ export default function ReportsScreen() {
                   goal.current_amount.toString(),
                   goal.percentage.toString(),
                   goal.status,
-                  goal.days_remaining > 0 ? goal.days_remaining.toString() : "Overdue",
+                  goal.days_remaining > 0 ? goal.days_remaining.toString() : t.overdue,
                   goal.target_date,
                 ]),
               },
@@ -769,19 +830,19 @@ export default function ReportsScreen() {
           };
 
           const filePath = await generateCSVReport(csvData);
-          Alert.alert("CSV Generated", `Goals report saved to Documents folder:\n${filePath}`, [
+          Alert.alert(t.csvGenerated, `${t.reportSavedToDocuments}:\n${filePath}`, [
             {
-              text: "Share",
+              text: t.share,
               onPress: async () => {
                 try {
                   await shareCSV(filePath);
                 } catch (error) {
                   console.error("Error sharing CSV:", error);
-                  Alert.alert("Error", "Failed to share CSV");
+                  Alert.alert(t.error, t.failedToShareCsv);
                 }
               },
             },
-            { text: "OK", style: "default" },
+            { text: t.ok, style: "default" },
           ]);
         }
         return;
@@ -796,19 +857,19 @@ export default function ReportsScreen() {
 
         if (format === "pdf") {
           const pdfData = {
-            title: "Account Report",
-            subtitle: "Account Summary and Details",
-            dateRange: `Generated: ${formatDate(new Date().toISOString())}`,
+            title: t.accountReport,
+            subtitle: t.accountDetails,
+            dateRange: `${t.generated}: ${formatDate(new Date().toISOString())}`,
             summary: [
-              { label: "Total Balance", value: formatCurrency(accountData.summary.total_balance) },
-              { label: "Total Accounts", value: accountData.summary.total_accounts.toString() },
-              { label: "Total Transactions", value: accountData.summary.total_transactions.toString() },
+              { label: t.totalBalance, value: formatCurrency(accountData.summary.total_balance) },
+              { label: t.totalAccounts, value: accountData.summary.total_accounts.toString() },
+              { label: t.totalTransactions, value: accountData.summary.total_transactions.toString() },
             ],
             charts: [],
             tables: [
               {
-                title: "Account Details",
-                headers: ["Account Name", "Type", "Balance", "Currency", "Transaction Count", "Created Date"],
+                title: t.accountDetails,
+                headers: [t.name, t.type, t.balance, t.currency, t.transactionsCount, t.date],
                 rows: accountData.accounts.map(account => [
                   account.name,
                   account.type,
@@ -822,33 +883,33 @@ export default function ReportsScreen() {
           };
 
           const filePath = await generatePDFReport(pdfData);
-          Alert.alert("PDF Generated", `Account report saved to Documents folder:\n${filePath}`, [
+          Alert.alert(t.pdfGenerated, `${t.reportSavedToDocuments}:\n${filePath}`, [
             {
-              text: "Share",
+              text: t.share,
               onPress: async () => {
                 try {
                   await sharePDF(filePath);
                 } catch (error) {
                   console.error("Error sharing PDF:", error);
-                  Alert.alert("Error", "Failed to share PDF");
+                  Alert.alert(t.error, t.failedToSharePdf);
                 }
               },
             },
-            { text: "OK", style: "default" },
+            { text: t.ok, style: "default" },
           ]);
         } else {
           const csvData = {
-            title: "Account Report",
-            dateRange: `Generated: ${formatDate(new Date().toISOString())}`,
+            title: t.accountReport,
+            dateRange: `${t.generated}: ${formatDate(new Date().toISOString())}`,
             summary: [
-              { label: "Total Balance", value: formatCurrency(accountData.summary.total_balance) },
-              { label: "Total Accounts", value: accountData.summary.total_accounts.toString() },
-              { label: "Total Transactions", value: accountData.summary.total_transactions.toString() },
+              { label: t.totalBalance, value: formatCurrency(accountData.summary.total_balance) },
+              { label: t.totalAccounts, value: accountData.summary.total_accounts.toString() },
+              { label: t.totalTransactions, value: accountData.summary.total_transactions.toString() },
             ],
             tables: [
               {
-                title: "Account Details",
-                headers: ["Account Name", "Type", "Balance", "Currency", "Transaction Count", "Created Date"],
+                title: t.accountDetails,
+                headers: [t.name, t.type, t.balance, t.currency, t.transactionsCount, t.date],
                 rows: accountData.accounts.map(account => [
                   account.name,
                   account.type,
@@ -862,19 +923,19 @@ export default function ReportsScreen() {
           };
 
           const filePath = await generateCSVReport(csvData);
-          Alert.alert("CSV Generated", `Account report saved to Documents folder:\n${filePath}`, [
+          Alert.alert(t.csvGenerated, `${t.reportSavedToDocuments}:\n${filePath}`, [
             {
-              text: "Share",
+              text: t.share,
               onPress: async () => {
                 try {
                   await shareCSV(filePath);
                 } catch (error) {
                   console.error("Error sharing CSV:", error);
-                  Alert.alert("Error", "Failed to share CSV");
+                  Alert.alert(t.error, t.failedToShareCsv);
                 }
               },
             },
-            { text: "OK", style: "default" },
+            { text: t.ok, style: "default" },
           ]);
         }
         return;
@@ -891,21 +952,21 @@ export default function ReportsScreen() {
         console.log("Generating PDF report...");
 
         const pdfData = {
-          title: "Transaction Report",
-          subtitle: selectedAccount ? `Account: ${selectedAccount.name}` : "All Accounts",
+          title: t.transactionReport,
+          subtitle: selectedAccount ? `${t.account}: ${selectedAccount.name}` : t.allAccounts,
           dateRange: `${formatDate(startDate)} - ${formatDate(endDate)}`,
           summary: [
-            { label: "Total Income", value: formatCurrency(transactionData.summary.total_income) },
-            { label: "Total Expenses", value: formatCurrency(transactionData.summary.total_expenses) },
-            { label: "Net Amount", value: formatCurrency(transactionData.summary.total_amount) },
-            { label: "Total Transactions", value: transactionData.summary.total_transactions.toString() },
-            { label: "Average Transaction", value: formatCurrency(transactionData.summary.average_transaction) },
+            { label: t.income, value: formatCurrency(transactionData.summary.total_income) },
+            { label: t.expenses, value: formatCurrency(transactionData.summary.total_expenses) },
+            { label: t.netAmount, value: formatCurrency(transactionData.summary.total_amount) },
+            { label: t.totalTransactions, value: transactionData.summary.total_transactions.toString() },
+            { label: t.averageTransaction, value: formatCurrency(transactionData.summary.average_transaction) },
           ],
           charts: [], // Charts not supported in PDF yet
           tables: [
             {
-              title: "Category Breakdown",
-              headers: ["Category", "Amount", "Percentage", "Count"],
+              title: t.categoryBreakdown,
+              headers: [t.category, t.amount, t.percentageOfTotal, t.transactionsCount],
               rows: Object.entries(transactionData.category_breakdown).map(
                 ([category, data]) => [
                   category,
@@ -916,8 +977,8 @@ export default function ReportsScreen() {
               ),
             },
             {
-              title: "Daily Trends (Last 15 Days)",
-              headers: ["Date", "Amount"],
+              title: `${t.dailySpendingTrends} (15 ${t.daysLeft})`,
+              headers: [t.date, t.amount],
               rows: transactionData.daily_trends
                 .slice(-15)
                 .map((trend) => [
@@ -931,38 +992,38 @@ export default function ReportsScreen() {
         const filePath = await generatePDFReport(pdfData);
         console.log("PDF generated at:", filePath);
 
-        Alert.alert("PDF Generated", `Report saved to Documents folder:\n${filePath}`, [
+        Alert.alert(t.pdfGenerated, `${t.reportSavedToDocuments}:\n${filePath}`, [
           {
-            text: "Share",
+            text: t.share,
             onPress: async () => {
               try {
                 await sharePDF(filePath);
               } catch (error) {
                 console.error("Error sharing PDF:", error);
-                Alert.alert("Error", "Failed to share PDF");
+                Alert.alert(t.error, t.failedToSharePdf);
               }
             },
           },
-          { text: "OK", style: "default" },
+          { text: t.ok, style: "default" },
         ]);
       } else {
         // Generate CSV locally
         console.log("Generating CSV report...");
 
         const csvData = {
-          title: "Transaction Report",
+          title: t.transactionReport,
           dateRange: `${formatDate(startDate)} - ${formatDate(endDate)}`,
           summary: [
-            { label: "Total Income", value: formatCurrency(transactionData.summary.total_income) },
-            { label: "Total Expenses", value: formatCurrency(transactionData.summary.total_expenses) },
-            { label: "Net Amount", value: formatCurrency(transactionData.summary.total_amount) },
-            { label: "Total Transactions", value: transactionData.summary.total_transactions.toString() },
-            { label: "Average Transaction", value: formatCurrency(transactionData.summary.average_transaction) },
+            { label: t.income, value: formatCurrency(transactionData.summary.total_income) },
+            { label: t.expenses, value: formatCurrency(transactionData.summary.total_expenses) },
+            { label: t.netAmount, value: formatCurrency(transactionData.summary.total_amount) },
+            { label: t.totalTransactions, value: transactionData.summary.total_transactions.toString() },
+            { label: t.averageTransaction, value: formatCurrency(transactionData.summary.average_transaction) },
           ],
           tables: [
             {
-              title: "Category Breakdown",
-              headers: ["Category", "Amount", "Percentage", "Count"],
+              title: t.categoryBreakdown,
+              headers: [t.category, t.amount, t.percentageOfTotal, t.transactionsCount],
               rows: Object.entries(transactionData.category_breakdown).map(
                 ([category, data]) => [
                   category,
@@ -973,8 +1034,8 @@ export default function ReportsScreen() {
               ),
             },
             {
-              title: "Daily Trends",
-              headers: ["Date", "Amount"],
+              title: t.dailySpendingTrends,
+              headers: [t.date, t.amount],
               rows: transactionData.daily_trends.map((trend) => [
                 trend.date,
                 Math.abs(trend.amount).toString(),
@@ -986,19 +1047,19 @@ export default function ReportsScreen() {
         const filePath = await generateCSVReport(csvData);
         console.log("CSV generated at:", filePath);
 
-        Alert.alert("CSV Generated", `Report saved to Documents folder:\n${filePath}`, [
+        Alert.alert(t.csvGenerated, `${t.reportSavedToDocuments}:\n${filePath}`, [
           {
-            text: "Share",
+            text: t.share,
             onPress: async () => {
               try {
                 await shareCSV(filePath);
               } catch (error) {
                 console.error("Error sharing CSV:", error);
-                Alert.alert("Error", "Failed to share CSV");
+                Alert.alert(t.error, t.failedToShareCsv);
               }
             },
           },
-          { text: "OK", style: "default" },
+          { text: t.ok, style: "default" },
         ]);
       }
     } catch (error) {
@@ -1109,7 +1170,7 @@ export default function ReportsScreen() {
               textAlign: "center",
             }}
           >
-            No Transactions Found
+            {t.noTransactionsFound}
           </Text>
           <Text
             style={{
@@ -1120,7 +1181,7 @@ export default function ReportsScreen() {
               paddingHorizontal: 32,
             }}
           >
-            There are no transactions for the selected date range. Try expanding your date range or add some transactions.
+            {t.noTransactionsForDateRange}
           </Text>
         </View>
       );
@@ -1205,10 +1266,10 @@ export default function ReportsScreen() {
           }}
         >
           <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
-            Export Report
+            {t.exportReport}
           </Text>
           <Text style={{ color: theme.textSecondary, fontSize: 14, marginBottom: 16 }}>
-            Download your transaction data as PDF or CSV files. Files are saved to your device's Documents folder.
+            {t.downloadTransactionDataDescription}
           </Text>
           <View className="flex-row gap-3">
             <TouchableOpacity
@@ -1227,7 +1288,7 @@ export default function ReportsScreen() {
             >
               <FileText size={16} color="white" />
               <Text style={{ color: "white", fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
-                PDF Report
+                {t.pdfReport}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1248,7 +1309,7 @@ export default function ReportsScreen() {
             >
               <Download size={16} color={theme.text} />
               <Text style={{ color: theme.text, fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
-                CSV Data
+                {t.csvData}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1375,7 +1436,7 @@ export default function ReportsScreen() {
               >
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: theme.text, fontWeight: "500", fontSize: 14 }}>
-                    {category}
+                    {translateCategory(category)}
                   </Text>
                   <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 2 }}>
                     {data.count} {t.transactionsCount}
@@ -1423,7 +1484,7 @@ export default function ReportsScreen() {
               textAlign: "center",
             }}
           >
-            No Account Data
+            {t.noAccountData}
           </Text>
           <Text
             style={{
@@ -1434,7 +1495,7 @@ export default function ReportsScreen() {
               paddingHorizontal: 32,
             }}
           >
-            Unable to load account information. Please try again later.
+            {t.unableToLoadAccountInfo}
           </Text>
         </View>
       );
@@ -1454,10 +1515,10 @@ export default function ReportsScreen() {
           }}
         >
           <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
-            Export Account Report
+            {t.exportAccountReport}
           </Text>
           <Text style={{ color: theme.textSecondary, fontSize: 14, marginBottom: 16 }}>
-            Download your account data as PDF or CSV files. Files are saved to your device's Documents folder.
+            {t.downloadAccountDataDescription}
           </Text>
           <View className="flex-row gap-3">
             <TouchableOpacity
@@ -1476,7 +1537,7 @@ export default function ReportsScreen() {
             >
               <FileText size={16} color="white" />
               <Text style={{ color: "white", fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
-                PDF Report
+                {t.pdfReport}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1497,7 +1558,7 @@ export default function ReportsScreen() {
             >
               <Download size={16} color={theme.text} />
               <Text style={{ color: theme.text, fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
-                CSV Data
+                {t.csvData}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1513,7 +1574,7 @@ export default function ReportsScreen() {
           }}
         >
           <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-            Total Balance
+            {t.totalBalance}
           </Text>
           <Text
             style={{
@@ -1536,7 +1597,7 @@ export default function ReportsScreen() {
           }}
         >
           <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
-            Account Details
+            {t.accountDetails}
           </Text>
           {accountData.accounts.map((account, index) => (
             <View
@@ -1619,7 +1680,7 @@ export default function ReportsScreen() {
               textAlign: "center",
             }}
           >
-            No Budgets Found
+            {t.noBudgetsFound}
           </Text>
           <Text
             style={{
@@ -1630,7 +1691,7 @@ export default function ReportsScreen() {
               paddingHorizontal: 32,
             }}
           >
-            You haven't set up any budgets yet. Create budgets to track your spending.
+            {t.noBudgetsSetUpYet}
           </Text>
         </View>
       );
@@ -1650,10 +1711,10 @@ export default function ReportsScreen() {
           }}
         >
           <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
-            Export Budget Report
+            {t.exportBudgetReport}
           </Text>
           <Text style={{ color: theme.textSecondary, fontSize: 14, marginBottom: 16 }}>
-            Download your budget analysis as PDF or CSV files. Files are saved to your device's Documents folder.
+            {t.downloadBudgetDataDescription}
           </Text>
           <View className="flex-row gap-3">
             <TouchableOpacity
@@ -1672,7 +1733,7 @@ export default function ReportsScreen() {
             >
               <FileText size={16} color="white" />
               <Text style={{ color: "white", fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
-                PDF Report
+                {t.pdfReport}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1693,7 +1754,7 @@ export default function ReportsScreen() {
             >
               <Download size={16} color={theme.text} />
               <Text style={{ color: theme.text, fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
-                CSV Data
+                {t.csvData}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1711,7 +1772,7 @@ export default function ReportsScreen() {
           <View className="flex-row justify-between items-center">
             <View style={{ flex: 1, marginRight: 12 }}>
               <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-                Total Budget
+                {t.totalBudget}
               </Text>
               <Text style={{ fontSize: 18, fontWeight: "600", color: theme.text, marginTop: 2 }}>
                 {formatCurrency(budgetData.summary.total_budget)}
@@ -1719,7 +1780,7 @@ export default function ReportsScreen() {
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-                Total Spent
+                {t.totalSpent}
               </Text>
               <Text style={{ fontSize: 18, fontWeight: "600", color: "#dc2626", marginTop: 2 }}>
                 {formatCurrency(budgetData.summary.total_spent)}
@@ -1737,7 +1798,7 @@ export default function ReportsScreen() {
           }}
         >
           <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
-            Budget vs Actual
+            {t.budgetVsActual}
           </Text>
           {budgetData.budget_comparison.map((item, index) => (
             <View
@@ -1836,7 +1897,7 @@ export default function ReportsScreen() {
               textAlign: "center",
             }}
           >
-            No Goals Set
+            {t.noGoalsSet}
           </Text>
           <Text
             style={{
@@ -1847,7 +1908,7 @@ export default function ReportsScreen() {
               paddingHorizontal: 32,
             }}
           >
-            You haven't created any financial goals yet. Set goals to track your savings progress.
+            {t.noFinancialGoalsYet}
           </Text>
         </View>
       );
@@ -1867,10 +1928,10 @@ export default function ReportsScreen() {
           }}
         >
           <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
-            Export Goals Report
+            {t.exportGoalsReport}
           </Text>
           <Text style={{ color: theme.textSecondary, fontSize: 14, marginBottom: 16 }}>
-            Download your goals progress as PDF or CSV files. Files are saved to your device's Documents folder.
+            {t.downloadGoalsDataDescription}
           </Text>
           <View className="flex-row gap-3">
             <TouchableOpacity
@@ -1889,7 +1950,7 @@ export default function ReportsScreen() {
             >
               <FileText size={16} color="white" />
               <Text style={{ color: "white", fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
-                PDF Report
+                {t.pdfReport}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1910,7 +1971,7 @@ export default function ReportsScreen() {
             >
               <Download size={16} color={theme.text} />
               <Text style={{ color: theme.text, fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
-                CSV Data
+                {t.csvData}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1928,7 +1989,7 @@ export default function ReportsScreen() {
           <View className="flex-row justify-between items-center">
             <View style={{ flex: 1, marginRight: 12 }}>
               <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-                Total Target
+                {t.totalTarget}
               </Text>
               <Text style={{ fontSize: 18, fontWeight: "600", color: theme.text, marginTop: 2 }}>
                 {formatCurrency(goalData.summary.total_target)}
@@ -1936,7 +1997,7 @@ export default function ReportsScreen() {
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-                Total Saved
+                {t.totalSaved}
               </Text>
               <Text style={{ fontSize: 18, fontWeight: "600", color: "#059669", marginTop: 2 }}>
                 {formatCurrency(goalData.summary.total_saved)}
@@ -1954,7 +2015,7 @@ export default function ReportsScreen() {
           }}
         >
           <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
-            Your Goals
+            {t.yourGoals}
           </Text>
           {goalData.goals.map((goal, index) => (
             <View
@@ -2047,7 +2108,7 @@ export default function ReportsScreen() {
         <View className="flex-1 justify-center items-center p-8">
           <ActivityIndicator size="large" color={theme.primary} />
           <Text style={{ color: theme.textSecondary, marginTop: 16 }}>
-            Loading subscription data...
+            {t.loadingSubscriptionData}
           </Text>
         </View>
       );
@@ -2067,7 +2128,7 @@ export default function ReportsScreen() {
               textAlign: "center",
             }}
           >
-            No Subscriptions Found
+{t.noSubscriptionsFound}
           </Text>
           <Text
             style={{
@@ -2078,7 +2139,7 @@ export default function ReportsScreen() {
               paddingHorizontal: 32,
             }}
           >
-            You don't have any active subscriptions. Add subscriptions to track recurring costs.
+{t.noActiveSubscriptionsYet}
           </Text>
         </View>
       );
@@ -2098,10 +2159,10 @@ export default function ReportsScreen() {
           }}
         >
           <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
-            Export Subscription Report
+            {t.exportSubscriptionReport}
           </Text>
           <Text style={{ color: theme.textSecondary, fontSize: 14, marginBottom: 16 }}>
-            Download your subscription data as PDF or CSV files. Files are saved to your device's Documents folder.
+            {t.downloadSubscriptionDataDescription}
           </Text>
           <View className="flex-row gap-3">
             <TouchableOpacity
@@ -2120,7 +2181,7 @@ export default function ReportsScreen() {
             >
               <FileText size={16} color="white" />
               <Text style={{ color: "white", fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
-                PDF Report
+                {t.pdfReport}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -2141,7 +2202,7 @@ export default function ReportsScreen() {
             >
               <Download size={16} color={theme.text} />
               <Text style={{ color: theme.text, fontSize: 14, fontWeight: "600", marginLeft: 8 }}>
-                CSV Data
+                {t.csvData}
               </Text>
             </TouchableOpacity>
           </View>
@@ -2159,7 +2220,7 @@ export default function ReportsScreen() {
           <View className="flex-row justify-between items-center">
             <View style={{ flex: 1, marginRight: 12 }}>
               <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-                Monthly Cost
+                {t.monthlyCost}
               </Text>
               <Text style={{ fontSize: 18, fontWeight: "600", color: theme.text, marginTop: 2 }}>
                 {formatCurrency(subscriptionData.summary.monthly_cost)}
@@ -2167,7 +2228,7 @@ export default function ReportsScreen() {
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
-                Active Count
+                {t.activeCount}
               </Text>
               <Text style={{ fontSize: 18, fontWeight: "600", color: theme.primary, marginTop: 2 }}>
                 {subscriptionData.summary.active_subscriptions}
@@ -2185,7 +2246,7 @@ export default function ReportsScreen() {
           }}
         >
           <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
-            Active Subscriptions
+            {t.activeSubscriptions}
           </Text>
           {subscriptionData.subscriptions.map((sub, index) => (
             <View
@@ -2411,7 +2472,7 @@ export default function ReportsScreen() {
                     fontSize: 14,
                   }}
                 >
-                  Transactions
+                  {t.transactions}
                 </Text>
               </TouchableOpacity>
 
@@ -2432,7 +2493,7 @@ export default function ReportsScreen() {
                     fontSize: 14,
                   }}
                 >
-                  Subscriptions
+                  {t.subscriptions}
                 </Text>
               </TouchableOpacity>
 
@@ -2453,7 +2514,7 @@ export default function ReportsScreen() {
                     fontSize: 14,
                   }}
                 >
-                  Budgets
+                  {t.budgets}
                 </Text>
               </TouchableOpacity>
 
@@ -2474,7 +2535,7 @@ export default function ReportsScreen() {
                     fontSize: 14,
                   }}
                 >
-                  Goals
+                  {t.goals}
                 </Text>
               </TouchableOpacity>
 
@@ -2495,7 +2556,7 @@ export default function ReportsScreen() {
                     fontSize: 14,
                   }}
                 >
-                  Accounts
+                  {t.accounts}
                 </Text>
               </TouchableOpacity>
             </View>

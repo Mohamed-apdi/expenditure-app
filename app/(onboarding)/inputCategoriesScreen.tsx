@@ -35,7 +35,7 @@ export default function InputCategoriesScreen() {
                 textAlign: "center",
               }}
             >
-              Let's set up your finances
+              {t.letsSetupFinances}
             </Text>
             <Text
               style={{
@@ -45,7 +45,7 @@ export default function InputCategoriesScreen() {
                 textAlign: "center",
               }}
             >
-              We'll help you track your money and reach your financial goals
+              {t.helpTrackMoney}
             </Text>
           </View>
 
@@ -69,7 +69,7 @@ export default function InputCategoriesScreen() {
                 marginBottom: 16,
               }}
             >
-              You'll be able to:
+              {t.youllBeAbleTo}
             </Text>
 
             <View className="gap-3">
@@ -89,7 +89,7 @@ export default function InputCategoriesScreen() {
                     fontSize: 15,
                   }}
                 >
-                  Track your income and expenses
+                  {t.trackIncomeAndExpenses}
                 </Text>
               </View>
 
@@ -109,7 +109,7 @@ export default function InputCategoriesScreen() {
                     fontSize: 15,
                   }}
                 >
-                  Set and monitor your budget
+                  {t.setAndMonitorBudget}
                 </Text>
               </View>
 
@@ -129,7 +129,7 @@ export default function InputCategoriesScreen() {
                     fontSize: 15,
                   }}
                 >
-                  Get insights into your spending
+                  {t.getSpendingInsights}
                 </Text>
               </View>
             </View>
@@ -155,7 +155,7 @@ export default function InputCategoriesScreen() {
                 marginRight: 8,
               }}
             >
-              Let's get started
+              {t.letsGetStarted}
             </Text>
             <ArrowRight size={18} color={theme.primaryText} />
           </TouchableOpacity>

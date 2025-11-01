@@ -49,7 +49,7 @@ export default function AuthGateScreen() {
                 marginBottom: 16,
               }}
             >
-              Ready to get started?
+              {t.readyToGetStarted}
             </Text>
 
             <Text
@@ -60,7 +60,7 @@ export default function AuthGateScreen() {
                 lineHeight: 26,
               }}
             >
-              Sign in to your account or create a new one to begin managing your finances
+              {t.signInToAccountOrCreate}
             </Text>
           </View>
 
@@ -88,7 +88,7 @@ export default function AuthGateScreen() {
                   marginLeft: 8,
                 }}
               >
-                Sign In
+                {t.signIn}
               </Text>
             </TouchableOpacity>
 
@@ -116,7 +116,7 @@ export default function AuthGateScreen() {
                   marginLeft: 8,
                 }}
               >
-                Create Account
+                {t.createAccount}
               </Text>
             </TouchableOpacity>
           </View>
@@ -131,7 +131,7 @@ export default function AuthGateScreen() {
                 lineHeight: 20,
               }}
             >
-              By continuing, you agree to our Terms of Service and Privacy Policy
+              {t.termsAndPrivacy}
             </Text>
           </View>
         </View>
