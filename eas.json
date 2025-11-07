@@ -23,7 +23,9 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EXPO_PUBLIC_SUPABASE_URL": "@SUPABASE_URL",
+        "EXPO_PUBLIC_SUPABASE_KEY": "@SUPABASE_KEY"
       },
       "android": {
         "buildType": "app-bundle",

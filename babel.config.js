@@ -6,15 +6,6 @@ module.exports = function (api) {
       "nativewind/babel",
     ],
     plugins: [
-      [
-        "module:react-native-dotenv",
-        {
-          moduleName: "@env", // This matches your import statement
-          path: ".env",
-          allowUndefined: true,
-          safe: false,
-        },
-      ],
       // Add react-native-reanimated plugin for Hermes compatibility
       "react-native-reanimated/plugin",
     ],

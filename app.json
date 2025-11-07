@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "Qoondeeye",
-    "slug": "Qoondeeye",
-    "version": "1.5.2",
+    "slug": "qoondeeye",
+    "version": "1.5.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "Qoondeeye",
