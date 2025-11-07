@@ -11,14 +11,14 @@ export interface CSVReportData {
 export const generateCSVReport = async (data: CSVReportData): Promise<string> => {
   try {
     let csvContent = '';
-    
+
     // Add title and date range
     csvContent += `${data.title}\n`;
     if (data.dateRange) {
       csvContent += `Report Period: ${data.dateRange}\n`;
     }
     csvContent += `Generated: ${new Date().toLocaleString()}\n\n`;
-    
+
     // Add summary section
     if (data.summary && data.summary.length > 0) {
       csvContent += `SUMMARY\n`;
@@ -28,37 +28,36 @@ export const generateCSVReport = async (data: CSVReportData): Promise<string> =>
       });
       csvContent += `\n`;
     }
-    
+
     // Add tables
     data.tables.forEach((table, index) => {
       if (index > 0) csvContent += `\n`;
       csvContent += `${table.title.toUpperCase()}\n`;
-      
+
       // Add headers
       csvContent += table.headers.map(header => `"${header}"`).join(',') + '\n';
-      
+
       // Add rows
       table.rows.forEach(row => {
         csvContent += row.map(cell => `"${cell}"`).join(',') + '\n';
       });
     });
-    
+
     // Generate unique filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
     const filename = `${data.title.toLowerCase().replace(/\s+/g, '_')}_${timestamp}.csv`;
-    
+
     // Save to documents directory
     const documentsDir = FileSystem.documentDirectory;
     if (!documentsDir) {
       throw new Error('Documents directory not available');
     }
-    
+
     const fileUri = `${documentsDir}${filename}`;
     await FileSystem.writeAsStringAsync(fileUri, csvContent, {
       encoding: FileSystem.EncodingType.UTF8,
     });
-    
-    console.log('CSV generated successfully at:', fileUri);
+
     return fileUri;
   } catch (error) {
     console.error('Error generating CSV:', error);
@@ -74,8 +73,6 @@ export const shareCSV = async (fileUri: string) => {
         mimeType: 'text/csv',
         dialogTitle: 'Share CSV Report'
       });
-    } else {
-      console.log('Sharing not available on this platform');
     }
   } catch (error) {
     console.error('Error sharing CSV:', error);
@@ -92,22 +89,21 @@ export const saveCSVToDownloads = async (fileUri: string, filename: string) => {
     if (!documentsDir) {
       throw new Error('Documents directory not available');
     }
-    
+
     const downloadsPath = `${documentsDir}Downloads/`;
-    
+
     // Create Downloads directory if it doesn't exist
     const dirInfo = await FileSystem.getInfoAsync(downloadsPath);
     if (!dirInfo.exists) {
       await FileSystem.makeDirectoryAsync(downloadsPath, { intermediates: true });
     }
-    
+
     const newUri = `${downloadsPath}${filename}`;
     await FileSystem.copyAsync({
       from: fileUri,
       to: newUri
     });
-    
-    console.log('CSV saved to downloads directory:', newUri);
+
     return newUri;
   } catch (error) {
     console.error('Error saving CSV to downloads:', error);

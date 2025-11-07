@@ -44,7 +44,6 @@ export function useNotifications() {
           error,
         } = await supabase.auth.getUser();
         if (error || !user) {
-          console.log("No authenticated user for notifications subscription");
           return;
         }
 
@@ -60,7 +59,6 @@ export function useNotifications() {
               filter: `user_id=eq.${user.id}`,
             },
             (payload) => {
-              console.log("Notification change detected:", payload);
               // Refetch count when notifications change
               fetchUnreadCount();
             }

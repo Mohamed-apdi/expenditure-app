@@ -37,7 +37,6 @@ export function WalletDropdown() {
   useEffect(() => {
     // Always try to refresh accounts when component mounts
     if (accounts.length === 0) {
-      console.log("WalletDropdown - Component mounted, refreshing accounts");
       refreshAccounts();
     }
   }, []); // Only run once when component mounts
@@ -45,13 +44,11 @@ export function WalletDropdown() {
   // Auto-refresh accounts when accounts array is empty and not loading
   useEffect(() => {
     if (accounts.length === 0 && !loading) {
-      console.log("WalletDropdown - Auto-refreshing accounts");
       refreshAccounts();
 
       // Set up a timer to keep trying if accounts are still empty
       const timer = setTimeout(() => {
         if (accounts.length === 0 && !loading) {
-          console.log("WalletDropdown - Retrying account refresh after delay");
           refreshAccounts();
         }
       }, 2000); // Wait 2 seconds before retrying

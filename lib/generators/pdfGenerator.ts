@@ -38,7 +38,6 @@ export const generatePDFReport = async (data: PDFReportData): Promise<string> =>
       to: documentsPath
     });
 
-    console.log('PDF generated successfully at:', documentsPath);
     return documentsPath;
   } catch (error) {
     console.error('Error generating PDF:', error);
@@ -54,8 +53,6 @@ export const sharePDF = async (fileUri: string) => {
         mimeType: 'application/pdf',
         dialogTitle: 'Share PDF Report'
       });
-    } else {
-      console.log('Sharing not available on this platform');
     }
   } catch (error) {
     console.error('Error sharing PDF:', error);
@@ -76,7 +73,6 @@ export const savePDFToDocuments = async (fileUri: string, fileName: string): Pro
       to: newUri
     });
 
-    console.log('PDF saved to documents directory:', newUri);
     return newUri;
   } catch (error) {
     console.error('Error saving PDF to documents:', error);

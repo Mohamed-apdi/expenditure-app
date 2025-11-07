@@ -1,5 +1,5 @@
 // screens/BudgetScreen.tsx
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,17 +10,17 @@ import {
   Alert,
   PanResponder,
   RefreshControl,
-} from "react-native";
+  Platform,
+} from 'react-native';
+import { X, Edit2, Trash2 } from 'lucide-react-native';
 import {
-  X,
-  Edit2,
-  Trash2,
-  ChevronDown,
-} from "lucide-react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import SubscriptionsScreen from "../components/SubscriptionsScreen";
-import SavingsScreen from "../components/SavingsScreen";
-import { supabase } from "~/lib";
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+import RNPickerSelect from 'react-native-picker-select';
+import SubscriptionsScreen from '../components/SubscriptionsScreen';
+import SavingsScreen from '../components/SavingsScreen';
+import { supabase } from '~/lib';
 import {
   fetchBudgets,
   fetchBudgetsWithAccounts,
@@ -28,25 +28,25 @@ import {
   updateBudget,
   deleteBudget,
   type Budget,
-} from "~/lib";
-import { fetchAccounts, type Account } from "~/lib";
+} from '~/lib';
+import { fetchAccounts, type Account } from '~/lib';
 import {
   getExpensesByCategory,
   getBudgetProgress,
   type BudgetProgress,
-} from "~/lib";
-import { useTheme } from "~/lib";
-import { useLanguage } from "~/lib";
+} from '~/lib';
+import { useTheme } from '~/lib';
+import { useLanguage } from '~/lib';
 
-import Investments from "../components/Investments";
-import Debt_Loan from "../components/Debt_Loan";
+import Investments from '../components/Investments';
+import Debt_Loan from '../components/Debt_Loan';
 
 // Use the exact same expense categories as AddExpense
 
 export default function BudgetScreen() {
   const theme = useTheme();
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState("Budget");
+  const [activeTab, setActiveTab] = useState('Budget');
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetsWithAccounts, setBudgetsWithAccounts] = useState<any[]>([]);
   const [budgetProgress, setBudgetProgress] = useState<BudgetProgress[]>([]);
@@ -54,31 +54,31 @@ export default function BudgetScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const expenseCategories = [
-    { key: "Food & Drinks", label: t.foodAndDrinks },
-    { key: "Home & Rent", label: t.homeAndRent },
-    { key: "Travel", label: t.travel },
-    { key: "Bills", label: t.bills },
-    { key: "Fun", label: t.fun },
-    { key: "Health", label: t.health },
-    { key: "Shopping", label: t.shopping },
-    { key: "Learning", label: t.learning },
-    { key: "Personal Care", label: t.personalCare },
-    { key: "Insurance", label: t.insurance },
-    { key: "Loans", label: t.loans },
-    { key: "Gifts", label: t.gifts },
-    { key: "Donations", label: t.donations },
-    { key: "Vacation", label: t.vacation },
-    { key: "Pets", label: t.pets },
-    { key: "Children", label: t.children },
-    { key: "Subscriptions", label: t.subscriptions },
-    { key: "Gym & Sports", label: t.gymAndSports },
-    { key: "Electronics", label: t.electronics },
-    { key: "Furniture", label: t.furniture },
-    { key: "Repairs", label: t.repairs },
-    { key: "Taxes", label: t.taxes },
+    { key: 'Food & Drinks', label: t.foodAndDrinks },
+    { key: 'Home & Rent', label: t.homeAndRent },
+    { key: 'Travel', label: t.travel },
+    { key: 'Bills', label: t.bills },
+    { key: 'Fun', label: t.fun },
+    { key: 'Health', label: t.health },
+    { key: 'Shopping', label: t.shopping },
+    { key: 'Learning', label: t.learning },
+    { key: 'Personal Care', label: t.personalCare },
+    { key: 'Insurance', label: t.insurance },
+    { key: 'Loans', label: t.loans },
+    { key: 'Gifts', label: t.gifts },
+    { key: 'Donations', label: t.donations },
+    { key: 'Vacation', label: t.vacation },
+    { key: 'Pets', label: t.pets },
+    { key: 'Children', label: t.children },
+    { key: 'Subscriptions', label: t.subscriptions },
+    { key: 'Gym & Sports', label: t.gymAndSports },
+    { key: 'Electronics', label: t.electronics },
+    { key: 'Furniture', label: t.furniture },
+    { key: 'Repairs', label: t.repairs },
+    { key: 'Taxes', label: t.taxes },
   ];
 
   const panResponder = useRef(
@@ -112,33 +112,33 @@ export default function BudgetScreen() {
           if (gestureState.dx > 0) {
             // Swipe right - go to previous tab
             switch (activeTab) {
-              case "Subscriptions":
-                setActiveTab("Budget");
+              case 'Subscriptions':
+                setActiveTab('Budget');
                 break;
-              case "Goals":
-                setActiveTab("Subscriptions");
+              case 'Goals':
+                setActiveTab('Subscriptions');
                 break;
-              case "Investments":
-                setActiveTab("Goals");
+              case 'Investments':
+                setActiveTab('Goals');
                 break;
-              case "Debt/Loan":
-                setActiveTab("Investments");
+              case 'Debt/Loan':
+                setActiveTab('Investments');
                 break;
             }
           } else {
             // Swipe left - go to next tab
             switch (activeTab) {
-              case "Budget":
-                setActiveTab("Subscriptions");
+              case 'Budget':
+                setActiveTab('Subscriptions');
                 break;
-              case "Subscriptions":
-                setActiveTab("Goals");
+              case 'Subscriptions':
+                setActiveTab('Goals');
                 break;
-              case "Goals":
-                setActiveTab("Investments");
+              case 'Goals':
+                setActiveTab('Investments');
                 break;
-              case "Investments":
-                setActiveTab("Debt/Loan");
+              case 'Investments':
+                setActiveTab('Debt/Loan');
                 break;
             }
           }
@@ -147,13 +147,13 @@ export default function BudgetScreen() {
       onPanResponderTerminate: () => {
         // Handle termination if needed
       },
-    })
+    }),
   ).current;
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentBudget, setCurrentBudget] = useState<Budget | null>(null);
-  const [newCategory, setNewCategory] = useState("");
-  const [newAllocated, setNewAllocated] = useState("");
+  const [newCategory, setNewCategory] = useState('');
+  const [newAllocated, setNewAllocated] = useState('');
 
   // Fetch budgets and accounts from database
   const fetchData = async () => {
@@ -163,7 +163,7 @@ export default function BudgetScreen() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        throw new Error("User not authenticated");
+        throw new Error('User not authenticated');
       }
 
       setUserId(user.id);
@@ -185,7 +185,7 @@ export default function BudgetScreen() {
         setSelectedAccount(accountsData[0]);
       }
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error('Error fetching data:', error);
       Alert.alert(t.error, t.failedToFetchData);
     }
   };
@@ -207,8 +207,8 @@ export default function BudgetScreen() {
       return;
     }
     setCurrentBudget(null);
-    setNewCategory("");
-    setNewAllocated("");
+    setNewCategory('');
+    setNewAllocated('');
     setSelectedAccount(accounts[0]); // Set default account
     setIsModalVisible(true);
   };
@@ -251,7 +251,7 @@ export default function BudgetScreen() {
           account_id: selectedAccount.id,
         });
         setBudgets((prev) =>
-          prev.map((b) => (b.id === currentBudget.id ? updatedBudget : b))
+          prev.map((b) => (b.id === currentBudget.id ? updatedBudget : b)),
         );
         Alert.alert(t.success, t.budgetUpdated);
       } else {
@@ -261,8 +261,8 @@ export default function BudgetScreen() {
           account_id: selectedAccount.id,
           category: newCategory,
           amount: parseFloat(newAllocated),
-          period: "monthly",
-          start_date: new Date().toISOString().split("T")[0],
+          period: 'monthly',
+          start_date: new Date().toISOString().split('T')[0],
           is_active: true,
         });
         setBudgets((prev) => [...prev, newBudget]);
@@ -272,17 +272,17 @@ export default function BudgetScreen() {
       // Refresh data to get updated budget progress
       fetchData();
     } catch (error) {
-      console.error("Error saving budget:", error);
+      console.error('Error saving budget:', error);
       Alert.alert(t.error, t.budgetSaveError);
     }
   };
 
   const handleDeleteBudget = async (budgetId: string) => {
     Alert.alert(t.deleteBudget, t.deleteBudgetConfirmation, [
-      { text: t.cancel, style: "cancel" },
+      { text: t.cancel, style: 'cancel' },
       {
         text: t.delete,
-        style: "destructive",
+        style: 'destructive',
         onPress: async () => {
           try {
             await deleteBudget(budgetId);
@@ -291,7 +291,7 @@ export default function BudgetScreen() {
             // Refresh data to get updated budget progress
             fetchData();
           } catch (error) {
-            console.error("Error deleting budget:", error);
+            console.error('Error deleting budget:', error);
             Alert.alert(t.error, t.budgetSaveError);
           }
         },
@@ -300,9 +300,9 @@ export default function BudgetScreen() {
   };
 
   const getProgressColor = (percentage: number) => {
-    if (percentage > 100) return "#ef4444";
-    if (percentage > 75) return "#f59e0b";
-    return "#10b981";
+    if (percentage > 100) return '#ef4444';
+    if (percentage > 75) return '#f59e0b';
+    return '#10b981';
   };
 
   // Get budget progress for a specific category
@@ -321,22 +321,34 @@ export default function BudgetScreen() {
   // Get translated category label
   const getCategoryLabel = (categoryKey: string) => {
     const categoryObj = expenseCategories.find(
-      (cat) => cat.key === categoryKey
+      (cat) => cat.key === categoryKey,
     );
     return categoryObj ? categoryObj.label : categoryKey;
   };
 
   // Subscriptions tab content
-  const SubscriptionsTab = () => <SubscriptionsScreen />;
+  const SubscriptionsTab = () => (
+    <SubscriptionsScreen
+      accounts={accounts}
+      userId={userId}
+      onRefresh={fetchData}
+    />
+  );
 
   // Goals tab content
-  const GoalsTab = () => <SavingsScreen />;
+  const GoalsTab = () => (
+    <SavingsScreen accounts={accounts} userId={userId} onRefresh={fetchData} />
+  );
 
   // Investments tab content
-  const InvestmentsTab = () => <Investments />;
+  const InvestmentsTab = () => (
+    <Investments accounts={accounts} userId={userId} onRefresh={fetchData} />
+  );
 
   // Debt/Loan tab content
-  const DebtLoanTab = () => <Debt_Loan />;
+  const DebtLoanTab = () => (
+    <Debt_Loan accounts={accounts} userId={userId} onRefresh={fetchData} />
+  );
 
   return (
     <SafeAreaView style={{ flex: 1, paddingTop: 0 }}>
@@ -349,22 +361,23 @@ export default function BudgetScreen() {
             borderBottomWidth: 1,
             borderBottomColor: theme.border,
           }}
-          {...panResponder.panHandlers}
-        >
+          {...panResponder.panHandlers}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{
               paddingHorizontal: 16,
               gap: 8,
-            }}
-          >
+            }}>
             {[
-              { key: "Budget", label: t.budget || "Budget" },
-              { key: "Subscriptions", label: t.subscriptions || "Subscriptions" },
-              { key: "Goals", label: t.goals || "Goals" },
-              { key: "Investments", label: t.investments || "Investments" },
-              { key: "Debt/Loan", label: t.debtLoan || "Debt/Loan" },
+              { key: 'Budget', label: t.budget || 'Budget' },
+              {
+                key: 'Subscriptions',
+                label: t.subscriptions || 'Subscriptions',
+              },
+              { key: 'Goals', label: t.goals || 'Goals' },
+              { key: 'Investments', label: t.investments || 'Investments' },
+              { key: 'Debt/Loan', label: t.debtLoan || 'Debt/Loan' },
             ].map((tab) => {
               const isActive = activeTab === tab.key;
               return (
@@ -374,20 +387,20 @@ export default function BudgetScreen() {
                     paddingVertical: 10,
                     paddingHorizontal: 20,
                     borderRadius: 20,
-                    backgroundColor: isActive ? theme.primary : theme.cardBackground,
+                    backgroundColor: isActive
+                      ? theme.primary
+                      : theme.cardBackground,
                     borderWidth: 1,
                     borderColor: isActive ? theme.primary : theme.border,
                     marginRight: 4,
                   }}
-                  onPress={() => setActiveTab(tab.key)}
-                >
+                  onPress={() => setActiveTab(tab.key)}>
                   <Text
                     style={{
-                      fontWeight: isActive ? "600" : "400",
+                      fontWeight: isActive ? '600' : '400',
                       fontSize: 14,
                       color: isActive ? theme.primaryText : theme.textSecondary,
-                    }}
-                  >
+                    }}>
                     {tab.label}
                   </Text>
                 </TouchableOpacity>
@@ -401,18 +414,28 @@ export default function BudgetScreen() {
           className="flex-1"
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        >
-          {activeTab === "Budget" && (
+          }>
+          {activeTab === 'Budget' && (
             <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
               {/* Header */}
               <View className="flex-row justify-between items-center mb-6">
                 <View>
-                  <Text style={{ color: theme.text, fontWeight: "bold", fontSize: 24 }}>
-                    {t.monthlyBudget || "Monthly Budget"}
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontWeight: 'bold',
+                      fontSize: 24,
+                    }}>
+                    {t.monthlyBudget || 'Monthly Budget'}
                   </Text>
-                  <Text style={{ color: theme.textSecondary, fontSize: 14, marginTop: 4 }}>
-                    {budgets.length} {budgets.length === 1 ? 'category' : 'categories'}
+                  <Text
+                    style={{
+                      color: theme.textSecondary,
+                      fontSize: 14,
+                      marginTop: 4,
+                    }}>
+                    {budgets.length}{' '}
+                    {budgets.length === 1 ? 'category' : 'categories'}
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -421,16 +444,15 @@ export default function BudgetScreen() {
                     borderRadius: 12,
                     paddingVertical: 12,
                     paddingHorizontal: 20,
-                    shadowColor: "#000",
+                    shadowColor: '#000',
                     shadowOffset: { width: 0, height: 2 },
                     shadowOpacity: 0.1,
                     shadowRadius: 4,
                     elevation: 3,
                   }}
-                  onPress={openAddModal}
-                >
-                  <Text style={{ color: theme.primaryText, fontWeight: "600" }}>
-                    {t.addBudgets || "Add Budget"}
+                  onPress={openAddModal}>
+                  <Text style={{ color: theme.primaryText, fontWeight: '600' }}>
+                    {t.addBudgets || 'Add Budget'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -440,15 +462,24 @@ export default function BudgetScreen() {
                 <View
                   style={{
                     paddingVertical: 48,
-                    alignItems: "center",
+                    alignItems: 'center',
                     backgroundColor: theme.cardBackground,
                     borderRadius: 16,
-                  }}
-                >
-                  <Text style={{ color: theme.textSecondary, fontSize: 16, fontWeight: "500" }}>
+                  }}>
+                  <Text
+                    style={{
+                      color: theme.textSecondary,
+                      fontSize: 16,
+                      fontWeight: '500',
+                    }}>
                     {t.noBudgetsSetUp}
                   </Text>
-                  <Text style={{ color: theme.textMuted, fontSize: 14, marginTop: 8 }}>
+                  <Text
+                    style={{
+                      color: theme.textMuted,
+                      fontSize: 14,
+                      marginTop: 8,
+                    }}>
                     Create your first budget
                   </Text>
                 </View>
@@ -469,8 +500,7 @@ export default function BudgetScreen() {
                           padding: 16,
                           backgroundColor: theme.cardBackground,
                           borderRadius: 16,
-                        }}
-                      >
+                        }}>
                         {/* Header */}
                         <View className="flex-row justify-between items-start mb-3">
                           <View className="flex-1">
@@ -478,32 +508,46 @@ export default function BudgetScreen() {
                               style={{
                                 color: theme.text,
                                 fontSize: 18,
-                                fontWeight: "bold",
-                              }}
-                            >
+                                fontWeight: 'bold',
+                              }}>
                               {getCategoryLabel(budget.category)}
                             </Text>
-                            <View className="flex-row items-center mt-1" style={{ gap: 6 }}>
+                            <View
+                              className="flex-row items-center mt-1"
+                              style={{ gap: 6 }}>
                               <View
                                 style={{
-                                  backgroundColor: percentage > 100 ? '#fee2e2' : percentage > 75 ? '#fef3c7' : '#dcfce7',
+                                  backgroundColor:
+                                    percentage > 100
+                                      ? '#fee2e2'
+                                      : percentage > 75
+                                        ? '#fef3c7'
+                                        : '#dcfce7',
                                   paddingHorizontal: 8,
                                   paddingVertical: 4,
                                   borderRadius: 12,
-                                }}
-                              >
+                                }}>
                                 <Text
                                   style={{
-                                    color: percentage > 100 ? '#dc2626' : percentage > 75 ? '#d97706' : '#16a34a',
+                                    color:
+                                      percentage > 100
+                                        ? '#dc2626'
+                                        : percentage > 75
+                                          ? '#d97706'
+                                          : '#16a34a',
                                     fontSize: 11,
-                                    fontWeight: "600"
-                                  }}
-                                >
-                                  {Math.round(percentage)}% {isOverBudget ? 'over' : 'used'}
+                                    fontWeight: '600',
+                                  }}>
+                                  {Math.round(percentage)}%{' '}
+                                  {isOverBudget ? 'over' : 'used'}
                                 </Text>
                               </View>
                               {budget.account && (
-                                <Text style={{ color: theme.textMuted, fontSize: 11 }}>
+                                <Text
+                                  style={{
+                                    color: theme.textMuted,
+                                    fontSize: 11,
+                                  }}>
                                   {budget.account.name}
                                 </Text>
                               )}
@@ -516,8 +560,7 @@ export default function BudgetScreen() {
                                 padding: 8,
                                 borderRadius: 8,
                               }}
-                              onPress={() => openEditModal(budget)}
-                            >
+                              onPress={() => openEditModal(budget)}>
                               <Edit2 size={14} color="#4f46e5" />
                             </TouchableOpacity>
                             <TouchableOpacity
@@ -526,8 +569,7 @@ export default function BudgetScreen() {
                                 padding: 8,
                                 borderRadius: 8,
                               }}
-                              onPress={() => handleDeleteBudget(budget.id)}
-                            >
+                              onPress={() => handleDeleteBudget(budget.id)}>
                               <Trash2 size={14} color="#dc2626" />
                             </TouchableOpacity>
                           </View>
@@ -536,30 +578,38 @@ export default function BudgetScreen() {
                         {/* Amount Info */}
                         <View className="flex-row justify-between items-center mb-3">
                           <View>
-                            <Text style={{ color: theme.textSecondary, fontSize: 12, marginBottom: 4 }}>
+                            <Text
+                              style={{
+                                color: theme.textSecondary,
+                                fontSize: 12,
+                                marginBottom: 4,
+                              }}>
                               Spent / Budget
                             </Text>
                             <Text
                               style={{
                                 color: getProgressColor(percentage),
-                                fontWeight: "bold",
+                                fontWeight: 'bold',
                                 fontSize: 24,
-                              }}
-                            >
+                              }}>
                               ${spent.toFixed(2)}
                             </Text>
                           </View>
-                          <View style={{ alignItems: "flex-end" }}>
-                            <Text style={{ color: theme.textSecondary, fontSize: 12, marginBottom: 4 }}>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text
+                              style={{
+                                color: theme.textSecondary,
+                                fontSize: 12,
+                                marginBottom: 4,
+                              }}>
                               {isOverBudget ? 'Over Budget' : 'Remaining'}
                             </Text>
                             <Text
                               style={{
-                                fontWeight: "bold",
+                                fontWeight: 'bold',
                                 fontSize: 20,
-                                color: remaining < 0 ? "#ef4444" : "#10b981",
-                              }}
-                            >
+                                color: remaining < 0 ? '#ef4444' : '#10b981',
+                              }}>
                               ${Math.abs(remaining).toFixed(2)}
                             </Text>
                           </View>
@@ -573,8 +623,7 @@ export default function BudgetScreen() {
                               borderRadius: 4,
                               backgroundColor: theme.border,
                               overflow: 'hidden',
-                            }}
-                          >
+                            }}>
                             <View
                               style={{
                                 height: '100%',
@@ -585,10 +634,12 @@ export default function BudgetScreen() {
                             />
                           </View>
                           <View className="flex-row justify-between mt-1">
-                            <Text style={{ color: theme.textMuted, fontSize: 11 }}>
+                            <Text
+                              style={{ color: theme.textMuted, fontSize: 11 }}>
                               Budget: ${budget.amount.toFixed(2)}
                             </Text>
-                            <Text style={{ color: theme.textMuted, fontSize: 11 }}>
+                            <Text
+                              style={{ color: theme.textMuted, fontSize: 11 }}>
                               {Math.round(percentage)}%
                             </Text>
                           </View>
@@ -601,10 +652,10 @@ export default function BudgetScreen() {
             </View>
           )}
 
-          {activeTab === "Subscriptions" && <SubscriptionsTab />}
-          {activeTab === "Goals" && <GoalsTab />}
-          {activeTab === "Investments" && <InvestmentsTab />}
-          {activeTab === "Debt/Loan" && <DebtLoanTab />}
+          {activeTab === 'Subscriptions' && <SubscriptionsTab />}
+          {activeTab === 'Goals' && <GoalsTab />}
+          {activeTab === 'Investments' && <InvestmentsTab />}
+          {activeTab === 'Debt/Loan' && <DebtLoanTab />}
         </ScrollView>
 
         {/* Add/Edit Budget Modal - Simplified */}
@@ -612,30 +663,32 @@ export default function BudgetScreen() {
           visible={isModalVisible}
           animationType="fade"
           transparent={true}
-          onRequestClose={() => setIsModalVisible(false)}
-        >
+          onRequestClose={() => setIsModalVisible(false)}>
           <View
             style={{
               flex: 1,
-              justifyContent: "center",
-              alignItems: "center",
-              backgroundColor: "rgba(0, 0, 0, 0.5)",
+              justifyContent: 'center',
+              alignItems: 'center',
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
               padding: 16,
-            }}
-          >
+            }}>
             <View
               style={{
-                width: "100%",
+                width: '100%',
                 maxWidth: 400,
                 backgroundColor: theme.cardBackground,
                 borderRadius: 20,
                 padding: 20,
-              }}
-            >
+              }}>
               <ScrollView showsVerticalScrollIndicator={false}>
                 {/* Header */}
                 <View className="flex-row justify-between items-center mb-5">
-                  <Text style={{ color: theme.text, fontWeight: "bold", fontSize: 22 }}>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontWeight: 'bold',
+                      fontSize: 22,
+                    }}>
                     {currentBudget ? t.editBudget : t.addNewBudget}
                   </Text>
                   <TouchableOpacity onPress={() => setIsModalVisible(false)}>
@@ -645,10 +698,19 @@ export default function BudgetScreen() {
 
                 {/* Category - Chip Selection */}
                 <View className="mb-4">
-                  <Text style={{ color: theme.text, marginBottom: 8, fontWeight: "500", fontSize: 13 }}>
-                    {t.category || "Category"} *
+                  <Text
+                    style={{
+                      color: theme.text,
+                      marginBottom: 8,
+                      fontWeight: '500',
+                      fontSize: 13,
+                    }}>
+                    {t.category || 'Category'} *
                   </Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -4 }}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={{ marginHorizontal: -4 }}>
                     <View className="flex-row gap-2 px-1">
                       {expenseCategories.slice(0, 12).map((category) => (
                         <TouchableOpacity
@@ -658,20 +720,28 @@ export default function BudgetScreen() {
                             paddingHorizontal: 16,
                             borderRadius: 20,
                             borderWidth: 1,
-                            borderColor: newCategory === category.key ? theme.primary : theme.border,
-                            backgroundColor: newCategory === category.key ? `${theme.primary}20` : theme.background,
+                            borderColor:
+                              newCategory === category.key
+                                ? theme.primary
+                                : theme.border,
+                            backgroundColor:
+                              newCategory === category.key
+                                ? `${theme.primary}20`
+                                : theme.background,
                           }}
                           onPress={() => {
                             setNewCategory(category.key);
-                          }}
-                        >
+                          }}>
                           <Text
                             style={{
-                              color: newCategory === category.key ? theme.primary : theme.textSecondary,
+                              color:
+                                newCategory === category.key
+                                  ? theme.primary
+                                  : theme.textSecondary,
                               fontSize: 13,
-                              fontWeight: newCategory === category.key ? "600" : "400",
-                            }}
-                          >
+                              fontWeight:
+                                newCategory === category.key ? '600' : '400',
+                            }}>
                             {category.label}
                           </Text>
                         </TouchableOpacity>
@@ -683,83 +753,92 @@ export default function BudgetScreen() {
                 {/* Account & Budget Amount - Side by Side */}
                 <View className="flex-row gap-3 mb-4">
                   <View className="flex-1">
-                    <Text style={{ color: theme.text, marginBottom: 8, fontWeight: "500", fontSize: 13 }}>
-                      {t.account || "Account"} *
-                    </Text>
-                    <TouchableOpacity
+                    <Text
                       style={{
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        borderRadius: 12,
-                        padding: 14,
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        backgroundColor: theme.background,
+                        color: theme.text,
+                        marginBottom: 8,
+                        fontWeight: '500',
+                        fontSize: 13,
+                      }}>
+                      {t.account || 'Account'} *
+                    </Text>
+                    <RNPickerSelect
+                      onValueChange={(value) => {
+                        const account = accounts.find(
+                          (acc) => acc.id === value,
+                        );
+                        setSelectedAccount(account || null);
                       }}
-                      onPress={() => setShowAccountDropdown(!showAccountDropdown)}
-                    >
-                      <Text
-                        style={{
-                          color: selectedAccount ? theme.text : theme.textMuted,
+                      items={accounts.map((account) => ({
+                        label: `${account.name}`,
+                        value: account.id,
+                      }))}
+                      value={selectedAccount?.id}
+                      placeholder={{
+                        label: t.selectAccount || 'Select account',
+                        value: null,
+                      }}
+                      style={{
+                        inputIOS: {
                           fontSize: 14,
-                        }}
-                        numberOfLines={1}
-                      >
-                        {selectedAccount ? selectedAccount.name : "Select"}
-                      </Text>
-                      <ChevronDown size={14} color={theme.textMuted} />
-                    </TouchableOpacity>
-                    {showAccountDropdown && (
-                      <View
-                        style={{
-                          marginTop: 4,
+                          paddingVertical: 14,
+                          paddingHorizontal: 14,
+                          borderRadius: 12,
                           borderWidth: 1,
                           borderColor: theme.border,
+                          backgroundColor: theme.background,
+                          color: selectedAccount ? theme.text : theme.textMuted,
+                          minHeight: 50,
+                        },
+                        inputAndroid: {
+                          fontSize: 14,
+                          paddingVertical: 14,
+                          paddingHorizontal: 14,
                           borderRadius: 12,
-                          backgroundColor: theme.cardBackground,
-                          maxHeight: 180,
-                          position: 'absolute',
-                          top: 68,
-                          left: 0,
-                          right: 0,
-                          zIndex: 1000,
-                        }}
-                      >
-                        <ScrollView>
-                          {accounts.map((account) => (
-                            <TouchableOpacity
-                              key={account.id}
-                              style={{
-                                padding: 12,
-                                borderBottomWidth: 1,
-                                borderBottomColor: theme.border,
-                                backgroundColor:
-                                  selectedAccount?.id === account.id
-                                    ? `${theme.primary}20`
-                                    : "transparent",
-                              }}
-                              onPress={() => {
-                                setSelectedAccount(account);
-                                setShowAccountDropdown(false);
-                              }}
-                            >
-                              <Text style={{ color: theme.text, fontSize: 14 }}>
-                                {account.name}
-                              </Text>
-                              <Text style={{ color: theme.textSecondary, fontSize: 12 }}>
-                                {account.account_type}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </ScrollView>
-                      </View>
-                    )}
+                          borderWidth: 1,
+                          borderColor: theme.border,
+                          backgroundColor: theme.background,
+                          color: selectedAccount ? theme.text : theme.textMuted,
+                          minHeight: 50,
+                        },
+                        placeholder: {
+                          color: theme.textMuted,
+                        },
+                        iconContainer: {
+                          top: 18,
+                          right: 12,
+                        },
+                      }}
+                      Icon={() => {
+                        return (
+                          <View
+                            style={{
+                              backgroundColor: 'transparent',
+                              borderTopWidth: 6,
+                              borderTopColor: theme.textMuted,
+                              borderRightWidth: 6,
+                              borderRightColor: 'transparent',
+                              borderLeftWidth: 6,
+                              borderLeftColor: 'transparent',
+                              width: 0,
+                              height: 0,
+                            }}
+                          />
+                        );
+                      }}
+                      useNativeAndroidPickerStyle={false}
+                    />
                   </View>
 
                   <View className="flex-1">
-                    <Text style={{ color: theme.text, marginBottom: 8, fontWeight: "500", fontSize: 13 }}>
-                      {t.budgetAmount || "Amount"} *
+                    <Text
+                      style={{
+                        color: theme.text,
+                        marginBottom: 8,
+                        fontWeight: '500',
+                        fontSize: 13,
+                      }}>
+                      {t.budgetAmount || 'Amount'} *
                     </Text>
                     <TextInput
                       style={{
@@ -786,11 +865,15 @@ export default function BudgetScreen() {
                     backgroundColor: theme.primary,
                     paddingVertical: 16,
                     borderRadius: 12,
-                    alignItems: "center",
+                    alignItems: 'center',
                   }}
-                  onPress={handleSaveBudget}
-                >
-                  <Text style={{ color: theme.primaryText, fontWeight: "600", fontSize: 16 }}>
+                  onPress={handleSaveBudget}>
+                  <Text
+                    style={{
+                      color: theme.primaryText,
+                      fontWeight: '600',
+                      fontSize: 16,
+                    }}>
                     {currentBudget ? t.updateBudget : t.addBudget}
                   </Text>
                 </TouchableOpacity>

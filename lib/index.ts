@@ -32,6 +32,7 @@ export { default as notificationService } from "./services/notificationService";
 
 // Notification functions
 export * from "./services/notifications";
+export { requestNotificationPermissions } from "./services/notificationService";
 
 // Types
 export * from "./types/types";

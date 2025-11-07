@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { router } from "expo-router";
+import { useState } from 'react';
+import { router } from 'expo-router';
 import {
   Eye,
   EyeOff,
@@ -7,18 +7,24 @@ import {
   Mail,
   Lock,
   Smartphone,
-} from "lucide-react-native";
-import { View, TextInput, TouchableOpacity, Alert, StatusBar } from "react-native";
-import { Text } from "~/components/ui/text";
-import { Button } from "~/components/ui/button";
-import { setItemAsync } from "expo-secure-store";
-import { supabase } from "~/lib";
-import AntDesign from "@expo/vector-icons/AntDesign";
-import * as WebBrowser from "expo-web-browser";
-import * as AuthSession from "expo-auth-session";
-import Toast from "react-native-toast-message";
-import { useTheme } from "~/lib";
-import { useLanguage } from "~/lib";
+} from 'lucide-react-native';
+import {
+  View,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  StatusBar,
+} from 'react-native';
+import { Text } from '~/components/ui/text';
+import { Button } from '~/components/ui/button';
+import { setItemAsync } from 'expo-secure-store';
+import { supabase } from '~/lib';
+import AntDesign from '@expo/vector-icons/AntDesign';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
+import Toast from 'react-native-toast-message';
+import { useTheme } from '~/lib';
+import { useLanguage } from '~/lib';
 
 // Required for Expo OAuth
 WebBrowser.maybeCompleteAuthSession();
@@ -26,13 +32,13 @@ WebBrowser.maybeCompleteAuthSession();
 export default function LoginScreen() {
   const theme = useTheme();
   const { t } = useLanguage();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<
-    "google" | "github" | null
+    'google' | 'github' | null
   >(null);
 
   const handleLogin = async () => {
@@ -46,10 +52,10 @@ export default function LoginScreen() {
 
     if (error) {
       Toast.show({
-        type: "error",
-        position: "top",
-        text1: "Login failed",
-        text2: "Please check your credentials and try again.",
+        type: 'error',
+        position: 'top',
+        text1: 'Login failed',
+        text2: 'Please check your credentials and try again.',
         visibilityTime: 6000,
         autoHide: true,
         topOffset: 50,
@@ -58,24 +64,24 @@ export default function LoginScreen() {
     }
 
     Toast.show({
-      type: "success",
-      position: "top",
-      text1: "Welcome back!",
-      text2: "Successfully signed in",
+      type: 'success',
+      position: 'top',
+      text1: 'Welcome back!',
+      text2: 'Successfully signed in',
       visibilityTime: 3000,
       autoHide: true,
       topOffset: 50,
     });
 
     // Save token securely
-    await setItemAsync("token", data.session?.access_token);
-    await setItemAsync("userId", data.user?.id);
-    await setItemAsync("supabase_session", JSON.stringify(data.session));
+    await setItemAsync('token', data.session?.access_token);
+    await setItemAsync('userId', data.user?.id);
+    await setItemAsync('supabase_session', JSON.stringify(data.session));
 
-    router.replace("/(main)/Dashboard");
+    router.replace('/(main)/Dashboard');
   };
 
-  const handleSocialLogin = async (provider: "google" | "github") => {
+  const handleSocialLogin = async (provider: 'google' | 'github') => {
     setSocialLoading(provider);
 
     try {
@@ -94,14 +100,14 @@ export default function LoginScreen() {
       if (data.url) {
         const result = await WebBrowser.openAuthSessionAsync(
           data.url,
-          redirectUrl
+          redirectUrl,
         );
 
-        if (result.type === "success") {
+        if (result.type === 'success') {
           const url = new URL(result.url);
           const params = new URLSearchParams(url.hash.substring(1));
-          const access_token = params.get("access_token");
-          const refresh_token = params.get("refresh_token");
+          const access_token = params.get('access_token');
+          const refresh_token = params.get('refresh_token');
 
           if (access_token && refresh_token) {
             const { data: sessionData, error: sessionError } =
@@ -113,14 +119,13 @@ export default function LoginScreen() {
             if (sessionError) throw sessionError;
 
             if (sessionData.session?.access_token) {
-              await setItemAsync("token", sessionData.session.access_token);
-              router.push("../(main)/Dashboard" as any);
+              await setItemAsync('token', sessionData.session.access_token);
+              router.push('../(main)/Dashboard' as any);
             }
           }
         }
       }
     } catch (error) {
-      console.log("error: ", error);
       Alert.alert(t.loginError);
     } finally {
       setSocialLoading(null);
@@ -130,7 +135,7 @@ export default function LoginScreen() {
   return (
     <>
       <StatusBar
-        barStyle={theme.isDark ? "light-content" : "dark-content"}
+        barStyle={theme.isDark ? 'light-content' : 'dark-content'}
         backgroundColor={theme.background}
       />
       <View
@@ -138,9 +143,8 @@ export default function LoginScreen() {
           flex: 1,
           backgroundColor: theme.background,
           paddingHorizontal: 24,
-          justifyContent: "center",
-        }}
-      >
+          justifyContent: 'center',
+        }}>
         {/* Header */}
         <View className="items-center mb-6">
           <View
@@ -149,27 +153,24 @@ export default function LoginScreen() {
               padding: 16,
               borderRadius: 32,
               marginBottom: 16,
-            }}
-          >
+            }}>
             <LogIn size={32} color={theme.primary} />
           </View>
           <Text
             style={{
               color: theme.text,
               fontSize: 24,
-              fontWeight: "bold",
+              fontWeight: 'bold',
               marginBottom: 8,
-            }}
-          >
+            }}>
             {t.welcomeBack}
           </Text>
           <Text
             style={{
               color: theme.textSecondary,
-              textAlign: "center",
+              textAlign: 'center',
               lineHeight: 24,
-            }}
-          >
+            }}>
             {t.signInDescription}
           </Text>
         </View>
@@ -181,15 +182,14 @@ export default function LoginScreen() {
           </Text>
           <View
             style={{
-              flexDirection: "row",
-              alignItems: "center",
+              flexDirection: 'row',
+              alignItems: 'center',
               backgroundColor: theme.cardBackground,
               borderWidth: 1,
               borderColor: theme.border,
               borderRadius: 12,
               paddingHorizontal: 16,
-            }}
-          >
+            }}>
             <Mail size={20} color={theme.textMuted} />
             <TextInput
               style={{
@@ -215,15 +215,14 @@ export default function LoginScreen() {
           </Text>
           <View
             style={{
-              flexDirection: "row",
-              alignItems: "center",
+              flexDirection: 'row',
+              alignItems: 'center',
               backgroundColor: theme.cardBackground,
               borderWidth: 1,
               borderColor: theme.border,
               borderRadius: 12,
               paddingHorizontal: 16,
-            }}
-          >
+            }}>
             <Lock size={20} color={theme.textMuted} />
             <TextInput
               style={{
@@ -260,25 +259,23 @@ export default function LoginScreen() {
         {/* Login */}
         <Button
           style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "center",
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
             backgroundColor: theme.primary,
             borderRadius: 12,
             padding: 16,
             marginTop: 8,
           }}
           onPress={handleLogin}
-          disabled={loading}
-        >
+          disabled={loading}>
           <Text
             style={{
               color: theme.primaryText,
-              fontWeight: "bold",
+              fontWeight: 'bold',
               marginLeft: 8,
               marginRight: 8,
-            }}
-          >
+            }}>
             {loading ? t.signingIn : t.signIn}
           </Text>
           <LogIn size={20} color={theme.primaryText} />
@@ -287,20 +284,18 @@ export default function LoginScreen() {
         {/* Divider */}
         <View
           style={{
-            flexDirection: "row",
-            alignItems: "center",
+            flexDirection: 'row',
+            alignItems: 'center',
             marginVertical: 24,
-          }}
-        >
+          }}>
           <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
           <Text
             style={{
               marginHorizontal: 16,
               color: theme.textMuted,
               fontSize: 14,
-              fontWeight: "600",
-            }}
-          >
+              fontWeight: '600',
+            }}>
             {t.or}
           </Text>
           <View style={{ flex: 1, height: 1, backgroundColor: theme.border }} />
@@ -347,13 +342,12 @@ export default function LoginScreen() {
       </TouchableOpacity>*/}
 
         {/* Footer */}
-        <View style={{ marginTop: 24, alignItems: "center" }}>
+        <View style={{ marginTop: 24, alignItems: 'center' }}>
           <Text style={{ color: theme.textSecondary }}>
-            {t.dontHaveAccount}{" "}
+            {t.dontHaveAccount}{' '}
             <Text
-              style={{ color: theme.primary, fontWeight: "bold" }}
-              onPress={() => router.push("/signup")}
-            >
+              style={{ color: theme.primary, fontWeight: 'bold' }}
+              onPress={() => router.push('/signup')}>
               {t.signUp}
             </Text>
           </Text>

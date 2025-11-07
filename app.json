@@ -1,26 +1,20 @@
 {
   "expo": {
-    "name": "qoondeeye",
-    "slug": "qoondeeye",
-    "version": "1.0.0",
+    "name": "Qoondeeye",
+    "slug": "Qoondeeye",
+    "version": "1.5.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "qoondeeye",
-    "platforms": [
-      "ios",
-      "android",
-      "web"
-    ],
+    "scheme": "Qoondeeye",
+    "platforms": ["ios", "android", "web"],
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/splash.png",
+      "image": "./assets/images/splash-white.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "jsEngine": "hermes"
@@ -30,8 +24,14 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "icon": "./assets/android/mipmap-xxxhdpi/Qoondeeye.png",
-      "jsEngine": "hermes"
+      "jsEngine": "hermes",
+      "package": "com.mohamed_99.qoondeeye",
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "VIBRATE",
+        "RECEIVE_BOOT_COMPLETED"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -45,16 +45,20 @@
         "expo-notifications",
         {
           "color": "#ffffff",
-          "icon": "./assets/android/mipmap-mdpi/Qoondeeye.png",
-          "sounds": [
-            "./assets/sounds/notification.wav"
-          ]
+          "icon": "./assets/qoondeeye-notification.png",
+          "sounds": ["./assets/sounds/notification.wav"]
         }
       ],
       "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "731ac4ba-e439-4651-87c7-1739515acf33"
+      }
     }
   }
 }
