@@ -1,7 +1,7 @@
 {
   "name": "Qoondeeye",
   "main": "index.js",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "scripts": {
     "dev": "expo start -c",
     "dev:web": "expo start -c --web",
