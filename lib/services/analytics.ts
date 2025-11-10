@@ -100,13 +100,13 @@ export const getExpensesByCategory = async (
     if (startDate) query = query.gte("date", startDate);
     if (endDate) query = query.lte("date", endDate);
 
-    const { data: transactions } = query;
+    const { data: transactions } = await query;
 
     if (!transactions) return [];
 
     const categoryMap = new Map<string, { amount: number; count: number }>();
 
-    transactions.forEach((transaction) => {
+    transactions.forEach((transaction: { category: string; amount: number }) => {
       const current = categoryMap.get(transaction.category) || {
         amount: 0,
         count: 0,

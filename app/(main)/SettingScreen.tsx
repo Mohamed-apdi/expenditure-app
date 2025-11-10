@@ -201,7 +201,7 @@ export default function ProfileScreen() {
       await deleteItemAsync("token");
       await deleteItemAsync("refresh_token");
 
-      router.replace("../(onboarding)/welcomeScreen" as any);
+      router.replace("../(auth)/login" as any);
 
       return true;
     } catch (err) {

@@ -254,7 +254,7 @@ export const LANGUAGES = {
 
     unexpectedError: "An unexpected error occurred",
     editAccount: "Edit Account",
-    currentBalance: "Current Balance",
+    currentBalance: "Balance",
     income: "Income",
     expense: "Expense",
     balance: "Balance",
@@ -857,7 +857,7 @@ export const LANGUAGES = {
     loginError: "Khaladka Galitaanka",
 
     // SignupScreen translations
-    signupDescription: "Geli emailkaaga oo abuur furaha amni ah",
+    signupDescription: "Geli emailkaaga oo Samee furaha amni ah",
     fullName: "Magaca Buuxa",
     enterYourFullName: "Geli magacaaga buuxa",
     confirmPassword: "Xaqiiji Furaha",
@@ -867,13 +867,13 @@ export const LANGUAGES = {
     oneNumber: "Hal tiro",
     continueWithGoogle: "Sii wad Google",
     continueWithGithub: "Sii wad Git Hub",
-    creatingAccount: "Abuuritaanka Akoonka...",
-    accountCreation: "Abuuritaanka Akoonka",
+    creatingAccount: "Sameeitaanka Akoonka...",
+    accountCreation: "Sameeitaanka Akoonka",
     alreadyHaveAccount: "Horey u haysataa Akoon?",
     signIn: "Soo gal",
     passwordsDoNotMatch: "Furaha ma isku mid aha",
-    accountCreated: "Akoonka waa la abuuray!",
-    defaultAccountCreated: "Akoonka caadiga ah 'Account 1' ayaa laguu abuuray",
+    accountCreated: "Akoonka waa la Sameeay!",
+    defaultAccountCreated: "Akoonka caadiga ah 'Account 1' ayaa laguu Sameeay",
     pleaseCheckEmail: "Fadlan hubi emailka si aad u xaqiijiso Akoonkaaga",
     signupFailed: "Diiwaangelinta akoonka waa guuldarreysatay",
     pleaseFillAllFields: "Fadlan buuxi dhammaan goobaha loo baahan yahay",
@@ -995,11 +995,11 @@ export const LANGUAGES = {
     // Post Signup Setup translations
     setupYourAccounts: "habee Akoonaadkaaga",
     youCanRenameOrAddAccount:
-      "Waxaad beddeli kartaa magaca akoonkaaga ugu weyn ama ku dar akoon kale",
-    renameMainAccount: "Beddeli Akoonka Ugu Weyn",
+      "Waxaad beddeli kartaa magaca akoonkaaga ama ku dar akoon kale",
+    renameMainAccount: "Bedel magaca Akoonka Ugu Sareya",
     addAnotherAccount: "Ku dar Akoon Kale",
-    skipForNow: "Ka saar hadda",
-    createMainAccount: "Abuur Akoonka Ugu Weyn",
+    skipForNow: "Kasii gudub",
+    createMainAccount: "Samee Akoonka Ugu Sareya",
 
     // Profile Setup translations
     setupProfile: "Deji Profile-ka",
@@ -1058,10 +1058,10 @@ export const LANGUAGES = {
     // AddExpense component
     add_transaction: "Ku dar Dhaqdhaqaaqaaga",
     how_much: "Xaddiga Lacagta?",
-    choose_category: "Dooro Nuuca",
-    select_category: "Dooro Nuuca",
+    choose_category: "Dooro Nooca",
+    select_category: "Dooro Nooca",
 
-    whats_this_for: "Ku qor ujeeddada kooban?",
+    whats_this_for: "Ku qor ujeeddada?",
     add_note_about_transaction: "Ku dar Faahfaahin ku saabsan Dhaqdhaqaaqaaga?",
     select_account: "Dooro akoonkaaga",
     when: "Goorme?",
@@ -1162,7 +1162,7 @@ export const LANGUAGES = {
     budgetAdded: "Miisaaniyada waa la ku daray",
     budgetSaveError: "Miisaaniyada lama kaydin karin",
     noAccounts: "Akoomo  ma jiraan",
-    createAccountFirst: "Fadlan abuur Akoon horey u sameesnen miisaaniyada",
+    createAccountFirst: "Fadlan Samee Akoon horey u sameesnen miisaaniyada",
     selectAccountForBudget: "Fadlan dooro Akoon miisaaniyadan",
     missingInfo: "Macluumaadka maqan",
     pleaseFillCategoryAndAmount: "Fadlan buuxi nuuca iyo lacagta la qeexay",
@@ -1200,7 +1200,7 @@ export const LANGUAGES = {
     subscriptionToggleError: "Xaaladda rukumada lama beddeli karin",
     noAccountsForSubscription: "Akoonaadka ma jiraan",
     createAccountFirstForSubscription:
-      "Fadlan abuur Akoon horey u sameeyo dib u booqashada.",
+      "Fadlan Samee Akoon Kahor Subscirption ka.",
     selectAccountForSubscription: "Fadlan dooro Akoon dib u booqashadan",
     userNotAuthenticatedForSubscription: "Isticmaalaha ma xaqiijin",
     missingSubscriptionInfo: "Macluumaadka maqan",
@@ -1219,7 +1219,7 @@ export const LANGUAGES = {
     editGoal: "Tafatir Hadafka",
     loadingGoals: "Hadafyaadka la soo dejinayaa...",
     noActiveSavingsGoals: "Hadaf kayd Joogto ah ma jiraan",
-    createFirstGoal: "Abuur hadafkaaga ugu horreeya si aad u bilowdo kaydka!",
+    createFirstGoal: "Samee hadafkaaga ugu horreeya si aad u bilowdo kaydka!",
     goalName: "Magaca Hadafka",
     enterGoalName: "Geli magaca hadafka",
     targetAmount: "Lacagta Hadafka",
@@ -1246,7 +1246,7 @@ export const LANGUAGES = {
     goalToggleError: "Xaaladda hadafka lama beddelin karin",
     noAccountsForGoal: "Akoonaadka ma jiraan",
     createAccountFirstForGoal:
-      "Fadlan marka hore abuur Akoon si aad u samayso hadafyada kaydka.",
+      "Fadlan marka hore Samee Akoon si aad u samayso hadafyada kaydka.",
     selectAccountForGoal: "Fadlan dooro Akoon hadafkan",
     userNotAuthenticatedForGoal: "Isticmaalaha ma xaqiijin",
     missingGoalInfo: "Macluumaadka maqan",
@@ -1263,7 +1263,7 @@ export const LANGUAGES = {
 
     // Goal Categories
     house: "Guriga",
-    car: "Baabuurka",
+    car: "BaSameeka",
     education: "Waxbarashada",
     wedding: "Arooska",
     emergencyFund: "Kaydka Xaaladaha Degdega ah",
@@ -1300,7 +1300,7 @@ export const LANGUAGES = {
     investmentDeleteError: "Maalgelinta lama tirtirin karin",
     noAccountsForInvestment: "Akoonaadka ma jiraan",
     createAccountFirstForInvestment:
-      "Fadlan abuur Akoon horey u sameeyo maalgelinta.",
+      "Fadlan Samee Akoon horey u sameeyo maalgelinta.",
     selectAccountForInvestment: "Fadlan dooro Akoon maalgelintan",
     userNotAuthenticatedForInvestment: "Isticmaalaha ma xaqiijin",
     missingInvestmentInfo: "Macluumaadka maqan",
@@ -1350,7 +1350,7 @@ export const LANGUAGES = {
     loanDeleteError: "Amaaha lama tirtirin karin",
     noAccountsForLoan: "Akoon lama hayo",
     createAccountFirstForLoan:
-      "Fadlan marka hore abuur akoon si aad u isticmaasho amaahyada.",
+      "Fadlan marka hore Samee akoon si aad u isticmaasho amaahyada.",
     selectAccountForLoan: "Fadlan dooro akoon amaahan",
     userNotAuthenticatedForLoan: "Isticmaalaha lama xaqiijin",
     missingLoanInfo: "Macluumaad maqan",
@@ -1380,7 +1380,7 @@ export const LANGUAGES = {
     status: "Xaalad",
     type: "Nooc",
     selectedAccountNotFound: "Akoonka la doortay lama helin",
-    createAccountsFirst: "Fadlan marka hore abuur akoonaad",
+    createAccountsFirst: "Fadlan marka hore Samee akoonaad",
     readyForLoans: "Diyaar u ah Amaahda",
     accountBalanceImpact: "Saamaynta Lacagta Akoonka",
     moneyInAccounts: "Lacagta Akoonada",

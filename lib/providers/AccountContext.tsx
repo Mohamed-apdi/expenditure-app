@@ -41,10 +41,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           data: { user },
         } = await supabase.auth.getUser();
         if (user) {
-          console.log(
-            "AccountContext - Auto-loading accounts for user:",
-            user.id
-          );
           await loadAccounts();
         }
       } catch (error) {
@@ -75,10 +71,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       // Transfers now create expense/income transactions that properly update account balances
       const currentBalance = account.amount || 0;
 
-      console.log(
-        `Account ${account.name} balance from database:`,
-        currentBalance
-      );
 
       return currentBalance;
     } catch (error) {
@@ -109,7 +101,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      console.log("Updated account balances from database");
     } catch (error) {
       console.error("Error updating account balances:", error);
     }
@@ -120,7 +111,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     try {
       if (account && !isUpdatingDefault) {
         setIsUpdatingDefault(true);
-        console.log("Setting selected account to:", account.name);
 
         // First, set all accounts to is_default: false
         const updatePromises = accounts.map((acc) =>
@@ -143,10 +133,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         }));
         setAccounts(updatedAccounts);
 
-        console.log(
-          "Successfully updated is_default for account:",
-          account.name
-        );
       } else if (!account) {
         setSelectedAccountState(null);
       }
@@ -165,21 +151,16 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
     try {
       setLoading(true);
-      console.log("Starting to load accounts...");
-
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (!user) {
-        console.log("User not authenticated, skipping account load");
         setLoading(false);
         return;
       }
 
-      console.log("User authenticated, fetching accounts for:", user.id);
       const fetchedAccounts = await fetchAccounts(user.id);
-      console.log("Fetched accounts:", fetchedAccounts.length);
 
       if (fetchedAccounts && fetchedAccounts.length > 0) {
         setAccounts(fetchedAccounts);
@@ -190,20 +171,14 @@ export function AccountProvider({ children }: { children: ReactNode }) {
             (acc) => acc.is_default === true
           );
           const accountToSelect = defaultAccount || fetchedAccounts[0];
-          console.log(
-            "Setting initial selected account to:",
-            accountToSelect.name
-          );
           setSelectedAccountState(accountToSelect);
         }
       } else {
-        console.log("No accounts found in database");
         setAccounts([]);
         setSelectedAccountState(null);
       }
 
       setHasInitialized(true);
-      console.log("Finished loading accounts");
     } catch (error) {
       console.error("Error loading accounts:", error);
       setAccounts([]);
@@ -225,21 +200,17 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     try {
       setHasInitialized(false);
       setLoading(true);
-      console.log("Refreshing accounts...");
 
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
       if (!user) {
-        console.log("User not authenticated, skipping account refresh");
         setLoading(false);
         return;
       }
 
-      console.log("User authenticated, refreshing accounts for:", user.id);
       const fetchedAccounts = await fetchAccounts(user.id);
-      console.log("Refreshed accounts:", fetchedAccounts.length);
 
       if (fetchedAccounts && fetchedAccounts.length > 0) {
         setAccounts(fetchedAccounts);
@@ -250,20 +221,14 @@ export function AccountProvider({ children }: { children: ReactNode }) {
             (acc) => acc.is_default === true
           );
           const accountToSelect = defaultAccount || fetchedAccounts[0];
-          console.log(
-            "Setting refreshed selected account to:",
-            accountToSelect.name
-          );
           setSelectedAccountState(accountToSelect);
         }
       } else {
-        console.log("No accounts found after refresh");
         setAccounts([]);
         setSelectedAccountState(null);
       }
 
       setHasInitialized(true);
-      console.log("Finished refreshing accounts");
     } catch (error) {
       console.error("Error refreshing accounts:", error);
       setAccounts([]);

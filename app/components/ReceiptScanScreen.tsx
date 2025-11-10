@@ -5,10 +5,17 @@ import { Camera, Image as ImageIcon, X, Check, RotateCw } from 'lucide-react-nat
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 
+interface ExtractedData {
+  merchant: string;
+  amount: number;
+  date: string;
+  category: string;
+}
+
 export default function ReceiptScanScreen() {
-  const [image, setImage] = useState(null);
+  const [image, setImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [extractedData, setExtractedData] = useState(null);
+  const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -44,7 +51,7 @@ export default function ReceiptScanScreen() {
     }
   };
 
-  const processImage = async (uri) => {
+  const processImage = async (uri: string) => {
     setIsProcessing(true);
     try {
       // Convert image to base64

@@ -168,16 +168,14 @@ export const requestNotificationPermissions = async () => {
     }
 
     if (finalStatus !== "granted") {
-      console.log("Failed to get push token for push notification!");
       return false;
     }
 
     // Get push token for debugging
     try {
-      const token = await Notifications.getExpoPushTokenAsync();
-      console.log("Push token:", token.data);
+      await Notifications.getExpoPushTokenAsync();
     } catch (tokenError) {
-      console.log("Could not get push token:", tokenError);
+      // Token error handled silently
     }
 
     return finalStatus;
@@ -222,9 +220,6 @@ export const scheduleSubscriptionNotification = async (
     trigger,
   });
 
-  console.log(
-    `Scheduled notification for ${subscription.name} at ${scheduledDate}`
-  );
 };
 
 // Handle notification responses (when user taps action buttons)
@@ -398,7 +393,6 @@ const processSubscriptionPayment = async (
     next_payment_date: nextPayment.toISOString().split("T")[0],
   });
 
-  console.log(`Processed payment for ${subscriptionName}`);
 };
 
 // Pause subscription
@@ -407,7 +401,6 @@ const pauseSubscription = async (subscriptionId: string) => {
     is_active: false,
   });
 
-  console.log(`Paused subscription ${subscriptionId}`);
 };
 
 // Send budget warning notification
@@ -458,9 +451,6 @@ export const sendBudgetNotification = async (
       });
     }
 
-    console.log(
-      `Sent ${type} notification for ${budgetProgress.category} budget`
-    );
   } catch (error) {
     console.error("Error sending budget notification:", error);
   }
@@ -495,7 +485,6 @@ export const checkBudgetsAndNotify = async () => {
       // You can add more thresholds here if needed (e.g., 90%)
     }
 
-    console.log("Budget notifications checked and sent");
   } catch (error) {
     console.error("Error checking budget notifications:", error);
   }
@@ -554,7 +543,6 @@ export const checkDueSubscriptionsAndNotify = async () => {
           isOverdue: false,
         });
 
-        console.log(`Sent notification for subscription: ${subscription.name}`);
       }
     }
   } catch (error) {
@@ -606,11 +594,7 @@ export const registerBackgroundTask = async () => {
             startOnBoot: true,
           }
         );
-        console.log(
-          "iOS Background fetch registered for subscriptions and budgets"
-        );
       } catch (error) {
-        console.log("Background fetch not available on iOS:", error);
       }
     }
 
@@ -636,9 +620,7 @@ export const registerBackgroundTask = async () => {
             },
           });
         }
-        console.log("Android scheduled daily checks for 30 days");
       } catch (error) {
-        console.log("Failed to schedule Android daily checks:", error);
       }
     }
 
@@ -650,7 +632,6 @@ export const registerBackgroundTask = async () => {
       checkAllNotifications();
     }, 5000); // Check after 5 seconds
 
-    console.log("Background task and scheduling setup completed");
     return { success: true };
   } catch (error) {
     console.error("Failed to register background task:", error);
@@ -734,7 +715,6 @@ export const scheduleBudgetCheckNotifications = async () => {
       });
     }
 
-    console.log("Scheduled budget check notifications for the next 7 days");
   } catch (error) {
     console.error("Error scheduling budget check notifications:", error);
   }
@@ -765,9 +745,6 @@ export const scheduleAllUpcomingNotifications = async () => {
       }
     }
 
-    console.log(
-      `Scheduled notifications for ${activeSubscriptions.length} subscriptions`
-    );
   } catch (error) {
     console.error("Error scheduling notifications:", error);
   }
