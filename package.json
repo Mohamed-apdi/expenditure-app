@@ -1,7 +1,7 @@
 {
   "name": "Qoondeeye",
   "main": "index.js",
-  "version": "1.5.5",
+  "version": "1.7.0",
   "scripts": {
     "dev": "expo start -c",
     "dev:web": "expo start -c --web",
@@ -9,7 +9,7 @@
     "android": "expo start -c --android",
     "ios": "expo start -c --ios",
     "web": "expo start -c --web",
-    "clean": "rm -rf .expo node_modules",
+    "clean": "react-native-clean-project",
     "postinstall": "npx tailwindcss -i ./global.css -o ./node_modules/.cache/nativewind/global.css"
   },
   "dependencies": {
@@ -66,6 +66,7 @@
     "react-native": "0.79.6",
     "react-native-chart-kit": "^6.12.0",
     "react-native-circular-progress": "^1.4.1",
+    "react-native-clean-project": "^4.0.3",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-gifted-charts": "^1.4.63",
     "react-native-html-to-pdf": "^0.12.0",
