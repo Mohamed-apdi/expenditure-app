@@ -52,6 +52,7 @@ import {
   DollarSign,
   Award,
   ArrowRightLeft,
+  Inbox,
 } from 'lucide-react-native';
 
 import { useTheme } from '~/lib';
@@ -481,9 +482,23 @@ export default function DashboardScreen() {
                   style={{
                     paddingVertical: 48,
                     alignItems: 'center',
-                    backgroundColor: theme.cardBackground,
-                    borderRadius: 16,
                   }}>
+                  <View
+                    style={{
+                      width: 80,
+                      height: 80,
+                      borderRadius: 40,
+                      backgroundColor: theme.cardBackground,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: 16,
+                    }}>
+                    <Inbox
+                      size={40}
+                      color={theme.textMuted}
+                      strokeWidth={1.5}
+                    />
+                  </View>
                   <Text
                     style={{
                       color: theme.textSecondary,
