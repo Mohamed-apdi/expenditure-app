@@ -51,7 +51,6 @@ export default function TransactionsScreen() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        console.log("User not authenticated");
         return;
       }
 

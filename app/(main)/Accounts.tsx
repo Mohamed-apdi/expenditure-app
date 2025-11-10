@@ -122,10 +122,6 @@ const Accounts = () => {
             is_recurring: false,
           });
 
-          console.log(
-            "Created initial balance transaction for account:",
-            createdAccount.name
-          );
         } catch (transactionError) {
           console.error(
             "Failed to create initial balance transaction:",

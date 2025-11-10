@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as Linking from "expo-linking";
 import {
   ChevronLeft,
   Edit3,
@@ -113,7 +114,7 @@ export default function ExpenseDetailScreen() {
                 .eq("id", id);
 
               if (error) throw error;
-              router.push("/(main)/ExpenseListScreen");
+              router.back();
             } catch (error) {
               console.error("Error deleting expense:", error);
               Alert.alert("Error", "Failed to delete expense");
@@ -171,7 +172,7 @@ export default function ExpenseDetailScreen() {
         <Text className="text-white text-lg">Expense not found</Text>
         <TouchableOpacity
           className="mt-4 bg-emerald-500 px-6 py-3 rounded-lg"
-          onPress={() => router.push("/expenses")}
+          onPress={() => router.back()}
         >
           <Text className="text-white font-bold">Back to Expenses</Text>
         </TouchableOpacity>

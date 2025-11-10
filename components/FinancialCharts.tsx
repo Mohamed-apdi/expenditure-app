@@ -5,8 +5,19 @@ import { Dimensions } from 'react-native';
 
 const screenWidth = Dimensions.get('window').width;
 
-export const SpendingByCategoryChart = ({ data }) => {
-  const chartData = data.map((item) => ({
+interface CategoryData {
+  category: string;
+  amount: number;
+  color: string;
+}
+
+interface MonthlyData {
+  month: string;
+  amount: number;
+}
+
+export const SpendingByCategoryChart = ({ data }: { data: CategoryData[] }) => {
+  const chartData = data.map((item: CategoryData) => ({
     name: item.category,
     amount: item.amount,
     color: item.color,
@@ -37,16 +48,16 @@ export const SpendingByCategoryChart = ({ data }) => {
   );
 };
 
-export const MonthlyTrendChart = ({ data }) => {
+export const MonthlyTrendChart = ({ data }: { data: MonthlyData[] }) => {
   return (
     <View className="mb-6">
       <Text className="font-bold text-lg mb-2 ml-4">Monthly Trends</Text>
       <BarChart
         data={{
-          labels: data.map((item) => item.month),
+          labels: data.map((item: MonthlyData) => item.month),
           datasets: [
             {
-              data: data.map((item) => item.amount),
+              data: data.map((item: MonthlyData) => item.amount),
             },
           ],
         }}

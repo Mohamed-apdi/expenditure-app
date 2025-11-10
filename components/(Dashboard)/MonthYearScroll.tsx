@@ -1,38 +1,46 @@
-import { useMemo, useState, useEffect, useRef } from "react";
-import { FlatList, Text, TouchableOpacity, View } from "react-native";
-import { ArrowUpRight, ArrowDownRight } from "lucide-react-native";
-import { useLanguage, useAccount } from "~/lib";
+import { useMemo, useState, useEffect, useRef } from 'react';
+import {
+  FlatList,
+  Text,
+  TouchableOpacity,
+  View,
+  StyleSheet,
+} from 'react-native';
+import { ArrowUpRight, ArrowDownRight } from 'lucide-react-native';
+import { useLanguage, useAccount } from '~/lib';
 
 const months = [
-  "JAN",
-  "FEB",
-  "MAR",
-  "APR",
-  "MAY",
-  "JUN",
-  "JUL",
-  "AUG",
-  "SEP",
-  "OCT",
-  "NOV",
-  "DEC",
+  'JAN',
+  'FEB',
+  'MAR',
+  'APR',
+  'MAY',
+  'JUN',
+  'JUL',
+  'AUG',
+  'SEP',
+  'OCT',
+  'NOV',
+  'DEC',
 ];
 
 type MonthYearScrollerProps = {
   onMonthChange: (month: number, year: number) => void;
   fetchMonthData: (
     month: number,
-    year: number
+    year: number,
   ) => Promise<{
     income: number;
     expense: number;
     balance: number;
   }>;
+  refreshTrigger?: number;
 };
 
 export default function MonthYearScroller({
   onMonthChange,
   fetchMonthData,
+  refreshTrigger = 0,
 }: MonthYearScrollerProps) {
   const current = new Date();
   const currentYear = current.getFullYear();
@@ -68,8 +76,12 @@ export default function MonthYearScroller({
 
   // Default selected = current month/year
   const [selected, setSelected] = useState(
-    `${months[currentMonth]} ${currentYear}`
+    `${months[currentMonth]} ${currentYear}`,
   );
+
+  // Estimate item width for getItemLayout
+  // Each item has px-4 (16px padding) + mx-1 (4px margin) + text width (~80px average)
+  const estimatedItemWidth = 100; // Approximate width per item
 
   // Scroll to selected month when component mounts or data changes
   useEffect(() => {
@@ -90,7 +102,7 @@ export default function MonthYearScroller({
 
   useEffect(() => {
     // Parse the selected month/year
-    const [monthStr, yearStr] = selected.split(" ");
+    const [monthStr, yearStr] = selected.split(' ');
     const monthIndex = months.indexOf(monthStr);
     const year = parseInt(yearStr);
 
@@ -101,7 +113,7 @@ export default function MonthYearScroller({
         setMonthData(data);
         onMonthChange(monthIndex, year);
       } catch (error) {
-        console.error("Error loading month data:", error);
+        console.error('Error loading month data:', error);
       }
     };
 
@@ -109,7 +121,8 @@ export default function MonthYearScroller({
     if (monthIndex >= 0 && year > 0) {
       loadMonthData();
     }
-  }, [selected, fetchMonthData, onMonthChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, refreshTrigger]);
 
   return (
     <View className="py-4">
@@ -121,20 +134,35 @@ export default function MonthYearScroller({
         keyExtractor={(item) => item}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 12 }}
+        getItemLayout={(data, index) => ({
+          length: estimatedItemWidth,
+          offset: estimatedItemWidth * index,
+          index,
+        })}
+        onScrollToIndexFailed={(info) => {
+          // Fallback: scroll to offset if index-based scroll fails
+          const wait = new Promise((resolve) => setTimeout(resolve, 500));
+          wait.then(() => {
+            if (flatListRef.current && data.length > info.index) {
+              flatListRef.current.scrollToIndex({
+                index: info.index,
+                animated: false,
+              });
+            }
+          });
+        }}
         renderItem={({ item }) => {
           const isActive = item === selected;
           return (
             <TouchableOpacity
               onPress={() => setSelected(item)}
               className={`px-4 py-2 mx-1 rounded-full ${
-                isActive ? "bg-[#ffffff]" : "bg-transparent"
-              }`}
-            >
+                isActive ? 'bg-[#ffffff]' : 'bg-transparent'
+              }`}>
               <Text
                 className={`text-sm ${
-                  isActive ? "text-[#3b82f6] font-bold" : "text-white"
-                }`}
-              >
+                  isActive ? 'text-[#3b82f6] font-bold' : 'text-white'
+                }`}>
                 {item}
               </Text>
             </TouchableOpacity>
@@ -143,36 +171,39 @@ export default function MonthYearScroller({
       />
 
       {/* Balance Card */}
-      <View className="px-6 mt-6">
-        <View className="rounded-2xl">
-          <Text className="text-white/80 text-xs text-center mb-1">
-            {t.currentBalance}
-          </Text>
-          <Text className="text-white text-3xl font-extrabold text-center mb-6">
+      <View style={styles.balanceCard}>
+        <View style={styles.balanceHeader}>
+          <Text style={styles.balanceLabel}>{t.currentBalance}</Text>
+          <Text style={styles.balanceAmount}>
             ${currentBalance.toLocaleString()}
           </Text>
+        </View>
 
-          <View className="flex-row justify-between px-3">
-            {/* Incomes */}
-            <View className="flex-row items-center gap-2">
-              <ArrowUpRight size={18} color="limegreen" />
-              <View>
-                <Text className="text-xs text-white/70">{t.income}</Text>
-                <Text className="text-white font-bold">
-                  ${monthData.income.toLocaleString()}
-                </Text>
-              </View>
+        {/* Income and Expense Cards */}
+        <View style={styles.statsContainer}>
+          {/* Income Card */}
+          <View style={[styles.statCard, styles.incomeCard]}>
+            <View style={styles.statIconContainer}>
+              <ArrowUpRight size={20} color="#10b981" strokeWidth={2.5} />
             </View>
+            <View style={[styles.statContent, { marginLeft: 12 }]}>
+              <Text style={styles.statLabel}>{t.income}</Text>
+              <Text style={styles.statValue}>
+                ${monthData.income.toLocaleString()}
+              </Text>
+            </View>
+          </View>
 
-            {/* Expenses */}
-            <View className="flex-row items-center gap-2">
-              <ArrowDownRight size={18} color="tomato" />
-              <View>
-                <Text className="text-xs text-white/70">{t.expense}</Text>
-                <Text className="text-white font-bold">
-                  -${monthData.expense.toLocaleString()}
-                </Text>
-              </View>
+          {/* Expense Card */}
+          <View style={[styles.statCard, styles.expenseCard]}>
+            <View style={styles.statIconContainer}>
+              <ArrowDownRight size={20} color="#ef4444" strokeWidth={2.5} />
+            </View>
+            <View style={[styles.statContent, { marginLeft: 12 }]}>
+              <Text style={styles.statLabel}>{t.expense}</Text>
+              <Text style={styles.statValue}>
+                ${monthData.expense.toLocaleString()}
+              </Text>
             </View>
           </View>
         </View>
@@ -180,3 +211,78 @@ export default function MonthYearScroller({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  balanceCard: {
+    marginHorizontal: 16,
+    marginTop: 20,
+    padding: 20,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backdropFilter: 'blur(10px)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  balanceHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  balanceLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 6,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  balanceAmount: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: -0.5,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  statCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 16,
+    marginHorizontal: 6,
+  },
+  incomeCard: {
+    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(16, 185, 129, 0.5)',
+  },
+  expenseCard: {
+    backgroundColor: 'rgba(239, 68, 68, 0.25)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(239, 68, 68, 0.5)',
+  },
+  statIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statContent: {
+    flex: 1,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+});

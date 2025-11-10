@@ -254,7 +254,7 @@ export const LANGUAGES = {
 
     unexpectedError: "An unexpected error occurred",
     editAccount: "Edit Account",
-    currentBalance: "Current Balance",
+    currentBalance: "Balance",
     income: "Income",
     expense: "Expense",
     balance: "Balance",

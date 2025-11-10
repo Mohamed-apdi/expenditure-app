@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,9 +8,14 @@ import {
   TouchableOpacity,
   RefreshControl,
   TextInput,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { PersonalLoan, LoanRepayment, Account } from "~/lib";
+  Platform,
+} from 'react-native';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+import RNPickerSelect from 'react-native-picker-select';
+import { PersonalLoan, LoanRepayment, Account } from '~/lib';
 import {
   getUserLoans,
   createLoan,
@@ -19,29 +24,41 @@ import {
   getLoanRepayments,
   createRepayment,
   deleteRepayment,
-} from "~/lib";
-import { fetchAccounts } from "~/lib";
-import { addTransaction } from "~/lib";
-import { supabase } from "~/lib";
-import { useFocusEffect } from "@react-navigation/native";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { useAccount } from "~/lib";
-import { ChevronDown, X, TrendingUp, TrendingDown } from "lucide-react-native";
-import { useTheme } from "~/lib";
-import { useLanguage } from "~/lib";
+} from '~/lib';
+import { fetchAccounts } from '~/lib';
+import { addTransaction } from '~/lib';
+import { supabase } from '~/lib';
+import { useFocusEffect } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { useAccount } from '~/lib';
+import { X, TrendingUp, TrendingDown } from 'lucide-react-native';
+import { useTheme } from '~/lib';
+import { useLanguage } from '~/lib';
 
-const Debt_Loan = () => {
+interface DebtLoanProps {
+  accounts?: Account[];
+  userId?: string | null;
+  onRefresh?: () => Promise<void>;
+}
+
+const Debt_Loan = ({
+  accounts: propAccounts,
+  userId: propUserId,
+  onRefresh: propOnRefresh,
+}: DebtLoanProps = {}) => {
   const { refreshAccounts } = useAccount();
   const { t } = useLanguage();
   const [loans, setLoans] = useState<PersonalLoan[]>([]);
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>(propAccounts || []);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRepaymentModal, setShowRepaymentModal] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<PersonalLoan | null>(null);
   const [repayments, setRepayments] = useState<LoanRepayment[]>([]);
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<string | null>(
+    propUserId || null,
+  );
   const theme = useTheme();
 
   // Date picker states
@@ -49,25 +66,25 @@ const Debt_Loan = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showRepaymentDatePicker, setShowRepaymentDatePicker] = useState(false);
   const [selectedRepaymentDate, setSelectedRepaymentDate] = useState(
-    new Date()
+    new Date(),
   );
 
   // Form states
   const [formData, setFormData] = useState({
-    type: "loan_taken" as "loan_given" | "loan_taken",
-    party_name: "",
-    principal_amount: "",
-    interest_rate: "",
-    due_date: "",
-    account_id: "",
+    type: 'loan_taken' as 'loan_given' | 'loan_taken',
+    party_name: '',
+    principal_amount: '',
+    interest_rate: '',
+    due_date: '',
+    account_id: '',
   });
 
   const [repaymentData, setRepaymentData] = useState({
-    amount: "",
-    payment_date: new Date().toISOString().split("T")[0],
+    amount: '',
+    payment_date: new Date().toISOString().split('T')[0],
   });
 
-  const [showAccountDropdown, setShowAccountDropdown] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const getCurrentUser = async () => {
     try {
@@ -78,7 +95,7 @@ const Debt_Loan = () => {
         setCurrentUser(user.id);
       }
     } catch (error) {
-      console.error("Error getting current user:", error);
+      console.error('Error getting current user:', error);
     }
   };
 
@@ -98,21 +115,21 @@ const Debt_Loan = () => {
             const repayments = await getLoanRepayments(loan.id);
             const totalRepaid = repayments.reduce(
               (sum, r) => sum + r.amount,
-              0
+              0,
             );
             const calculatedRemaining = Math.max(
               0,
-              loan.principal_amount - totalRepaid
+              loan.principal_amount - totalRepaid,
             );
 
             // Update loan if remaining amount is different
             if (Math.abs(calculatedRemaining - loan.remaining_amount) > 0.01) {
               const newStatus =
                 calculatedRemaining <= 0
-                  ? "settled"
+                  ? 'settled'
                   : calculatedRemaining < loan.principal_amount
-                    ? "partial"
-                    : "active";
+                    ? 'partial'
+                    : 'active';
 
               const updatedLoan = await updateLoan(loan.id, {
                 remaining_amount: calculatedRemaining,
@@ -125,13 +142,13 @@ const Debt_Loan = () => {
             console.error(`Error syncing loan ${loan.id}:`, error);
             return loan;
           }
-        })
+        }),
       );
 
       setLoans(updatedLoans);
       setAccounts(accountsData);
     } catch (error) {
-      console.error("Error loading data:", error);
+      console.error('Error loading data:', error);
       Alert.alert(t.error, t.failedToLoadData);
     }
   };
@@ -144,11 +161,29 @@ const Debt_Loan = () => {
 
   useFocusEffect(
     useCallback(() => {
-      getCurrentUser().then(() => {
+      // Only fetch if not provided by parent
+      if (!propUserId) {
+        getCurrentUser().then(() => {
+          loadData();
+        });
+      } else {
         loadData();
-      });
-    }, [currentUser])
+      }
+    }, [currentUser, propUserId]),
   );
+
+  // Sync with parent props when they change
+  useEffect(() => {
+    if (propAccounts !== undefined) {
+      setAccounts(propAccounts);
+    }
+  }, [propAccounts]);
+
+  useEffect(() => {
+    if (propUserId !== undefined && propUserId !== null) {
+      setCurrentUser(propUserId);
+    }
+  }, [propUserId]);
 
   const handleDateChange = (event: any, date?: Date) => {
     setShowDatePicker(false);
@@ -156,7 +191,7 @@ const Debt_Loan = () => {
       setSelectedDate(date);
       setFormData({
         ...formData,
-        due_date: date.toISOString().split("T")[0],
+        due_date: date.toISOString().split('T')[0],
       });
     }
   };
@@ -171,7 +206,7 @@ const Debt_Loan = () => {
       setSelectedRepaymentDate(date);
       setRepaymentData({
         ...repaymentData,
-        payment_date: date.toISOString().split("T")[0],
+        payment_date: date.toISOString().split('T')[0],
       });
     }
   };
@@ -192,9 +227,9 @@ const Debt_Loan = () => {
     }
 
     // Check balance for loan_given type
-    if (formData.type === "loan_given") {
+    if (formData.type === 'loan_given') {
       const selectedAccount = accounts.find(
-        (acc) => acc.id === formData.account_id
+        (acc) => acc.id === formData.account_id,
       );
       const loanAmount = parseFloat(formData.principal_amount);
 
@@ -221,22 +256,24 @@ const Debt_Loan = () => {
           : undefined,
         due_date: formData.due_date || undefined,
         account_id: formData.account_id,
-        status: "active",
+        status: 'active',
       });
 
       // Create a transaction for the loan
-      const transactionType = formData.type === "loan_taken" ? "income" : "expense";
-      const transactionDescription = formData.type === "loan_taken"
-        ? `Loan taken from ${formData.party_name}`
-        : `Loan given to ${formData.party_name}`;
+      const transactionType =
+        formData.type === 'loan_taken' ? 'income' : 'expense';
+      const transactionDescription =
+        formData.type === 'loan_taken'
+          ? `Loan taken from ${formData.party_name}`
+          : `Loan given to ${formData.party_name}`;
 
       await addTransaction({
         user_id: currentUser,
         account_id: formData.account_id,
         amount: parseFloat(formData.principal_amount),
         description: transactionDescription,
-        date: new Date().toISOString().split("T")[0],
-        category: "Loan",
+        date: new Date().toISOString().split('T')[0],
+        category: 'Loan',
         is_recurring: false,
         type: transactionType,
       });
@@ -251,7 +288,7 @@ const Debt_Loan = () => {
 
       Alert.alert(t.success, t.loanAdded);
     } catch (error) {
-      console.error("Error creating loan:", error);
+      console.error('Error creating loan:', error);
       Alert.alert(t.error, t.loanSaveError);
     }
   };
@@ -268,9 +305,9 @@ const Debt_Loan = () => {
     }
 
     // Check balance for loan_given type
-    if (formData.type === "loan_given") {
+    if (formData.type === 'loan_given') {
       const selectedAccount = accounts.find(
-        (acc) => acc.id === formData.account_id
+        (acc) => acc.id === formData.account_id,
       );
       const loanAmount = parseFloat(formData.principal_amount);
 
@@ -286,8 +323,8 @@ const Debt_Loan = () => {
 
       if (effectiveBalance < loanAmount) {
         Alert.alert(
-          "Insufficient Balance",
-          `You don't have enough money in this account to update this loan.\n\nEffective Balance: $${effectiveBalance.toFixed(2)}\n(Current balance + current loan amount being refunded)\nNew Loan Amount: $${loanAmount.toFixed(2)}\nShortfall: $${(loanAmount - effectiveBalance).toFixed(2)}\n\nPlease either:\n- Reduce the loan amount\n- Transfer money to this account\n- Choose a different account with sufficient balance`
+          'Insufficient Balance',
+          `You don't have enough money in this account to update this loan.\n\nEffective Balance: $${effectiveBalance.toFixed(2)}\n(Current balance + current loan amount being refunded)\nNew Loan Amount: $${loanAmount.toFixed(2)}\nShortfall: $${(loanAmount - effectiveBalance).toFixed(2)}\n\nPlease either:\n- Reduce the loan amount\n- Transfer money to this account\n- Choose a different account with sufficient balance`,
         );
         return;
       }
@@ -306,7 +343,7 @@ const Debt_Loan = () => {
       });
 
       setLoans(
-        loans.map((loan) => (loan.id === updatedLoan.id ? updatedLoan : loan))
+        loans.map((loan) => (loan.id === updatedLoan.id ? updatedLoan : loan)),
       );
       setShowEditModal(false);
       setSelectedLoan(null);
@@ -322,20 +359,20 @@ const Debt_Loan = () => {
 
       Alert.alert(t.success, t.loanUpdated);
     } catch (error) {
-      console.error("Error updating loan:", error);
+      console.error('Error updating loan:', error);
       Alert.alert(t.error, t.loanSaveError);
     }
   };
 
   const handleDeleteLoan = (loan: PersonalLoan) => {
     Alert.alert(
-      "Delete Loan",
+      'Delete Loan',
       `Are you sure you want to delete the loan with ${loan.party_name}?`,
       [
-        { text: "Cancel", style: "cancel" },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: "Delete",
-          style: "destructive",
+          text: 'Delete',
+          style: 'destructive',
           onPress: async () => {
             try {
               await deleteLoan(loan.id);
@@ -347,12 +384,12 @@ const Debt_Loan = () => {
 
               Alert.alert(t.success, t.loanDeleted);
             } catch (error) {
-              console.error("Error deleting loan:", error);
+              console.error('Error deleting loan:', error);
               Alert.alert(t.error, t.loanDeleteError);
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -371,8 +408,8 @@ const Debt_Loan = () => {
     // Check if repayment amount exceeds remaining amount
     if (parseFloat(repaymentData.amount) > selectedLoan.remaining_amount) {
       Alert.alert(
-        "Error",
-        `Repayment amount cannot exceed remaining amount ($${selectedLoan.remaining_amount.toFixed(2)})`
+        'Error',
+        `Repayment amount cannot exceed remaining amount ($${selectedLoan.remaining_amount.toFixed(2)})`,
       );
       return;
     }
@@ -386,10 +423,12 @@ const Debt_Loan = () => {
 
       // Create a transaction for the repayment
       if (selectedLoan.account_id && currentUser) {
-        const transactionType = selectedLoan.type === "loan_taken" ? "expense" : "income";
-        const transactionDescription = selectedLoan.type === "loan_taken"
-          ? `Loan repayment to ${selectedLoan.party_name}`
-          : `Loan repayment from ${selectedLoan.party_name}`;
+        const transactionType =
+          selectedLoan.type === 'loan_taken' ? 'expense' : 'income';
+        const transactionDescription =
+          selectedLoan.type === 'loan_taken'
+            ? `Loan repayment to ${selectedLoan.party_name}`
+            : `Loan repayment from ${selectedLoan.party_name}`;
 
         await addTransaction({
           user_id: currentUser,
@@ -397,7 +436,7 @@ const Debt_Loan = () => {
           amount: parseFloat(repaymentData.amount),
           description: transactionDescription,
           date: repaymentData.payment_date,
-          category: "Loan Repayment",
+          category: 'Loan Repayment',
           is_recurring: false,
           type: transactionType,
         });
@@ -407,8 +446,8 @@ const Debt_Loan = () => {
 
       // Reset repayment form
       setRepaymentData({
-        amount: "",
-        payment_date: new Date().toISOString().split("T")[0],
+        amount: '',
+        payment_date: new Date().toISOString().split('T')[0],
       });
 
       // Refresh data to get updated remaining amount and account balances
@@ -416,7 +455,7 @@ const Debt_Loan = () => {
       refreshAccounts();
       Alert.alert(t.success, t.repaymentAdded);
     } catch (error: any) {
-      console.error("Error adding repayment:", error);
+      console.error('Error adding repayment:', error);
       Alert.alert(t.error, error.message || t.repaymentSaveError);
     }
   };
@@ -429,19 +468,19 @@ const Debt_Loan = () => {
       setRepayments(repaymentsData);
       setShowRepaymentModal(true);
     } catch (error) {
-      console.error("Error loading repayments:", error);
+      console.error('Error loading repayments:', error);
       Alert.alert(t.error, t.failedToLoadRepayments);
     }
   };
 
   const resetForm = () => {
     setFormData({
-      type: "loan_taken",
-      party_name: "",
-      principal_amount: "",
-      interest_rate: "",
-      due_date: "",
-      account_id: "",
+      type: 'loan_taken',
+      party_name: '',
+      principal_amount: '',
+      interest_rate: '',
+      due_date: '',
+      account_id: '',
     });
     setSelectedDate(new Date());
   };
@@ -452,9 +491,9 @@ const Debt_Loan = () => {
       type: loan.type,
       party_name: loan.party_name,
       principal_amount: loan.principal_amount.toString(),
-      interest_rate: loan.interest_rate?.toString() || "",
-      due_date: loan.due_date || "",
-      account_id: loan.account_id || "",
+      interest_rate: loan.interest_rate?.toString() || '',
+      due_date: loan.due_date || '',
+      account_id: loan.account_id || '',
     });
     setSelectedDate(loan.due_date ? new Date(loan.due_date) : new Date());
     setShowEditModal(true);
@@ -462,19 +501,19 @@ const Debt_Loan = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "active":
-        return "#10b981"; // Green
-      case "partial":
-        return "#f59e0b"; // Yellow
-      case "settled":
-        return "#3b82f6"; // Blue
+      case 'active':
+        return '#10b981'; // Green
+      case 'partial':
+        return '#f59e0b'; // Yellow
+      case 'settled':
+        return '#3b82f6'; // Blue
       default:
-        return "#6b7280"; // Gray
+        return '#6b7280'; // Gray
     }
   };
 
   const getTypeColor = (type: string) => {
-    return type === "loan_given" ? "#3b82f6" : "#ef4444"; // Blue for given, Red for taken
+    return type === 'loan_given' ? '#3b82f6' : '#ef4444'; // Blue for given, Red for taken
   };
 
   const formatCurrencyText = (amount: number) => {
@@ -492,7 +531,7 @@ const Debt_Loan = () => {
 
   const checkInsufficientBalance = () => {
     if (
-      formData.type !== "loan_given" ||
+      formData.type !== 'loan_given' ||
       !formData.account_id ||
       !formData.principal_amount
     ) {
@@ -510,7 +549,7 @@ const Debt_Loan = () => {
 
   const checkInsufficientBalanceForEdit = () => {
     if (
-      formData.type !== "loan_given" ||
+      formData.type !== 'loan_given' ||
       !formData.account_id ||
       !formData.principal_amount ||
       !selectedLoan
@@ -534,26 +573,25 @@ const Debt_Loan = () => {
   return (
     <SafeAreaView
       className="flex-1"
-      style={{ backgroundColor: theme.background }}
-    >
+      style={{ backgroundColor: theme.background }}>
       <ScrollView
         className="flex-1"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
+        }>
         {/* Header */}
         <View className="px-4 py-4">
           <View className="flex-row justify-between items-center mb-6">
             <View>
               <Text
                 className="font-bold text-2xl"
-                style={{ color: theme.text }}
-              >
+                style={{ color: theme.text }}>
                 {t.debtLoan}
               </Text>
-              <Text className="text-sm mt-1" style={{ color: theme.textSecondary }}>
-                {loans.length} {loans.length === 1 ? 'loan' : 'loans'} • {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}
+              <Text
+                className="text-sm mt-1"
+                style={{ color: theme.textSecondary }}>
+                {`${loans.length} ${loans.length === 1 ? 'loan' : 'loans'} • ${accounts.length} ${accounts.length === 1 ? 'account' : 'accounts'}`}
               </Text>
             </View>
             <TouchableOpacity
@@ -564,8 +602,7 @@ const Debt_Loan = () => {
                   return;
                 }
                 setShowAddModal(true);
-              }}
-            >
+              }}>
               <Text className="text-white font-semibold">{t.addLoan}</Text>
             </TouchableOpacity>
           </View>
@@ -574,48 +611,44 @@ const Debt_Loan = () => {
           <View className="flex-row gap-3 mb-6">
             <View
               className="flex-1 rounded-2xl p-4"
-              style={{ backgroundColor: theme.cardBackground }}
-            >
+              style={{ backgroundColor: theme.cardBackground }}>
               <View className="flex-row items-center mb-2">
                 <View className="bg-blue-100 rounded-full p-2 mr-2">
                   <TrendingUp size={16} color="#3b82f6" />
                 </View>
                 <Text
                   className="text-xs font-medium"
-                  style={{ color: theme.textSecondary }}
-                >
+                  style={{ color: theme.textSecondary }}>
                   {t.totalLoans}
                 </Text>
               </View>
               <Text className="font-bold text-xl text-blue-600">
                 {formatCurrencyText(
                   loans
-                    .filter((loan) => loan.type === "loan_given")
-                    .reduce((sum, loan) => sum + loan.remaining_amount, 0)
+                    .filter((loan) => loan.type === 'loan_given')
+                    .reduce((sum, loan) => sum + loan.remaining_amount, 0),
                 )}
               </Text>
             </View>
 
             <View
               className="flex-1 rounded-2xl p-4"
-              style={{ backgroundColor: theme.cardBackground }}
-            >
+              style={{ backgroundColor: theme.cardBackground }}>
               <View className="flex-row items-center mb-2">
                 <View className="bg-red-100 rounded-full p-2 mr-2">
                   <TrendingDown size={16} color="#ef4444" />
                 </View>
                 <Text
                   className="text-xs font-medium"
-                  style={{ color: theme.textSecondary }}
-                >
+                  style={{ color: theme.textSecondary }}>
                   {t.totalDebts}
                 </Text>
               </View>
               <Text className="font-bold text-xl text-red-600">
                 {formatCurrencyText(
                   loans
-                    .filter((loan) => loan.type === "loan_taken")
-                    .reduce((sum, loan) => sum + loan.remaining_amount, 0)
+                    .filter((loan) => loan.type === 'loan_taken')
+                    .reduce((sum, loan) => sum + loan.remaining_amount, 0),
                 )}
               </Text>
             </View>
@@ -623,22 +656,24 @@ const Debt_Loan = () => {
 
           {/* My Loans - Simplified */}
           <View className="mb-6">
-            <Text className="font-bold text-lg mb-3" style={{ color: theme.text }}>
+            <Text
+              className="font-bold text-lg mb-3"
+              style={{ color: theme.text }}>
               {t.myLoans}
             </Text>
 
             {loans.length === 0 ? (
               <View
                 className="py-12 items-center rounded-2xl"
-                style={{ backgroundColor: theme.cardBackground }}
-              >
-                <Text className="text-base font-medium" style={{ color: theme.textSecondary }}>
+                style={{ backgroundColor: theme.cardBackground }}>
+                <Text
+                  className="text-base font-medium"
+                  style={{ color: theme.textSecondary }}>
                   {t.noLoansYet}
                 </Text>
                 <Text
                   className="text-sm mt-2"
-                  style={{ color: theme.textMuted }}
-                >
+                  style={{ color: theme.textMuted }}>
                   {t.addFirstLoan}
                 </Text>
               </View>
@@ -650,44 +685,50 @@ const Debt_Loan = () => {
                     className="p-4 rounded-2xl"
                     style={{
                       backgroundColor: theme.cardBackground,
-                    }}
-                  >
+                    }}>
                     {/* Header */}
                     <View className="flex-row justify-between items-start mb-3">
                       <View className="flex-1">
                         <Text
                           className="font-bold text-lg"
-                          style={{ color: theme.text }}
-                        >
+                          style={{ color: theme.text }}>
                           {loan.party_name}
                         </Text>
-                        <View className="flex-row items-center mt-1" style={{ gap: 6 }}>
+                        <View
+                          className="flex-row items-center mt-1"
+                          style={{ gap: 6 }}>
                           <View
                             className="px-2 py-1 rounded-full"
-                            style={{ backgroundColor: loan.type === "loan_given" ? "#dbeafe" : "#fee2e2" }}
-                          >
+                            style={{
+                              backgroundColor:
+                                loan.type === 'loan_given'
+                                  ? '#dbeafe'
+                                  : '#fee2e2',
+                            }}>
                             <Text
                               className="text-xs font-semibold"
-                              style={{ color: getTypeColor(loan.type) }}
-                            >
-                              {loan.type === "loan_given" ? t.loanGiven : t.loanTaken}
+                              style={{ color: getTypeColor(loan.type) }}>
+                              {loan.type === 'loan_given'
+                                ? t.loanGiven
+                                : t.loanTaken}
                             </Text>
                           </View>
                           <View
                             className="px-2 py-1 rounded-full"
                             style={{
-                              backgroundColor: loan.status === "settled"
-                                ? "#dcfce7"
-                                : loan.status === "partial"
-                                  ? "#fef3c7"
-                                  : "#e0e7ff"
-                            }}
-                          >
+                              backgroundColor:
+                                loan.status === 'settled'
+                                  ? '#dcfce7'
+                                  : loan.status === 'partial'
+                                    ? '#fef3c7'
+                                    : '#e0e7ff',
+                            }}>
                             <Text
                               className="text-xs font-semibold"
-                              style={{ color: getStatusColor(loan.status) }}
-                            >
-                              {t[loan.status] || loan.status.charAt(0).toUpperCase() + loan.status.slice(1)}
+                              style={{ color: getStatusColor(loan.status) }}>
+                              {t[loan.status] ||
+                                loan.status.charAt(0).toUpperCase() +
+                                  loan.status.slice(1)}
                             </Text>
                           </View>
                         </View>
@@ -697,24 +738,26 @@ const Debt_Loan = () => {
                     {/* Amount Info */}
                     <View className="flex-row justify-between items-center mb-3">
                       <View>
-                        <Text className="text-xs mb-1" style={{ color: theme.textSecondary }}>
+                        <Text
+                          className="text-xs mb-1"
+                          style={{ color: theme.textSecondary }}>
                           {t.remaining}
                         </Text>
                         <Text
                           className="font-bold text-2xl"
-                          style={{ color: getTypeColor(loan.type) }}
-                        >
+                          style={{ color: getTypeColor(loan.type) }}>
                           {formatCurrencyText(loan.remaining_amount)}
                         </Text>
                       </View>
                       <View className="items-end">
-                        <Text className="text-xs mb-1" style={{ color: theme.textSecondary }}>
+                        <Text
+                          className="text-xs mb-1"
+                          style={{ color: theme.textSecondary }}>
                           {t.Principal}
                         </Text>
                         <Text
                           className="font-medium text-lg"
-                          style={{ color: theme.text }}
-                        >
+                          style={{ color: theme.text }}>
                           {formatCurrencyText(loan.principal_amount)}
                         </Text>
                       </View>
@@ -724,20 +767,28 @@ const Debt_Loan = () => {
                     <View className="mb-3">
                       <View
                         className="h-2 rounded-full overflow-hidden"
-                        style={{ backgroundColor: theme.border }}
-                      >
+                        style={{ backgroundColor: theme.border }}>
                         <View
                           className="h-full rounded-full"
                           style={{
                             backgroundColor: getTypeColor(loan.type),
-                            width: `${loan.principal_amount > 0 ? ((loan.principal_amount - loan.remaining_amount) / loan.principal_amount) * 100 : 0}%`
+                            width: `${loan.principal_amount > 0 ? ((loan.principal_amount - loan.remaining_amount) / loan.principal_amount) * 100 : 0}%`,
                           }}
                         />
                       </View>
-                      <Text className="text-xs mt-1 text-right" style={{ color: theme.textMuted }}>
-                        {loan.principal_amount > 0
-                          ? ((loan.principal_amount - loan.remaining_amount) / loan.principal_amount * 100).toFixed(0)
-                          : 0}% repaid
+                      <Text
+                        className="text-xs mt-1 text-right"
+                        style={{ color: theme.textMuted }}>
+                        {`${
+                          loan.principal_amount > 0
+                            ? (
+                                ((loan.principal_amount -
+                                  loan.remaining_amount) /
+                                  loan.principal_amount) *
+                                100
+                              ).toFixed(0)
+                            : 0
+                        }% repaid`}
                       </Text>
                     </View>
 
@@ -746,20 +797,28 @@ const Debt_Loan = () => {
                       <View className="flex-row gap-4 mb-3">
                         {loan.interest_rate && (
                           <View className="flex-row items-center">
-                            <Text className="text-xs" style={{ color: theme.textSecondary }}>
+                            <Text
+                              className="text-xs"
+                              style={{ color: theme.textSecondary }}>
                               {t.interest}:
                             </Text>
-                            <Text className="text-xs font-medium ml-1" style={{ color: theme.text }}>
+                            <Text
+                              className="text-xs font-medium ml-1"
+                              style={{ color: theme.text }}>
                               {loan.interest_rate}%
                             </Text>
                           </View>
                         )}
                         {loan.due_date && (
                           <View className="flex-row items-center">
-                            <Text className="text-xs" style={{ color: theme.textSecondary }}>
+                            <Text
+                              className="text-xs"
+                              style={{ color: theme.textSecondary }}>
                               {t.dueDate}:
                             </Text>
-                            <Text className="text-xs font-medium ml-1" style={{ color: theme.text }}>
+                            <Text
+                              className="text-xs font-medium ml-1"
+                              style={{ color: theme.text }}>
                               {formatDate(loan.due_date)}
                             </Text>
                           </View>
@@ -768,12 +827,13 @@ const Debt_Loan = () => {
                     )}
 
                     {/* Actions */}
-                    <View className="flex-row gap-2 pt-3 border-t" style={{ borderColor: theme.border }}>
+                    <View
+                      className="flex-row gap-2 pt-3 border-t"
+                      style={{ borderColor: theme.border }}>
                       <TouchableOpacity
                         onPress={() => handleViewRepayments(loan)}
                         className="flex-1 py-2 rounded-lg"
-                        style={{ backgroundColor: "#dbeafe" }}
-                      >
+                        style={{ backgroundColor: '#dbeafe' }}>
                         <Text className="text-blue-600 font-semibold text-xs text-center">
                           {t.repayments}
                         </Text>
@@ -781,8 +841,7 @@ const Debt_Loan = () => {
                       <TouchableOpacity
                         onPress={() => openEditModal(loan)}
                         className="flex-1 py-2 rounded-lg"
-                        style={{ backgroundColor: "#e0e7ff" }}
-                      >
+                        style={{ backgroundColor: '#e0e7ff' }}>
                         <Text className="text-indigo-600 font-semibold text-xs text-center">
                           {t.Edit}
                         </Text>
@@ -790,8 +849,7 @@ const Debt_Loan = () => {
                       <TouchableOpacity
                         onPress={() => handleDeleteLoan(loan)}
                         className="flex-1 py-2 rounded-lg"
-                        style={{ backgroundColor: "#fee2e2" }}
-                      >
+                        style={{ backgroundColor: '#fee2e2' }}>
                         <Text className="text-red-600 font-semibold text-xs text-center">
                           {t.delete}
                         </Text>
@@ -809,19 +867,16 @@ const Debt_Loan = () => {
           visible={showAddModal}
           animationType="slide"
           transparent={true}
-          onRequestClose={() => setShowAddModal(false)}
-        >
+          onRequestClose={() => setShowAddModal(false)}>
           <View className="flex-1 justify-center items-center bg-black/50">
             <View
               className="w-11/12 rounded-xl p-6 max-h-[90%]"
-              style={{ backgroundColor: theme.cardBackground }}
-            >
+              style={{ backgroundColor: theme.cardBackground }}>
               <ScrollView showsVerticalScrollIndicator={false}>
                 <View className="flex-row justify-between items-center mb-4">
                   <Text
                     className="font-bold text-lg"
-                    style={{ color: theme.text }}
-                  >
+                    style={{ color: theme.text }}>
                     {t.addLoan}
                   </Text>
                   <TouchableOpacity onPress={() => setShowAddModal(false)}>
@@ -836,45 +891,41 @@ const Debt_Loan = () => {
                   <View className="flex-row" style={{ gap: 8 }}>
                     <TouchableOpacity
                       className={`flex-1 p-3 rounded-lg border ${
-                        formData.type === "loan_taken"
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-300"
+                        formData.type === 'loan_taken'
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-300'
                       }`}
                       onPress={() =>
-                        setFormData({ ...formData, type: "loan_taken" })
-                      }
-                    >
+                        setFormData({ ...formData, type: 'loan_taken' })
+                      }>
                       <Text
                         className="text-center"
                         style={{
                           color:
-                            formData.type === "loan_taken"
-                              ? "#1d4ed8"
+                            formData.type === 'loan_taken'
+                              ? '#1d4ed8'
                               : theme.textSecondary,
-                        }}
-                      >
+                        }}>
                         {t.loanTaken}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       className={`flex-1 p-3 rounded-lg border ${
-                        formData.type === "loan_given"
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-300"
+                        formData.type === 'loan_given'
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-300'
                       }`}
                       onPress={() =>
-                        setFormData({ ...formData, type: "loan_given" })
-                      }
-                    >
+                        setFormData({ ...formData, type: 'loan_given' })
+                      }>
                       <Text
                         className="text-center"
                         style={{
                           color:
-                            formData.type === "loan_given"
-                              ? "#1d4ed8"
+                            formData.type === 'loan_given'
+                              ? '#1d4ed8'
                               : theme.textSecondary,
-                        }}
-                      >
+                        }}>
                         {t.loanGiven}
                       </Text>
                     </TouchableOpacity>
@@ -929,23 +980,23 @@ const Debt_Loan = () => {
                             {t.insufficientBalanceForEdit}:
                           </Text>
                           <Text className="text-red-600 text-sm mt-1">
-                            {t.effectiveBalance}:{" "}
+                            {t.effectiveBalance}:{' '}
                             {formatCurrencyText(
                               (getSelectedAccount()?.amount || 0) +
-                                (selectedLoan?.principal_amount || 0)
+                                (selectedLoan?.principal_amount || 0),
                             )}
                           </Text>
                           <Text className="text-red-600 text-sm">
-                            {t.newLoanAmount}:{" "}
+                            {t.newLoanAmount}:{' '}
                             {formatCurrencyText(
-                              parseFloat(formData.principal_amount) || 0
+                              parseFloat(formData.principal_amount) || 0,
                             )}
                           </Text>
                           <Text className="text-red-600 text-sm">
-                            {t.shortfall}:{" "}
+                            {t.shortfall}:{' '}
                             {formatCurrencyText(
                               (parseFloat(formData.principal_amount) || 0) -
-                                (getSelectedAccount()?.amount || 0)
+                                (getSelectedAccount()?.amount || 0),
                             )}
                           </Text>
                         </View>
@@ -956,22 +1007,22 @@ const Debt_Loan = () => {
                             {t.insufficientBalance}
                           </Text>
                           <Text className="text-red-600 text-sm mt-1">
-                            Account Balance:{" "}
+                            Account Balance:{' '}
                             {formatCurrencyText(
-                              getSelectedAccount()?.amount || 0
+                              getSelectedAccount()?.amount || 0,
                             )}
                           </Text>
                           <Text className="text-red-600 text-sm">
-                            {t.LoanAmount}:{" "}
+                            {t.LoanAmount}:{' '}
                             {formatCurrencyText(
-                              parseFloat(formData.principal_amount) || 0
+                              parseFloat(formData.principal_amount) || 0,
                             )}
                           </Text>
                           <Text className="text-red-600 text-sm">
-                            {t.shortfall}:{" "}
+                            {t.shortfall}:{' '}
                             {formatCurrencyText(
                               (parseFloat(formData.principal_amount) || 0) -
-                                (getSelectedAccount()?.amount || 0)
+                                (getSelectedAccount()?.amount || 0),
                             )}
                           </Text>
                         </View>
@@ -1009,12 +1060,11 @@ const Debt_Loan = () => {
                       backgroundColor: theme.background,
                       borderColor: theme.border,
                     }}
-                    onPress={showDatepicker}
-                  >
+                    onPress={showDatepicker}>
                     <Text style={{ color: theme.text }}>
                       {formData.due_date
                         ? new Date(formData.due_date).toLocaleString()
-                        : "Select date "}
+                        : 'Select date '}
                     </Text>
                   </TouchableOpacity>
                   {showDatePicker && (
@@ -1031,111 +1081,101 @@ const Debt_Loan = () => {
                   <Text className="mb-1" style={{ color: theme.text }}>
                     {t.account} *
                   </Text>
-                  <TouchableOpacity
-                    className={`border rounded-lg p-3 flex-row justify-between items-center ${
-                      formData.account_id ? "border-gray-300" : "border-red-300"
-                    }`}
+                  <RNPickerSelect
+                    onValueChange={(value) => {
+                      setFormData({
+                        ...formData,
+                        account_id: value,
+                      });
+                    }}
+                    items={accounts.map((account) => ({
+                      label: `${account.name}`,
+                      value: account.id,
+                    }))}
+                    value={formData.account_id}
+                    placeholder={{
+                      label: `${t.selectAccount} *` || 'Select account *',
+                      value: null,
+                    }}
                     style={{
-                      backgroundColor: theme.background,
-                      borderColor: formData.account_id
-                        ? theme.border
-                        : "#ef4444",
-                    }}
-                    onPress={() => {
-                      if (accounts.length === 0) {
-                        Alert.alert(
-                          "No Accounts",
-                          "Please create an account first before adding loans."
-                        );
-                        return;
-                      }
-                      // Show account selection dropdown
-                      setShowAccountDropdown(!showAccountDropdown);
-                    }}
-                  >
-                    <Text
-                      style={{
+                      inputIOS: {
+                        fontSize: 14,
+                        paddingVertical: 14,
+                        paddingHorizontal: 14,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: formData.account_id
+                          ? theme.border
+                          : '#ef4444',
+                        backgroundColor: theme.background,
                         color: formData.account_id
                           ? theme.text
                           : theme.textSecondary,
-                      }}
-                    >
-                      {formData.account_id
-                        ? accounts.find((acc) => acc.id === formData.account_id)
-                            ?.name
-                        : `${t.selectAccount} *`}
-                    </Text>
-                    <ChevronDown size={16} color={theme.textMuted} />
-                  </TouchableOpacity>
-
+                        minHeight: 50,
+                      },
+                      inputAndroid: {
+                        fontSize: 14,
+                        paddingVertical: 14,
+                        paddingHorizontal: 14,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: formData.account_id
+                          ? theme.border
+                          : '#ef4444',
+                        backgroundColor: theme.background,
+                        color: formData.account_id
+                          ? theme.text
+                          : theme.textSecondary,
+                        minHeight: 50,
+                      },
+                      placeholder: {
+                        color: theme.textSecondary,
+                      },
+                      iconContainer: {
+                        top: 18,
+                        right: 12,
+                      },
+                    }}
+                    Icon={() => {
+                      return (
+                        <View
+                          style={{
+                            backgroundColor: 'transparent',
+                            borderTopWidth: 6,
+                            borderTopColor: theme.textMuted,
+                            borderRightWidth: 6,
+                            borderRightColor: 'transparent',
+                            borderLeftWidth: 6,
+                            borderLeftColor: 'transparent',
+                            width: 0,
+                            height: 0,
+                          }}
+                        />
+                      );
+                    }}
+                    useNativeAndroidPickerStyle={false}
+                  />
                   {!formData.account_id && (
                     <Text
                       className="text-sm mt-1"
-                      style={{ color: theme.textSecondary }}
-                    >
+                      style={{ color: theme.textSecondary }}>
                       {t.selectAccount} {t.isRequired}
                     </Text>
-                  )}
-
-                  {showAccountDropdown && (
-                    <View
-                      className="mt-2 border rounded-lg max-h-40"
-                      style={{
-                        backgroundColor: theme.cardBackground,
-                        borderColor: theme.border,
-                      }}
-                    >
-                      <ScrollView>
-                        {accounts.map((account) => (
-                          <TouchableOpacity
-                            key={account.id}
-                            className={`p-3 border-b ${
-                              formData.account_id === account.id
-                                ? "bg-blue-50"
-                                : ""
-                            }`}
-                            style={{ borderColor: theme.border }}
-                            onPress={() => {
-                              setFormData({
-                                ...formData,
-                                account_id: account.id,
-                              });
-                              setShowAccountDropdown(false);
-                            }}
-                          >
-                            <Text
-                              className="font-medium"
-                              style={{ color: theme.text }}
-                            >
-                              {account.name}
-                            </Text>
-                            <Text
-                              className="text-sm"
-                              style={{ color: theme.textSecondary }}
-                            >
-                              {account.account_type}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
                   )}
                 </View>
 
                 <TouchableOpacity
                   className={`py-3 rounded-lg items-center ${
-                    checkInsufficientBalance() ? "bg-gray-300" : "bg-blue-500"
+                    checkInsufficientBalance() ? 'bg-gray-300' : 'bg-blue-500'
                   }`}
                   onPress={handleAddLoan}
-                  disabled={checkInsufficientBalance()}
-                >
+                  disabled={checkInsufficientBalance()}>
                   <Text
                     className={`font-medium ${
                       checkInsufficientBalance()
-                        ? "text-gray-500"
-                        : "text-white"
-                    }`}
-                  >
+                        ? 'text-gray-500'
+                        : 'text-white'
+                    }`}>
                     {checkInsufficientBalance()
                       ? t.insufficientBalance
                       : t.addLoan}
@@ -1151,19 +1191,16 @@ const Debt_Loan = () => {
           visible={showEditModal}
           animationType="slide"
           transparent={true}
-          onRequestClose={() => setShowEditModal(false)}
-        >
+          onRequestClose={() => setShowEditModal(false)}>
           <View className="flex-1 justify-center items-center bg-black/50">
             <View
               className="w-11/12 rounded-xl p-6 max-h-[90%]"
-              style={{ backgroundColor: theme.cardBackground }}
-            >
+              style={{ backgroundColor: theme.cardBackground }}>
               <ScrollView showsVerticalScrollIndicator={false}>
                 <View className="flex-row justify-between items-center mb-4">
                   <Text
                     className="font-bold text-lg"
-                    style={{ color: theme.text }}
-                  >
+                    style={{ color: theme.text }}>
                     {t.editLoan}
                   </Text>
                   <TouchableOpacity onPress={() => setShowEditModal(false)}>
@@ -1178,45 +1215,41 @@ const Debt_Loan = () => {
                   <View className="flex-row" style={{ gap: 8 }}>
                     <TouchableOpacity
                       className={`flex-1 p-3 rounded-lg border ${
-                        formData.type === "loan_taken"
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-300"
+                        formData.type === 'loan_taken'
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-300'
                       }`}
                       onPress={() =>
-                        setFormData({ ...formData, type: "loan_taken" })
-                      }
-                    >
+                        setFormData({ ...formData, type: 'loan_taken' })
+                      }>
                       <Text
                         className="text-center"
                         style={{
                           color:
-                            formData.type === "loan_taken"
-                              ? "#1d4ed8"
+                            formData.type === 'loan_taken'
+                              ? '#1d4ed8'
                               : theme.textSecondary,
-                        }}
-                      >
+                        }}>
                         {t.loanTaken}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       className={`flex-1 p-3 rounded-lg border ${
-                        formData.type === "loan_given"
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-gray-300"
+                        formData.type === 'loan_given'
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-300'
                       }`}
                       onPress={() =>
-                        setFormData({ ...formData, type: "loan_given" })
-                      }
-                    >
+                        setFormData({ ...formData, type: 'loan_given' })
+                      }>
                       <Text
                         className="text-center"
                         style={{
                           color:
-                            formData.type === "loan_given"
-                              ? "#1d4ed8"
+                            formData.type === 'loan_given'
+                              ? '#1d4ed8'
                               : theme.textSecondary,
-                        }}
-                      >
+                        }}>
                         {t.loanGiven}
                       </Text>
                     </TouchableOpacity>
@@ -1271,10 +1304,10 @@ const Debt_Loan = () => {
                             Insufficient Balance for Edit
                           </Text>
                           <Text className="text-red-600 text-sm mt-1">
-                            Effective Balance:{" "}
+                            Effective Balance:{' '}
                             {formatCurrencyText(
                               (getSelectedAccount()?.amount || 0) +
-                                (selectedLoan?.principal_amount || 0)
+                                (selectedLoan?.principal_amount || 0),
                             )}
                           </Text>
                           <Text className="text-gray-500 text-xs">
@@ -1282,17 +1315,17 @@ const Debt_Loan = () => {
                             refunded)
                           </Text>
                           <Text className="text-red-600 text-sm">
-                            New Loan Amount:{" "}
+                            New Loan Amount:{' '}
                             {formatCurrencyText(
-                              parseFloat(formData.principal_amount) || 0
+                              parseFloat(formData.principal_amount) || 0,
                             )}
                           </Text>
                           <Text className="text-red-600 text-sm">
-                            Shortfall:{" "}
+                            Shortfall:{' '}
                             {formatCurrencyText(
                               (parseFloat(formData.principal_amount) || 0) -
                                 ((getSelectedAccount()?.amount || 0) +
-                                  (selectedLoan?.principal_amount || 0))
+                                  (selectedLoan?.principal_amount || 0)),
                             )}
                           </Text>
                         </View>
@@ -1303,22 +1336,22 @@ const Debt_Loan = () => {
                             Insufficient Balance
                           </Text>
                           <Text className="text-red-600 text-sm mt-1">
-                            Account Balance:{" "}
+                            Account Balance:{' '}
                             {formatCurrencyText(
-                              getSelectedAccount()?.amount || 0
+                              getSelectedAccount()?.amount || 0,
                             )}
                           </Text>
                           <Text className="text-red-600 text-sm">
-                            Loan Amount:{" "}
+                            Loan Amount:{' '}
                             {formatCurrencyText(
-                              parseFloat(formData.principal_amount) || 0
+                              parseFloat(formData.principal_amount) || 0,
                             )}
                           </Text>
                           <Text className="text-red-600 text-sm">
-                            Shortfall:{" "}
+                            Shortfall:{' '}
                             {formatCurrencyText(
                               (parseFloat(formData.principal_amount) || 0) -
-                                (getSelectedAccount()?.amount || 0)
+                                (getSelectedAccount()?.amount || 0),
                             )}
                           </Text>
                         </View>
@@ -1356,12 +1389,11 @@ const Debt_Loan = () => {
                       backgroundColor: theme.background,
                       borderColor: theme.border,
                     }}
-                    onPress={showDatepicker}
-                  >
+                    onPress={showDatepicker}>
                     <Text style={{ color: theme.text }}>
                       {formData.due_date
                         ? new Date(formData.due_date).toLocaleString()
-                        : "Select date "}
+                        : 'Select date '}
                     </Text>
                   </TouchableOpacity>
                   {showDatePicker && (
@@ -1378,113 +1410,105 @@ const Debt_Loan = () => {
                   <Text className="mb-1" style={{ color: theme.text }}>
                     {t.account}
                   </Text>
-                  <TouchableOpacity
-                    className={`border rounded-lg p-3 flex-row justify-between items-center ${
-                      formData.account_id ? "border-gray-300" : "border-red-300"
-                    }`}
+                  <RNPickerSelect
+                    onValueChange={(value) => {
+                      setFormData({
+                        ...formData,
+                        account_id: value,
+                      });
+                    }}
+                    items={accounts.map((account) => ({
+                      label: `${account.name}`,
+                      value: account.id,
+                    }))}
+                    value={formData.account_id}
+                    placeholder={{
+                      label: t.selectAccount
+                        ? `${t.selectAccount} *`
+                        : 'Select an account *',
+                      value: null,
+                    }}
                     style={{
-                      backgroundColor: theme.background,
-                      borderColor: formData.account_id
-                        ? theme.border
-                        : "#ef4444",
-                    }}
-                    onPress={() => {
-                      if (accounts.length === 0) {
-                        Alert.alert(
-                          "No Accounts",
-                          "Please create an account first before adding loans."
-                        );
-                        return;
-                      }
-                      // Show account selection dropdown
-                      setShowAccountDropdown(!showAccountDropdown);
-                    }}
-                  >
-                    <Text
-                      style={{
+                      inputIOS: {
+                        fontSize: 14,
+                        paddingVertical: 14,
+                        paddingHorizontal: 14,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: formData.account_id
+                          ? theme.border
+                          : '#ef4444',
+                        backgroundColor: theme.background,
                         color: formData.account_id
                           ? theme.text
                           : theme.textSecondary,
-                      }}
-                    >
-                      {formData.account_id
-                        ? accounts.find((acc) => acc.id === formData.account_id)
-                            ?.name
-                        : "Select an account *"}
-                    </Text>
-                    <ChevronDown size={20} color={theme.textMuted} />
-                  </TouchableOpacity>
-
+                        minHeight: 50,
+                      },
+                      inputAndroid: {
+                        fontSize: 14,
+                        paddingVertical: 14,
+                        paddingHorizontal: 14,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: formData.account_id
+                          ? theme.border
+                          : '#ef4444',
+                        backgroundColor: theme.background,
+                        color: formData.account_id
+                          ? theme.text
+                          : theme.textSecondary,
+                        minHeight: 50,
+                      },
+                      placeholder: {
+                        color: theme.textSecondary,
+                      },
+                      iconContainer: {
+                        top: 18,
+                        right: 12,
+                      },
+                    }}
+                    Icon={() => {
+                      return (
+                        <View
+                          style={{
+                            backgroundColor: 'transparent',
+                            borderTopWidth: 6,
+                            borderTopColor: theme.textMuted,
+                            borderRightWidth: 6,
+                            borderRightColor: 'transparent',
+                            borderLeftWidth: 6,
+                            borderLeftColor: 'transparent',
+                            width: 0,
+                            height: 0,
+                          }}
+                        />
+                      );
+                    }}
+                    useNativeAndroidPickerStyle={false}
+                  />
                   {!formData.account_id && (
                     <Text
                       className="text-sm mt-1"
-                      style={{ color: theme.textSecondary }}
-                    >
+                      style={{ color: theme.textSecondary }}>
                       Account selection is required
                     </Text>
-                  )}
-
-                  {showAccountDropdown && (
-                    <View
-                      className="mt-2 border rounded-lg max-h-40"
-                      style={{
-                        backgroundColor: theme.cardBackground,
-                        borderColor: theme.border,
-                      }}
-                    >
-                      <ScrollView>
-                        {accounts.map((account) => (
-                          <TouchableOpacity
-                            key={account.id}
-                            className={`p-3 border-b ${
-                              formData.account_id === account.id
-                                ? "bg-blue-50"
-                                : ""
-                            }`}
-                            style={{ borderColor: theme.border }}
-                            onPress={() => {
-                              setFormData({
-                                ...formData,
-                                account_id: account.id,
-                              });
-                              setShowAccountDropdown(false);
-                            }}
-                          >
-                            <Text
-                              className="font-medium"
-                              style={{ color: theme.text }}
-                            >
-                              {account.name}
-                            </Text>
-                            <Text
-                              className="text-sm"
-                              style={{ color: theme.textSecondary }}
-                            >
-                              {account.account_type}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
                   )}
                 </View>
 
                 <TouchableOpacity
                   className={`py-3 rounded-lg items-center ${
                     checkInsufficientBalanceForEdit()
-                      ? "bg-gray-300"
-                      : "bg-blue-500"
+                      ? 'bg-gray-300'
+                      : 'bg-blue-500'
                   }`}
                   onPress={handleEditLoan}
-                  disabled={checkInsufficientBalanceForEdit()}
-                >
+                  disabled={checkInsufficientBalanceForEdit()}>
                   <Text
                     className={`font-medium ${
                       checkInsufficientBalanceForEdit()
-                        ? "text-gray-500"
-                        : "text-white"
-                    }`}
-                  >
+                        ? 'text-gray-500'
+                        : 'text-white'
+                    }`}>
                     {checkInsufficientBalanceForEdit()
                       ? t.insufficientBalance
                       : t.updateLoan}
@@ -1500,18 +1524,15 @@ const Debt_Loan = () => {
           visible={showRepaymentModal}
           animationType="slide"
           transparent={true}
-          onRequestClose={() => setShowRepaymentModal(false)}
-        >
+          onRequestClose={() => setShowRepaymentModal(false)}>
           <View className="flex-1 justify-center items-center bg-black/50">
             <View
               className="w-11/12 rounded-xl p-6 max-h-[90%]"
-              style={{ backgroundColor: theme.cardBackground }}
-            >
+              style={{ backgroundColor: theme.cardBackground }}>
               <View className="flex-row justify-between items-center mb-4">
                 <Text
                   className="font-bold text-lg"
-                  style={{ color: theme.text }}
-                >
+                  style={{ color: theme.text }}>
                   {t.repayments} - {selectedLoan?.party_name}
                 </Text>
                 <TouchableOpacity onPress={() => setShowRepaymentModal(false)}>
@@ -1523,12 +1544,10 @@ const Debt_Loan = () => {
                 {/* Add Repayment Form */}
                 <View
                   className="mb-6 rounded-xl p-4"
-                  style={{ backgroundColor: theme.background }}
-                >
+                  style={{ backgroundColor: theme.background }}>
                   <Text
                     className="font-bold text-lg mb-4"
-                    style={{ color: theme.text }}
-                  >
+                    style={{ color: theme.text }}>
                     {t.addRepayment}
                   </Text>
 
@@ -1538,41 +1557,37 @@ const Debt_Loan = () => {
                     style={{
                       backgroundColor: theme.cardBackground,
                       borderColor: theme.border,
-                    }}
-                  >
+                    }}>
                     <View className="flex-row justify-between items-center mb-2">
                       <Text
                         className="text-gray-600"
-                        style={{ color: theme.textSecondary }}
-                      >
+                        style={{ color: theme.textSecondary }}>
                         {t.remainingAmount}:
                       </Text>
                       <Text className="font-bold text-lg">
                         {formatCurrencyText(
-                          selectedLoan?.remaining_amount || 0
+                          selectedLoan?.remaining_amount || 0,
                         )}
                       </Text>
                     </View>
                     <View className="flex-row justify-between items-center">
                       <Text
                         className="text-gray-600"
-                        style={{ color: theme.textSecondary }}
-                      >
+                        style={{ color: theme.textSecondary }}>
                         {t.status}:
                       </Text>
                       <Text
                         className="font-medium"
                         style={{
                           color: getStatusColor(
-                            selectedLoan?.status || "active"
+                            selectedLoan?.status || 'active',
                           ),
-                        }}
-                      >
-                        {selectedLoan?.status === "active"
+                        }}>
+                        {selectedLoan?.status === 'active'
                           ? t.active
-                          : selectedLoan?.status === "partial"
+                          : selectedLoan?.status === 'partial'
                             ? t.partial
-                            : selectedLoan?.status === "settled"
+                            : selectedLoan?.status === 'settled'
                               ? t.settled
                               : t.active}
                       </Text>
@@ -1611,8 +1626,7 @@ const Debt_Loan = () => {
                             (selectedLoan?.remaining_amount || 0) && (
                             <Text
                               className="text-sm mt-1"
-                              style={{ color: theme.textSecondary }}
-                            >
+                              style={{ color: theme.textSecondary }}>
                               Amount cannot exceed remaining balance
                             </Text>
                           )}
@@ -1627,8 +1641,7 @@ const Debt_Loan = () => {
                             backgroundColor: theme.cardBackground,
                             borderColor: theme.border,
                           }}
-                          onPress={showRepaymentDatepicker}
-                        >
+                          onPress={showRepaymentDatepicker}>
                           <Text style={{ color: theme.text }}>
                             {repaymentData.payment_date || t.selectPaymentDate}
                           </Text>
@@ -1648,8 +1661,8 @@ const Debt_Loan = () => {
                           parseFloat(repaymentData.amount) <= 0 ||
                           parseFloat(repaymentData.amount) >
                             (selectedLoan?.remaining_amount || 0)
-                            ? "bg-gray-300"
-                            : "bg-blue-500"
+                            ? 'bg-gray-300'
+                            : 'bg-blue-500'
                         }`}
                         onPress={handleAddRepayment}
                         disabled={
@@ -1657,18 +1670,16 @@ const Debt_Loan = () => {
                           parseFloat(repaymentData.amount) <= 0 ||
                           parseFloat(repaymentData.amount) >
                             (selectedLoan?.remaining_amount || 0)
-                        }
-                      >
+                        }>
                         <Text
                           className={`font-medium ${
                             !repaymentData.amount ||
                             parseFloat(repaymentData.amount) <= 0 ||
                             parseFloat(repaymentData.amount) >
                               (selectedLoan?.remaining_amount || 0)
-                              ? "text-gray-500"
-                              : "text-white"
-                          }`}
-                        >
+                              ? 'text-gray-500'
+                              : 'text-white'
+                          }`}>
                           {t.addRepayment}
                         </Text>
                       </TouchableOpacity>
@@ -1679,12 +1690,10 @@ const Debt_Loan = () => {
                 {/* Repayments List */}
                 <View
                   className="rounded-xl p-4"
-                  style={{ backgroundColor: theme.background }}
-                >
+                  style={{ backgroundColor: theme.background }}>
                   <Text
                     className="font-bold text-lg mb-4"
-                    style={{ color: theme.text }}
-                  >
+                    style={{ color: theme.text }}>
                     {t.paymentHistory}
                   </Text>
 
@@ -1695,50 +1704,44 @@ const Debt_Loan = () => {
                       style={{
                         backgroundColor: theme.cardBackground,
                         borderColor: theme.border,
-                      }}
-                    >
+                      }}>
                       <View className="flex-row justify-between items-center mb-2">
                         <Text
                           className="text-gray-600"
-                          style={{ color: theme.textSecondary }}
-                        >
+                          style={{ color: theme.textSecondary }}>
                           {t.totalRepaid}:
                         </Text>
                         <Text className="font-bold text-lg text-green-600">
                           {formatCurrencyText(
                             selectedLoan.principal_amount -
-                              selectedLoan.remaining_amount
+                              selectedLoan.remaining_amount,
                           )}
                         </Text>
                       </View>
                       <View className="flex-row justify-between items-center mb-2">
                         <Text
                           className="text-gray-600"
-                          style={{ color: theme.textSecondary }}
-                        >
+                          style={{ color: theme.textSecondary }}>
                           {t.principalAmount}:
                         </Text>
                         <Text
                           className="font-medium"
-                          style={{ color: theme.text }}
-                        >
+                          style={{ color: theme.text }}>
                           {formatCurrencyText(selectedLoan.principal_amount)}
                         </Text>
                       </View>
                       <View className="flex-row justify-between items-center">
                         <Text
                           className="text-gray-600"
-                          style={{ color: theme.textSecondary }}
-                        >
+                          style={{ color: theme.textSecondary }}>
                           {t.remainingAmount}:
                         </Text>
                         <Text
                           className={`font-bold ${
                             selectedLoan.remaining_amount <= 0
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}
-                        >
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                          }`}>
                           {formatCurrencyText(selectedLoan.remaining_amount)}
                         </Text>
                       </View>
@@ -1748,8 +1751,7 @@ const Debt_Loan = () => {
                   {repayments.length === 0 ? (
                     <Text
                       className="text-center py-4"
-                      style={{ color: theme.textSecondary }}
-                    >
+                      style={{ color: theme.textSecondary }}>
                       {t.noRepaymentsYet}
                     </Text>
                   ) : (
@@ -1757,19 +1759,16 @@ const Debt_Loan = () => {
                       <View
                         key={repayment.id}
                         className="flex-row justify-between items-center py-3 border-b"
-                        style={{ borderColor: theme.border }}
-                      >
+                        style={{ borderColor: theme.border }}>
                         <View>
                           <Text
                             className="font-medium"
-                            style={{ color: theme.text }}
-                          >
+                            style={{ color: theme.text }}>
                             {formatCurrencyText(repayment.amount)}
                           </Text>
                           <Text
                             className="text-sm"
-                            style={{ color: theme.textSecondary }}
-                          >
+                            style={{ color: theme.textSecondary }}>
                             {formatDate(repayment.payment_date)}
                           </Text>
                         </View>
@@ -1779,7 +1778,7 @@ const Debt_Loan = () => {
                             try {
                               await deleteRepayment(repayment.id);
                               setRepayments(
-                                repayments.filter((r) => r.id !== repayment.id)
+                                repayments.filter((r) => r.id !== repayment.id),
                               );
                               await loadData(); // Refresh loans
 
@@ -1787,18 +1786,17 @@ const Debt_Loan = () => {
                               await refreshAccounts();
 
                               Alert.alert(
-                                "Success",
-                                "Repayment deleted successfully"
+                                'Success',
+                                'Repayment deleted successfully',
                               );
                             } catch (error) {
-                              console.error("Error deleting repayment:", error);
+                              console.error('Error deleting repayment:', error);
                               Alert.alert(
-                                "Error",
-                                "Failed to delete repayment"
+                                'Error',
+                                'Failed to delete repayment',
                               );
                             }
-                          }}
-                        >
+                          }}>
                           <Text className="text-red-600 font-medium text-xs">
                             Delete
                           </Text>

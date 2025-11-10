@@ -4,18 +4,13 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
-  ScrollView,
-  Modal,
   ActivityIndicator,
 } from "react-native";
 import {
-  Wallet,
   ArrowRight,
   ArrowUpDown,
-  ChevronDown,
-  X,
-  Check,
 } from "lucide-react-native";
+import RNPickerSelect from "react-native-picker-select";
 import type { Account } from "~/lib";
 
 type Props = {
@@ -45,8 +40,6 @@ export default function TransferForm({
   theme,
   t,
 }: Props) {
-  const [showAccountSelectionModal, setShowAccountSelectionModal] = React.useState(false);
-  const [accountSelectionType, setAccountSelectionType] = React.useState<"from" | "to">("from");
 
   return (
     <View style={{ paddingHorizontal: 20 }}>
@@ -79,49 +72,77 @@ export default function TransferForm({
         <Text style={{ fontSize: 14, fontWeight: "500", marginBottom: 8, color: theme.textSecondary }}>
           {t.from || "From"}
         </Text>
-        <TouchableOpacity
+        <RNPickerSelect
+          onValueChange={(value) => {
+            const account = accounts.find((acc) => acc.id === value);
+            setFromAccount(account || null);
+          }}
+          items={accounts
+            .filter((acc) => acc.id !== toAccount?.id)
+            .map((account) => ({
+              label: `${account.name}`,
+              value: account.id,
+            }))}
+          value={fromAccount?.id}
+          placeholder={{
+            label: t.select_account || "Select account",
+            value: null,
+          }}
           style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: 16,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: fromAccount ? theme.primary : theme.border,
-            backgroundColor: theme.inputBackground,
+            inputIOS: {
+              fontSize: 16,
+              paddingVertical: 16,
+              paddingHorizontal: 16,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: fromAccount ? theme.primary : theme.border,
+              backgroundColor: theme.inputBackground,
+              color: theme.text,
+              minHeight: 50,
+            },
+            inputAndroid: {
+              fontSize: 16,
+              paddingVertical: 16,
+              paddingHorizontal: 16,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: fromAccount ? theme.primary : theme.border,
+              backgroundColor: theme.inputBackground,
+              color: theme.text,
+              minHeight: 50,
+            },
+            placeholder: {
+              color: theme.placeholder,
+            },
+            iconContainer: {
+              top: 18,
+              right: 16,
+            },
           }}
-          onPress={() => {
-            setShowAccountSelectionModal(true);
-            setAccountSelectionType("from");
+          Icon={() => {
+            return (
+              <View
+                style={{
+                  backgroundColor: "transparent",
+                  borderTopWidth: 6,
+                  borderTopColor: theme.textMuted,
+                  borderRightWidth: 6,
+                  borderRightColor: "transparent",
+                  borderLeftWidth: 6,
+                  borderLeftColor: "transparent",
+                  width: 0,
+                  height: 0,
+                }}
+              />
+            );
           }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <View
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: `${theme.primary}20`,
-                marginRight: 12,
-              }}
-            >
-              <Wallet size={16} color={theme.primary} />
-            </View>
-            <View>
-              <Text style={{ fontSize: 16, fontWeight: "500", color: theme.text }}>
-                {fromAccount?.name || t.select_account || "Select account"}
-              </Text>
-              {fromAccount && (
-                <Text style={{ fontSize: 14, color: theme.textSecondary }}>
-                  ${fromAccount.amount.toFixed(2)}
-                </Text>
-              )}
-            </View>
-          </View>
-          <ChevronDown size={16} color={theme.textMuted} />
-        </TouchableOpacity>
+          useNativeAndroidPickerStyle={false}
+        />
+        {fromAccount && (
+          <Text style={{ fontSize: 14, color: theme.textSecondary, marginTop: 8, marginLeft: 4 }}>
+            Balance: ${fromAccount.amount.toFixed(2)}
+          </Text>
+        )}
       </View>
 
       {/* Transfer Icon */}
@@ -138,49 +159,77 @@ export default function TransferForm({
         <Text style={{ fontSize: 14, fontWeight: "500", marginBottom: 8, color: theme.textSecondary }}>
           {t.to || "To"}
         </Text>
-        <TouchableOpacity
+        <RNPickerSelect
+          onValueChange={(value) => {
+            const account = accounts.find((acc) => acc.id === value);
+            setToAccount(account || null);
+          }}
+          items={accounts
+            .filter((acc) => acc.id !== fromAccount?.id)
+            .map((account) => ({
+            label: `${account.name} - $${account.amount.toFixed(2)}`,
+              value: account.id,
+            }))}
+          value={toAccount?.id}
+          placeholder={{
+            label: t.select_account || "Select account",
+            value: null,
+          }}
           style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: 16,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: toAccount ? theme.success : theme.border,
-            backgroundColor: theme.inputBackground,
+            inputIOS: {
+              fontSize: 16,
+              paddingVertical: 16,
+              paddingHorizontal: 16,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: toAccount ? theme.success : theme.border,
+              backgroundColor: theme.inputBackground,
+              color: theme.text,
+              minHeight: 50,
+            },
+            inputAndroid: {
+              fontSize: 16,
+              paddingVertical: 16,
+              paddingHorizontal: 16,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: toAccount ? theme.success : theme.border,
+              backgroundColor: theme.inputBackground,
+              color: theme.text,
+              minHeight: 50,
+            },
+            placeholder: {
+              color: theme.placeholder,
+            },
+            iconContainer: {
+              top: 18,
+              right: 16,
+            },
           }}
-          onPress={() => {
-            setShowAccountSelectionModal(true);
-            setAccountSelectionType("to");
+          Icon={() => {
+            return (
+              <View
+                style={{
+                  backgroundColor: "transparent",
+                  borderTopWidth: 6,
+                  borderTopColor: theme.textMuted,
+                  borderRightWidth: 6,
+                  borderRightColor: "transparent",
+                  borderLeftWidth: 6,
+                  borderLeftColor: "transparent",
+                  width: 0,
+                  height: 0,
+                }}
+              />
+            );
           }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <View
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: `${theme.success}20`,
-                marginRight: 12,
-              }}
-            >
-              <Wallet size={16} color={theme.success} />
-            </View>
-            <View>
-              <Text style={{ fontSize: 16, fontWeight: "500", color: theme.text }}>
-                {toAccount?.name || t.select_account || "Select account"}
-              </Text>
-              {toAccount && (
-                <Text style={{ fontSize: 14, color: theme.textSecondary }}>
-                  ${toAccount.amount.toFixed(2)}
-                </Text>
-              )}
-            </View>
-          </View>
-          <ChevronDown size={16} color={theme.textMuted} />
-        </TouchableOpacity>
+          useNativeAndroidPickerStyle={false}
+        />
+        {toAccount && (
+          <Text style={{ fontSize: 14, color: theme.textSecondary, marginTop: 8, marginLeft: 4 }}>
+            Balance: ${toAccount.amount.toFixed(2)}
+          </Text>
+        )}
       </View>
 
       {/* Swap Accounts Button */}
@@ -258,99 +307,6 @@ export default function TransferForm({
         </View>
       )}
 
-      {/* Account Selection Modal */}
-      <Modal
-        visible={showAccountSelectionModal}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={() => setShowAccountSelectionModal(false)}
-      >
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)", padding: 20 }}>
-          <View
-            style={{
-              backgroundColor: theme.cardBackground,
-              borderRadius: 16,
-              padding: 20,
-              width: "100%",
-              maxWidth: 400,
-              maxHeight: "80%",
-            }}
-          >
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <Text style={{ color: theme.text, fontSize: 18, fontWeight: "600" }}>
-                {accountSelectionType === "from" ? t.from || "From" : t.to || "To"}
-              </Text>
-              <TouchableOpacity onPress={() => setShowAccountSelectionModal(false)}>
-                <X size={20} color={theme.textMuted} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              nestedScrollEnabled={true}
-              showsVerticalScrollIndicator={true}
-            >
-              {accounts.map((account) => (
-                <TouchableOpacity
-                  key={account.id}
-                  style={{
-                    padding: 12,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor:
-                      (accountSelectionType === "from" && fromAccount?.id === account.id) ||
-                      (accountSelectionType === "to" && toAccount?.id === account.id)
-                        ? theme.primary
-                        : theme.border,
-                    backgroundColor:
-                      (accountSelectionType === "from" && fromAccount?.id === account.id) ||
-                      (accountSelectionType === "to" && toAccount?.id === account.id)
-                        ? `${theme.primary}10`
-                        : theme.inputBackground,
-                    marginBottom: 8,
-                  }}
-                  onPress={() => {
-                    if (accountSelectionType === "from") {
-                      setFromAccount(account);
-                    } else {
-                      setToAccount(account);
-                    }
-                    setShowAccountSelectionModal(false);
-                  }}
-                >
-                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-                      <View
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 16,
-                          justifyContent: "center",
-                          alignItems: "center",
-                          backgroundColor: `${theme.primary}20`,
-                          marginRight: 12,
-                        }}
-                      >
-                        <Wallet size={16} color={theme.primary} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 16, fontWeight: "500", color: theme.text }}>
-                          {account.name}
-                        </Text>
-                        <Text style={{ fontSize: 14, color: theme.textSecondary }}>
-                          {account.account_type}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={{ fontSize: 16, fontWeight: "500", color: theme.text }}>
-                      ${account.amount.toFixed(2)}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }

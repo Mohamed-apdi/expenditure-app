@@ -1,7 +1,14 @@
 import { supabase } from "../database/supabase";
 import type { Expense, ExpenseWithAccount } from "../types/types";
 
-export const fetchExpenses = async (userId: string, filters = {}) => {
+interface ExpenseFilters {
+  startDate?: string;
+  endDate?: string;
+  category?: string;
+  entry_type?: string;
+}
+
+export const fetchExpenses = async (userId: string, filters: ExpenseFilters = {}) => {
   let query = supabase
     .from("expenses")
     .select("*")
@@ -26,7 +33,7 @@ export const fetchExpenses = async (userId: string, filters = {}) => {
 
 export const fetchExpensesWithAccounts = async (
   userId: string,
-  filters = {}
+  filters: ExpenseFilters = {}
 ): Promise<ExpenseWithAccount[]> => {
   let query = supabase
     .from("expenses")

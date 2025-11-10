@@ -322,21 +322,32 @@ export default function EditAccount() {
             style={{ backgroundColor: theme.cardBackground }}
           >
             <View
-              className="p-6 border-b"
+              className="flex-row justify-between items-center p-6 border-b"
               style={{ borderColor: theme.border }}
             >
               <Text className="font-bold text-lg" style={{ color: theme.text }}>
                 {t.selectGroup}
               </Text>
+              <TouchableOpacity onPress={() => setShowGroupModal(false)}>
+                <X size={24} color={theme.textMuted} />
+              </TouchableOpacity>
             </View>
             <FlatList
               data={accountGroups}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  className={`px-6 py-4 flex-row justify-between items-center ${
-                    formData.account_type === item.name ? "bg-blue-50" : ""
-                  }`}
+                  style={{
+                    paddingHorizontal: 24,
+                    paddingVertical: 16,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    backgroundColor:
+                      formData.account_type === item.name
+                        ? `${theme.primary}20`
+                        : "transparent",
+                  }}
                   onPress={() => {
                     setFormData({ ...formData, account_type: item.name });
                     setShowGroupModal(false);
@@ -368,7 +379,7 @@ export default function EditAccount() {
                                           : item.name}
                   </Text>
                   {formData.account_type === item.name && (
-                    <Check size={20} color="#3b82f6" />
+                    <Check size={20} color={theme.primary} />
                   )}
                 </TouchableOpacity>
               )}
