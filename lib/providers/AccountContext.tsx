@@ -9,7 +9,6 @@ import React, {
 import { supabase } from "../database/supabase";
 import { fetchAccounts, updateAccount } from "../services/accounts";
 import type { Account } from "../types/types";
-import { fetchTransactions } from "../services/transactions";
 
 interface AccountContextType {
   selectedAccount: Account | null;
@@ -19,7 +18,7 @@ interface AccountContextType {
   refreshAccounts: () => Promise<void>;
   calculateAccountBalance: (accountId: string) => Promise<number>;
   refreshBalances: () => Promise<void>;
-  initializeAccounts: () => Promise<void>; // Add this missing function
+  initializeAccounts: () => Promise<void>;
 }
 
 const AccountContext = createContext<AccountContextType | undefined>(undefined);
@@ -71,7 +70,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       // Transfers now create expense/income transactions that properly update account balances
       const currentBalance = account.amount || 0;
 
-
       return currentBalance;
     } catch (error) {
       console.error("Error calculating account balance:", error);
@@ -100,7 +98,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           setSelectedAccountState(updatedSelectedAccount);
         }
       }
-
     } catch (error) {
       console.error("Error updating account balances:", error);
     }
@@ -132,7 +129,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           is_default: acc.id === account.id,
         }));
         setAccounts(updatedAccounts);
-
       } else if (!account) {
         setSelectedAccountState(null);
       }
@@ -256,9 +252,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     refreshAccounts,
     calculateAccountBalance,
     refreshBalances,
-    loadAccounts: initializeAccounts, // Expose the manual trigger
-    isUpdatingDefault,
-    hasInitialized,
     initializeAccounts,
   };
 
