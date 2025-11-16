@@ -6,25 +6,25 @@ import {
   LogIn,
   Mail,
   Lock,
-  Smartphone,
 } from 'lucide-react-native';
 import {
   View,
   TextInput,
   TouchableOpacity,
-  Alert,
   StatusBar,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { Text } from '~/components/ui/text';
 import { Button } from '~/components/ui/button';
 import { setItemAsync } from 'expo-secure-store';
 import { supabase } from '~/lib';
-import AntDesign from '@expo/vector-icons/AntDesign';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import Toast from 'react-native-toast-message';
 import { useTheme } from '~/lib';
 import { useLanguage } from '~/lib';
+import { createAccount, fetchAccounts } from '~/lib/services/accounts';
 
 // Required for Expo OAuth
 WebBrowser.maybeCompleteAuthSession();
@@ -35,10 +35,9 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<
-    'google' | 'github' | null
+    'google' | null
   >(null);
 
   const handleLogin = async () => {
@@ -55,7 +54,20 @@ export default function LoginScreen() {
         type: 'error',
         position: 'top',
         text1: 'Login failed',
-        text2: 'Please check your credentials and try again.',
+        text2: error.message || 'Please check your credentials and try again.',
+        visibilityTime: 6000,
+        autoHide: true,
+        topOffset: 50,
+      });
+      return;
+    }
+
+    if (!data.session) {
+      Toast.show({
+        type: 'error',
+        position: 'top',
+        text1: 'Login failed',
+        text2: 'No session data received',
         visibilityTime: 6000,
         autoHide: true,
         topOffset: 50,
@@ -74,14 +86,20 @@ export default function LoginScreen() {
     });
 
     // Save token securely
-    await setItemAsync('token', data.session?.access_token);
-    await setItemAsync('userId', data.user?.id);
-    await setItemAsync('supabase_session', JSON.stringify(data.session));
+    if (data.session.access_token) {
+      await setItemAsync('token', data.session.access_token);
+    }
+    if (data.user?.id) {
+      await setItemAsync('userId', data.user.id);
+    }
+    if (data.session) {
+      await setItemAsync('supabase_session', JSON.stringify(data.session));
+    }
 
     router.replace('/(main)/Dashboard');
   };
 
-  const handleSocialLogin = async (provider: 'google' | 'github') => {
+  const handleSocialLogin = async (provider: 'google') => {
     setSocialLoading(provider);
 
     try {
@@ -118,15 +136,118 @@ export default function LoginScreen() {
 
             if (sessionError) throw sessionError;
 
-            if (sessionData.session?.access_token) {
+            if (sessionData.session && sessionData.user?.id) {
               await setItemAsync('token', sessionData.session.access_token);
-              router.push('../(main)/Dashboard' as any);
+              await setItemAsync('userId', sessionData.user.id);
+              await setItemAsync('supabase_session', JSON.stringify(sessionData.session));
+
+              // Check if user has any accounts, if not create "Account 1"
+              try {
+                const existingAccounts = await fetchAccounts(sessionData.user.id);
+                if (existingAccounts.length === 0) {
+                  await createAccount({
+                    user_id: sessionData.user.id,
+                    account_type: 'Accounts',
+                    name: 'Account 1',
+                    amount: 0,
+                    description: 'Default account',
+                    is_default: true,
+                    currency: 'USD',
+                  });
+                }
+              } catch (accountError) {
+                console.error('Error creating default account:', accountError);
+                // Don't block login if account creation fails
+              }
+
+              Toast.show({
+                type: 'success',
+                position: 'top',
+                text1: 'Welcome back!',
+                text2: 'Successfully signed in',
+                visibilityTime: 3000,
+                autoHide: true,
+                topOffset: 50,
+              });
+
+              router.replace('/(main)/Dashboard');
+            }
+          } else {
+            // Try to get tokens from query params if not in hash
+            const queryParams = new URLSearchParams(url.search);
+            const queryAccessToken = queryParams.get('access_token');
+            const queryRefreshToken = queryParams.get('refresh_token');
+
+            if (queryAccessToken && queryRefreshToken) {
+              const { data: sessionData, error: sessionError } =
+                await supabase.auth.setSession({
+                  access_token: queryAccessToken,
+                  refresh_token: queryRefreshToken,
+                });
+
+              if (sessionError) throw sessionError;
+
+              if (sessionData.session && sessionData.user?.id) {
+                await setItemAsync('token', sessionData.session.access_token);
+                await setItemAsync('userId', sessionData.user.id);
+                await setItemAsync('supabase_session', JSON.stringify(sessionData.session));
+
+                // Check if user has any accounts, if not create "Account 1"
+                try {
+                  const existingAccounts = await fetchAccounts(sessionData.user.id);
+                  if (existingAccounts.length === 0) {
+                    await createAccount({
+                      user_id: sessionData.user.id,
+                      account_type: 'Accounts',
+                      name: 'Account 1',
+                      amount: 0,
+                      description: 'Default account',
+                      is_default: true,
+                      currency: 'USD',
+                    });
+                  }
+                } catch (accountError) {
+                  console.error('Error creating default account:', accountError);
+                  // Don't block login if account creation fails
+                }
+
+                Toast.show({
+                  type: 'success',
+                  position: 'top',
+                  text1: 'Welcome back!',
+                  text2: 'Successfully signed in',
+                  visibilityTime: 3000,
+                  autoHide: true,
+                  topOffset: 50,
+                });
+
+                router.replace('/(main)/Dashboard');
+              }
             }
           }
+        } else if (result.type === 'cancel') {
+          Toast.show({
+            type: 'info',
+            position: 'top',
+            text1: 'Sign in cancelled',
+            text2: 'You cancelled the sign in process',
+            visibilityTime: 3000,
+            autoHide: true,
+            topOffset: 50,
+          });
         }
       }
-    } catch (error) {
-      Alert.alert(t.loginError);
+    } catch (error: any) {
+      console.error('Social login error:', error);
+      Toast.show({
+        type: 'error',
+        position: 'top',
+        text1: 'Sign in failed',
+        text2: error?.message || 'An error occurred during sign in',
+        visibilityTime: 4000,
+        autoHide: true,
+        topOffset: 50,
+      });
     } finally {
       setSocialLoading(null);
     }
@@ -302,44 +423,39 @@ export default function LoginScreen() {
         </View>
 
         {/* Google Button */}
-        {/*<TouchableOpacity
-        className="flex-row items-center bg-slate-800 border border-slate-700 rounded-xl p-4"
-        onPress={() => handleSocialLogin("google")}
-        disabled={socialLoading !== null || loading}
-      >
-        {socialLoading === "google" ? (
-          <View className="w-8 h-8 justify-center items-center mr-4">
-            <AntDesign name="loading1" size={24} color="#ffffff" />
-          </View>
-        ) : (
-          <View className="w-8 h-8 bg-white rounded-full justify-center items-center mr-4">
-            <AntDesign name="google" size={24} color="black" />
-          </View>
-        )}
-        <Text className="text-white font-medium flex-1">
-          Continue with Google
-        </Text>
-      </TouchableOpacity>*/}
-
-        {/* Github Button */}
-        {/*<TouchableOpacity
-        className="flex-row items-center mt-2 bg-slate-800 border border-slate-700 rounded-xl p-4"
-        onPress={() => handleSocialLogin("github")}
-        disabled={socialLoading !== null || loading}
-      >
-        {socialLoading === "github" ? (
-          <View className="w-8 h-8 justify-center items-center mr-4">
-            <AntDesign name="loading1" size={24} color="#ffffff" />
-          </View>
-        ) : (
-          <View className="w-8 h-8 bg-white rounded-full justify-center items-center mr-4">
-            <AntDesign name="github" size={24} color="black" />
-          </View>
-        )}
-        <Text className="text-white font-medium flex-1">
-          Continue with Github
-        </Text>
-      </TouchableOpacity>*/}
+        <TouchableOpacity
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: theme.cardBackground,
+            borderWidth: 1,
+            borderColor: theme.border,
+            borderRadius: 12,
+            padding: 16,
+          }}
+          onPress={() => handleSocialLogin('google')}
+          disabled={socialLoading !== null || loading}>
+          {socialLoading === 'google' ? (
+            <View style={{ width: 24, height: 24, marginRight: 12, justifyContent: 'center', alignItems: 'center' }}>
+              <ActivityIndicator size="small" color={theme.primary} />
+            </View>
+          ) : (
+            <Image
+              source={require('../../assets/images/google_icon.png')}
+              style={{ width: 24, height: 24, marginRight: 12 }}
+              resizeMode="contain"
+            />
+          )}
+          <Text
+            style={{
+              color: theme.text,
+              fontWeight: '600',
+              flex: 1,
+              fontSize: 16,
+            }}>
+            {t.continueWithGoogle}
+          </Text>
+        </TouchableOpacity>
 
         {/* Footer */}
         <View style={{ marginTop: 24, alignItems: 'center' }}>
