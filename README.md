@@ -84,7 +84,7 @@
 
 ## 📱 Screenshots
 
-_[Screenshots will be added here]_
+_Screenshots coming soon - stay tuned!_
 
 ## 🚀 Getting Started
 
