@@ -5,6 +5,9 @@ import { Ionicons } from "@expo/vector-icons";
 
 const { width, height } = Dimensions.get("window");
 
+
+// Not Found Screen
+
 export default function NotFoundScreen() {
   return (
     <>
