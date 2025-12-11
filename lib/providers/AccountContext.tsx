@@ -28,7 +28,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     null
   );
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [loading, setLoading] = useState(false); // Start with false since we'll load on mount
+  const [loading, setLoading] = useState(false);
   const [isUpdatingDefault, setIsUpdatingDefault] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
 
@@ -44,6 +44,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         console.error("AccountContext - Error auto-loading accounts:", error);
+        // Silently fail - accounts will be loaded when user explicitly requests them
       }
     };
 
@@ -72,7 +73,11 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
       return currentBalance;
     } catch (error) {
-      console.error("Error calculating account balance:", error);
+      console.error(
+        "Error calculating account balance for account:",
+        accountId,
+        error
+      );
       return 0;
     }
   };
@@ -240,9 +245,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       await updateAccountBalances();
     }
   };
-
-  // Remove all automatic loading logic that causes infinite loops
-  // Only load accounts when explicitly requested
 
   const value = {
     selectedAccount,
