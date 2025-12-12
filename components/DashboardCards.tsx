@@ -1,6 +1,6 @@
 // components/DashboardCards.tsx
-import { View, Text, TouchableOpacity } from 'react-native';
-import { PieChart, TrendingUp, Wallet, PiggyBank } from 'lucide-react-native';
+import { View, Text } from 'react-native';
+import { TrendingUp, Wallet, PiggyBank } from 'lucide-react-native';
 
 export const NetWorthCard = ({ netWorth }: { netWorth: number }) => (
   <View className="bg-blue-50 p-4 rounded-xl">
@@ -19,7 +19,7 @@ export const NetWorthCard = ({ netWorth }: { netWorth: number }) => (
 );
 
 export const BudgetCard = ({ spent, budget }: { spent: number; budget: number }) => {
-  const percentage = (spent / budget) * 100;
+  const percentage = budget > 0 ? (spent / budget) * 100 : 0;
   return (
     <View className="bg-purple-50 p-4 rounded-xl">
       <View className="flex-row justify-between items-center mb-2">
@@ -32,8 +32,8 @@ export const BudgetCard = ({ spent, budget }: { spent: number; budget: number })
           <Text className="text-purple-900">${budget.toFixed(2)}</Text>
         </View>
         <View className="h-2 bg-purple-100 rounded-full overflow-hidden">
-          <View 
-            className="h-full bg-purple-600" 
+          <View
+            className="h-full bg-purple-600"
             style={{ width: `${Math.min(percentage, 100)}%` }}
           />
         </View>
