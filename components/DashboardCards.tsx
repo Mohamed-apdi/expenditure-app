@@ -1,4 +1,6 @@
 // components/DashboardCards.tsx
+import { View, Text } from 'react-native';
+import { TrendingUp, Wallet, PiggyBank } from 'lucide-react-native';
 import { View, Text } from "react-native";
 import { TrendingUp, Wallet, PiggyBank } from "lucide-react-native";
 
@@ -18,6 +20,7 @@ export const NetWorthCard = ({ netWorth }: { netWorth: number }) => (
   </View>
 );
 
+export const BudgetCard = ({ spent, budget }: { spent: number; budget: number }) => {
 export const BudgetCard = ({
   spent,
   budget,
