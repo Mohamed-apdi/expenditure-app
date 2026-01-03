@@ -83,6 +83,14 @@ export const updateAccount = async (
     currency: string;
   }>
 ): Promise<Account> => {
+  if (!accountId || accountId.trim() === "") {
+    throw new Error("Account ID is required");
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new Error("No updates provided");
+  }
+
   try {
     const { data, error } = await supabase
       .from("accounts")
@@ -92,6 +100,9 @@ export const updateAccount = async (
       .single();
 
     if (error) throw error;
+    if (!data) {
+      throw new Error("Account not found");
+    }
     return data;
   } catch (error) {
     console.error("Error updating account:", error);
@@ -100,6 +111,10 @@ export const updateAccount = async (
 };
 
 export const deleteAccount = async (accountId: string): Promise<void> => {
+  if (!accountId || accountId.trim() === "") {
+    throw new Error("Account ID is required");
+  }
+
   const { error } = await supabase
     .from("accounts")
     .delete()
@@ -193,6 +208,14 @@ export const updateAccountBalance = async (
   accountId: string,
   newBalance: number
 ): Promise<void> => {
+  if (!accountId || accountId.trim() === "") {
+    throw new Error("Account ID is required");
+  }
+
+  if (typeof newBalance !== "number" || isNaN(newBalance)) {
+    throw new Error("Invalid balance value");
+  }
+
   const { error } = await supabase
     .from("accounts")
     .update({ amount: newBalance })
