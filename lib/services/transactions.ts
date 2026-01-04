@@ -62,6 +62,14 @@ export const updateTransaction = async (
   transactionId: string,
   updates: Partial<Omit<Transaction, "id" | "created_at" | "updated_at">>
 ): Promise<Transaction> => {
+  if (!transactionId || transactionId.trim() === "") {
+    throw new Error("Transaction ID is required");
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new Error("No updates provided");
+  }
+
   const { data, error } = await supabase
     .from("transactions")
     .update(updates)
@@ -74,12 +82,20 @@ export const updateTransaction = async (
     throw error;
   }
 
+  if (!data) {
+    throw new Error("Transaction not found");
+  }
+
   return data;
 };
 
 export const deleteTransaction = async (
   transactionId: string
 ): Promise<void> => {
+  if (!transactionId || transactionId.trim() === "") {
+    throw new Error("Transaction ID is required");
+  }
+
   const { error } = await supabase
     .from("transactions")
     .delete()
@@ -94,6 +110,10 @@ export const deleteTransaction = async (
 export const getTransactionById = async (
   transactionId: string
 ): Promise<Transaction | null> => {
+  if (!transactionId || transactionId.trim() === "") {
+    throw new Error("Transaction ID is required");
+  }
+
   const { data, error } = await supabase
     .from("transactions")
     .select("*")
@@ -112,6 +132,14 @@ export const getTransactionsByAccount = async (
   userId: string,
   accountId: string
 ): Promise<Transaction[]> => {
+  if (!userId || userId.trim() === "") {
+    throw new Error("User ID is required");
+  }
+
+  if (!accountId || accountId.trim() === "") {
+    throw new Error("Account ID is required");
+  }
+
   const { data, error } = await supabase
     .from("transactions")
     .select("*")
