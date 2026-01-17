@@ -1,3 +1,7 @@
+/**
+ * Subscriptions service functions for managing recurring subscriptions
+ * Handles CRUD operations for user subscription data
+ */
 import { supabase } from "../database/supabase";
 import type { Subscription } from "../types/types";
 
