@@ -1,3 +1,7 @@
+/**
+ * Analytics service functions for financial data analysis
+ * Provides functions for calculating summaries, breakdowns, and insights
+ */
 import { supabase } from "../database/supabase";
 import type { Account, Expense, Transaction, Budget } from "../types/types";
 
