@@ -1,3 +1,7 @@
+/**
+ * Expenses service functions for managing expense records
+ * Handles CRUD operations for user expense data
+ */
 import { supabase } from "../database/supabase";
 import type { Expense, ExpenseWithAccount } from "../types/types";
 
