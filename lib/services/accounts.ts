@@ -1,3 +1,7 @@
+/**
+ * Accounts service functions for managing financial accounts
+ * Handles CRUD operations for accounts, groups, and types
+ */
 import { supabase } from "../database/supabase";
 import type {
   Account,
