@@ -1,3 +1,7 @@
+/**
+ * Transactions service functions for managing financial transactions
+ * Handles CRUD operations, filtering, search, and analytics
+ */
 import { supabase } from "../database/supabase";
 import type { Transaction, TransactionWithAccounts } from "../types/types";
 
