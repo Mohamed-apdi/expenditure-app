@@ -1,3 +1,7 @@
+/**
+ * Budgets service functions for managing spending budgets
+ * Handles CRUD operations and queries by account, category, or period
+ */
 import { supabase } from "../database/supabase";
 import type { Budget, BudgetWithAccount } from "../types/types";
 

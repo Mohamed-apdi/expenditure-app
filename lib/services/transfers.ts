@@ -1,3 +1,7 @@
+/**
+ * Transfers service functions for managing fund transfers between accounts
+ * Handles CRUD operations and queries by account or date range
+ */
 import { supabase } from "../database/supabase";
 import type { Transfer, TransferWithAccounts } from "../types/types";
 
