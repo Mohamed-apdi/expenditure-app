@@ -1,3 +1,7 @@
+/**
+ * Loans service functions for managing personal loans and repayments
+ * Includes helpers that adjust account balances when loans change
+ */
 import { supabase } from "../database/supabase";
 import { PersonalLoan, LoanRepayment } from "../types/types";
 
