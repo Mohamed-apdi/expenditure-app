@@ -1,3 +1,7 @@
+/**
+ * Notifications service functions for managing user notifications
+ * Handles CRUD operations and notification preferences
+ */
 import { supabase } from "../database/supabase";
 
 export type NotificationType =
