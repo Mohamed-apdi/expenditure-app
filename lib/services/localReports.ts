@@ -1,3 +1,7 @@
+/**
+ * Local reports service for generating transaction and financial reports
+ * Builds report data from local Supabase data (CSV, PDF, summaries)
+ */
 import { supabase } from "../database/supabase";
 import type { Transaction } from "../types/types";
 
