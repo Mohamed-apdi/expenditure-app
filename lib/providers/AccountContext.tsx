@@ -1,3 +1,6 @@
+/**
+ * Account context: selected account, list of accounts, and balance/refresh helpers
+ */
 import React, {
   createContext,
   useContext,
