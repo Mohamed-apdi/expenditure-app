@@ -1,3 +1,7 @@
+/**
+ * Hook for notification state: unread count and refresh
+ * Subscribes to auth and refetches when user changes
+ */
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../database/supabase";
 import { getUnreadNotificationCount } from "../services/notifications";
