@@ -1,7 +1,4 @@
-/**
- * PDF report generator using Expo Print
- * Builds and shares PDF reports from structured report data
- */
+import { Platform } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
@@ -49,18 +46,38 @@ export const generatePDFReport = async (data: PDFReportData): Promise<string> =>
   }
 };
 
-// Function to share the generated PDF
-export const sharePDF = async (fileUri: string) => {
-  try {
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(fileUri, {
-        mimeType: 'application/pdf',
-        dialogTitle: 'Share PDF Report'
-      });
-    }
-  } catch (error) {
-    console.error('Error sharing PDF:', error);
+// Function to share the generated PDF (opens native share sheet so user can save to Files/Downloads)
+export const sharePDF = async (fileUri: string): Promise<void> => {
+  const isAvailable = await Sharing.isAvailableAsync();
+  if (!isAvailable) {
+    throw new Error('Sharing is not available on this device');
   }
+
+  let shareUri = fileUri;
+  // On iOS, copy to cache directory first for reliable sharing (workaround for permission issues)
+  if (Platform.OS === 'ios') {
+    const cacheDir = FileSystem.cacheDirectory;
+    if (cacheDir) {
+      const filename = fileUri.split('/').pop() || 'report.pdf';
+      const cachePath = `${cacheDir}${filename}`;
+      await FileSystem.copyAsync({ from: fileUri, to: cachePath });
+      shareUri = cachePath;
+    }
+  }
+
+  // Ensure URI has file:// prefix for Android
+  if (Platform.OS === 'android' && !shareUri.startsWith('file://')) {
+    shareUri = `file://${shareUri}`;
+  }
+
+  // Small delay to avoid share sheet hang (known expo-sharing iOS issue)
+  await new Promise((r) => setTimeout(r, 300));
+
+  await Sharing.shareAsync(shareUri, {
+    mimeType: 'application/pdf',
+    dialogTitle: 'Save PDF Report',
+    UTI: Platform.OS === 'ios' ? 'com.adobe.pdf' : undefined,
+  });
 };
 
 // Function to save PDF to documents directory

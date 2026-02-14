@@ -6,12 +6,26 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useRef,
   ReactNode,
   useCallback,
 } from "react";
 import { supabase } from "../database/supabase";
 import { fetchAccounts, updateAccount } from "../services/accounts";
 import type { Account } from "../types/types";
+
+/** Clear account state so we never show a previous user's data (spec 005). */
+function clearUserScopedState(
+  setAccounts: React.Dispatch<React.SetStateAction<Account[]>>,
+  setSelectedAccountState: React.Dispatch<React.SetStateAction<Account | null>>,
+  setHasInitialized: React.Dispatch<React.SetStateAction<boolean>>,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>
+) {
+  setAccounts([]);
+  setSelectedAccountState(null);
+  setHasInitialized(false);
+  setLoading(false);
+}
 
 interface AccountContextType {
   selectedAccount: Account | null;
@@ -35,24 +49,55 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const [isUpdatingDefault, setIsUpdatingDefault] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
 
-  // Auto-load accounts when the provider mounts
+  // Track current user id so we clear state when user changes (spec 005: fix new user seeing other user data)
+  const currentUserIdRef = useRef<string | null>(null);
+
+  // Clear state when authenticated user changes so we never show another user's data
   useEffect(() => {
-    const autoLoadAccounts = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
-          await loadAccounts();
-        }
-      } catch (error) {
-        console.error("AccountContext - Error auto-loading accounts:", error);
-        // Silently fail - accounts will be loaded when user explicitly requests them
+    const handleAuthChange = async (
+      _event: string,
+      session: { user?: { id: string } } | null
+    ) => {
+      const userId = session?.user?.id ?? null;
+
+      if (userId === null) {
+        clearUserScopedState(
+          setAccounts,
+          setSelectedAccountState,
+          setHasInitialized,
+          setLoading
+        );
+        currentUserIdRef.current = null;
+        return;
+      }
+
+      if (userId !== currentUserIdRef.current) {
+        clearUserScopedState(
+          setAccounts,
+          setSelectedAccountState,
+          setHasInitialized,
+          setLoading
+        );
+        currentUserIdRef.current = userId;
+        await loadAccounts();
       }
     };
 
-    autoLoadAccounts();
-  }, []); // Only run once when provider mounts
+    // Sync with current session on mount (e.g. app reopen with stored session)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      handleAuthChange("INITIAL_SESSION", session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      handleAuthChange(event, session);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []); // loadAccounts is stable enough for initial mount + auth listener
 
   // Function to calculate real-time account balance based on transactions
   const calculateAccountBalance = async (

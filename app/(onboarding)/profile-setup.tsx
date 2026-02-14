@@ -10,7 +10,6 @@ import {
   Platform,
   KeyboardAvoidingView,
   Image,
-  StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
@@ -18,7 +17,7 @@ import { Camera, User, ArrowRight } from "lucide-react-native";
 import Toast from "react-native-toast-message";
 import * as ImagePicker from "expo-image-picker";
 import { decode } from "base64-arraybuffer";
-import { useTheme } from "~/lib";
+import { useTheme, useScreenStatusBar } from "~/lib";
 import { useLanguage } from "~/lib";
 import { supabase } from "~/lib";
 import { createProfile, updateProfile } from "~/lib";
@@ -257,12 +256,10 @@ export default function ProfileSetupScreen() {
     router.replace("/(main)/Dashboard");
   };
 
+  useScreenStatusBar();
+
   return (
     <>
-      <StatusBar
-        barStyle={theme.isDark ? "light-content" : "dark-content"}
-        backgroundColor={theme.background}
-      />
       <SafeAreaView
         className="flex-1"
         style={{ backgroundColor: theme.background }}

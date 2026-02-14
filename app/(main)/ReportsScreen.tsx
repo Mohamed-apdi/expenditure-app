@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
-  StatusBar,
 } from 'react-native';
 import {
   Calendar,
@@ -42,14 +41,16 @@ import {
 import { getCategoryColor, getColorByIndex } from '~/lib';
 import { generatePDFReport, sharePDF } from '~/lib/generators/pdfGenerator';
 import { generateCSVReport, shareCSV } from '~/lib/generators/csvGenerator';
-import { useTheme } from '~/lib';
+import { useTheme, useScreenStatusBar } from '~/lib';
 import { useLanguage } from '~/lib';
+import Toast from 'react-native-toast-message';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function ReportsScreen() {
   const theme = useTheme();
   const { t } = useLanguage();
+  useScreenStatusBar();
   const { selectedAccount, accounts } = useAccount();
 
   // Set default date range to last 30 days
@@ -563,24 +564,17 @@ export default function ReportsScreen() {
           };
 
           const filePath = await generatePDFReport(pdfData);
-          Alert.alert(
-            t.pdfGenerated,
-            `${t.reportSavedToDocuments}:\n${filePath}`,
-            [
-              {
-                text: t.share,
-                onPress: async () => {
-                  try {
-                    await sharePDF(filePath);
-                  } catch (error) {
-                    console.error('Error sharing PDF:', error);
-                    Alert.alert(t.error, t.failedToSharePdf);
-                  }
-                },
-              },
-              { text: t.ok, style: 'default' },
-            ],
-          );
+          try {
+            await sharePDF(filePath);
+            Toast.show({
+              type: 'success',
+              text1: t.pdfGeneratedSuccessfully,
+              text2: t.reportSavedToDevice,
+            });
+          } catch (shareError) {
+            console.error('Error sharing PDF:', shareError);
+            Alert.alert(t.error, t.failedToSharePdf);
+          }
         } else {
           const csvData = {
             title: t.subscriptionReport,
@@ -627,24 +621,17 @@ export default function ReportsScreen() {
           };
 
           const filePath = await generateCSVReport(csvData);
-          Alert.alert(
-            t.csvGenerated,
-            `${t.reportSavedToDocuments}:\n${filePath}`,
-            [
-              {
-                text: t.share,
-                onPress: async () => {
-                  try {
-                    await shareCSV(filePath);
-                  } catch (error) {
-                    console.error('Error sharing CSV:', error);
-                    Alert.alert(t.error, t.failedToShareCsv);
-                  }
-                },
-              },
-              { text: t.ok, style: 'default' },
-            ],
-          );
+          try {
+            await shareCSV(filePath);
+            Toast.show({
+              type: 'success',
+              text1: t.csvGeneratedSuccessfully,
+              text2: t.reportSavedToDevice,
+            });
+          } catch (shareError) {
+            console.error('Error sharing CSV:', shareError);
+            Alert.alert(t.error, t.failedToShareCsv);
+          }
         }
         return;
       }
@@ -720,24 +707,17 @@ export default function ReportsScreen() {
           };
 
           const filePath = await generatePDFReport(pdfData);
-          Alert.alert(
-            t.pdfGenerated,
-            `${t.reportSavedToDocuments}:\n${filePath}`,
-            [
-              {
-                text: t.share,
-                onPress: async () => {
-                  try {
-                    await sharePDF(filePath);
-                  } catch (error) {
-                    console.error('Error sharing PDF:', error);
-                    Alert.alert(t.error, t.failedToSharePdf);
-                  }
-                },
-              },
-              { text: t.ok, style: 'default' },
-            ],
-          );
+          try {
+            await sharePDF(filePath);
+            Toast.show({
+              type: 'success',
+              text1: t.pdfGeneratedSuccessfully,
+              text2: t.reportSavedToDevice,
+            });
+          } catch (shareError) {
+            console.error('Error sharing PDF:', shareError);
+            Alert.alert(t.error, t.failedToSharePdf);
+          }
         } else {
           const csvData = {
             title: t.budgetReport,
@@ -795,24 +775,17 @@ export default function ReportsScreen() {
           };
 
           const filePath = await generateCSVReport(csvData);
-          Alert.alert(
-            t.csvGenerated,
-            `${t.reportSavedToDocuments}:\n${filePath}`,
-            [
-              {
-                text: t.share,
-                onPress: async () => {
-                  try {
-                    await shareCSV(filePath);
-                  } catch (error) {
-                    console.error('Error sharing CSV:', error);
-                    Alert.alert(t.error, t.failedToShareCsv);
-                  }
-                },
-              },
-              { text: t.ok, style: 'default' },
-            ],
-          );
+          try {
+            await shareCSV(filePath);
+            Toast.show({
+              type: 'success',
+              text1: t.csvGeneratedSuccessfully,
+              text2: t.reportSavedToDevice,
+            });
+          } catch (shareError) {
+            console.error('Error sharing CSV:', shareError);
+            Alert.alert(t.error, t.failedToShareCsv);
+          }
         }
         return;
       }
@@ -880,24 +853,17 @@ export default function ReportsScreen() {
           };
 
           const filePath = await generatePDFReport(pdfData);
-          Alert.alert(
-            t.pdfGenerated,
-            `${t.reportSavedToDocuments}:\n${filePath}`,
-            [
-              {
-                text: t.share,
-                onPress: async () => {
-                  try {
-                    await sharePDF(filePath);
-                  } catch (error) {
-                    console.error('Error sharing PDF:', error);
-                    Alert.alert(t.error, t.failedToSharePdf);
-                  }
-                },
-              },
-              { text: t.ok, style: 'default' },
-            ],
-          );
+          try {
+            await sharePDF(filePath);
+            Toast.show({
+              type: 'success',
+              text1: t.pdfGeneratedSuccessfully,
+              text2: t.reportSavedToDevice,
+            });
+          } catch (shareError) {
+            console.error('Error sharing PDF:', shareError);
+            Alert.alert(t.error, t.failedToSharePdf);
+          }
         } else {
           const csvData = {
             title: t.goalsReport,
@@ -954,24 +920,17 @@ export default function ReportsScreen() {
           };
 
           const filePath = await generateCSVReport(csvData);
-          Alert.alert(
-            t.csvGenerated,
-            `${t.reportSavedToDocuments}:\n${filePath}`,
-            [
-              {
-                text: t.share,
-                onPress: async () => {
-                  try {
-                    await shareCSV(filePath);
-                  } catch (error) {
-                    console.error('Error sharing CSV:', error);
-                    Alert.alert(t.error, t.failedToShareCsv);
-                  }
-                },
-              },
-              { text: t.ok, style: 'default' },
-            ],
-          );
+          try {
+            await shareCSV(filePath);
+            Toast.show({
+              type: 'success',
+              text1: t.csvGeneratedSuccessfully,
+              text2: t.reportSavedToDevice,
+            });
+          } catch (shareError) {
+            console.error('Error sharing CSV:', shareError);
+            Alert.alert(t.error, t.failedToShareCsv);
+          }
         }
         return;
       }
@@ -1027,24 +986,17 @@ export default function ReportsScreen() {
           };
 
           const filePath = await generatePDFReport(pdfData);
-          Alert.alert(
-            t.pdfGenerated,
-            `${t.reportSavedToDocuments}:\n${filePath}`,
-            [
-              {
-                text: t.share,
-                onPress: async () => {
-                  try {
-                    await sharePDF(filePath);
-                  } catch (error) {
-                    console.error('Error sharing PDF:', error);
-                    Alert.alert(t.error, t.failedToSharePdf);
-                  }
-                },
-              },
-              { text: t.ok, style: 'default' },
-            ],
-          );
+          try {
+            await sharePDF(filePath);
+            Toast.show({
+              type: 'success',
+              text1: t.pdfGeneratedSuccessfully,
+              text2: t.reportSavedToDevice,
+            });
+          } catch (shareError) {
+            console.error('Error sharing PDF:', shareError);
+            Alert.alert(t.error, t.failedToSharePdf);
+          }
         } else {
           const csvData = {
             title: t.accountReport,
@@ -1087,24 +1039,17 @@ export default function ReportsScreen() {
           };
 
           const filePath = await generateCSVReport(csvData);
-          Alert.alert(
-            t.csvGenerated,
-            `${t.reportSavedToDocuments}:\n${filePath}`,
-            [
-              {
-                text: t.share,
-                onPress: async () => {
-                  try {
-                    await shareCSV(filePath);
-                  } catch (error) {
-                    console.error('Error sharing CSV:', error);
-                    Alert.alert(t.error, t.failedToShareCsv);
-                  }
-                },
-              },
-              { text: t.ok, style: 'default' },
-            ],
-          );
+          try {
+            await shareCSV(filePath);
+            Toast.show({
+              type: 'success',
+              text1: t.csvGeneratedSuccessfully,
+              text2: t.reportSavedToDevice,
+            });
+          } catch (shareError) {
+            console.error('Error sharing CSV:', shareError);
+            Alert.alert(t.error, t.failedToShareCsv);
+          }
         }
         return;
       }
@@ -1173,32 +1118,24 @@ export default function ReportsScreen() {
                 .slice(-15)
                 .map((trend) => [
                   formatDate(trend.date),
-                  formatCurrency(Math.abs(trend.amount)),
+                  formatCurrency(trend.amount),
                 ]),
             },
           ],
         };
 
         const filePath = await generatePDFReport(pdfData);
-
-        Alert.alert(
-          t.pdfGenerated,
-          `${t.reportSavedToDocuments}:\n${filePath}`,
-          [
-            {
-              text: t.share,
-              onPress: async () => {
-                try {
-                  await sharePDF(filePath);
-                } catch (error) {
-                  console.error('Error sharing PDF:', error);
-                  Alert.alert(t.error, t.failedToSharePdf);
-                }
-              },
-            },
-            { text: t.ok, style: 'default' },
-          ],
-        );
+        try {
+          await sharePDF(filePath);
+          Toast.show({
+            type: 'success',
+            text1: t.pdfGeneratedSuccessfully,
+            text2: t.reportSavedToDevice,
+          });
+        } catch (shareError) {
+          console.error('Error sharing PDF:', shareError);
+          Alert.alert(t.error, t.failedToSharePdf);
+        }
       } else {
         // Generate CSV locally
         const csvData = {
@@ -1251,32 +1188,24 @@ export default function ReportsScreen() {
               headers: [t.date, t.amount],
               rows: transactionData.daily_trends.map((trend) => [
                 trend.date,
-                Math.abs(trend.amount).toString(),
+                trend.amount.toString(),
               ]),
             },
           ],
         };
 
         const filePath = await generateCSVReport(csvData);
-
-        Alert.alert(
-          t.csvGenerated,
-          `${t.reportSavedToDocuments}:\n${filePath}`,
-          [
-            {
-              text: t.share,
-              onPress: async () => {
-                try {
-                  await shareCSV(filePath);
-                } catch (error) {
-                  console.error('Error sharing CSV:', error);
-                  Alert.alert(t.error, t.failedToShareCsv);
-                }
-              },
-            },
-            { text: t.ok, style: 'default' },
-          ],
-        );
+        try {
+          await shareCSV(filePath);
+          Toast.show({
+            type: 'success',
+            text1: t.csvGeneratedSuccessfully,
+            text2: t.reportSavedToDevice,
+          });
+        } catch (shareError) {
+          console.error('Error sharing CSV:', shareError);
+          Alert.alert(t.error, t.failedToShareCsv);
+        }
       }
     } catch (error) {
       console.error(`Error generating ${format.toUpperCase()} report:`, error);
@@ -1951,7 +1880,7 @@ export default function ReportsScreen() {
                     color: item.remaining >= 0 ? '#059669' : '#dc2626',
                     fontSize: 11,
                   }}>
-                  {formatCurrency(Math.abs(item.remaining))}{' '}
+                  {formatCurrency(item.remaining)}{' '}
                   {item.remaining >= 0 ? 'left' : 'over'}
                 </Text>
               </View>
@@ -2315,11 +2244,6 @@ export default function ReportsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-      <StatusBar
-        barStyle={theme.isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={theme.background}
-        translucent={false}
-      />
       <View className="flex-1">
         {/* Header */}
         <View

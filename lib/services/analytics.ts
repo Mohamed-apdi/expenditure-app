@@ -30,6 +30,7 @@ export interface MonthlySummary {
 
 export interface BudgetProgress {
   category: string;
+  account_id: string;
   budgeted: number;
   spent: number;
   remaining: number;
@@ -196,7 +197,7 @@ export const getBudgetProgress = async (
   try {
     const { data: budgets } = await supabase
       .from("budgets")
-      .select("category, amount")
+      .select("category, amount, account_id")
       .eq("user_id", userId)
       .eq("is_active", true);
 
@@ -205,12 +206,14 @@ export const getBudgetProgress = async (
     const budgetProgress: BudgetProgress[] = [];
 
     for (const budget of budgets) {
+      // Scope spent to the budget's account - only count expenses from that account
       const { data: transactions } = await supabase
         .from("transactions")
         .select("amount")
         .eq("user_id", userId)
+        .eq("account_id", budget.account_id)
         .eq("category", budget.category)
-        .eq("type", "expense"); // Use transactions table with type = 'expense'
+        .eq("type", "expense");
 
       const spent =
         transactions?.reduce(
@@ -223,6 +226,7 @@ export const getBudgetProgress = async (
 
       budgetProgress.push({
         category: budget.category,
+        account_id: budget.account_id,
         budgeted,
         spent,
         remaining,

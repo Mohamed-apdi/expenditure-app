@@ -10,7 +10,8 @@
       "env": {
         "NODE_ENV": "development",
         "SUPABASE_URL": "@SUPABASE_URL",
-        "SUPABASE_KEY": "@SUPABASE_KEY"
+        "SUPABASE_KEY": "@SUPABASE_KEY",
+        "POWER_SYNC_URL": "@POWER_SYNC_URL"
       }
     },
     "preview": {
@@ -18,7 +19,8 @@
       "env": {
         "NODE_ENV": "production",
         "SUPABASE_URL": "@SUPABASE_URL",
-        "SUPABASE_KEY": "@SUPABASE_KEY"
+        "SUPABASE_KEY": "@SUPABASE_KEY",
+        "POWER_SYNC_URL": "@POWER_SYNC_URL"
       },
       "android": {
         "buildType": "apk"
@@ -29,7 +31,8 @@
       "env": {
         "NODE_ENV": "production",
         "SUPABASE_URL": "@SUPABASE_URL",
-        "SUPABASE_KEY": "@SUPABASE_KEY"
+        "SUPABASE_KEY": "@SUPABASE_KEY",
+        "POWER_SYNC_URL": "@POWER_SYNC_URL"
       },
       "android": {
         "buildType": "app-bundle"

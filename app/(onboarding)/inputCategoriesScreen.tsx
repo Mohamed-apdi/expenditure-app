@@ -6,9 +6,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowRight } from "lucide-react-native";
-import { useTheme } from "~/lib";
+import { useTheme, useScreenStatusBar } from "~/lib";
 import { useLanguage } from "~/lib";
-import { StatusBar } from "expo-status-bar";
 
 export default function InputCategoriesScreen() {
   const router = useRouter();
@@ -19,9 +18,10 @@ export default function InputCategoriesScreen() {
     router.push("/AuthGateScreen");
   };
 
+  useScreenStatusBar();
+
   return (
     <>
-      <StatusBar style="auto" />
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
         <View className="flex-1 px-8 justify-center">
           {/* Header */}

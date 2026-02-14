@@ -226,24 +226,6 @@ const Debt_Loan = ({
       return;
     }
 
-    // Check balance for loan_given type
-    if (formData.type === 'loan_given') {
-      const selectedAccount = accounts.find(
-        (acc) => acc.id === formData.account_id,
-      );
-      const loanAmount = parseFloat(formData.principal_amount);
-
-      if (!selectedAccount) {
-        Alert.alert(t.error, t.selectedAccountNotFound);
-        return;
-      }
-
-      if (selectedAccount.amount < loanAmount) {
-        Alert.alert(t.insufficientBalance, t.insufficientBalanceMessage);
-        return;
-      }
-    }
-
     try {
       const newLoan = await createLoan({
         user_id: currentUser,
@@ -302,32 +284,6 @@ const Debt_Loan = ({
     ) {
       Alert.alert(t.error, t.pleaseFillAllLoanFields);
       return;
-    }
-
-    // Check balance for loan_given type
-    if (formData.type === 'loan_given') {
-      const selectedAccount = accounts.find(
-        (acc) => acc.id === formData.account_id,
-      );
-      const loanAmount = parseFloat(formData.principal_amount);
-
-      if (!selectedAccount) {
-        Alert.alert(t.error, t.selectedAccountNotFound);
-        return;
-      }
-
-      // For editing, we need to consider the current loan amount that will be refunded
-      // when the loan is updated, so we add back the current principal amount
-      const currentLoanAmount = selectedLoan.principal_amount;
-      const effectiveBalance = selectedAccount.amount + currentLoanAmount;
-
-      if (effectiveBalance < loanAmount) {
-        Alert.alert(
-          'Insufficient Balance',
-          `You don't have enough money in this account to update this loan.\n\nEffective Balance: $${effectiveBalance.toFixed(2)}\n(Current balance + current loan amount being refunded)\nNew Loan Amount: $${loanAmount.toFixed(2)}\nShortfall: $${(loanAmount - effectiveBalance).toFixed(2)}\n\nPlease either:\n- Reduce the loan amount\n- Transfer money to this account\n- Choose a different account with sufficient balance`,
-        );
-        return;
-      }
     }
 
     try {
@@ -793,9 +749,9 @@ const Debt_Loan = ({
                     </View>
 
                     {/* Additional Info */}
-                    {(loan.interest_rate || loan.due_date) && (
+                    {(loan.interest_rate != null || loan.due_date) && (
                       <View className="flex-row gap-4 mb-3">
-                        {loan.interest_rate && (
+                        {loan.interest_rate != null && (
                           <View className="flex-row items-center">
                             <Text
                               className="text-xs"
@@ -809,7 +765,7 @@ const Debt_Loan = ({
                             </Text>
                           </View>
                         )}
-                        {loan.due_date && (
+                        {loan.due_date != null && loan.due_date !== '' && (
                           <View className="flex-row items-center">
                             <Text
                               className="text-xs"
@@ -1089,12 +1045,12 @@ const Debt_Loan = ({
                       });
                     }}
                     items={accounts.map((account) => ({
-                      label: `${account.name}`,
+                      label: String(account?.name ?? account?.id ?? 'Account'),
                       value: account.id,
                     }))}
                     value={formData.account_id}
                     placeholder={{
-                      label: `${t.selectAccount} *` || 'Select account *',
+                      label: (t.selectAccount ? `${t.selectAccount} *` : null) || 'Select account *',
                       value: null,
                     }}
                     style={{
@@ -1418,14 +1374,12 @@ const Debt_Loan = ({
                       });
                     }}
                     items={accounts.map((account) => ({
-                      label: `${account.name}`,
+                      label: String(account?.name ?? account?.id ?? 'Account'),
                       value: account.id,
                     }))}
                     value={formData.account_id}
                     placeholder={{
-                      label: t.selectAccount
-                        ? `${t.selectAccount} *`
-                        : 'Select an account *',
+                      label: (t.selectAccount ? `${t.selectAccount} *` : null) || 'Select account *',
                       value: null,
                     }}
                     style={{
@@ -1622,14 +1576,14 @@ const Debt_Loan = ({
                           keyboardType="numeric"
                         />
                         {repaymentData.amount &&
-                          parseFloat(repaymentData.amount) >
-                            (selectedLoan?.remaining_amount || 0) && (
-                            <Text
-                              className="text-sm mt-1"
-                              style={{ color: theme.textSecondary }}>
-                              Amount cannot exceed remaining balance
-                            </Text>
-                          )}
+                        parseFloat(repaymentData.amount) >
+                          (selectedLoan?.remaining_amount || 0) ? (
+                          <Text
+                            className="text-sm mt-1"
+                            style={{ color: theme.textSecondary }}>
+                            Amount cannot exceed remaining balance
+                          </Text>
+                        ) : null}
                       </View>
                       <View>
                         <Text className="mb-1" style={{ color: theme.text }}>

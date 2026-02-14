@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Platform,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
   RefreshControl,
-  SafeAreaView,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '~/lib';
 import { type FinancialSummary } from '~/lib';
@@ -203,8 +204,10 @@ export default function DashboardScreen() {
   );
 
   useEffect(() => {
-    // Set blue StatusBar for Dashboard
-    StatusBar.setBackgroundColor('#3b82f6', true);
+    // Set StatusBar to app primary (yellow) - setBackgroundColor is Android-only
+    if (Platform.OS === 'android') {
+      StatusBar.setBackgroundColor(theme.primary, true);
+    }
     StatusBar.setBarStyle('light-content', true);
 
     // Initial load - fetch profile when component mounts
@@ -224,7 +227,9 @@ export default function DashboardScreen() {
 
     // Cleanup function to reset StatusBar when component unmounts
     return () => {
-      StatusBar.setBackgroundColor(theme.background, true);
+      if (Platform.OS === 'android') {
+        StatusBar.setBackgroundColor(theme.background, true);
+      }
       StatusBar.setBarStyle(
         theme.isDark ? 'light-content' : 'dark-content',
         true,
@@ -236,8 +241,10 @@ export default function DashboardScreen() {
   // Refresh balance when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      // Ensure StatusBar is blue when Dashboard comes into focus
-      StatusBar.setBackgroundColor('#3b82f6', true);
+      // Ensure StatusBar uses app primary when Dashboard comes into focus (Android only)
+      if (Platform.OS === 'android') {
+        StatusBar.setBackgroundColor(theme.primary, true);
+      }
       StatusBar.setBarStyle('light-content', true);
 
       refreshBalances();
@@ -382,22 +389,30 @@ export default function DashboardScreen() {
     return categoryKey;
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView className="flex-1">
-      <StatusBar barStyle="light-content" backgroundColor="#3b82f6" />
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.primary} />
       <ScrollView
         className="flex-1"
+        contentContainerStyle={{ paddingBottom: insets.bottom }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#3b82f6']}
-            tintColor="#3b82f6"
+            colors={[theme.primary]}
+            tintColor={theme.primary}
           />
         }
         showsVerticalScrollIndicator={false}>
-        {/* Blue Header Section */}
-        <View className="bg-[#3b82f6] pt-safe">
+        {/* Header: yellow extends under status bar so top is not white */}
+        <View
+          style={{
+            backgroundColor: theme.primary,
+            paddingTop: insets.top,
+            paddingBottom: 16,
+          }}>
           <DashboardHeader
             userName={userProfile.fullName}
             userEmail={userProfile.email}
@@ -521,6 +536,6 @@ export default function DashboardScreen() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

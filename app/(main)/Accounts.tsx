@@ -8,12 +8,12 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { X } from "lucide-react-native";
-import { fetchAccounts, createAccount, Account } from "~/lib";
+import { fetchAccounts, createAccount, Account, formatCurrency } from "~/lib";
 import { supabase } from "~/lib";
 import AddAccount from "../account-details/add-account";
 import { useAccount } from "~/lib";
 import { useFocusEffect } from "@react-navigation/native";
-import { useTheme } from "~/lib";
+import { useTheme, useScreenStatusBar } from "~/lib";
 import { useLanguage } from "~/lib";
 
 interface AccountGroup {
@@ -74,6 +74,8 @@ const Accounts = () => {
       loadAccounts();
     }, [])
   );
+
+  useScreenStatusBar();
 
   // Calculate totals - now just sum all account amounts since we don't have type field
   const total = accounts.reduce((sum, a) => sum + (a.amount || 0), 0);
@@ -334,7 +336,7 @@ const Accounts = () => {
                                     color: account.amount >= 0 ? "#10b981" : "#ef4444",
                                   }}
                                 >
-                                  ${Math.abs(account.amount || 0).toFixed(2)}
+                                  {formatCurrency(account.amount ?? 0)}
                                 </Text>
                                 {account.amount < 0 && (
                                   <Text style={{ color: "#ef4444", fontSize: 11, marginTop: 2 }}>

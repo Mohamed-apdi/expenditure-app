@@ -1,5 +1,5 @@
 // screens/BudgetScreen.tsx
-import { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -35,7 +35,7 @@ import {
   getBudgetProgress,
   type BudgetProgress,
 } from '~/lib';
-import { useTheme } from '~/lib';
+import { useTheme, useScreenStatusBar } from '~/lib';
 import { useLanguage } from '~/lib';
 
 import Investments from '../components/Investments';
@@ -201,6 +201,8 @@ export default function BudgetScreen() {
     fetchData();
   }, []);
 
+  useScreenStatusBar();
+
   const openAddModal = () => {
     if (accounts.length === 0) {
       Alert.alert(t.noAccounts, t.createAccountFirst);
@@ -305,11 +307,14 @@ export default function BudgetScreen() {
     return '#10b981';
   };
 
-  // Get budget progress for a specific category
-  const getCategoryProgress = (category: string) => {
+  // Get budget progress for a specific budget (category + account)
+  const getBudgetProgressFor = (category: string, accountId: string) => {
     return (
-      budgetProgress.find((progress) => progress.category === category) || {
+      budgetProgress.find(
+        (p) => p.category === category && p.account_id === accountId
+      ) || {
         category,
+        account_id: accountId,
         budgeted: 0,
         spent: 0,
         remaining: 0,
@@ -351,8 +356,8 @@ export default function BudgetScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, paddingTop: 0 }}>
-      <View className="flex-1">
+    <SafeAreaView style={{ flex: 1, paddingTop: 0, backgroundColor: theme.background }}>
+      <View className="flex-1" style={{ backgroundColor: theme.background }}>
         {/* Improved Tabs - Scrollable Pills */}
         <View
           style={{
@@ -487,7 +492,10 @@ export default function BudgetScreen() {
                 <View style={{ gap: 12 }}>
                   {budgetsWithAccounts.map((budget) => {
                     // Get budget progress for this category
-                    const progress = getCategoryProgress(budget.category);
+                    const progress = getBudgetProgressFor(
+                      budget.category,
+                      budget.account_id
+                    );
                     const spent = progress.spent;
                     const percentage = progress.percentage;
                     const remaining = progress.remaining;

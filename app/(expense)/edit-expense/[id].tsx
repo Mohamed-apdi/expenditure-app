@@ -33,7 +33,7 @@ import {
   Check,
   ChevronRight,
 } from "lucide-react-native";
-import { useTheme } from "~/lib";
+import { useTheme, useScreenStatusBar } from "~/lib";
 
 type Category = {
   id: string;
@@ -65,6 +65,7 @@ export default function EditExpenseScreen() {
   const [tags, setTags] = useState<string[]>([]);
   const [isEssential, setIsEssential] = useState(false);
   const theme = useTheme();
+  useScreenStatusBar();
 
   const categories: Category[] = [
     { id: "food", name: "Food", icon: ShoppingCart, color: "#10b981" },

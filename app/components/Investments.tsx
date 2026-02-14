@@ -73,22 +73,23 @@ const Investments = ({
   const [newInvestedAmount, setNewInvestedAmount] = useState('');
   const [newCurrentValue, setNewCurrentValue] = useState('');
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-  // Investment types
+  // Investment types (ensure labels are always strings for RN Text requirement)
   const investmentTypes = [
-    { key: 'Stock', label: t.stock },
-    { key: 'Crypto', label: t.crypto },
-    { key: 'Real Estate', label: t.realEstate },
-    { key: 'Bonds', label: t.bonds },
-    { key: 'Mutual Funds', label: t.mutualFunds },
-    { key: 'ETF', label: t.etf },
-    { key: 'Commodities', label: t.commodities },
-    { key: 'Other', label: t.other },
+    { key: 'Stock', label: t.stock ?? 'Stock' },
+    { key: 'Crypto', label: t.crypto ?? 'Crypto' },
+    { key: 'Real Estate', label: t.realEstate ?? 'Real Estate' },
+    { key: 'Bonds', label: t.bonds ?? 'Bonds' },
+    { key: 'Mutual Funds', label: t.mutualFunds ?? 'Mutual Funds' },
+    { key: 'ETF', label: t.etf ?? 'ETF' },
+    { key: 'Commodities', label: t.commodities ?? 'Commodities' },
+    { key: 'Other', label: t.other ?? 'Other' },
   ];
 
-  // Get translated investment type label
+  // Get translated investment type label (ensure string for RN Text)
   const getInvestmentTypeLabel = (typeKey: string) => {
     const typeObj = investmentTypes.find((type) => type.key === typeKey);
-    return typeObj ? typeObj.label : typeKey;
+    const label = typeObj?.label ?? typeKey;
+    return typeof label === 'string' ? label : String(typeKey);
   };
 
   // Fetch investments and accounts
@@ -782,14 +783,10 @@ const Investments = ({
                     onValueChange={(value) => {
                       setNewType(value);
                     }}
-                    items={investmentTypes
-                      .filter(
-                        (type) => type.label && type.label !== 'undefined',
-                      )
-                      .map((type) => ({
-                        label: type.label,
-                        value: type.key,
-                      }))}
+                    items={investmentTypes.map((type) => ({
+                      label: String(type.label ?? type.key),
+                      value: type.key,
+                    }))}
                     value={newType}
                     placeholder={{
                       label: t.selectInvestmentType || 'Select investment type',
@@ -877,7 +874,7 @@ const Investments = ({
                       setSelectedAccount(account || null);
                     }}
                     items={accounts.map((account) => ({
-                      label: `${account.name}`,
+                      label: String(account?.name ?? account?.id ?? 'Account'),
                       value: account.id,
                     }))}
                     value={selectedAccount?.id}

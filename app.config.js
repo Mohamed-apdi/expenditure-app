@@ -18,6 +18,7 @@ export default ({ config }) => ({
   assetBundlePatterns: ["**/*"],
 
   ios: {
+    bundleIdentifier: "com.mohamed-99.qoondeeye",
     supportsTablet: true,
     jsEngine: "hermes",
     // iOS only accepts ONE app icon
@@ -78,7 +79,8 @@ export default ({ config }) => ({
       }
     ],
 
-    "expo-font"
+    "expo-font",
+    ["@journeyapps/react-native-quick-sqlite", { staticLibrary: true }]
   ],
 
   experiments: {
@@ -90,8 +92,10 @@ export default ({ config }) => ({
     eas: {
       projectId: "731ac4ba-e439-4651-87c7-1739515acf33"
     },
-    // ✅ Add Supabase env vars for EAS builds
+    // Supabase env vars for EAS builds
     SUPABASE_URL: process.env.SUPABASE_URL,
-    SUPABASE_KEY: process.env.SUPABASE_KEY
+    SUPABASE_KEY: process.env.SUPABASE_KEY,
+    // PowerSync URL for offline sync (optional; add via EAS secrets)
+    POWER_SYNC_URL: process.env.POWER_SYNC_URL
   }
 });

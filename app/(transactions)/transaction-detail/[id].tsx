@@ -27,7 +27,7 @@ import {
 } from "lucide-react-native";
 import { supabase } from "~/lib";
 import { format, formatDistanceToNow } from "date-fns";
-import { useTheme } from "~/lib";
+import { useTheme, useScreenStatusBar } from "~/lib";
 
 type Transaction = {
   id: string;
@@ -73,6 +73,7 @@ export default function TransactionDetailScreen() {
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
   const theme = useTheme();
+  useScreenStatusBar();
 
   // Fetch transaction data
   const fetchTransaction = async () => {

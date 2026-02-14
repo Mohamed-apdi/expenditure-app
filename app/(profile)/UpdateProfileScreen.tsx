@@ -22,7 +22,7 @@ import {
 import { supabase } from "~/lib";
 import * as ImagePicker from "expo-image-picker";
 import { decode } from "base64-arraybuffer";
-import { useTheme } from "~/lib";
+import { useTheme, useScreenStatusBar } from "~/lib";
 import { useLanguage } from "~/lib";
 type FormData = {
   fullName: string;
@@ -60,6 +60,7 @@ export default function UpdateProfileScreen() {
   const emailRef = useRef<TextInput>(null);
   const phoneRef = useRef<TextInput>(null);
   const theme = useTheme();
+  useScreenStatusBar();
 
   // Get current user ID when component mounts
   useEffect(() => {

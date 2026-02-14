@@ -15,6 +15,9 @@
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",
     "@gorhom/bottom-sheet": "^5.1.6",
+    "@powersync/react-native": "^1.22.0",
+    "@journeyapps/react-native-quick-sqlite": "^2.5.0",
+    "@react-native-community/netinfo": "^11.4.1",
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-community/datetimepicker": "8.4.1",
     "@react-native-community/slider": "4.5.6",

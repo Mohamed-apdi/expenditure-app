@@ -7,7 +7,6 @@ import {
   RefreshControl,
   Alert,
   ActivityIndicator,
-  StatusBar,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -30,7 +29,7 @@ import {
 } from "lucide-react-native";
 import { format, formatDistanceToNow } from "date-fns";
 import { supabase } from "~/lib";
-import { useTheme } from "~/lib";
+import { useTheme, useScreenStatusBar } from "~/lib";
 import {
   getUserNotifications,
   markNotificationAsRead,
@@ -47,6 +46,7 @@ import Toast from "react-native-toast-message";
 export default function NotificationsScreen() {
   const router = useRouter();
   const theme = useTheme();
+  useScreenStatusBar();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -421,10 +421,6 @@ export default function NotificationsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-        <StatusBar
-          barStyle={theme.isDark ? "light-content" : "dark-content"}
-          backgroundColor={theme.background}
-        />
         <View
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
         >
@@ -439,10 +435,6 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-      <StatusBar
-        barStyle={theme.isDark ? "light-content" : "dark-content"}
-        backgroundColor={theme.background}
-      />
       {/* Header */}
       <View
         style={{

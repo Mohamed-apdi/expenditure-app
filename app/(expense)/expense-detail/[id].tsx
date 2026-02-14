@@ -23,7 +23,7 @@ import {
 } from "lucide-react-native";
 import { supabase } from "~/lib";
 import { format } from "date-fns";
-import { useTheme } from "~/lib";
+import { useTheme, useScreenStatusBar } from "~/lib";
 
 type Expense = {
   id: string;
@@ -47,6 +47,7 @@ export default function ExpenseDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const theme = useTheme();
+  useScreenStatusBar();
   // Fetch expense data
   const fetchExpense = async () => {
     try {

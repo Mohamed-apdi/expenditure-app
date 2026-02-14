@@ -249,3 +249,26 @@ export const getDefaultAccount = async (
 
   return data;
 };
+
+/** Default account name used when auto-creating for new users (spec: FR-005). */
+export const DEFAULT_ACCOUNT_NAME = "Main Account";
+
+/**
+ * Ensures the user has exactly one default account. If they have no accounts,
+ * creates one (behind the scenes). Idempotent: safe to call on every login/signup.
+ * Used to satisfy "auto create default account on registration" (spec 004).
+ */
+export const ensureDefaultAccount = async (userId: string): Promise<void> => {
+  const accounts = await fetchAccounts(userId);
+  if (accounts.length > 0) return;
+
+  await createAccount({
+    user_id: userId,
+    account_type: "Accounts",
+    name: DEFAULT_ACCOUNT_NAME,
+    amount: 0,
+    description: "Your main account",
+    is_default: true,
+    currency: "USD",
+  });
+};

@@ -13,7 +13,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { X, ChevronDown, Check, DollarSign } from "lucide-react-native";
 import { supabase } from "~/lib";
 import { updateAccount, fetchAccounts } from "~/lib";
-import { useTheme } from "~/lib";
+import { useTheme, useScreenStatusBar } from "~/lib";
 import { useLanguage } from "~/lib";
 
 type AccountGroup = {
@@ -60,6 +60,7 @@ export default function EditAccount() {
   const [error, setError] = useState<string | null>(null);
   const theme = useTheme();
   const { t } = useLanguage();
+  useScreenStatusBar();
 
   const [formData, setFormData] = useState({
     account_type: "",

@@ -89,7 +89,13 @@ export const LANGUAGES = {
     atLeast8Characters: "At least 8 characters",
     oneUppercaseLetter: "One uppercase letter",
     oneNumber: "One number",
+    welcomeTo: "Welcome to",
+    login: "Login",
+    rememberMe: "Remember me",
+    forgetPassword: "Forget Password",
+    continueWith: "Continue with",
     continueWithGoogle: "Continue with Google",
+    continueWithApple: "Continue with Apple",
     continueWithGithub: "Continue with Git Hub",
     creatingAccount: "Creating Account...",
     accountCreation: "Account Creation",
@@ -745,6 +751,11 @@ export const LANGUAGES = {
     failedToShareCsv: "Failed to share CSV",
     loanRepayment: "Loan Repayment",
 
+    // Onboarding translations (3 slides)
+    onboardingSlide1: "Transfer, track, and take charge—within seconds",
+    onboardingSlide2: "Manage your money smarter—insights that matter",
+    onboardingSlide3: "All your finances in one place—simple and secure",
+    next: "Next",
     // Onboarding translations
     welcomeToApp: "Welcome to Qoondeeye",
     takeControlOfFinances: "Take control of your finances",
@@ -865,7 +876,13 @@ export const LANGUAGES = {
     atLeast8Characters: "Ugu yaraan 8 xaraf",
     oneUppercaseLetter: "Hal xaraf weyn",
     oneNumber: "Hal tiro",
+    welcomeTo: "Soo dhowow",
+    login: "Soo gal",
+    rememberMe: "I xasuuso",
+    forgetPassword: "Furaha illow",
+    continueWith: "Sii wad",
     continueWithGoogle: "Sii wad Google",
+    continueWithApple: "Sii wad Apple",
     continueWithGithub: "Sii wad Git Hub",
     creatingAccount: "Sameeitaanka Akoonka...",
     accountCreation: "Sameeitaanka Akoonka",
@@ -1535,6 +1552,11 @@ export const LANGUAGES = {
     failedToShareCsv: "Wadaagida CSV-ka waa la guuldarreysatay",
     loanRepayment: "Lacag Bixinta Amaaha",
 
+    // Onboarding translations (3 slides)
+    onboardingSlide1: "Wareeji, la soco, oo maamul—ilbaxnimada la mid ah",
+    onboardingSlide2: "Maamul lacagtaaga si xirfad leh—aragtiyo muhiim ah",
+    onboardingSlide3: "Dhammaan lacagtaaga meel keliya—fudud oo amaan ah",
+    next: "Xiga",
     // Onboarding translations
     welcomeToApp: "Soo dhowow Qoondeeye",
     takeControlOfFinances: "Maamul lacagtaaga",

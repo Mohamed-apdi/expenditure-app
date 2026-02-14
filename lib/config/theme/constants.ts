@@ -1,91 +1,125 @@
+/**
+ * App color palette — clean, professional look.
+ * Blue primary with white/light gray (light) and slate dark (dark mode).
+ */
+export const APP_COLORS = {
+  /** Primary blue for headers, buttons, links. */
+  primary: "#40A5E7",
+  /** Primary blue for dark mode. */
+  primaryDark: "#40A5E7",
+  /** Light surface for cards and inputs. */
+  inputBg: "#F8FAFC",
+  /** Border color light. */
+  border: "#E2E8F0",
+  /** Dark mode background. */
+  darkCard: "#1E293B",
+  /** Dark mode card/surface. */
+  darkSurface: "#334155",
+  /** Dark mode border. */
+  borderDark: "#475569",
+  /** Accent for auth/onboarding (same as primary for consistency). */
+  yellow: "#40A5E7",
+} as const;
+
 export const NAV_THEME = {
   light: {
     // Main backgrounds
-    background: "#ffffff",
-    cardBackground: "#f9fafb",
-    Homebackground: "#3b82f6",
+    background: "#FFFFFF",
+    cardBackground: APP_COLORS.inputBg,
+    Homebackground: APP_COLORS.primary,
 
     // Borders and dividers
-    border: "#3b82f6",
+    border: APP_COLORS.border,
 
     // Text colors
-    text: "#334155",
-    textSecondary: "#64748b",
-    textMuted: "#94a3b8",
+    text: "#1E293B",
+    textSecondary: "#64748B",
+    textMuted: "#94A3B8",
 
     // Form elements
-    placeholder: "#94a3b8",
-    inputBackground: "#f8fafc",
-    inputBorder: "#e2e8f0",
+    placeholder: "#94A3B8",
+    inputBackground: APP_COLORS.inputBg,
+    inputBorder: APP_COLORS.border,
 
-    // Action colors - Blue and white theme
-    primary: "#3b82f6",
-    primaryText: "#ffffff",
-    accent: "#38bdf8", // Light blue instead of orange
-    accentText: "#ffffff",
-    success: "#3b82f6", // Blue instead of green
-    successText: "#ffffff",
-    danger: "#1e40af", // Dark blue instead of red
-    dangerText: "#ffffff",
-    error: "#ef4444", // Red for error states
+    // Action colors
+    primary: APP_COLORS.primary,
+    primaryText: "#FFFFFF",
+    accent: APP_COLORS.primary,
+    accentText: "#FFFFFF",
+    success: "#059669",
+    successText: "#FFFFFF",
+    danger: "#DC2626",
+    dangerText: "#FFFFFF",
+    error: "#DC2626",
 
     // Icons
-    icon: "#3b82f6",
-    iconMuted: "#94a3b8",
+    icon: APP_COLORS.primary,
+    iconMuted: "#94A3B8",
+
+    // App-specific
+    yellow: APP_COLORS.primary,
+    darkCard: APP_COLORS.darkCard,
+    inputBg: APP_COLORS.inputBg,
+    appBorder: APP_COLORS.border,
 
     // Status indicators
-    stepInactive: "#e2e8f0",
-    stepActive: "#0891b2",
+    stepInactive: "#E2E8F0",
+    stepActive: APP_COLORS.primary,
 
-    // React Navigation required properties
-    card: "#f9fafb",
-    notification: "#3b82f6",
+    // React Navigation
+    card: APP_COLORS.inputBg,
+    notification: APP_COLORS.primary,
 
-    // Theme detection
     isDark: false,
     isDarkColorScheme: false,
   },
   dark: {
-    icon: "#ffffff",
+    icon: "#F8FAFC",
 
     // Main backgrounds
-    background: "#1e293b",
-    Homebackground: "#1e293b",
-    cardBackground: "#334155",
+    background: "#0F172A",
+    Homebackground: APP_COLORS.primaryDark,
+    cardBackground: APP_COLORS.darkSurface,
 
     // Borders and dividers
-    border: "#3b82f6",
+    border: APP_COLORS.borderDark,
 
     // Text colors
-    text: "#f8fafc",
-    textSecondary: "#cbd5e1",
-    textMuted: "#94a3b8",
+    text: "#F8FAFC",
+    textSecondary: "#CBD5E1",
+    textMuted: "#94A3B8",
 
     // Form elements
-    placeholder: "#94a3b8",
-    inputBackground: "#334155",
-    inputBorder: "#475569",
+    placeholder: "#94A3B8",
+    inputBackground: APP_COLORS.darkSurface,
+    inputBorder: APP_COLORS.borderDark,
 
-    // Action colors - Blue and white theme
-    primary: "#3b82f6",
-    primaryText: "#ffffff",
-    accent: "#38bdf8", // Light blue instead of orange
-    accentText: "#ffffff",
-    success: "#0284c7", // Blue instead of green
-    successText: "#ffffff",
-    danger: "#1e40af", // Dark blue instead of red
-    dangerText: "#ffffff",
-    error: "#f87171", // Light red for error states in dark mode
+    // Action colors
+    primary: APP_COLORS.primaryDark,
+    primaryText: "#FFFFFF",
+    accent: APP_COLORS.primaryDark,
+    accentText: "#FFFFFF",
+    success: "#10B981",
+    successText: "#FFFFFF",
+    danger: "#EF4444",
+    dangerText: "#FFFFFF",
+    error: "#F87171",
 
     // Status indicators
-    stepInactive: "#334155",
-    stepActive: "#0891b2",
+    stepInactive: APP_COLORS.darkSurface,
+    stepActive: APP_COLORS.primaryDark,
 
-    // React Navigation required properties
-    card: "#334155",
-    notification: "#3b82f6",
+    // React Navigation
+    card: APP_COLORS.darkSurface,
+    notification: APP_COLORS.primaryDark,
 
-    // Theme detection
+    // App-specific
+    yellow: APP_COLORS.primaryDark,
+    darkCard: APP_COLORS.darkCard,
+    inputBg: APP_COLORS.darkSurface,
+    appBorder: APP_COLORS.borderDark,
+    iconMuted: "#94A3B8",
+
     isDark: true,
     isDarkColorScheme: true,
   },

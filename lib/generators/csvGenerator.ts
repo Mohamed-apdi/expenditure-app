@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
@@ -65,19 +66,38 @@ export const generateCSVReport = async (data: CSVReportData): Promise<string> =>
   }
 };
 
-// Function to share the generated CSV
-export const shareCSV = async (fileUri: string) => {
-  try {
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(fileUri, {
-        mimeType: 'text/csv',
-        dialogTitle: 'Share CSV Report'
-      });
-    }
-  } catch (error) {
-    console.error('Error sharing CSV:', error);
-    throw error;
+// Function to share the generated CSV (opens native share sheet so user can save to Files/Downloads)
+export const shareCSV = async (fileUri: string): Promise<void> => {
+  const isAvailable = await Sharing.isAvailableAsync();
+  if (!isAvailable) {
+    throw new Error('Sharing is not available on this device');
   }
+
+  let shareUri = fileUri;
+  // On iOS, copy to cache directory first for reliable sharing (workaround for permission issues)
+  if (Platform.OS === 'ios') {
+    const cacheDir = FileSystem.cacheDirectory;
+    if (cacheDir) {
+      const filename = fileUri.split('/').pop() || 'report.csv';
+      const cachePath = `${cacheDir}${filename}`;
+      await FileSystem.copyAsync({ from: fileUri, to: cachePath });
+      shareUri = cachePath;
+    }
+  }
+
+  // Ensure URI has file:// prefix for Android
+  if (Platform.OS === 'android' && !shareUri.startsWith('file://')) {
+    shareUri = `file://${shareUri}`;
+  }
+
+  // Small delay to avoid share sheet hang (known expo-sharing iOS issue)
+  await new Promise((r) => setTimeout(r, 300));
+
+  await Sharing.shareAsync(shareUri, {
+    mimeType: 'text/csv',
+    dialogTitle: 'Save CSV Report',
+    UTI: Platform.OS === 'ios' ? 'public.comma-separated-values-text' : undefined,
+  });
 };
 
 // Function to save CSV to downloads directory (Android)

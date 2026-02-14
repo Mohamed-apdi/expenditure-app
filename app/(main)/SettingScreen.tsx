@@ -28,7 +28,7 @@ import {
 import { deleteItemAsync } from "expo-secure-store";
 import { supabase } from "~/lib";
 import { UserProfile } from "~/types/userTypes";
-import { useTheme } from "~/lib";
+import { useTheme, useScreenStatusBar } from "~/lib";
 import { useLanguage } from "~/lib";
 import {
   fetchProfile,
@@ -68,6 +68,7 @@ export default function ProfileScreen() {
   });
 
   const theme = useTheme();
+  useScreenStatusBar();
 
   useEffect(() => {
     const fetchUserProfile = async () => {

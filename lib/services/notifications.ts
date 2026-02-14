@@ -270,6 +270,43 @@ export async function createSystemNotification({
   }
 }
 
+/** Cooldown in hours before sending another budget notification for the same category/type */
+const BUDGET_EXCEEDED_COOLDOWN_HOURS = 24;
+const BUDGET_WARNING_COOLDOWN_HOURS = 6;
+
+/**
+ * Check if we already sent a budget notification for this category/type recently
+ * to avoid duplicate notifications.
+ */
+export async function hasRecentBudgetNotification(
+  userId: string,
+  budgetId: string,
+  type: "exceeded" | "warning",
+  withinHours = type === "exceeded" ? BUDGET_EXCEEDED_COOLDOWN_HOURS : BUDGET_WARNING_COOLDOWN_HOURS
+): Promise<boolean> {
+  try {
+    const since = new Date();
+    since.setHours(since.getHours() - withinHours);
+    const sinceIso = since.toISOString();
+
+    const { data, error } = await supabase
+      .from("notifications")
+      .select("metadata")
+      .eq("user_id", userId)
+      .eq("type", "budget")
+      .gte("created_at", sinceIso);
+
+    if (error) throw error;
+    const hasMatch = (data || []).some(
+      (n) => n?.metadata?.budget_id === budgetId
+    );
+    return hasMatch;
+  } catch (error) {
+    console.error("Error checking recent budget notification:", error);
+    return false; // Allow send on error to avoid silent failure
+  }
+}
+
 /**
  * Helper function to create budget-related notifications
  */

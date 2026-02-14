@@ -43,6 +43,7 @@ export { supabase, getSupabaseWithToken } from "./database/supabase";
 // Providers
 export * from "./providers/AccountContext";
 export * from "./providers/LanguageProvider";
+export * from "./providers/SyncContext";
 
 // Icons
 export * from "./icons/Check";
@@ -65,3 +66,4 @@ export * from "./utils/chartColors";
 // Hooks
 export * from "./hooks/useNotifications";
 export * from "./hooks/useDashboardData";
+export * from "./hooks/useScreenStatusBar";

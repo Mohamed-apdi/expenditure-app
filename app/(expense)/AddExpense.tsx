@@ -8,7 +8,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  StatusBar,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,7 +15,7 @@ import { useRouter } from "expo-router";
 import { X, Camera, Image as ImageIcon, Scan } from "lucide-react-native";
 import Toast from "react-native-toast-message";
 import { supabase } from "~/lib";
-import { useTheme } from "~/lib";
+import { useTheme, useScreenStatusBar } from "~/lib";
 import { fetchAccounts, updateAccountBalance } from "~/lib";
 import { addExpense } from "~/lib";
 import { addTransaction } from "~/lib";
@@ -32,12 +31,13 @@ import { scanReceiptWithOCR } from "~/lib/services/ocr";
 import ExpenseForm from "./components/ExpenseForm";
 import IncomeForm from "./components/IncomeForm";
 import TransferForm from "./components/TransferForm";
-import { getExpenseCategories, getIncomeCategories, type Category, type Frequency } from "./utils/categories";
+import { getExpenseCategories, getIncomeCategories, type Category, type Frequency } from "~/lib/utils/categories";
 
 export default function AddExpenseScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { t } = useLanguage();
+  useScreenStatusBar();
 
   // States
   const [entryType, setEntryType] = useState("Expense");
@@ -303,19 +303,6 @@ export default function AddExpenseScreen() {
 
       const amountNum = Number.parseFloat(amount);
 
-      // For expenses, check account balance
-      if (entryType === "Expense") {
-        if (amountNum > selectedAccount.amount) {
-          Toast.show({
-            type: "error",
-            text1: t.insufficientFunds || "Insufficient Funds",
-            text2: `${t.yourAccountDoesntHaveEnoughBalance || "Your account doesn't have enough balance"} ${selectedAccount.name} ${t.forThisExpense || "for this expense"}.`,
-          });
-          setIsSubmitting(false);
-          return;
-        }
-      }
-
       // Add expense using the service
       await addExpense({
         user_id: user.id,
@@ -453,14 +440,6 @@ export default function AddExpenseScreen() {
     }
 
     const amountNum = Number.parseFloat(transferAmount);
-    if (amountNum > fromAccount.amount) {
-      Toast.show({
-        type: "error",
-        text1: "Insufficient Funds",
-        text2: "Insufficient balance in the from account",
-      });
-      return;
-    }
 
     setIsSubmitting(true);
 
@@ -565,10 +544,6 @@ export default function AddExpenseScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-      <StatusBar
-        barStyle={theme.isDark ? "light-content" : "dark-content"}
-        backgroundColor={theme.background}
-      />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}

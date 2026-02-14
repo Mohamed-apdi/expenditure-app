@@ -12,7 +12,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, Pen, Trash2 } from "lucide-react-native";
 import { supabase } from "~/lib";
 import { format } from "date-fns";
-import { useTheme } from "~/lib";
+import { useTheme, useScreenStatusBar } from "~/lib";
 import { useLanguage } from "~/lib";
 
 type Transaction = {
@@ -38,6 +38,7 @@ const AccountDetails = () => {
   const [refreshing, setRefreshing] = useState(false);
   const theme = useTheme();
   const { t } = useLanguage();
+  useScreenStatusBar();
 
   useEffect(() => {
     if (id) {

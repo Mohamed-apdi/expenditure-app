@@ -15,6 +15,7 @@ import {
   createBudgetNotification,
   createSubscriptionNotification,
   createTransactionNotification,
+  hasRecentBudgetNotification,
 } from "./notifications";
 
 // Define the background task name
@@ -403,12 +404,24 @@ const pauseSubscription = async (subscriptionId: string) => {
 
 };
 
-// Send budget warning notification
+// Send budget warning notification (with deduplication to avoid repeats)
 export const sendBudgetNotification = async (
   budgetProgress: BudgetProgress,
   type: "warning" | "exceeded"
 ) => {
   try {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) return;
+
+    // Skip if we already sent a notification for this budget (category+account)/type recently
+    const budgetId = `${budgetProgress.category}-${budgetProgress.account_id}`;
+    const alreadyNotified = await hasRecentBudgetNotification(
+      userData.user.id,
+      budgetId,
+      type
+    );
+    if (alreadyNotified) return;
+
     const isExceeded = type === "exceeded";
     const category = isExceeded
       ? BUDGET_EXCEEDED_CATEGORY
@@ -439,17 +452,14 @@ export const sendBudgetNotification = async (
     });
 
     // Save to database notifications table
-    const { data, error: authError } = await supabase.auth.getUser();
-    if (!authError && data?.user) {
-      await createBudgetNotification({
-        userId: data.user.id,
-        budgetName: budgetProgress.category,
-        percentage: budgetProgress.percentage,
-        currentAmount: budgetProgress.spent,
-        budgetLimit: budgetProgress.budgeted,
-        budgetId: budgetProgress.category, // Using category as ID for now
-      });
-    }
+    await createBudgetNotification({
+      userId: userData.user.id,
+      budgetName: budgetProgress.category,
+      percentage: budgetProgress.percentage,
+      currentAmount: budgetProgress.spent,
+      budgetLimit: budgetProgress.budgeted,
+      budgetId: `${budgetProgress.category}-${budgetProgress.account_id}`, // Unique per category+account
+    });
 
   } catch (error) {
     console.error("Error sending budget notification:", error);
