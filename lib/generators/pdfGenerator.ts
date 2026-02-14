@@ -1,3 +1,7 @@
+/**
+ * PDF report generator using Expo Print
+ * Builds and shares PDF reports from structured report data
+ */
 import { Platform } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
