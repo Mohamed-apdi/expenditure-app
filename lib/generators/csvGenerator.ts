@@ -1,3 +1,7 @@
+/**
+ * CSV report generator for exporting report data
+ * Writes CSV to app documents and supports sharing
+ */
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
