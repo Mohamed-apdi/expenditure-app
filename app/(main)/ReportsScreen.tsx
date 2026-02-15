@@ -43,7 +43,7 @@ import { generatePDFReport, sharePDF } from '~/lib/generators/pdfGenerator';
 import { generateCSVReport, shareCSV } from '~/lib/generators/csvGenerator';
 import { useTheme, useScreenStatusBar } from '~/lib';
 import { useLanguage } from '~/lib';
-import Toast from 'react-native-toast-message';
+import { toast } from 'sonner-native';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -566,10 +566,8 @@ export default function ReportsScreen() {
           const filePath = await generatePDFReport(pdfData);
           try {
             await sharePDF(filePath);
-            Toast.show({
-              type: 'success',
-              text1: t.pdfGeneratedSuccessfully,
-              text2: t.reportSavedToDevice,
+            toast.success(t.pdfGeneratedSuccessfully, {
+              description: t.reportSavedToDevice,
             });
           } catch (shareError) {
             console.error('Error sharing PDF:', shareError);
@@ -623,10 +621,8 @@ export default function ReportsScreen() {
           const filePath = await generateCSVReport(csvData);
           try {
             await shareCSV(filePath);
-            Toast.show({
-              type: 'success',
-              text1: t.csvGeneratedSuccessfully,
-              text2: t.reportSavedToDevice,
+            toast.success(t.csvGeneratedSuccessfully, {
+              description: t.reportSavedToDevice,
             });
           } catch (shareError) {
             console.error('Error sharing CSV:', shareError);
@@ -709,10 +705,8 @@ export default function ReportsScreen() {
           const filePath = await generatePDFReport(pdfData);
           try {
             await sharePDF(filePath);
-            Toast.show({
-              type: 'success',
-              text1: t.pdfGeneratedSuccessfully,
-              text2: t.reportSavedToDevice,
+            toast.success(t.pdfGeneratedSuccessfully, {
+              description: t.reportSavedToDevice,
             });
           } catch (shareError) {
             console.error('Error sharing PDF:', shareError);
@@ -777,10 +771,8 @@ export default function ReportsScreen() {
           const filePath = await generateCSVReport(csvData);
           try {
             await shareCSV(filePath);
-            Toast.show({
-              type: 'success',
-              text1: t.csvGeneratedSuccessfully,
-              text2: t.reportSavedToDevice,
+            toast.success(t.csvGeneratedSuccessfully, {
+              description: t.reportSavedToDevice,
             });
           } catch (shareError) {
             console.error('Error sharing CSV:', shareError);
@@ -855,10 +847,8 @@ export default function ReportsScreen() {
           const filePath = await generatePDFReport(pdfData);
           try {
             await sharePDF(filePath);
-            Toast.show({
-              type: 'success',
-              text1: t.pdfGeneratedSuccessfully,
-              text2: t.reportSavedToDevice,
+            toast.success(t.pdfGeneratedSuccessfully, {
+              description: t.reportSavedToDevice,
             });
           } catch (shareError) {
             console.error('Error sharing PDF:', shareError);
@@ -922,10 +912,8 @@ export default function ReportsScreen() {
           const filePath = await generateCSVReport(csvData);
           try {
             await shareCSV(filePath);
-            Toast.show({
-              type: 'success',
-              text1: t.csvGeneratedSuccessfully,
-              text2: t.reportSavedToDevice,
+            toast.success(t.csvGeneratedSuccessfully, {
+              description: t.reportSavedToDevice,
             });
           } catch (shareError) {
             console.error('Error sharing CSV:', shareError);
@@ -988,10 +976,8 @@ export default function ReportsScreen() {
           const filePath = await generatePDFReport(pdfData);
           try {
             await sharePDF(filePath);
-            Toast.show({
-              type: 'success',
-              text1: t.pdfGeneratedSuccessfully,
-              text2: t.reportSavedToDevice,
+            toast.success(t.pdfGeneratedSuccessfully, {
+              description: t.reportSavedToDevice,
             });
           } catch (shareError) {
             console.error('Error sharing PDF:', shareError);
@@ -1041,10 +1027,8 @@ export default function ReportsScreen() {
           const filePath = await generateCSVReport(csvData);
           try {
             await shareCSV(filePath);
-            Toast.show({
-              type: 'success',
-              text1: t.csvGeneratedSuccessfully,
-              text2: t.reportSavedToDevice,
+            toast.success(t.csvGeneratedSuccessfully, {
+              description: t.reportSavedToDevice,
             });
           } catch (shareError) {
             console.error('Error sharing CSV:', shareError);
@@ -1127,10 +1111,8 @@ export default function ReportsScreen() {
         const filePath = await generatePDFReport(pdfData);
         try {
           await sharePDF(filePath);
-          Toast.show({
-            type: 'success',
-            text1: t.pdfGeneratedSuccessfully,
-            text2: t.reportSavedToDevice,
+          toast.success(t.pdfGeneratedSuccessfully, {
+            description: t.reportSavedToDevice,
           });
         } catch (shareError) {
           console.error('Error sharing PDF:', shareError);
@@ -1197,10 +1179,8 @@ export default function ReportsScreen() {
         const filePath = await generateCSVReport(csvData);
         try {
           await shareCSV(filePath);
-          Toast.show({
-            type: 'success',
-            text1: t.csvGeneratedSuccessfully,
-            text2: t.reportSavedToDevice,
+          toast.success(t.csvGeneratedSuccessfully, {
+            description: t.reportSavedToDevice,
           });
         } catch (shareError) {
           console.error('Error sharing CSV:', shareError);

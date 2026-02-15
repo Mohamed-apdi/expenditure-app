@@ -20,7 +20,7 @@ import { setItemAsync, deleteItemAsync } from "expo-secure-store";
 import { supabase } from "~/lib";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
-import Toast from "react-native-toast-message";
+import { toast } from "sonner-native";
 import { ensureDefaultAccount } from "~/lib/services/accounts";
 import { APP_COLORS } from "~/lib/config/theme/constants";
 
@@ -72,11 +72,7 @@ export default function AuthGateScreen() {
 
   const handleGetStarted = async () => {
     if (!email.trim() || !password.trim()) {
-      Toast.show({
-        type: "error",
-        text1: t.error,
-        text2: t.missingCredentials,
-      });
+      toast.error(t.error, { description: t.missingCredentials });
       return;
     }
     setLoading(true);
@@ -98,7 +94,7 @@ export default function AuthGateScreen() {
           await deleteItemAsync("supabase_session");
         }
         await ensureDefaultAccount(data.user.id);
-        Toast.show({ type: "success", text1: t.loginSuccessfully });
+        toast.success(t.loginSuccessfully);
         router.replace("/(main)/Dashboard");
       } else {
         const { data, error } = await supabase.auth.signUp({
@@ -107,11 +103,7 @@ export default function AuthGateScreen() {
         });
         if (error) throw error;
         if (data.user && !data.user.email_confirmed_at) {
-          Toast.show({
-            type: "success",
-            text1: t.accountCreated,
-            text2: t.pleaseCheckEmail,
-          });
+          toast.success(t.accountCreated, { description: t.pleaseCheckEmail });
           router.push("/(auth)/login");
         } else if (data.user?.email_confirmed_at && data.session) {
           await setItemAsync("token", data.session.access_token);
@@ -122,10 +114,8 @@ export default function AuthGateScreen() {
         }
       }
     } catch (err: any) {
-      Toast.show({
-        type: "error",
-        text1: activeTab === "login" ? t.loginError : t.signupFailed,
-        text2: err?.message || t.missingCredentials,
+      toast.error(activeTab === "login" ? t.loginError : t.signupFailed, {
+        description: err?.message || t.missingCredentials,
       });
     } finally {
       setLoading(false);
@@ -172,31 +162,21 @@ export default function AuthGateScreen() {
               } catch {
                 // Don't block sign-in if default account creation fails
               }
-              Toast.show({ type: "success", text1: t.loginSuccessfully });
+              toast.success(t.loginSuccessfully);
               router.replace("/(main)/Dashboard");
             }
           }
         } else if (result.type === "cancel") {
-          Toast.show({ type: "info", text1: "Sign in cancelled" });
+          toast.info("Sign in cancelled");
         }
       }
     } catch (err: any) {
-      Toast.show({
-        type: "error",
-        text1: "Sign in failed",
-        text2: err?.message || "An error occurred",
+      toast.error("Sign in failed", {
+        description: err?.message || "An error occurred",
       });
     } finally {
       setSocialLoading(null);
     }
-  };
-
-  const handleSignInWithApple = () => {
-    Toast.show({
-      type: "info",
-      text1: "Coming soon",
-      text2: "Apple Sign In will be available soon",
-    });
   };
 
   useScreenStatusBar();
@@ -266,6 +246,7 @@ export default function AuthGateScreen() {
             >
               <TouchableOpacity
                 onPress={() => setActiveTab("login")}
+                activeOpacity={1}
                 style={{
                   flex: 1,
                   paddingVertical: 12,
@@ -278,7 +259,7 @@ export default function AuthGateScreen() {
                   style={{
                     fontSize: 16,
                     fontWeight: "600",
-                    color: activeTab === "login" ? "#FFFFFF" : "#6B6B6B",
+                    color: activeTab === "login" ? "#FFFFFF" : "#4A4A4A",
                   }}
                 >
                   {t.login}
@@ -286,6 +267,7 @@ export default function AuthGateScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setActiveTab("signup")}
+                activeOpacity={1}
                 style={{
                   flex: 1,
                   paddingVertical: 12,
@@ -298,7 +280,7 @@ export default function AuthGateScreen() {
                   style={{
                     fontSize: 16,
                     fontWeight: "600",
-                    color: activeTab === "signup" ? "#FFFFFF" : "#6B6B6B",
+                    color: activeTab === "signup" ? "#FFFFFF" : "#4A4A4A",
                   }}
                 >
                   {t.signUp}
@@ -399,12 +381,11 @@ export default function AuthGateScreen() {
               </View>
             </View>
 
-            {/* Remember me + Forget Password */}
+            {/* Remember me */}
             <View
               style={{
                 flexDirection: "row",
                 alignItems: "center",
-                justifyContent: "space-between",
                 paddingHorizontal: 24,
                 marginBottom: 24,
               }}
@@ -431,11 +412,6 @@ export default function AuthGateScreen() {
                 </View>
                 <Text style={{ fontSize: 14, color: "#4A4A4A" }}>
                   {t.rememberMe}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity>
-                <Text style={{ fontSize: 14, color: "#6B6B6B" }}>
-                  {t.forgetPassword}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -528,41 +504,9 @@ export default function AuthGateScreen() {
                   {t.continueWithGoogle}
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleSignInWithApple}
-                disabled={socialLoading !== null}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  backgroundColor: "#FFFFFF",
-                  borderWidth: 1,
-                  borderColor: APP_COLORS.border,
-                  borderRadius: 12,
-                  padding: 14,
-                }}
-              >
-                <View
-                  style={{
-                    width: 24,
-                    height: 24,
-                    marginRight: 12,
-                    borderRadius: 4,
-                    backgroundColor: "#1A1A1A",
-                  }}
-                />
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "600",
-                    color: "#1A1A1A",
-                  }}
-                >
-                  {t.continueWithApple}
-                </Text>
-              </TouchableOpacity>
             </View>
 
-            {/* Footer terms */}
+            {/* Footer terms - link-style text, no redirect */}
             <Text
               style={{
                 fontSize: 12,
@@ -573,7 +517,10 @@ export default function AuthGateScreen() {
                 lineHeight: 18,
               }}
             >
-              {t.termsAndPrivacy}
+              {t.termsAndPrivacyPrefix}
+              <Text style={{ color: "#2563EB" }}>{t.termsOfService}</Text>
+              {t.termsAndPrivacyAnd}
+              <Text style={{ color: "#2563EB" }}>{t.privacyPolicy}</Text>
             </Text>
           </ScrollView>
         </KeyboardAvoidingView>

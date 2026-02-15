@@ -204,13 +204,11 @@ export default function DashboardScreen() {
   );
 
   useEffect(() => {
-    // Set StatusBar to app primary (yellow) - setBackgroundColor is Android-only
     if (Platform.OS === 'android') {
-      StatusBar.setBackgroundColor(theme.primary, true);
+      StatusBar.setBackgroundColor(theme.background, true);
     }
-    StatusBar.setBarStyle('light-content', true);
+    StatusBar.setBarStyle(theme.isDark ? 'light-content' : 'dark-content', true);
 
-    // Initial load - fetch profile when component mounts
     const checkAuthAndFetch = async () => {
       try {
         const {
@@ -225,7 +223,6 @@ export default function DashboardScreen() {
     };
     checkAuthAndFetch();
 
-    // Cleanup function to reset StatusBar when component unmounts
     return () => {
       if (Platform.OS === 'android') {
         StatusBar.setBackgroundColor(theme.background, true);
@@ -236,20 +233,15 @@ export default function DashboardScreen() {
       );
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount/unmount
+  }, []);
 
-  // Refresh balance when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
-      // Ensure StatusBar uses app primary when Dashboard comes into focus (Android only)
       if (Platform.OS === 'android') {
-        StatusBar.setBackgroundColor(theme.primary, true);
+        StatusBar.setBackgroundColor(theme.background, true);
       }
-      StatusBar.setBarStyle('light-content', true);
-
+      StatusBar.setBarStyle(theme.isDark ? 'light-content' : 'dark-content', true);
       refreshBalances();
-
-      // Trigger data refresh for MonthYearScroller
       setRefreshTrigger((prev) => prev + 1);
     }, [refreshBalances]),
   );
@@ -393,10 +385,13 @@ export default function DashboardScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.primary} />
+      <StatusBar
+        barStyle={theme.isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.background}
+      />
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: insets.bottom }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -406,14 +401,18 @@ export default function DashboardScreen() {
           />
         }
         showsVerticalScrollIndicator={false}>
-        {/* Header: yellow extends under status bar so top is not white */}
+        {/* Compact header bar - same background as screen */}
         <View
           style={{
-            backgroundColor: theme.primary,
             paddingTop: insets.top,
-            paddingBottom: 16,
+            paddingHorizontal: 16,
+            paddingBottom: 12,
+            backgroundColor: theme.background,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border,
           }}>
           <DashboardHeader
+            variant="light"
             userName={userProfile.fullName}
             userEmail={userProfile.email}
             userImageUrl={userProfile.image_url}
@@ -424,25 +423,22 @@ export default function DashboardScreen() {
             onSettingsPress={() => router.push('/(main)/SettingScreen')}
             onNotificationPress={() => router.push('/(main)/notifications')}
           />
-
-          <View className="px-4 pb-4">
-            <MonthYearScroller
-              onMonthChange={handleMonthChange}
-              fetchMonthData={fetchMonthData}
-              refreshTrigger={refreshTrigger}
-            />
-          </View>
         </View>
 
-        <View className="flex-1" style={{ backgroundColor: theme.background }}>
-          {/* Notification Permission Request */}
-          <NotificationPermissionRequest />
+        {/* Content: month selector + balance card + transactions in one flow */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 20 }}>
+          <MonthYearScroller
+            variant="light"
+            onMonthChange={handleMonthChange}
+            fetchMonthData={fetchMonthData}
+            refreshTrigger={refreshTrigger}
+          />
+        </View>
 
-          {/* Recent Transactions - Simplified */}
-          <View
-            className="rounded-t-3xl"
-            style={{ backgroundColor: theme.background, minHeight: 400 }}>
-            <View className="px-4 pt-6 pb-4">
+        <NotificationPermissionRequest />
+
+        {/* Recent Transactions */}
+        <View style={{ paddingHorizontal: 16, paddingTop: 24, minHeight: 320 }}>
               <View className="flex-row justify-between items-center mb-4">
                 <View>
                   <Text
@@ -533,8 +529,6 @@ export default function DashboardScreen() {
                 </View>
               )}
             </View>
-          </View>
-        </View>
       </ScrollView>
     </View>
   );

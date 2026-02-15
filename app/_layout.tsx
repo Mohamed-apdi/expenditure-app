@@ -10,12 +10,13 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as React from 'react';
 import { Appearance, Platform, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NAV_THEME } from '~/lib';
 import { useColorScheme } from '~/lib';
 import { PortalHost } from '@rn-primitives/portal';
 import { setAndroidNavigationBar } from '~/lib';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import Toast from 'react-native-toast-message';
+import { Toaster } from 'sonner-native';
 import { AccountProvider, SyncProvider } from '~/lib';
 import * as Notifications from 'expo-notifications';
 import { notificationService } from '~/lib';
@@ -115,29 +116,31 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-<AccountProvider>
-        <SyncProvider>
-        <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
-            <BottomSheetModalProvider>
-              <StatusBar style={isDarkColorScheme ? 'dark' : 'light'} />
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="(onboarding)" />
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(main)" />
-                <Stack.Screen name="(expense)" />
-                <Stack.Screen name="(profile)" />
-              </Stack>
-              <Toast />
-              <PortalHost />
-            </BottomSheetModalProvider>
-          </ThemeProvider>
-        </SyncProvider>
-        </AccountProvider>
-      </LanguageProvider>
-    </QueryClientProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <LanguageProvider>
+          <AccountProvider>
+            <SyncProvider>
+              <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
+                <BottomSheetModalProvider>
+                  <StatusBar style={isDarkColorScheme ? 'dark' : 'light'} />
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="index" />
+                    <Stack.Screen name="(onboarding)" />
+                    <Stack.Screen name="(auth)" />
+                    <Stack.Screen name="(main)" />
+                    <Stack.Screen name="(expense)" />
+                    <Stack.Screen name="(profile)" />
+                  </Stack>
+                  <Toaster />
+                  <PortalHost />
+                </BottomSheetModalProvider>
+              </ThemeProvider>
+            </SyncProvider>
+          </AccountProvider>
+        </LanguageProvider>
+      </QueryClientProvider>
+    </GestureHandlerRootView>
   );
 }
 

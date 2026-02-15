@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { X, Camera, Image as ImageIcon, Scan } from "lucide-react-native";
-import Toast from "react-native-toast-message";
+import { toast } from "sonner-native";
 import { supabase } from "~/lib";
 import { useTheme, useScreenStatusBar } from "~/lib";
 import { fetchAccounts, updateAccountBalance } from "~/lib";
@@ -91,10 +91,8 @@ export default function AddExpenseScreen() {
         }
       } catch (error) {
         console.error("Error loading accounts:", error);
-        Toast.show({
-          type: "error",
-          text1: t.error || "Error",
-          text2: t.failedToLoadAccounts || "Failed to load accounts",
+        toast.error(t.error || "Error", {
+          description: t.failedToLoadAccounts || "Failed to load accounts",
         });
       }
     };
@@ -148,10 +146,8 @@ export default function AddExpenseScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
-        Toast.show({
-          type: "error",
-          text1: t.error || "Error",
-          text2: t.permissionToAccessCamera || "Permission to access camera roll is required",
+        toast.error(t.error || "Error", {
+          description: t.permissionToAccessCamera || "Permission to access camera roll is required",
         });
         return;
       }
@@ -167,10 +163,8 @@ export default function AddExpenseScreen() {
       }
     } catch (error) {
       console.error("Error picking image:", error);
-      Toast.show({
-        type: "error",
-        text1: t.error || "Error",
-        text2: t.failedToPickImage || "Failed to pick image",
+      toast.error(t.error || "Error", {
+        description: t.failedToPickImage || "Failed to pick image",
       });
     }
   };
@@ -179,10 +173,8 @@ export default function AddExpenseScreen() {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== "granted") {
-        Toast.show({
-          type: "error",
-          text1: t.error || "Error",
-          text2: "Camera permission is required",
+        toast.error(t.error || "Error", {
+          description: "Camera permission is required",
         });
         return;
       }
@@ -198,10 +190,8 @@ export default function AddExpenseScreen() {
       }
     } catch (error) {
       console.error("Error taking photo:", error);
-      Toast.show({
-        type: "error",
-        text1: t.error || "Error",
-        text2: "Failed to take photo",
+      toast.error(t.error || "Error", {
+        description: "Failed to take photo",
       });
     }
   };
@@ -235,17 +225,13 @@ export default function AddExpenseScreen() {
       // Switch to normal mode after OCR processing
       setInputMode("normal");
 
-      Toast.show({
-        type: "success",
-        text1: "Receipt scanned!",
-        text2: "Please review and edit the details before saving.",
+      toast.success("Receipt scanned!", {
+        description: "Please review and edit the details before saving.",
       });
     } catch (error) {
       console.error("OCR processing error:", error);
-      Toast.show({
-        type: "error",
-        text1: "OCR Failed",
-        text2: error instanceof Error ? error.message : "Failed to process receipt image",
+      toast.error("OCR Failed", {
+        description: error instanceof Error ? error.message : "Failed to process receipt image",
       });
     } finally {
       setIsProcessingOCR(false);
@@ -255,39 +241,31 @@ export default function AddExpenseScreen() {
   const handleSaveExpense = async () => {
     // Basic validation
     if (!amount || !description.trim()) {
-      Toast.show({
-        type: "error",
-        text1: t.missingInfo || "Missing Information",
-        text2: t.pleaseFillRequiredFields || "Please fill all required fields",
+      toast.error(t.missingInfo || "Missing Information", {
+        description: t.pleaseFillRequiredFields || "Please fill all required fields",
       });
       return;
     }
 
     if (!selectedAccount) {
-      Toast.show({
-        type: "error",
-        text1: t.selectAccount || "Select Account",
-        text2: t.pleaseSelectAccount || "Please select an account",
+      toast.error(t.selectAccount || "Select Account", {
+        description: t.pleaseSelectAccount || "Please select an account",
       });
       return;
     }
 
     // Type-specific validation
     if (entryType === "Income" && (!selectedCategory || !selectedCategory.name)) {
-      Toast.show({
-        type: "error",
-        text1: t.chooseCategory || "Choose Category",
-        text2: t.pleaseSelectCategoryForIncome || "Please select a category for income",
+      toast.error(t.chooseCategory || "Choose Category", {
+        description: t.pleaseSelectCategoryForIncome || "Please select a category for income",
       });
       return;
     }
 
     if (entryType === "Expense") {
       if (!selectedCategory || !selectedCategory.name) {
-        Toast.show({
-          type: "error",
-          text1: t.chooseCategory || "Choose Category",
-          text2: t.pleaseSelectCategoryForExpense || "Please select a category for expense",
+        toast.error(t.chooseCategory || "Choose Category", {
+          description: t.pleaseSelectCategoryForExpense || "Please select a category for expense",
         });
         return;
       }
@@ -390,10 +368,8 @@ export default function AddExpenseScreen() {
         }
       }
 
-      Toast.show({
-        type: "success",
-        text1: "Success!",
-        text2: `Your ${entryType.toLowerCase()} has been saved!`,
+      toast.success("Success!", {
+        description: `Your ${entryType.toLowerCase()} has been saved!`,
       });
 
       setTimeout(() => {
@@ -401,10 +377,8 @@ export default function AddExpenseScreen() {
       }, 500);
     } catch (error) {
       console.error(error);
-      Toast.show({
-        type: "error",
-        text1: t.error || "Error",
-        text2: t.somethingWentWrongPleaseTryAgain || "Something went wrong. Please try again.",
+      toast.error(t.error || "Error", {
+        description: t.somethingWentWrongPleaseTryAgain || "Something went wrong. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -413,28 +387,22 @@ export default function AddExpenseScreen() {
 
   const handleTransfer = async () => {
     if (!transferAmount || Number.parseFloat(transferAmount) <= 0) {
-      Toast.show({
-        type: "error",
-        text1: t.error || "Error",
-        text2: t.pleaseEnterValidTransferAmount || "Please enter a valid transfer amount",
+      toast.error(t.error || "Error", {
+        description: t.pleaseEnterValidTransferAmount || "Please enter a valid transfer amount",
       });
       return;
     }
 
     if (!fromAccount || !toAccount) {
-      Toast.show({
-        type: "error",
-        text1: "Select Accounts",
-        text2: "Please select both from and to accounts",
+      toast.error("Select Accounts", {
+        description: "Please select both from and to accounts",
       });
       return;
     }
 
     if (fromAccount.id === toAccount.id) {
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Cannot transfer to the same account",
+      toast.error("Error", {
+        description: "Cannot transfer to the same account",
       });
       return;
     }
@@ -489,10 +457,8 @@ export default function AddExpenseScreen() {
         updateAccountBalance(toAccount.id, toAccount.amount + amountNum),
       ]);
 
-      Toast.show({
-        type: "success",
-        text1: "Transfer Successful!",
-        text2: `$${amountNum.toFixed(2)} transferred from ${fromAccount.name} to ${toAccount.name}`,
+      toast.success("Transfer Successful!", {
+        description: `$${amountNum.toFixed(2)} transferred from ${fromAccount.name} to ${toAccount.name}`,
       });
 
       setTimeout(() => {
@@ -500,10 +466,8 @@ export default function AddExpenseScreen() {
       }, 500);
     } catch (error) {
       console.error(error);
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Transfer failed. Please try again.",
+      toast.error("Error", {
+        description: "Transfer failed. Please try again.",
       });
     } finally {
       setIsSubmitting(false);

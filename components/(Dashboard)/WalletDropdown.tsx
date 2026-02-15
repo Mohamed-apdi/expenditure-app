@@ -11,7 +11,9 @@ import { ChevronDown, Loader, X } from "lucide-react-native";
 import { useTheme } from "~/lib";
 import { useAccount } from "~/lib";
 
-export function WalletDropdown() {
+type WalletDropdownProps = { variant?: "light" | "dark" };
+
+export function WalletDropdown({ variant = "dark" }: WalletDropdownProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isSelecting, setIsSelecting] = useState(false);
   const {
@@ -22,6 +24,8 @@ export function WalletDropdown() {
     refreshAccounts,
   } = useAccount();
   const theme = useTheme();
+  const isLight = variant === "light";
+  const buttonColor = isLight ? theme.text : "#fff";
 
   // Debug logging
   // console.log(
@@ -76,24 +80,22 @@ export function WalletDropdown() {
   if (loading) {
     return (
       <View className="flex-row items-center mx-3">
-        <Loader size={20} color="white" className="animate-spin" />
+        <Loader size={20} color={buttonColor} className="animate-spin" />
       </View>
     );
   }
 
-  // If we have accounts but no selected account, show the first account
   const displayAccount = selectedAccount || accounts[0];
   if (!displayAccount) {
     return (
       <View className="flex-row items-center mx-3">
-        <Loader size={20} color="white" className="animate-spin" />
+        <Loader size={20} color={buttonColor} className="animate-spin" />
       </View>
     );
   }
 
   return (
     <View className="relative">
-      {/* Wallet dropdown button with balance refresh */}
       <View className="flex-row items-center mx-3">
         <TouchableOpacity
           className="flex-row items-center"
@@ -101,14 +103,24 @@ export function WalletDropdown() {
           activeOpacity={0.7}
           disabled={isSelecting}
         >
-          <Text className="text-xl font-bold text-white pr-2">
-            {isSelecting ? (
-              <Loader size={20} color="white" className="animate-spin" />
-            ) : (
-              displayAccount?.name || "Select Account"
-            )}
-          </Text>
-          <ChevronDown size={16} color="#fff" className="ml-1" />
+          {isSelecting ? (
+            <Loader size={20} color={buttonColor} />
+          ) : (
+            <>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: "700",
+                  color: buttonColor,
+                  marginRight: 8,
+                }}
+                numberOfLines={1}
+              >
+                {displayAccount?.name || "Select Account"}
+              </Text>
+              <ChevronDown size={16} color={buttonColor} style={{ marginLeft: 4 }} />
+            </>
+          )}
         </TouchableOpacity>
       </View>
 

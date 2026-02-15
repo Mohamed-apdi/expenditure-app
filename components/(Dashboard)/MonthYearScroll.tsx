@@ -7,7 +7,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react-native';
-import { useLanguage, useAccount } from '~/lib';
+import { useLanguage, useAccount, useTheme } from '~/lib';
 
 const months = [
   'JAN',
@@ -25,6 +25,7 @@ const months = [
 ];
 
 type MonthYearScrollerProps = {
+  variant?: 'light' | 'dark';
   onMonthChange: (month: number, year: number) => void;
   fetchMonthData: (
     month: number,
@@ -38,6 +39,7 @@ type MonthYearScrollerProps = {
 };
 
 export default function MonthYearScroller({
+  variant = 'dark',
   onMonthChange,
   fetchMonthData,
   refreshTrigger = 0,
@@ -46,7 +48,9 @@ export default function MonthYearScroller({
   const currentYear = current.getFullYear();
   const currentMonth = current.getMonth();
   const { t } = useLanguage();
+  const theme = useTheme();
   const { selectedAccount, accounts } = useAccount();
+  const isLight = variant === 'light';
   const [monthData, setMonthData] = useState<{
     income: number;
     expense: number;
@@ -153,16 +157,34 @@ export default function MonthYearScroller({
         }}
         renderItem={({ item }) => {
           const isActive = item === selected;
+          const pillBg = isActive
+            ? isLight
+              ? theme.primary
+              : '#ffffff'
+            : 'transparent';
+          const pillText = isActive
+            ? isLight
+              ? '#fff'
+              : theme.primary
+            : isLight
+              ? theme.textSecondary
+              : 'rgba(255,255,255,0.9)';
           return (
             <TouchableOpacity
               onPress={() => setSelected(item)}
-              className={`px-4 py-2 mx-1 rounded-full ${
-                isActive ? 'bg-[#ffffff]' : 'bg-transparent'
-              }`}>
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                marginHorizontal: 4,
+                borderRadius: 20,
+                backgroundColor: pillBg,
+              }}>
               <Text
-                className={`text-sm ${
-                  isActive ? 'text-[#3b82f6] font-bold' : 'text-white'
-                }`}>
+                style={{
+                  fontSize: 13,
+                  fontWeight: isActive ? '700' : '500',
+                  color: pillText,
+                }}>
                 {item}
               </Text>
             </TouchableOpacity>
@@ -171,37 +193,97 @@ export default function MonthYearScroller({
       />
 
       {/* Balance Card */}
-      <View style={styles.balanceCard}>
+      <View
+        style={[
+          styles.balanceCard,
+          isLight && {
+            backgroundColor: theme.cardBackground,
+            borderColor: theme.border,
+            borderWidth: 1,
+            marginHorizontal: 0,
+          },
+        ]}>
         <View style={styles.balanceHeader}>
-          <Text style={styles.balanceLabel}>{t.currentBalance}</Text>
-          <Text style={styles.balanceAmount}>
+          <Text
+            style={[
+              styles.balanceLabel,
+              isLight && { color: theme.textSecondary },
+            ]}>
+            {t.currentBalance}
+          </Text>
+          <Text
+            style={[
+              styles.balanceAmount,
+              isLight && { color: theme.primary },
+            ]}>
             ${currentBalance.toLocaleString()}
           </Text>
         </View>
 
-        {/* Income and Expense Cards */}
         <View style={styles.statsContainer}>
-          {/* Income Card */}
-          <View style={[styles.statCard, styles.incomeCard]}>
-            <View style={styles.statIconContainer}>
+          <View
+            style={[
+              styles.statCard,
+              styles.incomeCard,
+              isLight && {
+                backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                borderColor: 'rgba(16, 185, 129, 0.35)',
+              },
+            ]}>
+            <View
+              style={[
+                styles.statIconContainer,
+                isLight && { backgroundColor: 'rgba(16, 185, 129, 0.2)' },
+              ]}>
               <ArrowUpRight size={20} color="#10b981" strokeWidth={2.5} />
             </View>
             <View style={[styles.statContent, { marginLeft: 12 }]}>
-              <Text style={styles.statLabel}>{t.income}</Text>
-              <Text style={styles.statValue}>
+              <Text
+                style={[
+                  styles.statLabel,
+                  isLight && { color: theme.textSecondary },
+                ]}>
+                {t.income}
+              </Text>
+              <Text
+                style={[
+                  styles.statValue,
+                  isLight && { color: theme.text },
+                ]}>
                 ${monthData.income.toLocaleString()}
               </Text>
             </View>
           </View>
 
-          {/* Expense Card */}
-          <View style={[styles.statCard, styles.expenseCard]}>
-            <View style={styles.statIconContainer}>
+          <View
+            style={[
+              styles.statCard,
+              styles.expenseCard,
+              isLight && {
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                borderColor: 'rgba(239, 68, 68, 0.35)',
+              },
+            ]}>
+            <View
+              style={[
+                styles.statIconContainer,
+                isLight && { backgroundColor: 'rgba(239, 68, 68, 0.15)' },
+              ]}>
               <ArrowDownRight size={20} color="#ef4444" strokeWidth={2.5} />
             </View>
             <View style={[styles.statContent, { marginLeft: 12 }]}>
-              <Text style={styles.statLabel}>{t.expense}</Text>
-              <Text style={styles.statValue}>
+              <Text
+                style={[
+                  styles.statLabel,
+                  isLight && { color: theme.textSecondary },
+                ]}>
+                {t.expense}
+              </Text>
+              <Text
+                style={[
+                  styles.statValue,
+                  isLight && { color: theme.text },
+                ]}>
                 ${monthData.expense.toLocaleString()}
               </Text>
             </View>

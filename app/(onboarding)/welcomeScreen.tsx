@@ -1,15 +1,23 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   Dimensions,
-  FlatList,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  runOnJS,
+} from "react-native-reanimated";
 import { ArrowRight, Wallet } from "lucide-react-native";
 import Svg, { Circle } from "react-native-svg";
 import { useLanguage, useScreenStatusBar } from "~/lib";
@@ -188,32 +196,52 @@ function NextButton({
   );
 }
 
+const SLIDE_COUNT = SLIDES.length;
+const SWIPE_THRESHOLD = 50;
+
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { t } = useLanguage();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
+  const slideOffset = useSharedValue(0);
 
   const slideTexts = [t.onboardingSlide1, t.onboardingSlide2, t.onboardingSlide3];
 
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const x = e.nativeEvent.contentOffset.x;
-    const index = Math.round(x / SCREEN_WIDTH);
-    if (index >= 0 && index <= 2) setCurrentIndex(index);
-  };
+  // Sync index to animated offset (no ref/scrollTo — works on Expo 54 / RN 0.81)
+  useEffect(() => {
+    slideOffset.value = withTiming(-currentIndex * SCREEN_WIDTH, {
+      duration: 280,
+    });
+  }, [currentIndex]);
 
   const goNext = () => {
-    if (currentIndex < 2) {
-      flatListRef.current?.scrollToOffset({
-        offset: (currentIndex + 1) * SCREEN_WIDTH,
-        animated: true,
-      });
+    if (currentIndex < SLIDE_COUNT - 1) {
       setCurrentIndex(currentIndex + 1);
     } else {
       router.push("/(onboarding)/AuthGateScreen");
     }
   };
+
+  const goToIndex = (index: number) => {
+    const clamped = Math.max(0, Math.min(SLIDE_COUNT - 1, index));
+    setCurrentIndex(clamped);
+  };
+
+  const panGesture = Gesture.Pan().onEnd((e) => {
+    "worklet";
+    const { translationX, velocityX } = e;
+    const currentSlide = Math.round(-slideOffset.value / SCREEN_WIDTH);
+    if (translationX < -SWIPE_THRESHOLD || velocityX < -200) {
+      runOnJS(goToIndex)(Math.min(SLIDE_COUNT - 1, currentSlide + 1));
+    } else if (translationX > SWIPE_THRESHOLD || velocityX > 200) {
+      runOnJS(goToIndex)(Math.max(0, currentSlide - 1));
+    }
+  });
+
+  const animatedSlideStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: slideOffset.value }],
+  }));
 
   const topHeight = SCREEN_HEIGHT * TOP_RATIO;
   const bottomHeight = SCREEN_HEIGHT * BOTTOM_RATIO;
@@ -221,35 +249,45 @@ export default function WelcomeScreen() {
   useScreenStatusBar();
 
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={{ flex: 1, backgroundColor: LIGHT_BG }}>
-        {/* Top section: light background, illustrations */}
-        <View style={{ height: topHeight, backgroundColor: LIGHT_BG }}>
-          <FlatList
-            ref={flatListRef}
-            data={SLIDES}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={onScroll}
-            scrollEventThrottle={16}
-            keyExtractor={(item) => item.key}
-            contentContainerStyle={{ height: topHeight }}
-            renderItem={({ item }) => (
-              <View
-                style={{
-                  width: SCREEN_WIDTH,
+        {/* Top section: state-driven carousel (Expo 54 safe, no scroll ref) */}
+        <GestureDetector gesture={panGesture}>
+          <View
+            style={{
+              height: topHeight,
+              width: SCREEN_WIDTH,
+              backgroundColor: LIGHT_BG,
+              overflow: "hidden",
+            }}
+          >
+            <Animated.View
+              style={[
+                {
+                  flexDirection: "row",
                   height: topHeight,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  paddingHorizontal: 32,
-                }}
-              >
-                <SlideIllustration type={item.icon} />
-              </View>
-            )}
-          />
-        </View>
+                  width: SLIDE_COUNT * SCREEN_WIDTH,
+                },
+                animatedSlideStyle,
+              ]}
+            >
+              {SLIDES.map((item) => (
+                <View
+                  key={item.key}
+                  style={{
+                    width: SCREEN_WIDTH,
+                    height: topHeight,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingHorizontal: 32,
+                  }}
+                >
+                  <SlideIllustration type={item.icon} />
+                </View>
+              ))}
+            </Animated.View>
+          </View>
+        </GestureDetector>
 
         {/* Bottom section: dark background, pagination, text, button (like image) */}
         <View
@@ -307,6 +345,6 @@ export default function WelcomeScreen() {
           </View>
         </View>
       </View>
-    </>
+    </GestureHandlerRootView>
   );
 }

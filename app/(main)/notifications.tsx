@@ -41,7 +41,7 @@ import {
   type NotificationPriority,
 } from "~/lib/services/notifications";
 
-import Toast from "react-native-toast-message";
+import { toast } from "sonner-native";
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -71,11 +71,7 @@ export default function NotificationsScreen() {
       setUnreadCount(unreadCountData);
     } catch (error) {
       console.error("Error fetching notifications:", error);
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Failed to load notifications",
-      });
+      toast.error("Error", { description: "Failed to load notifications" });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -108,11 +104,9 @@ export default function NotificationsScreen() {
         setUnreadCount((prev) => Math.max(0, prev - 1));
 
         // Show feedback for marking as read
-        Toast.show({
-          type: "info",
-          text1: "Marked as Read",
-          text2: "Notification marked as read",
-          visibilityTime: 2000,
+        toast.info("Marked as Read", {
+          description: "Notification marked as read",
+          duration: 2000,
         });
       }
 
@@ -124,19 +118,15 @@ export default function NotificationsScreen() {
         }, 100);
       } else {
         // If no action URL, show a message
-        Toast.show({
-          type: "info",
-          text1: notification.title,
-          text2: "Notification details viewed",
-          visibilityTime: 2000,
+        toast.info(notification.title, {
+          description: "Notification details viewed",
+          duration: 2000,
         });
       }
     } catch (error) {
       console.error("Error handling notification press:", error);
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Failed to mark notification as read",
+      toast.error("Error", {
+        description: "Failed to mark notification as read",
       });
     }
   };
@@ -159,17 +149,13 @@ export default function NotificationsScreen() {
       );
       setUnreadCount(0);
 
-      Toast.show({
-        type: "success",
-        text1: "Success",
-        text2: "All notifications marked as read",
+      toast.success("Success", {
+        description: "All notifications marked as read",
       });
     } catch (error) {
       console.error("Error marking all as read:", error);
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Failed to mark notifications as read",
+      toast.error("Error", {
+        description: "Failed to mark notifications as read",
       });
     }
   };
@@ -180,17 +166,13 @@ export default function NotificationsScreen() {
       await deleteNotification(notificationId);
       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
 
-      Toast.show({
-        type: "success",
-        text1: "Deleted",
-        text2: "Notification deleted successfully",
+      toast.success("Deleted", {
+        description: "Notification deleted successfully",
       });
     } catch (error) {
       console.error("Error deleting notification:", error);
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Failed to delete notification",
+      toast.error("Error", {
+        description: "Failed to delete notification",
       });
     }
   };
@@ -233,17 +215,13 @@ export default function NotificationsScreen() {
               setSelectedIds(new Set());
               setIsSelectionMode(false);
 
-              Toast.show({
-                type: "success",
-                text1: "Deleted",
-                text2: `${selectedIds.size} notification(s) deleted`,
+              toast.success("Deleted", {
+                description: `${selectedIds.size} notification(s) deleted`,
               });
             } catch (error) {
               console.error("Error deleting notifications:", error);
-              Toast.show({
-                type: "error",
-                text1: "Error",
-                text2: "Failed to delete notifications",
+              toast.error("Error", {
+                description: "Failed to delete notifications",
               });
             }
           },

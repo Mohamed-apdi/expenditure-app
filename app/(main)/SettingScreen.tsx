@@ -217,47 +217,46 @@ export default function ProfileScreen() {
       style={{ backgroundColor: theme.background }}
     >
       <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-        <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32 }}>
           {/* Header */}
-          <View className="flex-row justify-between items-center mb-6">
-            <View>
-              <Text style={{ color: theme.text, fontSize: 24, fontWeight: "bold" }}>
-                {t.settings}
-              </Text>
-              <Text style={{ color: theme.textSecondary, fontSize: 14, marginTop: 4 }}>
+          <View style={{ marginBottom: 28 }}>
+            <Text style={{ color: theme.text, fontSize: 28, fontWeight: "700", letterSpacing: -0.5 }}>
+              {t.settings}
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 15 }}>
                 Manage your account
               </Text>
+              <TouchableOpacity
+                hitSlop={12}
+                onPress={() =>
+                  router.push({
+                    pathname: "../(profile)/UpdateProfileScreen" as any,
+                    params: { userProfile: JSON.stringify(userProfile) },
+                  })
+                }
+                style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+              >
+                <Edit3 size={18} color={theme.primary} />
+                <Text style={{ color: theme.primary, fontSize: 15, fontWeight: "600" }}>Edit</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={{
-                backgroundColor: theme.cardBackground,
-                padding: 10,
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: theme.border,
-              }}
-              onPress={() =>
-                router.push({
-                  pathname: "../(profile)/UpdateProfileScreen" as any,
-                  params: { userProfile: JSON.stringify(userProfile) },
-                })
-              }
-            >
-              <Edit3 size={18} color={theme.primary} />
-            </TouchableOpacity>
           </View>
 
-          {/* Profile Card - Simplified */}
+          {/* Profile block */}
           <View
             style={{
               backgroundColor: theme.cardBackground,
-              padding: 20,
-              borderRadius: 16,
-              marginBottom: 24,
+              borderRadius: 20,
+              paddingVertical: 24,
+              paddingHorizontal: 20,
+              marginBottom: 28,
               alignItems: "center",
+              borderWidth: 1,
+              borderColor: theme.border,
             }}
           >
-            <View className="relative mb-4">
+            <View style={{ position: "relative" }}>
               <Image
                 source={{
                   uri:
@@ -266,25 +265,25 @@ export default function ProfileScreen() {
                       encodeURIComponent(userProfile.fullName || "User"),
                 }}
                 style={{
-                  width: 100,
-                  height: 100,
-                  borderRadius: 50,
-                  borderWidth: 3,
-                  borderColor: theme.primary,
+                  width: 88,
+                  height: 88,
+                  borderRadius: 44,
+                  borderWidth: 2,
+                  borderColor: theme.border,
                 }}
               />
               <TouchableOpacity
                 style={{
                   position: "absolute",
-                  bottom: 0,
-                  right: 0,
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
+                  bottom: -2,
+                  right: -2,
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
                   backgroundColor: theme.primary,
                   justifyContent: "center",
                   alignItems: "center",
-                  borderWidth: 3,
+                  borderWidth: 2,
                   borderColor: theme.cardBackground,
                 }}
                 onPress={() =>
@@ -300,42 +299,50 @@ export default function ProfileScreen() {
                 <Camera size={14} color={theme.primaryText} />
               </TouchableOpacity>
             </View>
-
-            <Text style={{ color: theme.text, fontSize: 20, fontWeight: "bold", marginBottom: 4 }}>
+            <Text style={{ color: theme.text, fontSize: 18, fontWeight: "700", marginTop: 14, marginBottom: 4 }}>
               {userProfile.fullName || t.noNameProvided}
             </Text>
-            <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
+            <Text style={{ color: theme.textSecondary, fontSize: 14 }} numberOfLines={1}>
               {userProfile.email}
             </Text>
           </View>
 
-          {/* Quick Actions */}
-          <View style={{ gap: 12, marginBottom: 24 }}>
+          {/* Settings group - single card with rows */}
+          <View
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderRadius: 20,
+              overflow: "hidden",
+              marginBottom: 28,
+              borderWidth: 1,
+              borderColor: theme.border,
+            }}
+          >
             {/* Language */}
             <TouchableOpacity
               style={{
-                backgroundColor: theme.cardBackground,
-                padding: 16,
-                borderRadius: 16,
                 flexDirection: "row",
                 alignItems: "center",
+                paddingVertical: 16,
+                paddingHorizontal: 18,
               }}
               onPress={() => setShowLanguageModal(true)}
+              activeOpacity={0.7}
             >
               <View
                 style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  backgroundColor: '#dcfce7',
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: theme.primary + "18",
                   justifyContent: "center",
                   alignItems: "center",
-                  marginRight: 12,
+                  marginRight: 14,
                 }}
               >
-                <Globe size={20} color="#16a34a" />
+                <Globe size={20} color={theme.primary} />
               </View>
-              <View className="flex-1">
+              <View style={{ flex: 1 }}>
                 <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600" }}>
                   {t.languages || "Language"}
                 </Text>
@@ -346,31 +353,33 @@ export default function ProfileScreen() {
               <ChevronRight size={20} color={theme.textMuted} />
             </TouchableOpacity>
 
+            <View style={{ height: 1, backgroundColor: theme.border, marginLeft: 72 }} />
+
             {/* Change Password */}
             <TouchableOpacity
               style={{
-                backgroundColor: theme.cardBackground,
-                padding: 16,
-                borderRadius: 16,
                 flexDirection: "row",
                 alignItems: "center",
+                paddingVertical: 16,
+                paddingHorizontal: 18,
               }}
               onPress={() => setShowChangePassword(true)}
+              activeOpacity={0.7}
             >
               <View
                 style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  backgroundColor: '#dbeafe',
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: theme.primary + "18",
                   justifyContent: "center",
                   alignItems: "center",
-                  marginRight: 12,
+                  marginRight: 14,
                 }}
               >
-                <Key size={20} color="#3b82f6" />
+                <Key size={20} color={theme.primary} />
               </View>
-              <View className="flex-1">
+              <View style={{ flex: 1 }}>
                 <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600" }}>
                   {t.changePassword}
                 </Text>
@@ -381,14 +390,15 @@ export default function ProfileScreen() {
               <ChevronRight size={20} color={theme.textMuted} />
             </TouchableOpacity>
 
-            {/* Profile Info */}
+            <View style={{ height: 1, backgroundColor: theme.border, marginLeft: 72 }} />
+
+            {/* Contact Information */}
             <TouchableOpacity
               style={{
-                backgroundColor: theme.cardBackground,
-                padding: 16,
-                borderRadius: 16,
                 flexDirection: "row",
                 alignItems: "center",
+                paddingVertical: 16,
+                paddingHorizontal: 18,
               }}
               onPress={() =>
                 router.push({
@@ -396,21 +406,22 @@ export default function ProfileScreen() {
                   params: { userProfile: JSON.stringify(userProfile) },
                 })
               }
+              activeOpacity={0.7}
             >
               <View
                 style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  backgroundColor: '#fef3c7',
+                  width: 40,
+                  height: 40,
+                  borderRadius: 12,
+                  backgroundColor: theme.primary + "18",
                   justifyContent: "center",
                   alignItems: "center",
-                  marginRight: 12,
+                  marginRight: 14,
                 }}
               >
-                <User size={20} color="#d97706" />
+                <User size={20} color={theme.primary} />
               </View>
-              <View className="flex-1">
+              <View style={{ flex: 1 }}>
                 <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600" }}>
                   {t.contactInformation || "Contact Info"}
                 </Text>
@@ -422,20 +433,24 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Sign Out */}
+          {/* Sign Out - subtle outline style */}
           <TouchableOpacity
             style={{
-              backgroundColor: '#fee2e2',
-              padding: 16,
-              borderRadius: 16,
+              paddingVertical: 16,
+              paddingHorizontal: 20,
+              borderRadius: 14,
+              borderWidth: 1.5,
+              borderColor: "rgba(220, 38, 38, 0.4)",
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "center",
+              backgroundColor: "rgba(220, 38, 38, 0.06)",
             }}
             onPress={handleLogout}
+            activeOpacity={0.7}
           >
-            <LogOut size={20} color="#dc2626" />
-            <Text style={{ color: "#dc2626", fontSize: 16, fontWeight: "600", marginLeft: 8 }}>
+            <LogOut size={20} color="#b91c1c" strokeWidth={2} />
+            <Text style={{ color: "#b91c1c", fontSize: 16, fontWeight: "600", marginLeft: 10 }}>
               {t.signOut}
             </Text>
           </TouchableOpacity>
