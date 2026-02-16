@@ -1,3 +1,6 @@
+/**
+ * Wraps Lucide icons so they accept NativeWind className for styling
+ */
 import type { LucideIcon } from 'lucide-react-native';
 import { cssInterop } from 'nativewind';
 
