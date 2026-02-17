@@ -1,3 +1,6 @@
+/**
+ * Android navigation bar styling to match app theme (light/dark)
+ */
 import * as NavigationBar from "expo-navigation-bar";
 import { Platform } from "react-native";
 import { NAV_THEME } from "../config/theme/constants";
