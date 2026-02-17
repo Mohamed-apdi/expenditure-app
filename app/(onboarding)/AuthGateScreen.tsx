@@ -131,48 +131,56 @@ export default function AuthGateScreen() {
         options: { redirectTo: redirectUrl },
       });
       if (error) throw error;
-      if (data.url) {
-        const result = await WebBrowser.openAuthSessionAsync(
-          data.url,
-          redirectUrl
-        );
-        if (result.type === "success") {
-          const url = new URL(result.url);
-          const params = new URLSearchParams(url.hash.substring(1));
-          let access_token = params.get("access_token");
-          let refresh_token = params.get("refresh_token");
-          if (!access_token || !refresh_token) {
-            const q = new URLSearchParams(url.search);
-            access_token = q.get("access_token");
-            refresh_token = q.get("refresh_token");
-          }
-          if (access_token && refresh_token) {
-            const { data: sessionData, error: sessionError } =
-              await supabase.auth.setSession({ access_token, refresh_token });
-            if (sessionError) throw sessionError;
-            if (sessionData.session && sessionData.user?.id) {
-              await setItemAsync("token", sessionData.session.access_token);
-              await setItemAsync("userId", sessionData.user.id);
-              await setItemAsync(
-                "supabase_session",
-                JSON.stringify(sessionData.session)
-              );
-              try {
-                await ensureDefaultAccount(sessionData.user.id);
-              } catch {
-                // Don't block sign-in if default account creation fails
-              }
-              toast.success(t.loginSuccessfully);
-              router.replace("/(main)/Dashboard");
-            }
-          }
-        } else if (result.type === "cancel") {
-          toast.info("Sign in cancelled");
+      if (!data?.url) {
+        toast.error(t.socialSignInFailed, {
+          description: t.socialSignInNoUrl,
+        });
+        return;
+      }
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        redirectUrl
+      );
+      if (result.type === "success") {
+        const url = new URL(result.url);
+        const params = new URLSearchParams(url.hash.substring(1));
+        let access_token = params.get("access_token");
+        let refresh_token = params.get("refresh_token");
+        if (!access_token || !refresh_token) {
+          const q = new URLSearchParams(url.search);
+          access_token = q.get("access_token");
+          refresh_token = q.get("refresh_token");
         }
+        if (access_token && refresh_token) {
+          const { data: sessionData, error: sessionError } =
+            await supabase.auth.setSession({ access_token, refresh_token });
+          if (sessionError) throw sessionError;
+          if (sessionData.session && sessionData.user?.id) {
+            await setItemAsync("token", sessionData.session.access_token);
+            await setItemAsync("userId", sessionData.user.id);
+            await setItemAsync(
+              "supabase_session",
+              JSON.stringify(sessionData.session)
+            );
+            try {
+              await ensureDefaultAccount(sessionData.user.id);
+            } catch {
+              // Don't block sign-in if default account creation fails
+            }
+            toast.success(t.loginSuccessfully);
+            router.replace("/(main)/Dashboard");
+          }
+        } else {
+          toast.error(t.socialSignInFailed, {
+            description: t.socialSignInTokensMissing,
+          });
+        }
+      } else if (result.type === "cancel" || result.type === "dismiss") {
+        toast.info(t.socialSignInCancelled);
       }
     } catch (err: any) {
-      toast.error("Sign in failed", {
-        description: err?.message || "An error occurred",
+      toast.error(t.socialSignInFailed, {
+        description: err?.message || t.socialSignInErrorOccurred,
       });
     } finally {
       setSocialLoading(null);

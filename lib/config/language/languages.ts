@@ -114,6 +114,11 @@ export const LANGUAGES = {
     fullNameAlreadyTaken: "Full name already taken",
     emailAlreadyRegistered: "Email already registered",
     socialSignupFailed: "Social signup failed.",
+    socialSignInFailed: "Sign in failed",
+    socialSignInCancelled: "Sign in cancelled",
+    socialSignInErrorOccurred: "An error occurred",
+    socialSignInTokensMissing: "Sign in could not be completed. Please try again.",
+    socialSignInNoUrl: "Could not start sign in. Please try again.",
 
     // DashboardScreen translations
     recentTransactions: "Transactions",
@@ -905,6 +910,11 @@ export const LANGUAGES = {
     fullNameAlreadyTaken: "Magaca buuxa horey u la qaaday",
     emailAlreadyRegistered: "Emailka horey u la diiwaangeliyay",
     socialSignupFailed: "Diiwaangelinta akoonka waa guuldarreysatay.",
+    socialSignInFailed: "Galitaanku waa guuldarreystay",
+    socialSignInCancelled: "Galitaanku waa la joojiyay",
+    socialSignInErrorOccurred: "Wax khalad ah ayaa dhacay",
+    socialSignInTokensMissing: "Galitaanku lama dhammeyn karin. Fadlan isku day mar kale.",
+    socialSignInNoUrl: "Galitaanka lama bilaabin karin. Fadlan isku day mar kale.",
 
     // DashboardScreen translations
     recentTransactions: "Dhaqdhaqaaqa",

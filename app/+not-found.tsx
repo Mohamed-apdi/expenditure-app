@@ -1,11 +1,15 @@
-import { Link, Stack } from "expo-router";
-import { View, Dimensions } from "react-native";
+import { Stack, useRouter } from "expo-router";
+import { View, TouchableOpacity } from "react-native";
 import { Text } from "~/components/ui/text";
 import { Ionicons } from "@expo/vector-icons";
 
-const { width, height } = Dimensions.get("window");
-
 export default function NotFoundScreen() {
+  const router = useRouter();
+
+  // Navigate to app root - index will redirect based on auth:
+  // logged in → Dashboard, not logged in → welcome/auth flow
+  const goToSafeHome = () => router.replace("/");
+
   return (
     <>
       <Stack.Screen
@@ -43,8 +47,8 @@ export default function NotFoundScreen() {
             have been moved, deleted, or the URL might be incorrect.
           </Text>
 
-          {/* Action Button */}
-          <Link href="/(main)/Dashboard" className="mb-6">
+          {/* Action Button - goes to app root; auth check there routes to Dashboard or login */}
+          <TouchableOpacity onPress={goToSafeHome} className="mb-6" activeOpacity={0.8}>
             <View className="flex-row items-center bg-blue-500 px-8 py-4 rounded-xl shadow-lg shadow-blue-500/30">
               <Ionicons
                 name="home-outline"
@@ -56,14 +60,14 @@ export default function NotFoundScreen() {
                 Go to Home
               </Text>
             </View>
-          </Link>
+          </TouchableOpacity>
 
-          {/* Secondary Action */}
-          <Link href="/(main)/Dashboard" className="p-3">
+          {/* Secondary Action - same safe navigation for unauthenticated users (e.g. failed OAuth) */}
+          <TouchableOpacity onPress={goToSafeHome} className="p-3">
             <Text className="text-indigo-600 text-base font-medium underline">
-              ← Go back to previous page
+              ← Back to app
             </Text>
-          </Link>
+          </TouchableOpacity>
         </View>
 
         {/* Footer */}

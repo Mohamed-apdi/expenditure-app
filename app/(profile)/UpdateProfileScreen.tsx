@@ -249,6 +249,20 @@ export default function UpdateProfileScreen() {
 
   const pickImage = async (useCamera: boolean) => {
     try {
+      if (useCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert(t.error, t.permissionToAccessCamera || "Camera permission is required");
+          return;
+        }
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== "granted") {
+          Alert.alert(t.error, t.permissionToAccessCamera || "Photo library permission is required");
+          return;
+        }
+      }
+
       let result;
 
       if (useCamera) {

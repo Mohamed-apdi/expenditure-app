@@ -6,9 +6,9 @@ import {
   ScrollView,
   TextInput,
   Modal,
-  SafeAreaView,
   FlatList,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { X, ChevronDown, Check, DollarSign } from "lucide-react-native";
 import { useLanguage } from "~/lib";
 import { useTheme } from "~/lib";
