@@ -1,3 +1,7 @@
+/**
+ * Notification service: scheduling and handling budget, subscription, and reminder notifications
+ * Uses Expo Notifications and TaskManager; no-op in Expo Go
+ */
 import * as Notifications from "expo-notifications";
 import { SchedulableTriggerInputTypes } from "expo-notifications";
 import * as TaskManager from "expo-task-manager";
