@@ -1,4 +1,6 @@
-// components/DashboardCards.tsx
+/**
+ * Dashboard cards: NetWorthCard and BudgetCard for dashboard summary
+ */
 import { View, Text } from "react-native";
 import { TrendingUp, Wallet, PiggyBank } from "lucide-react-native";
 
