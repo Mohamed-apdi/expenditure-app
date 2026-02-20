@@ -37,11 +37,25 @@ function sortIds(ids: string[], byId: Record<string, LocalAccount>): string[] {
   });
 }
 
+/** Convert store row to UI Account (strip local metadata). */
+export function toAccount(row: LocalAccount): Account {
+  const {
+    deleted_at: _da,
+    __local_status: _ls,
+    __local_updated_at: _lu,
+    __last_error: _le,
+    __remote_updated_at: _ru,
+    ...account
+  } = row;
+  return account as Account;
+}
+
 export function selectAccounts(userId: string): LocalAccount[] {
   const state = accounts$.get();
   const { byId, allIds } = state;
+  const ids = Array.isArray(allIds) ? allIds : [];
 
-  return allIds
+  return ids
     .map((id) => byId[id])
     .filter(
       (row): row is LocalAccount =>
@@ -135,4 +149,3 @@ export function deleteAccountLocal(id: string): void {
     return { ...state, byId: nextById, allIds: nextAllIds };
   });
 }
-

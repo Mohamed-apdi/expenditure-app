@@ -116,6 +116,20 @@ describe("legendSync", () => {
     expect(fromSpy).not.toHaveBeenCalled();
   });
 
+  it("isOfflineGateLocked returns true when NetInfo reports offline", async () => {
+    const NetInfo = require("@react-native-community/netinfo").default;
+    (NetInfo.fetch as jest.Mock).mockResolvedValueOnce({ isConnected: false });
+    const locked = await isOfflineGateLocked();
+    expect(locked).toBe(true);
+  });
+
+  it("isOfflineGateLocked returns false when NetInfo reports online", async () => {
+    const NetInfo = require("@react-native-community/netinfo").default;
+    (NetInfo.fetch as jest.Mock).mockResolvedValueOnce({ isConnected: true });
+    const locked = await isOfflineGateLocked();
+    expect(locked).toBe(false);
+  });
+
   it("delete-vs-modify applies delete wins and clears conflicts", async () => {
     const now = new Date().toISOString();
 

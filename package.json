@@ -1,7 +1,7 @@
 {
   "name": "Qoondeeye",
   "main": "index.js",
-  "version": "1.8.1",
+  "version": "2.0.1",
   "scripts": {
     "dev": "expo start -c",
     "dev:web": "expo start -c --web",
@@ -74,6 +74,7 @@
     "react-native-circular-progress": "^1.4.1",
     "react-native-clean-project": "^4.0.3",
     "react-native-gesture-handler": "~2.28.0",
+    "react-native-get-random-values": "^2.0.0",
     "react-native-gifted-charts": "^1.4.63",
     "react-native-html-to-pdf": "^0.12.0",
     "react-native-keyboard-aware-scroll-view": "^0.9.5",

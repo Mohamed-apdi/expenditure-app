@@ -28,6 +28,7 @@ import {
   Briefcase,
   Shield,
   User,
+  Plus,
 } from 'lucide-react-native';
 import {
   SafeAreaView,
@@ -97,12 +98,15 @@ interface SavingsScreenProps {
   accounts?: Account[];
   userId?: string | null;
   onRefresh?: () => Promise<void>;
+  /** When set (e.g. from Budget screen), show only goals for this account (same as Dashboard). */
+  selectedAccountId?: string | null;
 }
 
 export default function SavingsScreen({
   accounts: propAccounts,
   userId: propUserId,
   onRefresh: propOnRefresh,
+  selectedAccountId: propSelectedAccountId,
 }: SavingsScreenProps = {}) {
   const theme = useTheme();
   const { t } = useLanguage();
@@ -206,16 +210,20 @@ export default function SavingsScreen({
     }
   }, []);
 
-  // Sync with parent props when they change
+  // Sync with parent props when they change; respect selectedAccountId from app (e.g. Budget/Dashboard)
   useEffect(() => {
     if (propAccounts !== undefined) {
       setAccounts(propAccounts);
-      // Set default selected account if not already set and accounts are available
-      if (propAccounts.length > 0 && !selectedAccount) {
-        setSelectedAccount(propAccounts[0]);
+      if (propAccounts.length > 0) {
+        if (propSelectedAccountId) {
+          const match = propAccounts.find((a) => a.id === propSelectedAccountId);
+          setSelectedAccount(match ?? propAccounts[0]);
+        } else if (!selectedAccount) {
+          setSelectedAccount(propAccounts[0]);
+        }
       }
     }
-  }, [propAccounts]);
+  }, [propAccounts, propSelectedAccountId]);
 
   useEffect(() => {
     if (propUserId !== undefined && propUserId !== null) {
@@ -443,14 +451,25 @@ export default function SavingsScreen({
     return theme.danger; // Red when far from goal
   };
 
+  // Filter by selected account when provided (same as Dashboard)
+  const goalsForAccount = propSelectedAccountId
+    ? goals.filter((g) => g.account_id === propSelectedAccountId)
+    : goals;
+  const displayTotalSavings = propSelectedAccountId
+    ? goalsForAccount.filter((g) => g.is_active).reduce((sum, g) => sum + (g.current_amount || 0), 0)
+    : totalSavings;
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: theme.background }}
+      edges={['left', 'right', 'bottom']}
+    >
       <ScrollView
         className="flex-1"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }>
-        <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
           {/* Header */}
           <View className="flex-row justify-between items-center mb-6">
             <View>
@@ -468,27 +487,10 @@ export default function SavingsScreen({
                   fontSize: 14,
                   marginTop: 4,
                 }}>
-                {goals.filter((g) => g.is_active).length} active •{' '}
-                {goals.filter((g) => !g.is_active).length} inactive
+                {goalsForAccount.filter((g) => g.is_active).length} active •{' '}
+                {goalsForAccount.filter((g) => !g.is_active).length} inactive
               </Text>
             </View>
-            <TouchableOpacity
-              style={{
-                backgroundColor: theme.primary,
-                borderRadius: 12,
-                paddingVertical: 12,
-                paddingHorizontal: 20,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-                elevation: 3,
-              }}
-              onPress={openAddModal}>
-              <Text style={{ color: theme.primaryText, fontWeight: '600' }}>
-                {t.addGoal}
-              </Text>
-            </TouchableOpacity>
           </View>
 
           {/* Total Savings Card - Simplified */}
@@ -526,15 +528,15 @@ export default function SavingsScreen({
                 fontWeight: 'bold',
                 marginBottom: 4,
               }}>
-              ${totalSavings.toFixed(2)}
+              ${displayTotalSavings.toFixed(2)}
             </Text>
             <Text
               style={{ color: theme.primaryText, fontSize: 13, opacity: 0.8 }}>
               {t.acrossActiveGoals?.replace(
                 '{count}',
-                goals.filter((g) => g.is_active).length.toString(),
+                goalsForAccount.filter((g) => g.is_active).length.toString(),
               ) ||
-                `Across ${goals.filter((g) => g.is_active).length} active goals`}
+                `Across ${goalsForAccount.filter((g) => g.is_active).length} active goals`}
             </Text>
           </View>
 
@@ -550,7 +552,7 @@ export default function SavingsScreen({
               {t.activeGoals || 'Active Goals'}
             </Text>
 
-            {goals.filter((goal) => goal.is_active).length === 0 ? (
+            {goalsForAccount.filter((goal) => goal.is_active).length === 0 ? (
               <View
                 style={{
                   paddingVertical: 48,
@@ -577,7 +579,7 @@ export default function SavingsScreen({
               </View>
             ) : (
               <View style={{ gap: 12 }}>
-                {goals
+                {goalsForAccount
                   .filter((goal) => goal.is_active)
                   .map((goal) => {
                     const progress = calculateProgress(
@@ -811,7 +813,7 @@ export default function SavingsScreen({
           </View>
 
           {/* Inactive Goals - Simplified */}
-          {goals.filter((goal) => !goal.is_active).length > 0 && (
+          {goalsForAccount.filter((goal) => !goal.is_active).length > 0 && (
             <View style={{ marginBottom: 24 }}>
               <Text
                 style={{
@@ -823,7 +825,7 @@ export default function SavingsScreen({
                 {t.inactiveGoals || 'Inactive Goals'}
               </Text>
               <View style={{ gap: 12 }}>
-                {goals
+                {goalsForAccount
                   .filter((goal) => !goal.is_active)
                   .map((goal) => {
                     const progress = calculateProgress(
@@ -912,6 +914,40 @@ export default function SavingsScreen({
           )}
         </View>
       </ScrollView>
+
+      {/* Add Goal FAB - bottom right (same position as Budget/Subscriptions) */}
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          bottom: 18,
+          right: 20,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: 14,
+          paddingHorizontal: 20,
+          borderRadius: 28,
+          backgroundColor: theme.primary,
+          gap: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.25,
+          shadowRadius: 6,
+          elevation: 8,
+        }}
+        onPress={openAddModal}
+      >
+        <Plus size={22} color={theme.primaryText} />
+        <Text
+          style={{
+            color: theme.primaryText,
+            fontSize: 15,
+            fontWeight: '600',
+          }}
+        >
+          {t.addGoal}
+        </Text>
+      </TouchableOpacity>
 
       {/* Add/Edit Goal Modal - Simplified */}
       <Modal

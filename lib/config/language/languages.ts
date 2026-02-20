@@ -200,6 +200,7 @@ export const LANGUAGES = {
     // Accounts screen
     accounts: "Accounts",
     addAccount: "Add Account",
+    addNewAccount: "Add New Account",
     assets: "Assets",
     liabilities: "Liabilities",
     total: "Total",
@@ -1000,6 +1001,7 @@ export const LANGUAGES = {
     accounts: "Akoonaadka",
     account: "Akoonka",
     addAccount: "Ku dar Akoon",
+    addNewAccount: "Ku dar Akoon Cusub",
     assets: "Hantida",
     liabilities: "Deymaha",
     total: "Wadar",

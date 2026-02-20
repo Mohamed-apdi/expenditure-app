@@ -11,6 +11,13 @@ export default function Index() {
   useEffect(() => {
     const checkSession = async () => {
       try {
+        // Use cached session first (works offline; no network)
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          setHasSession(true);
+          setChecking(false);
+          return;
+        }
         const sessionStr = await getItemAsync("supabase_session");
         if (sessionStr) {
           const session = JSON.parse(sessionStr);
@@ -20,6 +27,7 @@ export default function Index() {
           });
           if (!error) {
             setHasSession(true);
+            setChecking(false);
             return;
           }
         }

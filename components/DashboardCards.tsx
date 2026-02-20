@@ -8,7 +8,7 @@ export const NetWorthCard = ({ netWorth }: { netWorth: number }) => (
   <View className="bg-blue-50 p-4 rounded-xl">
     <View className="flex-row justify-between items-center mb-2">
       <Text className="text-blue-800 font-medium">Net Worth</Text>
-      <Wallet size={20} color="#1e40af" />
+      <Wallet size={20} color="#40A5E7" />
     </View>
     <Text className="text-2xl font-bold text-blue-900">
       ${netWorth.toLocaleString()}

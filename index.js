@@ -1,3 +1,4 @@
+import "react-native-get-random-values"; // Must be first so uuid v4 works (crypto.getRandomValues polyfill)
 import "react-native-url-polyfill/auto";
 import "react-native-gesture-handler";
 

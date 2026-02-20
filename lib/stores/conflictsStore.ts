@@ -41,6 +41,14 @@ export function selectConflictsCount(): number {
   return selectConflicts().length;
 }
 
+export function selectConflictById(conflictId: string): ConflictRecord | undefined {
+  const state = conflicts$.get();
+  const row = state.byId[conflictId];
+  if (!row || row.deleted_at != null || row.__local_status !== "conflict")
+    return undefined;
+  return row;
+}
+
 export function addConflictLocal(params: {
   entityType: SyncableEntityType;
   entityId: string;

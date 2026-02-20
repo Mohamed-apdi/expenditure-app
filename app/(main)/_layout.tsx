@@ -11,7 +11,8 @@ export default function MainLayout() {
       <Tabs.Screen name="ReportsScreen" options={{ title: "Reports" }} />
       <Tabs.Screen name="BudgetScreen" options={{ title: "Budget" }} />
       <Tabs.Screen name="Accounts" options={{ title: "Accounts" }} />
-      {/*<Tabs.Screen name="DummyAdd" options={{ href: null }} />*/}
+      <Tabs.Screen name="SettingScreen" options={{ href: null }} />
+      <Tabs.Screen name="ConflictsScreen" options={{ href: null }} />
     </Tabs>
   );
 }

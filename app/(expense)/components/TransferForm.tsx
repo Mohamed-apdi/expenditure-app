@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   TextInput,
-  ActivityIndicator,
 } from "react-native";
 import {
   ArrowRight,
@@ -260,41 +259,7 @@ export default function TransferForm({
         </TouchableOpacity>
       )}
 
-
-      {/* Transfer Button */}
-      <TouchableOpacity
-        style={{
-          backgroundColor:
-            fromAccount &&
-            toAccount &&
-            transferAmount &&
-            Number.parseFloat(transferAmount) > 0 &&
-            Number.parseFloat(transferAmount) <= fromAccount.amount
-              ? theme.primary
-              : theme.stepInactive,
-          borderRadius: 12,
-          paddingVertical: 14,
-          alignItems: "center",
-          marginBottom: 16,
-        }}
-        onPress={handleTransfer}
-        disabled={
-          !fromAccount ||
-          !toAccount ||
-          !transferAmount ||
-          Number.parseFloat(transferAmount) <= 0 ||
-          (fromAccount && Number.parseFloat(transferAmount) > fromAccount.amount) ||
-          isSubmitting
-        }
-      >
-        {isSubmitting ? (
-          <ActivityIndicator color="white" size="small" />
-        ) : (
-          <Text style={{ color: "white", fontSize: 16, fontWeight: "600" }}>
-            {t.completeTransfer || "Transfer"}
-          </Text>
-        )}
-      </TouchableOpacity>
+      {/* Transfer action is in parent: bottom-right Save/Transfer button */}
 
       {/* Transfer Status */}
       {transferAmount && Number.parseFloat(transferAmount) > 0 && fromAccount && (

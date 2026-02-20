@@ -84,18 +84,21 @@ const AccountDetails = () => {
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      t.deleteAccount,
-      `${t.deleteAccountConfirm} "${account?.name}"? ${t.deleteAccountWarning}`,
-      [
-        {
-          text: t.cancel,
-          style: "cancel",
-        },
-        {
-          text: t.delete,
-          style: "destructive",
-          onPress: async () => {
+    const title = t.deleteAccount || "Delete Account";
+    const message =
+      (t.deleteAccountConfirm || "Are you sure you want to delete") +
+      ` "${account?.name}"?\n\n` +
+      (t.deleteAccountWarning ||
+        "This action cannot be undone and will also delete all associated transactions, transfers, and budgets.");
+    Alert.alert(title, message, [
+      {
+        text: t.cancel || "Cancel",
+        style: "cancel",
+      },
+      {
+        text: t.delete || "Delete",
+        style: "destructive",
+        onPress: async () => {
             try {
               setLoading(true);
 
@@ -179,10 +182,9 @@ const AccountDetails = () => {
             } finally {
               setLoading(false);
             }
-          },
+          }
         },
-      ]
-    );
+    ]);
   };
 
   if (loading || !account) {
@@ -209,12 +211,14 @@ const AccountDetails = () => {
 
   return (
     <SafeAreaView
-      className="flex-1 p-safe"
+      className="flex-1"
       style={{ backgroundColor: theme.background }}
+      edges={["left", "right", "top", "bottom"]}
     >
-      {/* Header */}
+      <View style={{ flex: 1 }}>
+      {/* Header - reduced top padding for tighter top space */}
       <View
-        className="flex-row items-center justify-between p-6 border-b"
+        className="flex-row items-center justify-between px-4 py-3 border-b"
         style={{ borderColor: theme.border }}
       >
         <TouchableOpacity onPress={() => router.back()} className="p-2">
@@ -224,12 +228,6 @@ const AccountDetails = () => {
           {account.name}
         </Text>
         <View className="flex-row gap-2">
-          <TouchableOpacity
-            className="bg-blue-500 rounded-lg py-3 px-3 items-center"
-            onPress={() => router.push(`/account-details/edit/${id}`)}
-          >
-            <Text className="text-white">{t.editAccount}</Text>
-          </TouchableOpacity>
           <TouchableOpacity
             className="bg-red-500 rounded-lg py-3 px-3 items-center"
             onPress={handleDeleteAccount}
@@ -401,6 +399,41 @@ const AccountDetails = () => {
           ))
         )}
       </ScrollView>
+
+      {/* Edit Account FAB - bottom right (same position as other screens) */}
+      <TouchableOpacity
+        style={{
+          position: "absolute",
+          bottom: 18,
+          right: 20,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          paddingVertical: 14,
+          paddingHorizontal: 20,
+          borderRadius: 28,
+          backgroundColor: theme.primary,
+          gap: 8,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.25,
+          shadowRadius: 6,
+          elevation: 8,
+        }}
+        onPress={() => router.push(`/account-details/edit/${id}`)}
+      >
+        <Pen size={22} color={theme.primaryText} />
+        <Text
+          style={{
+            color: theme.primaryText,
+            fontSize: 15,
+            fontWeight: "600",
+          }}
+        >
+          {t.editAccount}
+        </Text>
+      </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };

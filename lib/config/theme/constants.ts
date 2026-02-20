@@ -7,6 +7,8 @@ export const APP_COLORS = {
   primary: "#40A5E7",
   /** Primary blue for dark mode. */
   primaryDark: "#40A5E7",
+  /** Darker blue for tabs/segments (active state) — solid, no opacity. */
+  tabActive: "#40A5E7",
   /** Light surface for cards and inputs. */
   inputBg: "#F8FAFC",
   /** Border color light. */
@@ -43,6 +45,7 @@ export const NAV_THEME = {
 
     // Action colors
     primary: APP_COLORS.primary,
+    tabActive: APP_COLORS.tabActive,
     primaryText: "#FFFFFF",
     accent: APP_COLORS.primary,
     accentText: "#FFFFFF",
@@ -96,6 +99,7 @@ export const NAV_THEME = {
 
     // Action colors
     primary: APP_COLORS.primaryDark,
+    tabActive: APP_COLORS.tabActive,
     primaryText: "#FFFFFF",
     accent: APP_COLORS.primaryDark,
     accentText: "#FFFFFF",

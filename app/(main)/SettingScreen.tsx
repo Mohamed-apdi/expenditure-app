@@ -32,8 +32,10 @@ import { useTheme, useScreenStatusBar } from "~/lib";
 import { useLanguage } from "~/lib";
 import {
   fetchProfile,
+  useSyncStatus,
   type Profile,
 } from "~/lib";
+import { SyncStatusIndicator } from "~/components/SyncStatusIndicator";
 
 type PasswordData = {
   currentPassword: string;
@@ -44,6 +46,7 @@ type PasswordData = {
 export default function ProfileScreen() {
   const router = useRouter();
   const { t, language, setLanguage } = useLanguage();
+  const syncState = useSyncStatus();
   const [userProfile, setUserProfile] = useState<UserProfile>({
     fullName: "",
     email: "",
@@ -318,6 +321,71 @@ export default function ProfileScreen() {
               borderColor: theme.border,
             }}
           >
+            {/* Sync status */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                paddingVertical: 16,
+                paddingHorizontal: 18,
+              }}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600" }}>
+                  Sync status
+                </Text>
+                <View style={{ marginTop: 6 }}>
+                  <SyncStatusIndicator />
+                </View>
+                {syncState.pendingCount > 0 && (
+                  <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 2 }}>
+                    {syncState.pendingCount} pending
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            {(syncState.conflictsCount ?? 0) > 0 && (
+              <>
+                <View style={{ height: 1, backgroundColor: theme.border, marginLeft: 72 }} />
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 16,
+                    paddingHorizontal: 18,
+                  }}
+                  onPress={() => router.push("/(main)/ConflictsScreen")}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 12,
+                      backgroundColor: "#ef444418",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      marginRight: 14,
+                    }}
+                  >
+                    <Text style={{ color: "#ef4444", fontSize: 18, fontWeight: "700" }}>!</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600" }}>
+                      Resolve conflicts
+                    </Text>
+                    <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 2 }}>
+                      {syncState.conflictsCount} conflict{syncState.conflictsCount === 1 ? "" : "s"} to resolve
+                    </Text>
+                  </View>
+                  <ChevronRight size={20} color={theme.textMuted} />
+                </TouchableOpacity>
+              </>
+            )}
+
+            <View style={{ height: 1, backgroundColor: theme.border, marginLeft: 72 }} />
+
             {/* Language */}
             <TouchableOpacity
               style={{

@@ -14,7 +14,9 @@ import { transfers$ } from "../stores/transfersStore";
 import { profiles$ } from "../stores/profileStore";
 import {
   addConflictLocal,
+  resolveConflictLocal,
   resolveConflictsForEntity,
+  selectConflictById,
   selectConflictsCount,
 } from "../stores/conflictsStore";
 import {
@@ -72,10 +74,11 @@ async function getCurrentUserId(): Promise<string | null> {
   return data.user.id;
 }
 
+/** When true, sync (push/pull) is skipped. Wired to connectivity: locked when offline. */
 export async function isOfflineGateLocked(): Promise<boolean> {
-  // TODO: Wire to real offline security gate when implemented.
-  // For now, always unlocked so sync can proceed.
-  return false;
+  const net = await NetInfo.fetch();
+  const connected = net.isConnected ?? false;
+  return !connected;
 }
 
 async function computePendingCount(): Promise<number> {
@@ -220,6 +223,23 @@ function syncableEntityTypeFor(table: SyncEntity): SyncableEntityType {
     case "profiles":
       return "profile";
   }
+}
+
+function tableForEntityType(entityType: SyncableEntityType): SyncEntity {
+  const map: Record<SyncableEntityType, SyncEntity> = {
+    account: "accounts",
+    account_group: "account_groups",
+    account_type: "account_types",
+    expense: "expenses",
+    transaction: "transactions",
+    transfer: "transfers",
+    budget: "budgets",
+    goal: "goals",
+    subscription: "subscriptions",
+    personal_loan: "personal_loans",
+    profile: "profiles",
+  };
+  return map[entityType];
 }
 
 function remoteUpdatedAt(remote: any): string | null {
@@ -604,6 +624,63 @@ export async function retryFailedSync(): Promise<void> {
   bumpFailed(profiles$);
 
   await triggerSync();
+}
+
+/**
+ * Resolve a conflict by keeping the local version (will be pushed on next sync).
+ */
+export function resolveConflictKeepLocal(conflictId: string): void {
+  const conflict = selectConflictById(conflictId);
+  if (!conflict) return;
+  const table = tableForEntityType(conflict.entityType);
+  const store = storeForTable(table);
+  store.set((state: any) => {
+    const existing = state.byId[conflict.entityId];
+    if (!existing) return state;
+    const updated = {
+      ...existing,
+      __local_status: "pending" as LocalStatus,
+      __local_updated_at: nowIso(),
+      __last_error: null,
+    };
+    return {
+      ...state,
+      byId: { ...state.byId, [conflict.entityId]: updated },
+    };
+  });
+  resolveConflictLocal(conflictId);
+  void updateGlobalSyncState();
+}
+
+/**
+ * Resolve a conflict by accepting the server version (overwrites local).
+ */
+export function resolveConflictUseRemote(conflictId: string): void {
+  const conflict = selectConflictById(conflictId);
+  if (!conflict) return;
+  const remote = conflict.remoteVersion as any;
+  const table = tableForEntityType(conflict.entityType);
+  const store = storeForTable(table);
+  const remoteVersion = remote?.updated_at ?? remote?.created_at ?? null;
+  store.set((state: any) => {
+    const existing = state.byId[conflict.entityId];
+    if (!existing) return state;
+    const merged = {
+      ...existing,
+      ...remote,
+      deleted_at: remote?.deleted_at ?? existing.deleted_at ?? null,
+      __local_status: "synced" as LocalStatus,
+      __last_error: null,
+      __local_updated_at: nowIso(),
+      __remote_updated_at: remoteVersion ?? existing.__remote_updated_at ?? null,
+    };
+    return {
+      ...state,
+      byId: { ...state.byId, [conflict.entityId]: merged },
+    };
+  });
+  resolveConflictLocal(conflictId);
+  void updateGlobalSyncState();
 }
 
 export const __test__ = {

@@ -31,7 +31,7 @@ import { supabase } from '~/lib';
 import { useFocusEffect } from '@react-navigation/native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAccount } from '~/lib';
-import { X, TrendingUp, TrendingDown } from 'lucide-react-native';
+import { X, TrendingUp, TrendingDown, Plus } from 'lucide-react-native';
 import { useTheme } from '~/lib';
 import { useLanguage } from '~/lib';
 
@@ -39,12 +39,15 @@ interface DebtLoanProps {
   accounts?: Account[];
   userId?: string | null;
   onRefresh?: () => Promise<void>;
+  /** When set (e.g. from Budget screen), show only loans for this account (same as Dashboard). */
+  selectedAccountId?: string | null;
 }
 
 const Debt_Loan = ({
   accounts: propAccounts,
   userId: propUserId,
   onRefresh: propOnRefresh,
+  selectedAccountId: propSelectedAccountId,
 }: DebtLoanProps = {}) => {
   const { refreshAccounts } = useAccount();
   const { t } = useLanguage();
@@ -526,17 +529,24 @@ const Debt_Loan = ({
     return effectiveBalance < loanAmount;
   };
 
+  // Filter by selected account when provided (same as Dashboard)
+  const loansForAccount = propSelectedAccountId
+    ? loans.filter((l) => l.account_id === propSelectedAccountId)
+    : loans;
+
   return (
     <SafeAreaView
       className="flex-1"
-      style={{ backgroundColor: theme.background }}>
+      style={{ backgroundColor: theme.background }}
+      edges={['left', 'right', 'bottom']}
+    >
       <ScrollView
         className="flex-1"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }>
         {/* Header */}
-        <View className="px-4 py-4">
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
           <View className="flex-row justify-between items-center mb-6">
             <View>
               <Text
@@ -547,20 +557,9 @@ const Debt_Loan = ({
               <Text
                 className="text-sm mt-1"
                 style={{ color: theme.textSecondary }}>
-                {`${loans.length} ${loans.length === 1 ? 'loan' : 'loans'} • ${accounts.length} ${accounts.length === 1 ? 'account' : 'accounts'}`}
+                {`${loansForAccount.length} ${loansForAccount.length === 1 ? 'loan' : 'loans'} • ${accounts.length} ${accounts.length === 1 ? 'account' : 'accounts'}`}
               </Text>
             </View>
-            <TouchableOpacity
-              className="bg-blue-500 rounded-xl py-3 px-6 shadow-sm"
-              onPress={() => {
-                if (accounts.length === 0) {
-                  Alert.alert(t.noAccountsForLoan, t.createAccountFirstForLoan);
-                  return;
-                }
-                setShowAddModal(true);
-              }}>
-              <Text className="text-white font-semibold">{t.addLoan}</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Summary Cards - Simplified */}
@@ -580,7 +579,7 @@ const Debt_Loan = ({
               </View>
               <Text className="font-bold text-xl text-blue-600">
                 {formatCurrencyText(
-                  loans
+                  loansForAccount
                     .filter((loan) => loan.type === 'loan_given')
                     .reduce((sum, loan) => sum + loan.remaining_amount, 0),
                 )}
@@ -602,7 +601,7 @@ const Debt_Loan = ({
               </View>
               <Text className="font-bold text-xl text-red-600">
                 {formatCurrencyText(
-                  loans
+                  loansForAccount
                     .filter((loan) => loan.type === 'loan_taken')
                     .reduce((sum, loan) => sum + loan.remaining_amount, 0),
                 )}
@@ -618,7 +617,7 @@ const Debt_Loan = ({
               {t.myLoans}
             </Text>
 
-            {loans.length === 0 ? (
+            {loansForAccount.length === 0 ? (
               <View
                 className="py-12 items-center rounded-2xl"
                 style={{ backgroundColor: theme.cardBackground }}>
@@ -635,7 +634,7 @@ const Debt_Loan = ({
               </View>
             ) : (
               <View style={{ gap: 12 }}>
-                {loans.map((loan) => (
+                {loansForAccount.map((loan) => (
                   <View
                     key={loan.id}
                     className="p-4 rounded-2xl"
@@ -1764,6 +1763,46 @@ const Debt_Loan = ({
           </View>
         </Modal>
       </ScrollView>
+
+      {/* Add Loan FAB - bottom right (same position as Budget/Subscriptions) */}
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          bottom: 18,
+          right: 20,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: 14,
+          paddingHorizontal: 20,
+          borderRadius: 28,
+          backgroundColor: theme.primary,
+          gap: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.25,
+          shadowRadius: 6,
+          elevation: 8,
+        }}
+        onPress={() => {
+          if (accounts.length === 0) {
+            Alert.alert(t.noAccountsForLoan, t.createAccountFirstForLoan);
+            return;
+          }
+          setShowAddModal(true);
+        }}
+      >
+        <Plus size={22} color={theme.primaryText} />
+        <Text
+          style={{
+            color: theme.primaryText,
+            fontSize: 15,
+            fontWeight: '600',
+          }}
+        >
+          {t.addLoan}
+        </Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };

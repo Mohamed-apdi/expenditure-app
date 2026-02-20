@@ -19,7 +19,7 @@ import {
   Mail,
   Phone,
 } from "lucide-react-native";
-import { supabase } from "~/lib";
+import { supabase, isOfflineGateLocked } from "~/lib";
 import * as ImagePicker from "expo-image-picker";
 import { decode } from "base64-arraybuffer";
 import { useTheme, useScreenStatusBar } from "~/lib";
@@ -201,7 +201,10 @@ export default function UpdateProfileScreen() {
   };
   const uploadImage = async (base64Data: string): Promise<string | null> => {
     if (!currentUserId) return null;
-
+    if (await isOfflineGateLocked()) {
+      Alert.alert(t.error, t.uploadWhenOnline ?? "Please go online to upload images.");
+      return null;
+    }
     try {
       // Create a unique filename
       const fileName = `profile_${currentUserId}_${Date.now()}.jpg`;

@@ -15,6 +15,7 @@ export interface SyncState {
   lastSyncAt?: Date;
   pendingCount: number;
   errorMessage?: string;
+  conflictsCount?: number;
 }
 
 export type ConflictType = "modify_vs_modify" | "delete_vs_modify";

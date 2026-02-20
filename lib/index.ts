@@ -45,6 +45,28 @@ export * from "./providers/AccountContext";
 export * from "./providers/LanguageProvider";
 export * from "./providers/SyncContext";
 
+// Sync (Legend-State)
+export {
+  triggerSync,
+  startSync,
+  isOfflineGateLocked,
+  resolveConflictKeepLocal,
+  resolveConflictUseRemote,
+} from "./sync/legendSync";
+export { selectConflicts } from "./stores/conflictsStore";
+export {
+  updateAccountLocal,
+  createAccountLocal,
+} from "./stores/accountsStore";
+export {
+  selectTransactionsByDateRange,
+  selectTransactions,
+  createTransactionLocal,
+} from "./stores/transactionsStore";
+export { createExpenseLocal } from "./stores/expensesStore";
+export { createTransferLocal } from "./stores/transfersStore";
+export { selectProfile } from "./stores/profileStore";
+
 // Icons
 export * from "./icons/Check";
 export * from "./icons/ChevronDown";

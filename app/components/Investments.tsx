@@ -16,6 +16,7 @@ import {
   TrendingDown,
   DollarSign,
   BarChart3,
+  Plus,
 } from 'lucide-react-native';
 import {
   SafeAreaView,
@@ -46,12 +47,15 @@ interface InvestmentsProps {
   accounts?: Account[];
   userId?: string | null;
   onRefresh?: () => Promise<void>;
+  /** When set (e.g. from Budget screen), show only investments for this account (same as Dashboard). */
+  selectedAccountId?: string | null;
 }
 
 const Investments = ({
   accounts: propAccounts,
   userId: propUserId,
   onRefresh: propOnRefresh,
+  selectedAccountId: propSelectedAccountId,
 }: InvestmentsProps = {}) => {
   const theme = useTheme();
   const { t } = useLanguage();
@@ -160,16 +164,20 @@ const Investments = ({
     }
   }, []);
 
-  // Sync with parent props when they change
+  // Sync with parent props when they change; respect selectedAccountId from app (e.g. Budget/Dashboard)
   useEffect(() => {
     if (propAccounts !== undefined) {
       setAccounts(propAccounts);
-      // Set default selected account if not already set and accounts are available
-      if (propAccounts.length > 0 && !selectedAccount) {
-        setSelectedAccount(propAccounts[0]);
+      if (propAccounts.length > 0) {
+        if (propSelectedAccountId) {
+          const match = propAccounts.find((a) => a.id === propSelectedAccountId);
+          setSelectedAccount(match ?? propAccounts[0]);
+        } else if (!selectedAccount) {
+          setSelectedAccount(propAccounts[0]);
+        }
       }
     }
-  }, [propAccounts]);
+  }, [propAccounts, propSelectedAccountId]);
 
   useEffect(() => {
     if (propUserId !== undefined && propUserId !== null) {
@@ -318,12 +326,17 @@ const Investments = ({
     return <BarChart3 size={16} color={theme.textSecondary} />;
   };
 
-  // Calculate total portfolio value
-  const totalInvested = investments.reduce(
+  // Filter by selected account when provided (same as Dashboard)
+  const investmentsForAccount = propSelectedAccountId
+    ? investments.filter((inv) => inv.account_id === propSelectedAccountId)
+    : investments;
+
+  // Calculate total portfolio value (for displayed account when filtered)
+  const totalInvested = investmentsForAccount.reduce(
     (sum, inv) => sum + inv.invested_amount,
     0,
   );
-  const totalCurrentValue = investments.reduce(
+  const totalCurrentValue = investmentsForAccount.reduce(
     (sum, inv) => sum + inv.current_value,
     0,
   );
@@ -332,14 +345,17 @@ const Investments = ({
     totalInvested > 0 ? (totalProfitLoss / totalInvested) * 100 : 0;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: theme.background }}
+      edges={['left', 'right', 'bottom']}
+    >
       <ScrollView
         className="flex-1"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }>
         {/* Header */}
-        <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
           <View className="flex-row justify-between items-center mb-6">
             <View>
               <Text
@@ -356,31 +372,10 @@ const Investments = ({
                   fontSize: 14,
                   marginTop: 4,
                 }}>
-                {investments.length}{' '}
-                {investments.length === 1 ? 'investment' : 'investments'}
+                {investmentsForAccount.length}{' '}
+                {investmentsForAccount.length === 1 ? 'investment' : 'investments'}
               </Text>
             </View>
-            <TouchableOpacity
-              style={{
-                backgroundColor: theme.primary,
-                borderRadius: 12,
-                paddingVertical: 12,
-                paddingHorizontal: 20,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-                elevation: 3,
-              }}
-              onPress={openAddModal}>
-              <Text
-                style={{
-                  color: theme.primaryText,
-                  fontWeight: '600',
-                }}>
-                {t.addInvestment}
-              </Text>
-            </TouchableOpacity>
           </View>
 
           {/* Portfolio Summary - Simplified */}
@@ -526,7 +521,7 @@ const Investments = ({
               {t.myInvestments}
             </Text>
 
-            {investments.length === 0 ? (
+            {investmentsForAccount.length === 0 ? (
               <View
                 style={{
                   paddingVertical: 48,
@@ -553,7 +548,7 @@ const Investments = ({
               </View>
             ) : (
               <View style={{ gap: 12 }}>
-                {investments.map((investment) => {
+                {investmentsForAccount.map((investment) => {
                   const profitLossPercentage =
                     investment.invested_amount > 0
                       ? (investment.profit_loss / investment.invested_amount) *
@@ -993,6 +988,40 @@ const Investments = ({
           </View>
         </Modal>
       </ScrollView>
+
+      {/* Add Investment FAB - bottom right (same position as Budget/Subscriptions) */}
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          bottom: 18,
+          right: 20,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: 14,
+          paddingHorizontal: 20,
+          borderRadius: 28,
+          backgroundColor: theme.primary,
+          gap: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.25,
+          shadowRadius: 6,
+          elevation: 8,
+        }}
+        onPress={openAddModal}
+      >
+        <Plus size={22} color={theme.primaryText} />
+        <Text
+          style={{
+            color: theme.primaryText,
+            fontSize: 15,
+            fontWeight: '600',
+          }}
+        >
+          {t.addInvestment}
+        </Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };

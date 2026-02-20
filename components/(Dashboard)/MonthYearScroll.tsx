@@ -110,7 +110,7 @@ export default function MonthYearScroller({
     const monthIndex = months.indexOf(monthStr);
     const year = parseInt(yearStr);
 
-    // Fetch data for the selected month
+    // Fetch data for the selected month (also when selectedAccount changes so income/expense/transactions update like balance)
     const loadMonthData = async () => {
       try {
         const data = await fetchMonthData(monthIndex, year);
@@ -125,8 +125,7 @@ export default function MonthYearScroller({
     if (monthIndex >= 0 && year > 0) {
       loadMonthData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, refreshTrigger]);
+  }, [selected, refreshTrigger, selectedAccount?.id, fetchMonthData, onMonthChange]);
 
   return (
     <View className="py-4">

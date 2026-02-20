@@ -12,7 +12,7 @@ import {
   RefreshControl,
   Platform,
 } from 'react-native';
-import { X, Edit2, Trash2 } from 'lucide-react-native';
+import { X, Edit2, Trash2, Plus } from 'lucide-react-native';
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -29,13 +29,13 @@ import {
   deleteBudget,
   type Budget,
 } from '~/lib';
-import { fetchAccounts, type Account } from '~/lib';
+import { type Account } from '~/lib';
 import {
   getExpensesByCategory,
   getBudgetProgress,
   type BudgetProgress,
 } from '~/lib';
-import { useTheme, useScreenStatusBar } from '~/lib';
+import { useTheme, useScreenStatusBar, useAccount } from '~/lib';
 import { useLanguage } from '~/lib';
 
 import Investments from '../components/Investments';
@@ -46,15 +46,21 @@ import Debt_Loan from '../components/Debt_Loan';
 export default function BudgetScreen() {
   const theme = useTheme();
   const { t } = useLanguage();
+  const { accounts, selectedAccount: selectedAccountInApp } = useAccount(); // Same selected account as Dashboard
   const [activeTab, setActiveTab] = useState('Budget');
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetsWithAccounts, setBudgetsWithAccounts] = useState<any[]>([]);
   const [budgetProgress, setBudgetProgress] = useState<BudgetProgress[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null); // For add/edit modal picker
   const insets = useSafeAreaInsets();
+
+  // Show only budgets for the selected account (same as Dashboard)
+  const budgetsForSelectedAccount = selectedAccountInApp
+    ? budgetsWithAccounts.filter((b) => b.account_id === selectedAccountInApp.id)
+    : budgetsWithAccounts;
+  const budgetCount = budgetsForSelectedAccount.length;
 
   const expenseCategories = [
     { key: 'Food & Drinks', label: t.foodAndDrinks },
@@ -168,22 +174,15 @@ export default function BudgetScreen() {
 
       setUserId(user.id);
 
-      // Fetch budgets with accounts and budget progress in parallel
-      const [budgetsData, accountsData, progressData] = await Promise.all([
+      // Fetch budgets and progress (accounts come from useAccount / local store so all accounts show in filter)
+      const [budgetsData, progressData] = await Promise.all([
         fetchBudgetsWithAccounts(user.id),
-        fetchAccounts(user.id),
         getBudgetProgress(user.id),
       ]);
 
       setBudgets(budgetsData.map((b) => b as Budget));
       setBudgetsWithAccounts(budgetsData);
       setBudgetProgress(progressData);
-      setAccounts(accountsData);
-
-      // Set default selected account if available
-      if (accountsData.length > 0) {
-        setSelectedAccount(accountsData[0]);
-      }
     } catch (error) {
       console.error('Error fetching data:', error);
       Alert.alert(t.error, t.failedToFetchData);
@@ -201,6 +200,15 @@ export default function BudgetScreen() {
     fetchData();
   }, []);
 
+  // Keep modal account in sync with full account list; default to app selected account when opening add
+  useEffect(() => {
+    if (accounts.length === 0) return;
+    const currentInList = selectedAccount && accounts.some((a) => a.id === selectedAccount.id);
+    if (!currentInList) {
+      setSelectedAccount(selectedAccountInApp ?? accounts[0]);
+    }
+  }, [accounts, selectedAccountInApp]);
+
   useScreenStatusBar();
 
   const openAddModal = () => {
@@ -211,7 +219,7 @@ export default function BudgetScreen() {
     setCurrentBudget(null);
     setNewCategory('');
     setNewAllocated('');
-    setSelectedAccount(accounts[0]); // Set default account
+    setSelectedAccount(selectedAccountInApp ?? accounts[0]); // Default to same account as Dashboard
     setIsModalVisible(true);
   };
 
@@ -331,28 +339,44 @@ export default function BudgetScreen() {
     return categoryObj ? categoryObj.label : categoryKey;
   };
 
-  // Subscriptions tab content
+  // Subscriptions tab content (filter by same account as Dashboard)
   const SubscriptionsTab = () => (
     <SubscriptionsScreen
       accounts={accounts}
       userId={userId}
       onRefresh={fetchData}
+      selectedAccountId={selectedAccountInApp?.id}
     />
   );
 
-  // Goals tab content
+  // Goals tab content (filter by same account as Dashboard)
   const GoalsTab = () => (
-    <SavingsScreen accounts={accounts} userId={userId} onRefresh={fetchData} />
+    <SavingsScreen
+      accounts={accounts}
+      userId={userId}
+      onRefresh={fetchData}
+      selectedAccountId={selectedAccountInApp?.id}
+    />
   );
 
-  // Investments tab content
+  // Investments tab content (filter by same account as Dashboard)
   const InvestmentsTab = () => (
-    <Investments accounts={accounts} userId={userId} onRefresh={fetchData} />
+    <Investments
+      accounts={accounts}
+      userId={userId}
+      onRefresh={fetchData}
+      selectedAccountId={selectedAccountInApp?.id}
+    />
   );
 
-  // Debt/Loan tab content
+  // Debt/Loan tab content (filter by same account as Dashboard)
   const DebtLoanTab = () => (
-    <Debt_Loan accounts={accounts} userId={userId} onRefresh={fetchData} />
+    <Debt_Loan
+      accounts={accounts}
+      userId={userId}
+      onRefresh={fetchData}
+      selectedAccountId={selectedAccountInApp?.id}
+    />
   );
 
   return (
@@ -385,26 +409,27 @@ export default function BudgetScreen() {
               { key: 'Debt/Loan', label: t.debtLoan || 'Debt/Loan' },
             ].map((tab) => {
               const isActive = activeTab === tab.key;
+              const activeBg = theme.tabActive ?? '#40A5E7';
               return (
                 <TouchableOpacity
                   key={tab.key}
+                  activeOpacity={1}
                   style={{
                     paddingVertical: 10,
                     paddingHorizontal: 20,
                     borderRadius: 20,
-                    backgroundColor: isActive
-                      ? theme.primary
-                      : theme.cardBackground,
+                    backgroundColor: isActive ? activeBg : theme.cardBackground,
                     borderWidth: 1,
-                    borderColor: isActive ? theme.primary : theme.border,
+                    borderColor: isActive ? activeBg : theme.border,
                     marginRight: 4,
+                    opacity: 1,
                   }}
                   onPress={() => setActiveTab(tab.key)}>
                   <Text
                     style={{
                       fontWeight: isActive ? '600' : '400',
                       fontSize: 14,
-                      color: isActive ? theme.primaryText : theme.textSecondary,
+                      color: isActive ? '#FFFFFF' : theme.textSecondary,
                     }}>
                     {tab.label}
                   </Text>
@@ -414,14 +439,15 @@ export default function BudgetScreen() {
           </ScrollView>
         </View>
 
-        {/* Tab Content */}
-        <ScrollView
-          className="flex-1"
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }>
+        {/* Tab Content - View with flex:1 so FABs in Subscriptions/Goals etc stay fixed at bottom */}
+        <View style={{ flex: 1 }}>
           {activeTab === 'Budget' && (
-            <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
+            <ScrollView
+              className="flex-1"
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              }>
+              <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
               {/* Header */}
               <View className="flex-row justify-between items-center mb-6">
                 <View>
@@ -439,31 +465,15 @@ export default function BudgetScreen() {
                       fontSize: 14,
                       marginTop: 4,
                     }}>
-                    {budgets.length}{' '}
-                    {budgets.length === 1 ? 'category' : 'categories'}
+                    {budgetCount}{' '}
+                    {budgetCount === 1 ? 'category' : 'categories'}
+                    {selectedAccountInApp ? ` · ${selectedAccountInApp.name}` : ''}
                   </Text>
                 </View>
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: theme.primary,
-                    borderRadius: 12,
-                    paddingVertical: 12,
-                    paddingHorizontal: 20,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.1,
-                    shadowRadius: 4,
-                    elevation: 3,
-                  }}
-                  onPress={openAddModal}>
-                  <Text style={{ color: theme.primaryText, fontWeight: '600' }}>
-                    {t.addBudgets || 'Add Budget'}
-                  </Text>
-                </TouchableOpacity>
               </View>
 
               {/* Budget Cards */}
-              {budgets.length === 0 ? (
+              {budgetCount === 0 ? (
                 <View
                   style={{
                     paddingVertical: 48,
@@ -477,7 +487,9 @@ export default function BudgetScreen() {
                       fontSize: 16,
                       fontWeight: '500',
                     }}>
-                    {t.noBudgetsSetUp}
+                    {selectedAccountInApp
+                      ? t.noBudgetsSetUp
+                      : (t.selectAccount || 'Select an account') + ' to view budgets'}
                   </Text>
                   <Text
                     style={{
@@ -485,12 +497,12 @@ export default function BudgetScreen() {
                       fontSize: 14,
                       marginTop: 8,
                     }}>
-                    Create your first budget
+                    {selectedAccountInApp ? 'Create your first budget' : 'Use the account selector on Home'}
                   </Text>
                 </View>
               ) : (
                 <View style={{ gap: 12 }}>
-                  {budgetsWithAccounts.map((budget) => {
+                  {budgetsForSelectedAccount.map((budget) => {
                     // Get budget progress for this category
                     const progress = getBudgetProgressFor(
                       budget.category,
@@ -657,14 +669,67 @@ export default function BudgetScreen() {
                   })}
                 </View>
               )}
-            </View>
+              </View>
+            </ScrollView>
           )}
 
-          {activeTab === 'Subscriptions' && <SubscriptionsTab />}
-          {activeTab === 'Goals' && <GoalsTab />}
-          {activeTab === 'Investments' && <InvestmentsTab />}
-          {activeTab === 'Debt/Loan' && <DebtLoanTab />}
-        </ScrollView>
+          {activeTab === 'Subscriptions' && (
+            <View style={{ flex: 1 }}>
+              <SubscriptionsTab />
+            </View>
+          )}
+          {activeTab === 'Goals' && (
+            <View style={{ flex: 1 }}>
+              <GoalsTab />
+            </View>
+          )}
+          {activeTab === 'Investments' && (
+            <View style={{ flex: 1 }}>
+              <InvestmentsTab />
+            </View>
+          )}
+          {activeTab === 'Debt/Loan' && (
+            <View style={{ flex: 1 }}>
+              <DebtLoanTab />
+            </View>
+          )}
+        </View>
+
+        {/* Add Budget FAB - bottom right when on Budget tab (same position as Add New Account) */}
+        {activeTab === 'Budget' && (
+          <TouchableOpacity
+            style={{
+              position: 'absolute',
+              bottom: 18,
+              right: 20,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingVertical: 14,
+              paddingHorizontal: 20,
+              borderRadius: 28,
+              backgroundColor: theme.primary,
+              gap: 8,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.25,
+              shadowRadius: 6,
+              elevation: 8,
+            }}
+            onPress={openAddModal}
+          >
+            <Plus size={22} color={theme.primaryText} />
+            <Text
+              style={{
+                color: theme.primaryText,
+                fontSize: 15,
+                fontWeight: '600',
+              }}
+            >
+              {t.addBudgets || 'Add Budget'}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Add/Edit Budget Modal - Simplified */}
         <Modal

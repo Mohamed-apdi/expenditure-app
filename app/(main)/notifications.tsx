@@ -274,7 +274,7 @@ export default function NotificationsScreen() {
           marginHorizontal: 16,
           marginVertical: 4,
           borderWidth: 1,
-          borderColor: isSelected ? theme.primary : theme.border,
+          borderColor: isSelected ? theme.tabActive : theme.border,
         }}
         onPress={() =>
           isSelectionMode
@@ -298,8 +298,8 @@ export default function NotificationsScreen() {
                 height: 20,
                 borderRadius: 10,
                 borderWidth: 2,
-                borderColor: isSelected ? theme.primary : theme.border,
-                backgroundColor: isSelected ? theme.primary : "transparent",
+                borderColor: isSelected ? theme.tabActive : theme.border,
+                backgroundColor: isSelected ? theme.tabActive : "transparent",
                 alignItems: "center",
                 justifyContent: "center",
                 marginRight: 12,

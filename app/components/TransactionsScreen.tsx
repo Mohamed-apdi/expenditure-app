@@ -160,14 +160,14 @@ export default function TransactionsScreen() {
                   paddingHorizontal: 16,
                   borderRadius: 20,
                   borderWidth: 1,
-                  borderColor: activeFilter === filter ? theme.primary : theme.border,
-                  backgroundColor: activeFilter === filter ? `${theme.primary}20` : theme.background,
+                  borderColor: activeFilter === filter ? theme.tabActive : theme.border,
+                  backgroundColor: activeFilter === filter ? `${theme.tabActive}20` : theme.background,
                 }}
                 onPress={() => setActiveFilter(filter)}
               >
                 <Text
                   style={{
-                    color: activeFilter === filter ? theme.primary : theme.textSecondary,
+                    color: activeFilter === filter ? theme.tabActive : theme.textSecondary,
                     fontSize: 13,
                     fontWeight: activeFilter === filter ? "600" : "400",
                   }}

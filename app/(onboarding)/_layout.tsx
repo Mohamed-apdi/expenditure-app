@@ -10,26 +10,29 @@ export default function OnboardingLayout() {
 
   useEffect(() => {
     const checkSession = async () => {
-      const sessionStr = await getItemAsync("supabase_session");
-
-      if (sessionStr) {
-        const session = JSON.parse(sessionStr);
-        const { error } = await supabase.auth.setSession({
-          access_token: session.access_token,
-          refresh_token: session.refresh_token,
-        });
-
-        if (!error) {
-          // ✅ Redirect if already logged in
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
           router.replace("/(main)/Dashboard");
           return;
         }
+        const sessionStr = await getItemAsync("supabase_session");
+        if (sessionStr) {
+          const session = JSON.parse(sessionStr);
+          const { error } = await supabase.auth.setSession({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+          });
+          if (!error) {
+            router.replace("/(main)/Dashboard");
+            return;
+          }
+        }
+      } catch {
+        // ignore
       }
-
-      // ❌ Not logged in, continue to Welcome
       setChecking(false);
     };
-
     checkSession();
   }, []);
 

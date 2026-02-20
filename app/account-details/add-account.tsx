@@ -8,7 +8,7 @@ import {
   Modal,
   FlatList,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { X, ChevronDown, Check, DollarSign } from "lucide-react-native";
 import { useLanguage } from "~/lib";
 import { useTheme } from "~/lib";
@@ -38,6 +38,7 @@ const AddAccount = ({
 }: AddAccountProps) => {
   const { t } = useLanguage();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const [showGroupModal, setShowGroupModal] = useState(false);
   // Removed showTypeModal state
   const [newAccount, setNewAccount] = useState({
@@ -75,13 +76,18 @@ const AddAccount = ({
 
   return (
     <Modal visible={visible} animationType="fade">
-      <SafeAreaView style={{ flex: 1, backgroundColor: theme.cardBackground }}>
+      <SafeAreaView
+        style={{ flex: 1, backgroundColor: theme.cardBackground }}
+        edges={["left", "right", "top", "bottom"]}
+      >
         <View
           style={{
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "center",
-            padding: 24,
+            paddingHorizontal: 24,
+            paddingTop: Math.max(insets.top, 12),
+            paddingBottom: 16,
             borderBottomWidth: 1,
             borderBottomColor: theme.border,
           }}

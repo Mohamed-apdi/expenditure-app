@@ -1,41 +1,56 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
+import { Camera, Image as ImageIcon, Scan, X } from "lucide-react-native";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { X, Camera, Image as ImageIcon, Scan } from "lucide-react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { toast } from "sonner-native";
-import { supabase } from "~/lib";
-import { useTheme, useScreenStatusBar } from "~/lib";
-import { fetchAccounts, updateAccountBalance } from "~/lib";
-import { addExpense } from "~/lib";
-import { addTransaction } from "~/lib";
-import { addTransfer } from "~/lib";
-import { addSubscription } from "~/lib";
 import type { Account } from "~/lib";
-import { notificationService } from "~/lib";
-import { useLanguage } from "~/lib";
-import * as ImagePicker from "expo-image-picker";
+import {
+  addExpense,
+  addSubscription,
+  addTransaction,
+  addTransfer,
+  createTransactionLocal,
+  notificationService,
+  supabase,
+  updateAccountBalance,
+  updateAccountLocal,
+  useAccount,
+  useLanguage,
+  useScreenStatusBar,
+  useTheme,
+} from "~/lib";
 import { scanReceiptWithOCR } from "~/lib/services/ocr";
 
 // Import the separated form components
+import {
+  getExpenseCategories,
+  getIncomeCategories,
+  type Category,
+  type Frequency,
+} from "~/lib/utils/categories";
 import ExpenseForm from "./components/ExpenseForm";
 import IncomeForm from "./components/IncomeForm";
 import TransferForm from "./components/TransferForm";
-import { getExpenseCategories, getIncomeCategories, type Category, type Frequency } from "~/lib/utils/categories";
 
 export default function AddExpenseScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { t } = useLanguage();
   useScreenStatusBar();
 
@@ -43,12 +58,15 @@ export default function AddExpenseScreen() {
   const [entryType, setEntryType] = useState("Expense");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
+    null,
+  );
   const [date, setDate] = useState(new Date());
   const [isRecurring, setIsRecurring] = useState(false);
-  const [recurringFrequency, setRecurringFrequency] = useState<Frequency>("monthly");
+  const [recurringFrequency, setRecurringFrequency] =
+    useState<Frequency>("monthly");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const { accounts } = useAccount();
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
 
   // OCR states
@@ -72,33 +90,11 @@ export default function AddExpenseScreen() {
   ];
 
   useEffect(() => {
-    const loadAccounts = async () => {
-      try {
-        const {
-          data: { user },
-          error: authError,
-        } = await supabase.auth.getUser();
-
-        if (authError || !user) {
-          console.error("User not authenticated");
-          return;
-        }
-
-        const accountsData = await fetchAccounts(user.id);
-        setAccounts(accountsData);
-        if (accountsData.length > 0) {
-          setSelectedAccount(accountsData[0]);
-        }
-      } catch (error) {
-        console.error("Error loading accounts:", error);
-        toast.error(t.error || "Error", {
-          description: t.failedToLoadAccounts || "Failed to load accounts",
-        });
-      }
-    };
-
-    loadAccounts();
-  }, []);
+    if (accounts.length > 0 && !selectedAccount) {
+      const defaultAcc = accounts.find((a) => a.is_default) ?? accounts[0];
+      setSelectedAccount(defaultAcc);
+    }
+  }, [accounts, selectedAccount]);
 
   const handleEntryTypeChange = (type: string) => {
     setEntryType(type);
@@ -110,8 +106,11 @@ export default function AddExpenseScreen() {
   };
 
   // Map OCR category to app category
-  const mapOCRCategoryToAppCategory = (ocrCategory: string): Category | null => {
-    const categories = entryType === "Expense" ? expenseCategories : incomeCategories;
+  const mapOCRCategoryToAppCategory = (
+    ocrCategory: string,
+  ): Category | null => {
+    const categories =
+      entryType === "Expense" ? expenseCategories : incomeCategories;
     const categoryLower = ocrCategory.toLowerCase();
 
     // Direct mapping
@@ -144,10 +143,13 @@ export default function AddExpenseScreen() {
 
   const handlePickImage = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         toast.error(t.error || "Error", {
-          description: t.permissionToAccessCamera || "Permission to access camera roll is required",
+          description:
+            t.permissionToAccessCamera ||
+            "Permission to access camera roll is required",
         });
         return;
       }
@@ -231,7 +233,10 @@ export default function AddExpenseScreen() {
     } catch (error) {
       console.error("OCR processing error:", error);
       toast.error("OCR Failed", {
-        description: error instanceof Error ? error.message : "Failed to process receipt image",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to process receipt image",
       });
     } finally {
       setIsProcessingOCR(false);
@@ -242,7 +247,8 @@ export default function AddExpenseScreen() {
     // Basic validation
     if (!amount || !description.trim()) {
       toast.error(t.missingInfo || "Missing Information", {
-        description: t.pleaseFillRequiredFields || "Please fill all required fields",
+        description:
+          t.pleaseFillRequiredFields || "Please fill all required fields",
       });
       return;
     }
@@ -255,9 +261,14 @@ export default function AddExpenseScreen() {
     }
 
     // Type-specific validation
-    if (entryType === "Income" && (!selectedCategory || !selectedCategory.name)) {
+    if (
+      entryType === "Income" &&
+      (!selectedCategory || !selectedCategory.name)
+    ) {
       toast.error(t.chooseCategory || "Choose Category", {
-        description: t.pleaseSelectCategoryForIncome || "Please select a category for income",
+        description:
+          t.pleaseSelectCategoryForIncome ||
+          "Please select a category for income",
       });
       return;
     }
@@ -265,7 +276,9 @@ export default function AddExpenseScreen() {
     if (entryType === "Expense") {
       if (!selectedCategory || !selectedCategory.name) {
         toast.error(t.chooseCategory || "Choose Category", {
-          description: t.pleaseSelectCategoryForExpense || "Please select a category for expense",
+          description:
+            t.pleaseSelectCategoryForExpense ||
+            "Please select a category for expense",
         });
         return;
       }
@@ -280,6 +293,20 @@ export default function AddExpenseScreen() {
       if (!user) throw new Error("Please log in first");
 
       const amountNum = Number.parseFloat(amount);
+      const dateStr = date.toISOString().split("T")[0];
+
+      // Create transaction in local store first so it shows on dashboard immediately (including recurring)
+      createTransactionLocal({
+        user_id: user.id,
+        account_id: selectedAccount.id,
+        amount: amountNum,
+        description: description.trim(),
+        date: dateStr,
+        category: selectedCategory?.name || "",
+        is_recurring: isRecurring,
+        recurrence_interval: isRecurring ? recurringFrequency : undefined,
+        type: entryType === "Income" ? "income" : "expense",
+      });
 
       // Add expense using the service
       await addExpense({
@@ -290,7 +317,7 @@ export default function AddExpenseScreen() {
         description: description.trim(),
         is_recurring: isRecurring,
         recurrence_interval: isRecurring ? recurringFrequency : undefined,
-        date: date.toISOString().split("T")[0],
+        date: dateStr,
         account_id: selectedAccount.id,
         is_essential: true,
       });
@@ -301,20 +328,24 @@ export default function AddExpenseScreen() {
         account_id: selectedAccount.id,
         amount: amountNum,
         description: description.trim(),
-        date: date.toISOString().split("T")[0],
+        date: dateStr,
         category: selectedCategory?.name || "",
         is_recurring: isRecurring,
         recurrence_interval: isRecurring ? recurringFrequency : undefined,
         type: entryType === "Income" ? "income" : "expense",
       });
 
-      // Update account balance
+      // Update account balance (local store for instant Dashboard update; Supabase when online)
       const newBalance =
         entryType === "Expense"
           ? selectedAccount.amount - amountNum
           : selectedAccount.amount + amountNum;
-
-      await updateAccountBalance(selectedAccount.id, newBalance);
+      updateAccountLocal(selectedAccount.id, { amount: newBalance });
+      try {
+        await updateAccountBalance(selectedAccount.id, newBalance);
+      } catch {
+        // Offline: balance already updated in store
+      }
 
       // Auto-create subscription if this is a recurring expense
       if (entryType === "Expense" && isRecurring && selectedCategory) {
@@ -378,7 +409,9 @@ export default function AddExpenseScreen() {
     } catch (error) {
       console.error(error);
       toast.error(t.error || "Error", {
-        description: t.somethingWentWrongPleaseTryAgain || "Something went wrong. Please try again.",
+        description:
+          t.somethingWentWrongPleaseTryAgain ||
+          "Something went wrong. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -388,7 +421,9 @@ export default function AddExpenseScreen() {
   const handleTransfer = async () => {
     if (!transferAmount || Number.parseFloat(transferAmount) <= 0) {
       toast.error(t.error || "Error", {
-        description: t.pleaseEnterValidTransferAmount || "Please enter a valid transfer amount",
+        description:
+          t.pleaseEnterValidTransferAmount ||
+          "Please enter a valid transfer amount",
       });
       return;
     }
@@ -417,6 +452,30 @@ export default function AddExpenseScreen() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Please log in first");
 
+      const dateStr = date.toISOString().split("T")[0];
+
+      // Create both transactions in local store first so they show on dashboard immediately
+      createTransactionLocal({
+        user_id: user.id,
+        account_id: fromAccount.id,
+        amount: amountNum,
+        description: `Transfer to ${toAccount.name}`,
+        date: dateStr,
+        category: "Transfer",
+        is_recurring: false,
+        type: "expense",
+      });
+      createTransactionLocal({
+        user_id: user.id,
+        account_id: toAccount.id,
+        amount: amountNum,
+        description: `Transfer from ${fromAccount.name}`,
+        date: dateStr,
+        category: "Transfer",
+        is_recurring: false,
+        type: "income",
+      });
+
       // Add transfer record
       await addTransfer({
         user_id: user.id,
@@ -424,7 +483,7 @@ export default function AddExpenseScreen() {
         to_account_id: toAccount.id,
         amount: amountNum,
         description: `Transfer from ${fromAccount.name} to ${toAccount.name}`,
-        date: date.toISOString().split("T")[0],
+        date: dateStr,
       });
 
       // Add EXPENSE transaction for FROM account
@@ -433,7 +492,7 @@ export default function AddExpenseScreen() {
         account_id: fromAccount.id,
         amount: amountNum,
         description: `Transfer to ${toAccount.name}`,
-        date: date.toISOString().split("T")[0],
+        date: dateStr,
         category: "Transfer",
         is_recurring: false,
         type: "expense",
@@ -445,17 +504,25 @@ export default function AddExpenseScreen() {
         account_id: toAccount.id,
         amount: amountNum,
         description: `Transfer from ${fromAccount.name}`,
-        date: date.toISOString().split("T")[0],
+        date: dateStr,
         category: "Transfer",
         is_recurring: false,
         type: "income",
       });
 
-      // Update account balances
-      await Promise.all([
-        updateAccountBalance(fromAccount.id, fromAccount.amount - amountNum),
-        updateAccountBalance(toAccount.id, toAccount.amount + amountNum),
-      ]);
+      // Update account balances in local store (instant) and Supabase when online
+      const fromNew = fromAccount.amount - amountNum;
+      const toNew = toAccount.amount + amountNum;
+      updateAccountLocal(fromAccount.id, { amount: fromNew });
+      updateAccountLocal(toAccount.id, { amount: toNew });
+      try {
+        await Promise.all([
+          updateAccountBalance(fromAccount.id, fromNew),
+          updateAccountBalance(toAccount.id, toNew),
+        ]);
+      } catch {
+        // Offline: balances already updated in store
+      }
 
       toast.success("Transfer Successful!", {
         description: `$${amountNum.toFixed(2)} transferred from ${fromAccount.name} to ${toAccount.name}`,
@@ -537,31 +604,22 @@ export default function AddExpenseScreen() {
           <Text style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}>
             {t.add_transaction || "Add Transaction"}
           </Text>
-          <TouchableOpacity
-            style={{
-              paddingVertical: 10,
-              paddingHorizontal: 20,
-              borderRadius: 12,
-              backgroundColor: isFormValid() ? theme.primary : theme.cardBackground,
-            }}
-            onPress={entryType === "Transfer" ? handleTransfer : handleSaveExpense}
-            disabled={!isFormValid()}
-          >
-            <Text
-              style={{
-                fontWeight: "600",
-                fontSize: 14,
-                color: isFormValid() ? theme.primaryText : theme.textMuted,
-              }}
-            >
-              {isSubmitting ? t.saving || "Saving..." : t.save || "Save"}
-            </Text>
-          </TouchableOpacity>
+          <View style={{ width: 76 }} />
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 88 }}
+        >
           {/* Type Tabs - Modern Pills */}
-          <View style={{ paddingHorizontal: 16, paddingVertical: 16, backgroundColor: theme.background }}>
+          <View
+            style={{
+              paddingHorizontal: 16,
+              paddingVertical: 16,
+              backgroundColor: theme.background,
+            }}
+          >
             <View style={{ flexDirection: "row", gap: 8 }}>
               {ENTRY_TABS.map((tab) => (
                 <TouchableOpacity
@@ -570,9 +628,13 @@ export default function AddExpenseScreen() {
                     flex: 1,
                     paddingVertical: 12,
                     borderRadius: 20,
-                    backgroundColor: entryType === tab.id ? theme.primary : theme.cardBackground,
+                    backgroundColor:
+                      entryType === tab.id
+                        ? theme.tabActive
+                        : theme.cardBackground,
                     borderWidth: 1,
-                    borderColor: entryType === tab.id ? theme.primary : theme.border,
+                    borderColor:
+                      entryType === tab.id ? theme.tabActive : theme.border,
                   }}
                   onPress={() => handleEntryTypeChange(tab.id)}
                 >
@@ -581,7 +643,10 @@ export default function AddExpenseScreen() {
                       textAlign: "center",
                       fontWeight: entryType === tab.id ? "600" : "400",
                       fontSize: 14,
-                      color: entryType === tab.id ? theme.primaryText : theme.textSecondary,
+                      color:
+                        entryType === tab.id
+                          ? theme.primaryText
+                          : theme.textSecondary,
                     }}
                   >
                     {tab.label}
@@ -593,16 +658,26 @@ export default function AddExpenseScreen() {
 
           {/* Input Mode Selector - Only show for Expense */}
           {entryType === "Expense" && (
-            <View style={{ paddingHorizontal: 16, paddingBottom: 16, backgroundColor: theme.background }}>
+            <View
+              style={{
+                paddingHorizontal: 16,
+                paddingBottom: 16,
+                backgroundColor: theme.background,
+              }}
+            >
               <View style={{ flexDirection: "row", gap: 8 }}>
                 <TouchableOpacity
                   style={{
                     flex: 1,
                     paddingVertical: 12,
                     borderRadius: 12,
-                    backgroundColor: inputMode === "normal" ? theme.primary : theme.cardBackground,
+                    backgroundColor:
+                      inputMode === "normal"
+                        ? theme.tabActive
+                        : theme.cardBackground,
                     borderWidth: 1,
-                    borderColor: inputMode === "normal" ? theme.primary : theme.border,
+                    borderColor:
+                      inputMode === "normal" ? theme.tabActive : theme.border,
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "center",
@@ -614,7 +689,10 @@ export default function AddExpenseScreen() {
                     style={{
                       fontWeight: inputMode === "normal" ? "600" : "400",
                       fontSize: 14,
-                      color: inputMode === "normal" ? theme.primaryText : theme.textSecondary,
+                      color:
+                        inputMode === "normal"
+                          ? theme.primaryText
+                          : theme.textSecondary,
                     }}
                   >
                     Manual Entry
@@ -625,9 +703,13 @@ export default function AddExpenseScreen() {
                     flex: 1,
                     paddingVertical: 12,
                     borderRadius: 12,
-                    backgroundColor: inputMode === "ocr" ? theme.primary : theme.cardBackground,
+                    backgroundColor:
+                      inputMode === "ocr"
+                        ? theme.tabActive
+                        : theme.cardBackground,
                     borderWidth: 1,
-                    borderColor: inputMode === "ocr" ? theme.primary : theme.border,
+                    borderColor:
+                      inputMode === "ocr" ? theme.tabActive : theme.border,
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "center",
@@ -635,12 +717,22 @@ export default function AddExpenseScreen() {
                   }}
                   onPress={() => setInputMode("ocr")}
                 >
-                  <Scan size={16} color={inputMode === "ocr" ? theme.primaryText : theme.textSecondary} />
+                  <Scan
+                    size={16}
+                    color={
+                      inputMode === "ocr"
+                        ? theme.primaryText
+                        : theme.textSecondary
+                    }
+                  />
                   <Text
                     style={{
                       fontWeight: inputMode === "ocr" ? "600" : "400",
                       fontSize: 14,
-                      color: inputMode === "ocr" ? theme.primaryText : theme.textSecondary,
+                      color:
+                        inputMode === "ocr"
+                          ? theme.primaryText
+                          : theme.textSecondary,
                     }}
                   >
                     Scan Receipt
@@ -728,7 +820,8 @@ export default function AddExpenseScreen() {
                         textAlign: "center",
                       }}
                     >
-                      Take a photo or choose from gallery to automatically extract expense details
+                      Take a photo or choose from gallery to automatically
+                      extract expense details
                     </Text>
                   </View>
                   <View style={{ gap: 12 }}>
@@ -845,6 +938,56 @@ export default function AddExpenseScreen() {
             />
           )}
         </ScrollView>
+
+        {/* Save button at bottom right for easy thumb reach */}
+        <View
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            paddingHorizontal: 16,
+            paddingTop: 12,
+            paddingBottom: Math.max(insets.bottom, 16),
+            backgroundColor: theme.background,
+            borderTopWidth: 1,
+            borderTopColor: theme.border,
+            alignItems: "flex-end",
+          }}
+        >
+          <TouchableOpacity
+            style={{
+              paddingVertical: 14,
+              paddingHorizontal: 28,
+              borderRadius: 14,
+              backgroundColor: isFormValid()
+                ? theme.primary
+                : theme.cardBackground,
+              minWidth: 120,
+              alignItems: "center",
+            }}
+            onPress={
+              entryType === "Transfer" ? handleTransfer : handleSaveExpense
+            }
+            disabled={!isFormValid()}
+          >
+            <Text
+              style={{
+                fontWeight: "600",
+                fontSize: 16,
+                color: isFormValid() ? theme.primaryText : theme.textMuted,
+              }}
+            >
+              {entryType === "Transfer"
+                ? isSubmitting
+                  ? t.saving || "Saving..."
+                  : (t.completeTransfer || "Transfer")
+                : isSubmitting
+                  ? t.saving || "Saving..."
+                  : t.save || "Save"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

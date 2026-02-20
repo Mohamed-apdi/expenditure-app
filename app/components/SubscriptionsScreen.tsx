@@ -13,7 +13,7 @@ import {
   RefreshControl,
   Platform,
 } from 'react-native';
-import { Calendar, X, Trash2, DollarSign } from 'lucide-react-native';
+import { Calendar, X, Trash2, DollarSign, Plus } from 'lucide-react-native';
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -31,7 +31,7 @@ import {
   type Subscription,
 } from '~/lib';
 import { fetchAccounts, type Account } from '~/lib';
-import { notificationService } from '~/lib';
+import { notificationService, isExpoGo } from '~/lib';
 import ExpoGoWarning from '~/components/ExpoGoWarning';
 import { useTheme } from '~/lib';
 import { useLanguage } from '~/lib';
@@ -64,12 +64,15 @@ interface SubscriptionsScreenProps {
   accounts?: Account[];
   userId?: string | null;
   onRefresh?: () => Promise<void>;
+  /** When set (e.g. from Budget screen), show only subscriptions for this account (same as Dashboard). */
+  selectedAccountId?: string | null;
 }
 
 export default function SubscriptionsScreen({
   accounts: propAccounts,
   userId: propUserId,
   onRefresh: propOnRefresh,
+  selectedAccountId: propSelectedAccountId,
 }: SubscriptionsScreenProps = {}) {
   const theme = useTheme();
   const { t } = useLanguage();
@@ -220,16 +223,20 @@ export default function SubscriptionsScreen({
     }
   }, []);
 
-  // Sync with parent props when they change
+  // Sync with parent props when they change; respect selectedAccountId from app (e.g. Budget/Dashboard)
   useEffect(() => {
     if (propAccounts !== undefined) {
       setAccounts(propAccounts);
-      // Set default selected account if not already set and accounts are available
-      if (propAccounts.length > 0 && !selectedAccount) {
-        setSelectedAccount(propAccounts[0]);
+      if (propAccounts.length > 0) {
+        if (propSelectedAccountId) {
+          const match = propAccounts.find((a) => a.id === propSelectedAccountId);
+          setSelectedAccount(match ?? propAccounts[0]);
+        } else if (!selectedAccount) {
+          setSelectedAccount(propAccounts[0]);
+        }
       }
     }
-  }, [propAccounts]);
+  }, [propAccounts, propSelectedAccountId]);
 
   useEffect(() => {
     if (propUserId !== undefined && propUserId !== null) {
@@ -260,8 +267,6 @@ export default function SubscriptionsScreen({
     const setupNotifications = async () => {
       try {
         // Check if we're in Expo Go (where notifications are limited)
-        const { isExpoGo } = await import('~/lib');
-
         if (isExpoGo) {
           console.warn(
             'Push notifications are limited in Expo Go with SDK 53. Use development build for full functionality.',
@@ -495,8 +500,13 @@ export default function SubscriptionsScreen({
     return categoryObj ? categoryObj.label : categoryKey;
   };
 
-  // Calculate total monthly cost
-  const totalMonthlyCost = subscriptions
+  // Filter by selected account when provided (same as Dashboard)
+  const subscriptionsForAccount = propSelectedAccountId
+    ? subscriptions.filter((s) => s.account_id === propSelectedAccountId)
+    : subscriptions;
+
+  // Calculate total monthly cost (for displayed account only when filtered)
+  const totalMonthlyCost = subscriptionsForAccount
     .filter((sub) => sub.is_active)
     .reduce((total, sub) => {
       let monthlyAmount = sub.amount;
@@ -509,13 +519,16 @@ export default function SubscriptionsScreen({
     }, 0);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: theme.background }}
+      edges={['left', 'right', 'bottom']}
+    >
       <ScrollView
         className="flex-1"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }>
-        <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
           {/* Header */}
           <View className="flex-row justify-between items-center mb-6">
             <View>
@@ -529,29 +542,9 @@ export default function SubscriptionsScreen({
                   fontSize: 14,
                   marginTop: 4,
                 }}>
-                {subscriptions.filter((s) => s.is_active).length} active • $
+                {subscriptionsForAccount.filter((s) => s.is_active).length} active • $
                 {totalMonthlyCost.toFixed(2)}/month
               </Text>
-            </View>
-            <View className="flex-row items-center gap-2">
-              {/* Add Subscription Button */}
-              <TouchableOpacity
-                style={{
-                  backgroundColor: theme.primary,
-                  borderRadius: 12,
-                  paddingVertical: 12,
-                  paddingHorizontal: 20,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 4,
-                  elevation: 3,
-                }}
-                onPress={openAddModal}>
-                <Text style={{ color: theme.primaryText, fontWeight: '600' }}>
-                  {t.addSubscription}
-                </Text>
-              </TouchableOpacity>
             </View>
           </View>
 
@@ -594,7 +587,7 @@ export default function SubscriptionsScreen({
             </Text>
             <Text
               style={{ color: theme.primaryText, fontSize: 13, opacity: 0.8 }}>
-              {subscriptions.filter((s) => s.is_active).length} active
+              {subscriptionsForAccount.filter((s) => s.is_active).length} active
               subscriptions
             </Text>
           </View>
@@ -610,7 +603,7 @@ export default function SubscriptionsScreen({
               }}>
               {t.activeSubscriptions}
             </Text>
-            {subscriptions.filter((sub) => sub.is_active).length === 0 ? (
+            {subscriptionsForAccount.filter((sub) => sub.is_active).length === 0 ? (
               <View
                 style={{
                   paddingVertical: 48,
@@ -637,7 +630,7 @@ export default function SubscriptionsScreen({
               </View>
             ) : (
               <View style={{ gap: 12 }}>
-                {subscriptions
+                {subscriptionsForAccount
                   .filter((sub) => sub.is_active)
                   .map((subscription) => {
                     const daysUntilPayment = Math.ceil(
@@ -813,7 +806,7 @@ export default function SubscriptionsScreen({
           </View>
 
           {/* Inactive Subscriptions - Simplified */}
-          {subscriptions.filter((sub) => !sub.is_active).length > 0 && (
+          {subscriptionsForAccount.filter((sub) => !sub.is_active).length > 0 && (
             <View style={{ marginBottom: 24 }}>
               <Text
                 style={{
@@ -825,7 +818,7 @@ export default function SubscriptionsScreen({
                 {t.InactiveSubscriptions || 'Inactive Subscriptions'}
               </Text>
               <View style={{ gap: 12 }}>
-                {subscriptions
+                {subscriptionsForAccount
                   .filter((sub) => !sub.is_active)
                   .map((subscription) => (
                     <Pressable
@@ -914,6 +907,40 @@ export default function SubscriptionsScreen({
           )}
         </View>
       </ScrollView>
+
+      {/* Add Subscription FAB - bottom right (same position as Budget FAB) */}
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          bottom: 18,
+          right: 20,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: 14,
+          paddingHorizontal: 20,
+          borderRadius: 28,
+          backgroundColor: theme.primary,
+          gap: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.25,
+          shadowRadius: 6,
+          elevation: 8,
+        }}
+        onPress={openAddModal}
+      >
+        <Plus size={22} color={theme.primaryText} />
+        <Text
+          style={{
+            color: theme.primaryText,
+            fontSize: 15,
+            fontWeight: '600',
+          }}
+        >
+          {t.addSubscription}
+        </Text>
+      </TouchableOpacity>
 
       {/* Add/Edit Subscription Modal - Simplified */}
       <Modal

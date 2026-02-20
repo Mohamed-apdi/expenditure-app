@@ -12,9 +12,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '~/lib';
 import { type FinancialSummary } from '~/lib';
-import { fetchTransactions } from '~/lib';
-import { fetchProfile } from '~/lib';
-import { useAccount } from '~/lib';
+import {
+  fetchProfile,
+  useAccount,
+  selectTransactionsByDateRange,
+  selectProfile,
+} from '~/lib';
+import { transactions$ } from '~/lib/stores/transactionsStore';
 
 import {
   TrendingUp,
@@ -96,21 +100,34 @@ export default function DashboardScreen() {
 
   const fetchUserProfile = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
+      let user = (await supabase.auth.getUser()).data?.user ?? null;
       if (!user) {
-        return;
+        const { data: { session } } = await supabase.auth.getSession();
+        user = session?.user ?? null;
       }
+      if (!user) return;
 
-      // Profile
-      const profileData = await fetchProfile(user.id);
-      setUserProfile({
-        fullName: profileData?.full_name || '',
-        email: user.email || '',
-        image_url: profileData?.image_url || '',
-      });
+      // Offline-first: show local profile immediately; refresh from server when online
+      const localProfile = selectProfile(user.id);
+      if (localProfile?.full_name != null || localProfile?.image_url != null) {
+        setUserProfile({
+          fullName: localProfile.full_name || '',
+          email: user.email || localProfile.email || '',
+          image_url: localProfile.image_url || '',
+        });
+      }
+      try {
+        const profileData = await fetchProfile(user.id);
+        if (profileData) {
+          setUserProfile({
+            fullName: profileData.full_name || '',
+            email: user.email || '',
+            image_url: profileData.image_url || '',
+          });
+        }
+      } catch {
+        // Offline or fetch failed; keep local profile if already set
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
     }
@@ -124,83 +141,74 @@ export default function DashboardScreen() {
     [],
   );
 
-  // Memoize fetchMonthData to prevent infinite loops
+  // Month data from local store (offline-first, instant)
   const fetchMonthData = React.useCallback(
     async (month: number, year: number) => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
+        let user = (await supabase.auth.getUser()).data?.user ?? null;
+        if (!user) {
+          const { data: { session } } = await supabase.auth.getSession();
+          user = session?.user ?? null;
+        }
         if (!user) return { income: 0, expense: 0, balance: 0 };
 
-        // Get first and last day of selected month
         const startDate = new Date(year, month, 1).toISOString().split('T')[0];
         const endDate = new Date(year, month + 1, 0)
           .toISOString()
           .split('T')[0];
 
-        // Fetch transactions for selected month
-        let monthTransactions;
+        let monthTransactions = selectTransactionsByDateRange(
+          user.id,
+          startDate,
+          endDate,
+        );
         if (selectedAccount) {
-          // Filter by selected account
-          monthTransactions = await fetchTransactions(user.id);
           monthTransactions = monthTransactions.filter(
-            (t) =>
-              t.account_id === selectedAccount.id &&
-              t.date >= startDate &&
-              t.date <= endDate,
-          );
-        } else {
-          // Fetch all transactions
-          monthTransactions = await fetchTransactions(user.id);
-          monthTransactions = monthTransactions.filter(
-            (t) => t.date >= startDate && t.date <= endDate,
+            (t) => t.account_id === selectedAccount.id,
           );
         }
 
         let monthIncome = 0;
         let monthExpense = 0;
-        const monthTransactionsList: Transaction[] = [];
+        const monthTransactionsList: Transaction[] = monthTransactions.map(
+          (t) => {
+            const amount = t.amount || 0;
+            if (t.type === 'income') monthIncome += amount;
+            else if (t.type === 'expense') monthExpense += amount;
+            return {
+              id: t.id,
+              amount: t.amount,
+              category: t.category,
+              description: t.description,
+              created_at: t.created_at,
+              date: t.date,
+              type: t.type,
+              account_id: t.account_id,
+            } as Transaction;
+          },
+        );
 
-        monthTransactions?.forEach((t) => {
-          const amount = t.amount || 0;
-          if (t.type === 'income') {
-            monthIncome += amount;
-          } else if (t.type === 'expense') {
-            monthExpense += amount;
-          }
-          monthTransactionsList.push(t as Transaction);
-        });
-
-        // Sort transactions by date (newest first) and update the filtered transactions for the selected month
         const sortedTransactions = monthTransactionsList.sort(
           (a, b) =>
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
         );
         setFilteredTransactions(sortedTransactions);
 
-        // Calculate balance based on whether an account is selected
-        let balance;
-        if (selectedAccount) {
-          // For selected account, show the actual account balance
-          balance = selectedAccount.amount || 0;
-        } else {
-          // For all accounts, show the monthly transaction balance
-          balance = monthIncome - monthExpense;
-        }
+        const balance = selectedAccount
+          ? selectedAccount.amount || 0
+          : monthIncome - monthExpense;
 
         return {
           income: monthIncome,
           expense: monthExpense,
-          balance: balance,
+          balance,
         };
       } catch (error) {
         console.error('Error fetching month data:', error);
         return { income: 0, expense: 0, balance: 0 };
       }
     },
-    [selectedAccount?.id],
+    [selectedAccount?.id, selectedAccount?.amount],
   );
 
   useEffect(() => {
@@ -245,6 +253,14 @@ export default function DashboardScreen() {
       setRefreshTrigger((prev) => prev + 1);
     }, [refreshBalances]),
   );
+
+  // When transactions store updates (e.g. after sync), refresh month view
+  useEffect(() => {
+    const unsub = transactions$.onChange(() => {
+      setRefreshTrigger((prev) => prev + 1);
+    });
+    return unsub;
+  }, []);
 
   const onRefresh = React.useCallback(async () => {
     if (!refreshing) {

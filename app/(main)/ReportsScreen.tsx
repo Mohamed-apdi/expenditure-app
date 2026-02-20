@@ -12,14 +12,13 @@ import {
 } from 'react-native';
 import {
   Calendar,
-  Filter,
   Wallet,
   X,
   FileText,
   Download,
 } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { BarChart, PieChart as ChartKitPieChart } from 'react-native-chart-kit';
+import { BarChart as GiftedBarChart, PieChart as GiftedPieChart } from 'react-native-gifted-charts';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAccount } from '~/lib';
 import { supabase } from '~/lib';
@@ -72,6 +71,7 @@ export default function ReportsScreen() {
   const [datePickerMode, setDatePickerMode] = useState<'start' | 'end'>(
     'start',
   );
+  const [rangeModalVisible, setRangeModalVisible] = useState(false);
   const [downloadMenuVisible, setDownloadMenuVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -261,10 +261,18 @@ export default function ReportsScreen() {
     );
   }, [transactionData, t]);
 
-  // Memoized bar chart data
+  // Gifted Charts pie data: { value, color, text? }
+  const giftedPieData = useMemo(() => {
+    return pieChartData.map((item) => ({
+      value: item.population,
+      color: item.color,
+      text: item.name,
+    }));
+  }, [pieChartData]);
+
+  // Memoized bar chart data (chart-kit format - kept for any legacy refs)
   const barChartData = useMemo(() => {
     if (!processedChartData) return null;
-
     return {
       labels: processedChartData.displayData.map((item) =>
         new Date(item.date).toLocaleDateString(
@@ -283,6 +291,23 @@ export default function ReportsScreen() {
         },
       ],
     };
+  }, [processedChartData]);
+
+  // Gifted Charts bar data: value, label (date + amount on second line), frontColor. Values under bars so they align on one line.
+  const giftedBarData = useMemo(() => {
+    if (!processedChartData) return [];
+    return processedChartData.displayData.map((item, index) => {
+      const value = Math.abs(item.amount);
+      const dateLabel = new Date(item.date).toLocaleDateString(
+        'en-US',
+        processedChartData.dateFormatter,
+      );
+      return {
+        value,
+        label: `${dateLabel}\n${formatCurrency(value)}`,
+        frontColor: getColorByIndex(index),
+      };
+    });
   }, [processedChartData]);
 
   const fetchTransactionReports = useCallback(async () => {
@@ -1219,9 +1244,14 @@ export default function ReportsScreen() {
     setDatePickerVisible(false);
   }, []);
 
-  // Function to apply pending date changes and refresh data
-  const handleSubmitDateRange = useCallback(() => {
+  const openRangeModal = useCallback(() => {
+    setPendingDateRange(dateRange);
+    setRangeModalVisible(true);
+  }, [dateRange]);
+
+  const applyDateRange = useCallback(() => {
     setDateRange(pendingDateRange);
+    setRangeModalVisible(false);
   }, [pendingDateRange]);
 
   const openDatePicker = useCallback((mode: 'start' | 'end') => {
@@ -1394,28 +1424,56 @@ export default function ReportsScreen() {
             }}>
             {t.spendingByCategory}
           </Text>
-          {pieChartData.length > 0 ? (
-            <>
-              <View style={{ alignItems: 'center', marginBottom: 16 }}>
-                <ChartKitPieChart
-                  data={pieChartData}
-                  width={screenWidth - 64}
-                  height={200}
-                  chartConfig={{
-                    backgroundColor: theme.cardBackground,
-                    backgroundGradientFrom: theme.cardBackground,
-                    backgroundGradientTo: theme.cardBackground,
-                    color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-                  }}
-                  accessor="population"
-                  backgroundColor="transparent"
-                  paddingLeft="15"
-                  absolute
-                  hasLegend={true}
-                  center={[10, 0]}
-                />
+          {giftedPieData.length > 0 ? (
+            <View style={{ alignItems: 'center', marginBottom: 16 }}>
+              <GiftedPieChart
+                data={giftedPieData}
+                donut
+                radius={80}
+                innerRadius={48}
+                innerCircleColor={theme.cardBackground}
+                focusOnPress
+                isAnimated
+              />
+              <View style={{ marginTop: 12, width: '100%', paddingHorizontal: 8 }}>
+                {giftedPieData.map((slice, index) => (
+                  <View
+                    key={index}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      marginBottom: 6,
+                    }}>
+                    <View
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: 5,
+                        backgroundColor: slice.color,
+                        marginRight: 8,
+                      }}
+                    />
+                    <Text
+                      style={{
+                        flex: 1,
+                        color: theme.text,
+                        fontSize: 12,
+                      }}
+                      numberOfLines={1}>
+                      {slice.text}
+                    </Text>
+                    <Text
+                      style={{
+                        color: theme.textSecondary,
+                        fontSize: 12,
+                        fontWeight: '600',
+                      }}>
+                      {formatCurrency(slice.value)}
+                    </Text>
+                  </View>
+                ))}
               </View>
-            </>
+            </View>
           ) : (
             <Text
               style={{
@@ -1445,29 +1503,80 @@ export default function ReportsScreen() {
             }}>
             {processedChartData.chartTitle}
           </Text>
-          {barChartData.datasets[0].data.length > 0 ? (
-            <BarChart
-              data={barChartData}
-              width={screenWidth - 64}
-              height={200}
-              yAxisLabel="$"
-              yAxisSuffix=""
-              chartConfig={{
-                backgroundColor: theme.cardBackground,
-                backgroundGradientFrom: theme.cardBackground,
-                backgroundGradientTo: theme.cardBackground,
-                decimalPlaces: 0,
-                color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(156, 163, 175, ${opacity})`,
-                style: { borderRadius: 12 },
-                barPercentage: 0.7,
-                propsForBackgroundLines: {
-                  stroke: theme.border,
-                  strokeWidth: 1,
-                },
-              }}
-              style={{ marginVertical: 8 }}
-            />
+          {giftedBarData.length > 0 ? (
+            <View style={{ marginVertical: 8, paddingBottom: 4, paddingLeft: 4 }}>
+              <GiftedBarChart
+                data={giftedBarData}
+                barWidth={28}
+                barBorderRadius={6}
+                noOfSections={4}
+                yAxisThickness={1}
+                yAxisColor={theme.border}
+                xAxisThickness={1}
+                xAxisColor={theme.border}
+                yAxisLabelWidth={40}
+                yAxisTextStyle={{ color: theme.textSecondary, fontSize: 10 }}
+                xAxisLabelTextStyle={{
+                  color: theme.text,
+                  fontSize: 11,
+                }}
+                formatYLabel={(v) => `$${Number(v).toFixed(0)}`}
+                showVerticalLines
+                verticalLinesColor={theme.border}
+                hideRules={false}
+                rulesColor={theme.border}
+                rulesType="solid"
+                width={screenWidth - 64}
+                height={200}
+                initialSpacing={8}
+                endSpacing={8}
+                spacing={12}
+                labelsExtraHeight={0}
+                isAnimated
+              />
+              {/* X-axis labels below chart, aligned under each bar (match chart layout) */}
+              {(() => {
+                const barWidth = 28;
+                const spacing = 12;
+                const initialSpacing = 8;
+                const yAxisLabelWidth = 40;
+                const containerPadding = 4;
+                const labelColumnWidth = barWidth + spacing;
+                const firstBarCenter = containerPadding + yAxisLabelWidth + initialSpacing + barWidth / 2;
+                return (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      marginTop: 2,
+                      width: screenWidth - 64,
+                      paddingLeft: containerPadding,
+                      minHeight: 36,
+                    }}>
+                    {giftedBarData.map((item, index) => (
+                      <View
+                        key={index}
+                        style={{
+                          position: 'absolute',
+                          left: firstBarCenter + index * labelColumnWidth - labelColumnWidth / 2,
+                          width: labelColumnWidth,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}>
+                        <Text
+                          style={{
+                            color: theme.text,
+                            fontSize: 11,
+                            textAlign: 'center',
+                          }}
+                          numberOfLines={2}>
+                          {item.label}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })()}
+            </View>
           ) : (
             <Text
               style={{
@@ -2239,7 +2348,7 @@ export default function ReportsScreen() {
             </Text>
           </View>
 
-          {/* Date Range Picker */}
+          {/* Date Range - single field, tap to open range picker */}
           <View className="flex-row gap-2 mt-3">
             <TouchableOpacity
               style={{
@@ -2252,7 +2361,7 @@ export default function ReportsScreen() {
                 borderWidth: 1,
                 borderColor: theme.border,
               }}
-              onPress={() => openDatePicker('start')}
+              onPress={openRangeModal}
               disabled={loading}>
               <Calendar size={16} color={theme.primary} />
               <Text
@@ -2262,50 +2371,9 @@ export default function ReportsScreen() {
                   fontSize: 13,
                   flex: 1,
                 }}>
-                {formatDate(pendingDateRange.startDate.toISOString())}
+                {formatDate(dateRange.startDate.toISOString())} –{' '}
+                {formatDate(dateRange.endDate.toISOString())}
               </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={{
-                flex: 1,
-                backgroundColor: theme.background,
-                padding: 10,
-                borderRadius: 8,
-                flexDirection: 'row',
-                alignItems: 'center',
-                borderWidth: 1,
-                borderColor: theme.border,
-              }}
-              onPress={() => openDatePicker('end')}
-              disabled={loading}>
-              <Calendar size={16} color={theme.primary} />
-              <Text
-                style={{
-                  marginLeft: 6,
-                  color: theme.text,
-                  fontSize: 13,
-                  flex: 1,
-                }}>
-                {formatDate(pendingDateRange.endDate.toISOString())}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={{
-                backgroundColor: theme.primary,
-                padding: 10,
-                borderRadius: 8,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-              onPress={handleSubmitDateRange}
-              disabled={loading}>
-              {loading ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Filter size={18} color="white" />
-              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -2391,7 +2459,7 @@ export default function ReportsScreen() {
                   paddingVertical: 8,
                   borderRadius: 16,
                   backgroundColor:
-                    activeTab === 'budgets' ? theme.primary : theme.background,
+                    activeTab === 'budgets' ? theme.tabActive : theme.background,
                 }}
                 onPress={() => setActiveTab('budgets')}>
                 <Text
@@ -2410,7 +2478,7 @@ export default function ReportsScreen() {
                   paddingVertical: 8,
                   borderRadius: 16,
                   backgroundColor:
-                    activeTab === 'goals' ? theme.primary : theme.background,
+                    activeTab === 'goals' ? theme.tabActive : theme.background,
                 }}
                 onPress={() => setActiveTab('goals')}>
                 <Text
@@ -2429,7 +2497,7 @@ export default function ReportsScreen() {
                   paddingVertical: 8,
                   borderRadius: 16,
                   backgroundColor:
-                    activeTab === 'accounts' ? theme.primary : theme.background,
+                    activeTab === 'accounts' ? theme.tabActive : theme.background,
                 }}
                 onPress={() => setActiveTab('accounts')}>
                 <Text
@@ -2571,6 +2639,128 @@ export default function ReportsScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Date range selection modal - pick start & end then Apply */}
+        <Modal
+          visible={rangeModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setRangeModalVisible(false)}>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={{
+              flex: 1,
+              justifyContent: 'flex-end',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            }}
+            onPress={() => setRangeModalVisible(false)}>
+            <TouchableOpacity
+              activeOpacity={1}
+              style={{
+                backgroundColor: theme.cardBackground,
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                padding: 20,
+              }}
+              onPress={(e) => e.stopPropagation()}>
+              <View className="flex-row justify-between items-center mb-4">
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontSize: 18,
+                    fontWeight: 'bold',
+                  }}>
+                  {t.selectDateRange || 'Select date range'}
+                </Text>
+                <TouchableOpacity onPress={() => setRangeModalVisible(false)}>
+                  <X size={24} color={theme.textMuted} />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingVertical: 12,
+                  paddingHorizontal: 12,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  marginBottom: 12,
+                }}
+                onPress={() => openDatePicker('start')}>
+                <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
+                  {t.selectStartDate || 'Start date'}
+                </Text>
+                <Text style={{ color: theme.text, fontSize: 15, fontWeight: '500' }}>
+                  {formatDate(pendingDateRange.startDate.toISOString())}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingVertical: 12,
+                  paddingHorizontal: 12,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  marginBottom: 20,
+                }}
+                onPress={() => openDatePicker('end')}>
+                <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
+                  {t.selectEndDate || 'End date'}
+                </Text>
+                <Text style={{ color: theme.text, fontSize: 15, fontWeight: '500' }}>
+                  {formatDate(pendingDateRange.endDate.toISOString())}
+                </Text>
+              </TouchableOpacity>
+
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    paddingVertical: 14,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    alignItems: 'center',
+                  }}
+                  onPress={() => setRangeModalVisible(false)}>
+                  <Text
+                    style={{
+                      color: theme.textSecondary,
+                      fontSize: 16,
+                      fontWeight: '600',
+                    }}>
+                    {t.cancel || 'Cancel'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    paddingVertical: 14,
+                    borderRadius: 12,
+                    backgroundColor: theme.primary,
+                    alignItems: 'center',
+                  }}
+                  onPress={applyDateRange}>
+                  <Text
+                    style={{
+                      color: theme.primaryText,
+                      fontSize: 16,
+                      fontWeight: '600',
+                    }}>
+                    {t.applyDateRange || 'Apply'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
           </TouchableOpacity>
         </Modal>
 
