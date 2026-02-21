@@ -149,3 +149,50 @@ export function deleteAccountLocal(id: string): void {
     return { ...state, byId: nextById, allIds: nextAllIds };
   });
 }
+
+/**
+ * Seed local store from server when sync hasn't run or failed (e.g. right after login).
+ * Inserts each remote row as "synced" so dashboard and WalletDropdown show accounts immediately.
+ */
+export function setAccountsFromServer(
+  userId: string,
+  remotes: Array<Record<string, unknown>>
+): void {
+  if (!remotes.length) return;
+  const now = nowIso();
+  accounts$.set((state) => {
+    let nextById = { ...state.byId };
+    let nextAllIds = [...state.allIds];
+    for (const remote of remotes) {
+      const id = remote.id as string;
+      if (!id || (remote.user_id as string) !== userId) continue;
+      const existing = nextById[id];
+      if (existing) continue;
+      const remoteVersion =
+        (remote.updated_at as string) ?? (remote.created_at as string) ?? null;
+      const row: LocalAccount = {
+        ...remote,
+        id,
+        user_id: (remote.user_id as string) ?? userId,
+        account_type: (remote.account_type as string) ?? "Other",
+        name: (remote.name as string) ?? "",
+        amount: typeof remote.amount === "number" ? remote.amount : 0,
+        description: (remote.description as string) ?? null,
+        created_at: (remote.created_at as string) ?? now,
+        updated_at: (remote.updated_at as string) ?? now,
+        group_id: (remote.group_id as string) ?? null,
+        is_default: Boolean(remote.is_default),
+        currency: (remote.currency as string) ?? "USD",
+        deleted_at: (remote.deleted_at as string) ?? null,
+        __local_status: "synced",
+        __local_updated_at: now,
+        __last_error: null,
+        __remote_updated_at: remoteVersion,
+      } as LocalAccount;
+      nextById = { ...nextById, [id]: row };
+      nextAllIds = ensureId(nextAllIds, id);
+    }
+    nextAllIds = sortIds(nextAllIds, nextById);
+    return { ...state, byId: nextById, allIds: nextAllIds };
+  });
+}

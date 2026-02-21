@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import {
   TouchableOpacity,
   Text,
   View,
-  FlatList,
   Modal,
+  Pressable,
   ScrollView,
 } from "react-native";
-import { ChevronDown, Loader, X } from "lucide-react-native";
+import { ChevronDown, Loader, Wallet } from "lucide-react-native";
 import { useTheme } from "~/lib";
 import { useAccount } from "~/lib";
 
@@ -64,6 +64,8 @@ export function WalletDropdown({ variant = "dark" }: WalletDropdownProps) {
   // Remove the immediate refresh logic that was causing issues
   // Accounts are now auto-loaded by AccountContext
 
+  const closeSheet = useCallback(() => setIsDropdownOpen(false), []);
+
   const handleAccountSelection = async (account: any) => {
     try {
       setIsSelecting(true);
@@ -87,9 +89,19 @@ export function WalletDropdown({ variant = "dark" }: WalletDropdownProps) {
 
   const displayAccount = selectedAccount || accounts[0];
   if (!displayAccount) {
+    // Not loading but no accounts (e.g. server fetch failed or new user) — show label instead of spinner
     return (
       <View className="flex-row items-center mx-3">
-        <Loader size={20} color={buttonColor} className="animate-spin" />
+        <Text
+          style={{
+            fontSize: 18,
+            fontWeight: "700",
+            color: buttonColor,
+          }}
+          numberOfLines={1}
+        >
+          Select Account
+        </Text>
       </View>
     );
   }
@@ -124,103 +136,123 @@ export function WalletDropdown({ variant = "dark" }: WalletDropdownProps) {
         </TouchableOpacity>
       </View>
 
-      {/* Account Selection Modal */}
+      {/* Account selection - bottom sheet */}
       <Modal
         visible={isDropdownOpen}
-        animationType="fade"
-        transparent={true}
-        onRequestClose={() => setIsDropdownOpen(false)}
+        transparent
+        animationType="slide"
+        onRequestClose={closeSheet}
       >
-        <View
+        <Pressable
           style={{
             flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            justifyContent: "flex-end",
+            backgroundColor: "rgba(0,0,0,0.4)",
           }}
+          onPress={closeSheet}
         >
-          <View
+          <Pressable
             style={{
-              width: "90%",
-              maxHeight: "70%",
+              maxHeight: "75%",
               backgroundColor: theme.cardBackground,
-              borderRadius: 12,
-              padding: 20,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              overflow: "hidden",
             }}
+            onPress={(e) => e.stopPropagation()}
           >
-            <View className="flex-row justify-between items-center mb-4">
+            <View
+              style={{
+                paddingTop: 12,
+                paddingBottom: 8,
+                alignItems: "center",
+              }}
+            >
+              <View
+                style={{
+                  width: 36,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: theme.border,
+                }}
+              />
+            </View>
+            <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
               <Text
                 style={{
-                  color: theme.text,
-                  fontWeight: "bold",
                   fontSize: 18,
+                  fontWeight: "700",
+                  color: theme.text,
+                  marginBottom: 16,
                 }}
               >
                 Select Account
               </Text>
-              <TouchableOpacity onPress={() => setIsDropdownOpen(false)}>
-                <X size={24} color={theme.textMuted} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              style={{ maxHeight: 400 }}
-            >
-              {accounts.map((account) => (
-                <TouchableOpacity
-                  key={account.id}
-                  style={{
-                    padding: 16,
-                    borderBottomWidth: 1,
-                    borderBottomColor: theme.border,
-                    backgroundColor:
-                      selectedAccount?.id === account.id
-                        ? `${theme.primary}20`
-                        : "transparent",
-                    borderRadius: 8,
-                    marginBottom: 8,
-                  }}
-                  onPress={() => handleAccountSelection(account)}
-                  activeOpacity={0.7}
-                  disabled={isSelecting}
-                >
-                  <View className="flex-row items-center justify-between w-full">
-                    <View className="flex-1 mr-4">
+              <ScrollView
+                style={{ maxHeight: 320 }}
+                contentContainerStyle={{ paddingBottom: 16 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {accounts.map((account) => (
+                  <TouchableOpacity
+                    key={account.id}
+                    activeOpacity={0.7}
+                    onPress={() => handleAccountSelection(account)}
+                    disabled={isSelecting}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingVertical: 14,
+                      paddingHorizontal: 12,
+                      borderRadius: 12,
+                      backgroundColor: theme.background,
+                      marginBottom: 8,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        backgroundColor: `${theme.primary}18`,
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginRight: 12,
+                      }}
+                    >
+                      <Wallet size={20} color={theme.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
                       <Text
                         style={{
-                          color: theme.text,
                           fontSize: 16,
-                          fontWeight: "500",
-                          marginBottom: 4,
+                          fontWeight: "600",
+                          color: theme.text,
                         }}
                       >
                         {account.name}
                       </Text>
                       <Text
                         style={{
+                          fontSize: 13,
                           color: theme.textSecondary,
-                          fontSize: 14,
+                          marginTop: 2,
                         }}
                       >
-                        {account.account_type}
+                        Balance: ${account.amount?.toFixed(2) || "0.00"}
                       </Text>
                     </View>
-                    <Text
-                      style={{
-                        color: theme.text,
-                        fontSize: 16,
-                        fontWeight: "600",
-                      }}
-                    >
-                      ${account.amount?.toFixed(2) || "0.00"}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
+                    <View style={{ transform: [{ rotate: "-90deg" }] }}>
+                      <ChevronDown size={18} color={theme.textMuted} />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );

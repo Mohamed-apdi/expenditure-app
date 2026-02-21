@@ -610,7 +610,7 @@ export default function AddExpenseScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 88 }}
+          contentContainerStyle={{ paddingBottom: 16, flexGrow: 1 }}
         >
           {/* Type Tabs - Modern Pills */}
           <View
@@ -620,21 +620,27 @@ export default function AddExpenseScreen() {
               backgroundColor: theme.background,
             }}
           >
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              {ENTRY_TABS.map((tab) => (
+            <View
+              style={{
+                flexDirection: "row",
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: theme.border,
+                overflow: "hidden",
+              }}
+            >
+              {ENTRY_TABS.map((tab, index) => (
                 <TouchableOpacity
                   key={tab.id}
                   style={{
                     flex: 1,
                     paddingVertical: 12,
-                    borderRadius: 20,
                     backgroundColor:
                       entryType === tab.id
                         ? theme.tabActive
                         : theme.cardBackground,
-                    borderWidth: 1,
-                    borderColor:
-                      entryType === tab.id ? theme.tabActive : theme.border,
+                    borderRightWidth: index < ENTRY_TABS.length - 1 ? 1 : 0,
+                    borderRightColor: theme.border,
                   }}
                   onPress={() => handleEntryTypeChange(tab.id)}
                 >
@@ -937,57 +943,48 @@ export default function AddExpenseScreen() {
               t={t}
             />
           )}
-        </ScrollView>
-
-        {/* Save button at bottom right for easy thumb reach */}
-        <View
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            paddingHorizontal: 16,
-            paddingTop: 12,
-            paddingBottom: Math.max(insets.bottom, 16),
-            backgroundColor: theme.background,
-            borderTopWidth: 1,
-            borderTopColor: theme.border,
-            alignItems: "flex-end",
-          }}
-        >
-          <TouchableOpacity
+          {/* Save button - part of form flow */}
+          <View
             style={{
-              paddingVertical: 14,
-              paddingHorizontal: 28,
-              borderRadius: 14,
-              backgroundColor: isFormValid()
-                ? theme.primary
-                : theme.cardBackground,
-              minWidth: 120,
-              alignItems: "center",
+              paddingHorizontal: 16,
+              paddingTop: 24,
+              paddingBottom: Math.max(insets.bottom, 24),
+              alignItems: "flex-end",
             }}
-            onPress={
-              entryType === "Transfer" ? handleTransfer : handleSaveExpense
-            }
-            disabled={!isFormValid()}
           >
-            <Text
+            <TouchableOpacity
               style={{
-                fontWeight: "600",
-                fontSize: 16,
-                color: isFormValid() ? theme.primaryText : theme.textMuted,
+                paddingVertical: 14,
+                paddingHorizontal: 28,
+                borderRadius: 14,
+                backgroundColor: theme.primary,
+                minWidth: 120,
+                alignItems: "center",
+                opacity: isFormValid() ? 1 : 0.7,
               }}
+              onPress={
+                entryType === "Transfer" ? handleTransfer : handleSaveExpense
+              }
+              disabled={!isFormValid()}
             >
-              {entryType === "Transfer"
-                ? isSubmitting
-                  ? t.saving || "Saving..."
-                  : (t.completeTransfer || "Transfer")
-                : isSubmitting
-                  ? t.saving || "Saving..."
-                  : t.save || "Save"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+              <Text
+                style={{
+                  fontWeight: "600",
+                  fontSize: 16,
+                  color: theme.primaryText,
+                }}
+              >
+                {entryType === "Transfer"
+                  ? isSubmitting
+                    ? t.saving || "Saving..."
+                    : (t.completeTransfer || "Transfer")
+                  : isSubmitting
+                    ? t.saving || "Saving..."
+                    : t.save || "Save"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

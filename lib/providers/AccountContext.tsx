@@ -17,9 +17,11 @@ import {
   accounts$,
   selectAccounts,
   selectAccountById,
+  setAccountsFromServer,
   updateAccountLocal,
   toAccount,
 } from "../stores/accountsStore";
+import { fetchAccounts } from "../services/accounts";
 import type { Account } from "../types/types";
 
 /** Clear account state so we never show a previous user's data (spec 005). */
@@ -194,7 +196,20 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         setLoading(false);
         return;
       }
-      const list = selectAccounts(user.id).map(toAccount);
+      let list = selectAccounts(user.id).map(toAccount);
+      // When local store is empty (e.g. after login before sync, or sync error), seed from server
+      // so dashboard and WalletDropdown show accounts instead of loading/empty.
+      if (list.length === 0) {
+        try {
+          const serverAccounts = await fetchAccounts(user.id);
+          if (serverAccounts?.length > 0) {
+            setAccountsFromServer(user.id, serverAccounts as Array<Record<string, unknown>>);
+            list = selectAccounts(user.id).map(toAccount);
+          }
+        } catch (seedError) {
+          console.error("Error seeding accounts from server:", seedError);
+        }
+      }
       if (list.length > 0) {
         setAccounts(list);
         if (!selectedAccount && !isUpdatingDefault) {
@@ -232,7 +247,18 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         setLoading(false);
         return;
       }
-      const list = selectAccounts(user.id).map(toAccount);
+      let list = selectAccounts(user.id).map(toAccount);
+      if (list.length === 0) {
+        try {
+          const serverAccounts = await fetchAccounts(user.id);
+          if (serverAccounts?.length > 0) {
+            setAccountsFromServer(user.id, serverAccounts as Array<Record<string, unknown>>);
+            list = selectAccounts(user.id).map(toAccount);
+          }
+        } catch (seedError) {
+          console.error("Error seeding accounts from server:", seedError);
+        }
+      }
       if (list.length > 0) {
         setAccounts(list);
         if (!selectedAccount && !isUpdatingDefault) {

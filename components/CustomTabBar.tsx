@@ -3,7 +3,9 @@ import { Banknote, BarChart2, Home, Plus, Wallet } from "lucide-react-native";
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { useLanguage, useTheme } from "~/lib";
-
+import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import Entypo from '@expo/vector-icons/Entypo';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 export default function CustomTabBar({ state, descriptors, navigation }: any) {
   const router = useRouter();
   const theme = useTheme();
@@ -12,26 +14,26 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
   const tabs = [
     {
       route: "/(main)/Dashboard",
-      icon: Home,
+      icon: <Entypo name="home" size={24} color="black" />,
       label: t.home || "Home",
       index: 0,
     },
     {
       route: "/(main)/ReportsScreen",
-      icon: BarChart2,
+      icon: <FontAwesome6 name="chart-simple" size={24} color="black" />,
       label: t.reports || "Reports",
       index: 1,
     },
     null, // Placeholder for middle add button
     {
       route: "/(main)/BudgetScreen",
-      icon: Wallet,
+      icon: <Entypo name="wallet" size={24} color="black" />,
       label: t.budgets || "Budget",
       index: 2,
     },
     {
       route: "/(main)/Accounts",
-      icon: Banknote,
+      icon: <MaterialIcons name="account-balance" size={24} color="black" />,
       label: t.accounts || "Accounts",
       index: 3,
     },
@@ -87,8 +89,26 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
 
         const isActive = state.index === tab.index;
         const Icon = tab.icon;
-
         const activeColor = "#40A5E7";
+        const iconColor = isActive ? activeColor : theme.textMuted;
+
+        const iconContent = React.isValidElement(Icon) ? (
+          React.cloneElement(Icon as React.ReactElement<{ size?: number; color?: string }>, {
+            size: 22,
+            color: iconColor,
+          })
+        ) : (
+          React.createElement(
+            Icon as unknown as React.ComponentType<{ size: number; color: string; strokeWidth?: number; opacity?: number }>,
+            {
+              size: 22,
+              color: iconColor,
+              strokeWidth: isActive ? 2.5 : 2,
+              opacity: 1,
+            }
+          )
+        );
+
         return (
           <TouchableOpacity
             key={tab.route}
@@ -111,12 +131,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
                 opacity: 1,
               }}
             >
-              <Icon
-                size={22}
-                color={isActive ? activeColor : theme.textMuted}
-                strokeWidth={isActive ? 2.5 : 2}
-                opacity={1}
-              />
+              {iconContent}
               <Text
                 style={{
                   fontSize: 11,

@@ -1,8 +1,16 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, TextInput } from 'react-native';
-import { Calendar, ChevronDown } from 'lucide-react-native';
+import React, { useCallback, useState } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  TextInput,
+  Modal,
+  Pressable,
+  ScrollView,
+  Platform,
+} from 'react-native';
+import { Calendar, ChevronDown, Wallet } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import RNPickerSelect from 'react-native-picker-select';
 import type { Account } from '~/lib';
 
 type Category = {
@@ -13,6 +21,19 @@ type Category = {
 };
 
 type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
+
+const CARD_STYLE = {
+  paddingVertical: 16,
+  paddingHorizontal: 16,
+  borderRadius: 16,
+  minHeight: 72,
+  borderWidth: 1,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.06,
+  shadowRadius: 8,
+  elevation: 3,
+};
 
 type Props = {
   amount: string;
@@ -55,7 +76,32 @@ export default function ExpenseForm({
   theme,
   t,
 }: Props) {
-  const [showDatePicker, setShowDatePicker] = React.useState(false);
+  const [dateSheetOpen, setDateSheetOpen] = useState(false);
+  const [categorySheetOpen, setCategorySheetOpen] = useState(false);
+  const [accountSheetOpen, setAccountSheetOpen] = useState(false);
+
+  const openDateSheet = useCallback(() => setDateSheetOpen(true), []);
+  const closeDateSheet = useCallback(() => setDateSheetOpen(false), []);
+  const openCategorySheet = useCallback(() => setCategorySheetOpen(true), []);
+  const closeCategorySheet = useCallback(() => setCategorySheetOpen(false), []);
+  const openAccountSheet = useCallback(() => setAccountSheetOpen(true), []);
+  const closeAccountSheet = useCallback(() => setAccountSheetOpen(false), []);
+
+  const handleSelectCategory = useCallback(
+    (category: Category) => {
+      setSelectedCategory(category);
+      setCategorySheetOpen(false);
+    },
+    [setSelectedCategory]
+  );
+
+  const handleSelectAccount = useCallback(
+    (account: Account) => {
+      setSelectedAccount(account);
+      setAccountSheetOpen(false);
+    },
+    [setSelectedAccount]
+  );
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
@@ -65,12 +111,15 @@ export default function ExpenseForm({
     });
   };
 
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      setDate(selectedDate);
-    }
-  };
+  const onDateChange = useCallback(
+    (event: any, selectedDate?: Date) => {
+      if (selectedDate) {
+        setDate(selectedDate);
+        setDateSheetOpen(false);
+      }
+    },
+    [setDate]
+  );
 
   return (
     <View style={{ paddingHorizontal: 20 }}>
@@ -104,110 +153,169 @@ export default function ExpenseForm({
         </View>
       </View>
 
-      {/* Category Selection */}
+      {/* Category Selection - Card opens bottom sheet */}
       <View style={{ marginBottom: 20 }}>
-        <RNPickerSelect
-          onValueChange={(value) => {
-            const category = categories.find((cat) => cat.id === value);
-            setSelectedCategory(category || null);
-          }}
-          items={categories
-            .filter(
-              (category) => category.name && category.name !== 'undefined',
-            )
-            .map((category) => ({
-              label: category.name,
-              value: category.id,
-            }))}
-          value={selectedCategory?.id}
-          placeholder={{
-            label: t.select_category || 'Select category',
-            value: null,
-          }}
+        <Text
           style={{
-            inputIOS: {
-              fontSize: 16,
-              paddingVertical: 16,
-              paddingHorizontal: 16,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: selectedCategory
-                ? selectedCategory.color
-                : theme.border,
-              backgroundColor: theme.inputBackground,
-              color: selectedCategory ? theme.text : theme.placeholder,
-              minHeight: 50,
-            },
-            inputAndroid: {
-              fontSize: 16,
-              paddingVertical: 16,
-              paddingHorizontal: 16,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: selectedCategory
-                ? selectedCategory.color
-                : theme.border,
-              backgroundColor: theme.inputBackground,
-              color: selectedCategory ? theme.text : theme.placeholder,
-              minHeight: 50,
-            },
-            placeholder: {
-              color: theme.placeholder,
-            },
-            iconContainer: {
-              top: 18,
-              right: 16,
-            },
-          }}
-          Icon={() => {
-            return (
-              <View
-                style={{
-                  backgroundColor: 'transparent',
-                  borderTopWidth: 6,
-                  borderTopColor: theme.textMuted,
-                  borderRightWidth: 6,
-                  borderRightColor: 'transparent',
-                  borderLeftWidth: 6,
-                  borderLeftColor: 'transparent',
-                  width: 0,
-                  height: 0,
-                }}
-              />
-            );
-          }}
-          useNativeAndroidPickerStyle={false}
-        />
-        {selectedCategory && (
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              marginTop: 8,
-              marginLeft: 4,
-            }}>
+            fontSize: 14,
+            fontWeight: '500',
+            marginBottom: 8,
+            color: theme.textSecondary,
+          }}>
+          {t.select_category || 'Category'}
+        </Text>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={openCategorySheet}
+          style={{
+            ...CARD_STYLE,
+            backgroundColor: theme.cardBackground,
+            borderColor: selectedCategory ? selectedCategory.color : theme.border,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
             <View
               style={{
-                width: 24,
-                height: 24,
+                width: 44,
+                height: 44,
                 borderRadius: 12,
-                justifyContent: 'center',
+                backgroundColor: selectedCategory
+                  ? `${selectedCategory.color}18`
+                  : `${theme.border}40`,
                 alignItems: 'center',
-                backgroundColor: `${selectedCategory.color}20`,
-                marginRight: 8,
+                justifyContent: 'center',
+                marginRight: 14,
               }}>
-              <selectedCategory.icon size={14} color={selectedCategory.color} />
+              {selectedCategory ? (
+                <selectedCategory.icon
+                  size={22}
+                  color={selectedCategory.color}
+                />
+              ) : (
+                <ChevronDown size={22} color={theme.textMuted} />
+              )}
             </View>
             <Text
               style={{
-                fontSize: 14,
-                color: theme.textSecondary,
-              }}>
-              {selectedCategory.name}
+                fontSize: 16,
+                fontWeight: '600',
+                color: selectedCategory ? theme.text : theme.placeholder,
+              }}
+              numberOfLines={1}>
+              {selectedCategory?.name ?? (t.select_category || 'Select category')}
             </Text>
           </View>
-        )}
+          <ChevronDown size={20} color={theme.textMuted} />
+        </TouchableOpacity>
       </View>
+
+      {/* Category bottom sheet */}
+      <Modal
+        visible={categorySheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={closeCategorySheet}>
+        <Pressable
+          style={{
+            flex: 1,
+            justifyContent: 'flex-end',
+            backgroundColor: 'rgba(0,0,0,0.4)',
+          }}
+          onPress={closeCategorySheet}>
+          <Pressable
+            style={{
+              maxHeight: '75%',
+              backgroundColor: theme.cardBackground,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              overflow: 'hidden',
+            }}
+            onPress={(e) => e.stopPropagation()}>
+            <View
+              style={{
+                paddingTop: 12,
+                paddingBottom: 8,
+                alignItems: 'center',
+              }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: theme.border,
+                }}
+              />
+            </View>
+            <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: '700',
+                  color: theme.text,
+                  marginBottom: 16,
+                }}>
+                {t.select_category || 'Select category'}
+              </Text>
+              <ScrollView
+                style={{ maxHeight: 320 }}
+                contentContainerStyle={{ paddingBottom: 16 }}
+                showsVerticalScrollIndicator={false}>
+                {categories
+                  .filter(
+                    (cat) => cat.name && cat.name !== 'undefined',
+                  )
+                  .map((category) => {
+                    const CategoryIcon = category.icon;
+                    return (
+                      <TouchableOpacity
+                        key={category.id}
+                        activeOpacity={0.7}
+                        onPress={() => handleSelectCategory(category)}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          paddingVertical: 14,
+                          paddingHorizontal: 12,
+                          borderRadius: 12,
+                          backgroundColor: theme.background,
+                          marginBottom: 8,
+                          borderWidth: 1,
+                          borderColor: theme.border,
+                        }}>
+                        <View
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 10,
+                            backgroundColor: `${category.color}18`,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginRight: 12,
+                          }}>
+                          <CategoryIcon size={20} color={category.color} />
+                        </View>
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            fontWeight: '600',
+                            color: theme.text,
+                            flex: 1,
+                          }}>
+                          {category.name}
+                        </Text>
+                        <View style={{ transform: [{ rotate: '-90deg' }] }}>
+                          <ChevronDown size={18} color={theme.textMuted} />
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+              </ScrollView>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Description - Optional */}
       <View style={{ marginBottom: 20 }}>
@@ -233,120 +341,302 @@ export default function ExpenseForm({
         />
       </View>
 
-      {/* Account Selection */}
+      {/* Account Selection - Card opens bottom sheet */}
       <View style={{ marginBottom: 20 }}>
-        <RNPickerSelect
-          onValueChange={(value) => {
-            const account = accounts.find((acc) => acc.id === value);
-            setSelectedAccount(account || null);
-          }}
-          items={accounts.map((account) => ({
-            label: `${account.name}`,
-            value: account.id,
-          }))}
-          value={selectedAccount?.id}
-          placeholder={{
-            label: t.select_account || 'Select account',
-            value: null,
-          }}
+        <Text
           style={{
-            inputIOS: {
-              fontSize: 16,
-              paddingVertical: 16,
-              paddingHorizontal: 16,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: selectedAccount ? theme.primary : theme.border,
-              backgroundColor: theme.inputBackground,
-              color: theme.text,
-              minHeight: 50,
-            },
-            inputAndroid: {
-              fontSize: 16,
-              paddingVertical: 16,
-              paddingHorizontal: 16,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: selectedAccount ? theme.primary : theme.border,
-              backgroundColor: theme.inputBackground,
-              color: theme.text,
-              minHeight: 50,
-            },
-            placeholder: {
-              color: theme.placeholder,
-            },
-            iconContainer: {
-              top: 18,
-              right: 16,
-            },
-          }}
-          Icon={() => {
-            return (
-              <View
-                style={{
-                  backgroundColor: 'transparent',
-                  borderTopWidth: 6,
-                  borderTopColor: theme.textMuted,
-                  borderRightWidth: 6,
-                  borderRightColor: 'transparent',
-                  borderLeftWidth: 6,
-                  borderLeftColor: 'transparent',
-                  width: 0,
-                  height: 0,
-                }}
-              />
-            );
-          }}
-          useNativeAndroidPickerStyle={false}
-        />
-        {selectedAccount && (
-          <Text
-            style={{
-              fontSize: 14,
-              color: theme.textSecondary,
-              marginTop: 8,
-              marginLeft: 4,
-            }}>
-            Balance: ${selectedAccount.amount.toFixed(2)}
-          </Text>
-        )}
-      </View>
-
-      {/* Date Selection */}
-      <View style={{ marginBottom: 20 }}>
+            fontSize: 14,
+            fontWeight: '500',
+            marginBottom: 8,
+            color: theme.textSecondary,
+          }}>
+          {t.select_account || 'Account'}
+        </Text>
         <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={openAccountSheet}
           style={{
+            ...CARD_STYLE,
+            backgroundColor: theme.cardBackground,
+            borderColor: selectedAccount ? theme.primary : theme.border,
             flexDirection: 'row',
             alignItems: 'center',
-            padding: 16,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: theme.border,
-            backgroundColor: theme.inputBackground,
-          }}
-          onPress={() => setShowDatePicker(true)}>
-          <Calendar size={16} color={theme.primary} />
-          <Text
-            style={{
-              marginLeft: 12,
-              flex: 1,
-              fontSize: 16,
-              color: theme.text,
-            }}>
-            {formatDate(date)}
-          </Text>
-          <ChevronDown size={16} color={theme.textMuted} />
+            justifyContent: 'space-between',
+          }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                backgroundColor: selectedAccount
+                  ? `${theme.primary}18`
+                  : `${theme.border}40`,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 14,
+              }}>
+              <Wallet
+                size={22}
+                color={selectedAccount ? theme.primary : theme.textMuted}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: '600',
+                  color: selectedAccount ? theme.text : theme.placeholder,
+                }}
+                numberOfLines={1}>
+                {selectedAccount?.name ??
+                  (t.select_account || 'Select account')}
+              </Text>
+              {selectedAccount && (
+                <Text
+                  style={{
+                    fontSize: 13,
+                    color: theme.textSecondary,
+                    marginTop: 2,
+                  }}>
+                  {t.balance || 'Balance'}: $
+                  {selectedAccount.amount.toFixed(2)}
+                </Text>
+              )}
+            </View>
+          </View>
+          <ChevronDown size={20} color={theme.textMuted} />
         </TouchableOpacity>
-        {showDatePicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display="default"
-            onChange={onDateChange}
-            maximumDate={new Date()}
-          />
-        )}
       </View>
+
+      {/* Account bottom sheet */}
+      <Modal
+        visible={accountSheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={closeAccountSheet}>
+        <Pressable
+          style={{
+            flex: 1,
+            justifyContent: 'flex-end',
+            backgroundColor: 'rgba(0,0,0,0.4)',
+          }}
+          onPress={closeAccountSheet}>
+          <Pressable
+            style={{
+              maxHeight: '75%',
+              backgroundColor: theme.cardBackground,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              overflow: 'hidden',
+            }}
+            onPress={(e) => e.stopPropagation()}>
+            <View
+              style={{
+                paddingTop: 12,
+                paddingBottom: 8,
+                alignItems: 'center',
+              }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: theme.border,
+                }}
+              />
+            </View>
+            <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: '700',
+                  color: theme.text,
+                  marginBottom: 16,
+                }}>
+                {t.select_account || 'Select account'}
+              </Text>
+              <ScrollView
+                style={{ maxHeight: 320 }}
+                contentContainerStyle={{ paddingBottom: 16 }}
+                showsVerticalScrollIndicator={false}>
+                {accounts.length === 0 ? (
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      color: theme.textSecondary,
+                      textAlign: 'center',
+                      paddingVertical: 24,
+                    }}>
+                    {t.noAccountsAvailable || 'No accounts available'}
+                  </Text>
+                ) : (
+                  accounts.map((account) => (
+                    <TouchableOpacity
+                      key={account.id}
+                      activeOpacity={0.7}
+                      onPress={() => handleSelectAccount(account)}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingVertical: 14,
+                        paddingHorizontal: 12,
+                        borderRadius: 12,
+                        backgroundColor: theme.background,
+                        marginBottom: 8,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                      }}>
+                      <View
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 10,
+                          backgroundColor: `${theme.primary}18`,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: 12,
+                        }}>
+                        <Wallet size={20} color={theme.primary} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 16,
+                            fontWeight: '600',
+                            color: theme.text,
+                          }}>
+                          {account.name}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            color: theme.textSecondary,
+                            marginTop: 2,
+                          }}>
+                          {t.balance || 'Balance'}: $
+                          {account.amount.toFixed(2)}
+                        </Text>
+                      </View>
+                      <View style={{ transform: [{ rotate: '-90deg' }] }}>
+                        <ChevronDown size={18} color={theme.textMuted} />
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </ScrollView>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Date Selection - Card opens bottom sheet */}
+      <View style={{ marginBottom: 20 }}>
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: '500',
+            marginBottom: 8,
+            color: theme.textSecondary,
+          }}>
+          {t.date || 'Date'}
+        </Text>
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={openDateSheet}
+          style={{
+            ...CARD_STYLE,
+            backgroundColor: theme.cardBackground,
+            borderColor: theme.border,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                backgroundColor: `${theme.primary}18`,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 14,
+              }}>
+              <Calendar size={22} color={theme.primary} />
+            </View>
+            <Text
+              style={{
+                fontSize: 16,
+                fontWeight: '600',
+                color: theme.text,
+              }}
+              numberOfLines={1}>
+              {formatDate(date)}
+            </Text>
+          </View>
+          <ChevronDown size={20} color={theme.textMuted} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Date bottom sheet */}
+      <Modal
+        visible={dateSheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={closeDateSheet}>
+        <Pressable
+          style={{
+            flex: 1,
+            justifyContent: 'flex-end',
+            backgroundColor: 'rgba(0,0,0,0.4)',
+          }}
+          onPress={closeDateSheet}>
+          <Pressable
+            style={{
+              backgroundColor: theme.cardBackground,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              overflow: 'hidden',
+              paddingBottom: 24,
+            }}
+            onPress={(e) => e.stopPropagation()}>
+            <View
+              style={{
+                paddingTop: 12,
+                paddingBottom: 8,
+                alignItems: 'center',
+              }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: theme.border,
+                }}
+              />
+            </View>
+            <View style={{ paddingHorizontal: 20 }}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: '700',
+                  color: theme.text,
+                  marginBottom: 16,
+                }}>
+                {t.selectDate || 'Select date'}
+              </Text>
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'inline' : 'default'}
+                onChange={onDateChange}
+                maximumDate={new Date()}
+              />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Recurring Toggle */}
       <View style={{ marginBottom: 24 }}>

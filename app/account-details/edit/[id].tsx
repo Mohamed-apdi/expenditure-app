@@ -164,11 +164,11 @@ export default function EditAccount() {
 
   return (
     <SafeAreaView
-      className="flex-1 pt-safe"
+      className="flex-1"
       style={{ backgroundColor: theme.background }}
     >
       <View
-        className="flex-row justify-between items-center p-6 border-b"
+        className="flex-row justify-between items-center px-6 pt-4 pb-4 border-b"
         style={{ borderColor: theme.border }}
       >
         <Text className="text-xl font-bold" style={{ color: theme.text }}>

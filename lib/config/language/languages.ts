@@ -117,7 +117,8 @@ export const LANGUAGES = {
     socialSignInFailed: "Sign in failed",
     socialSignInCancelled: "Sign in cancelled",
     socialSignInErrorOccurred: "An error occurred",
-    socialSignInTokensMissing: "Sign in could not be completed. Please try again.",
+    socialSignInTokensMissing:
+      "Sign in could not be completed. Please try again.",
     socialSignInNoUrl: "Could not start sign in. Please try again.",
 
     // DashboardScreen translations
@@ -726,22 +727,32 @@ export const LANGUAGES = {
     exportSubscriptionReport: "Export Subscription Report",
     pdfReport: "PDF Report",
     csvData: "CSV Data",
-    downloadTransactionDataDescription: "Download your transaction data as PDF or CSV file. The file will be saved to your device's Documents folder.",
-    downloadAccountDataDescription: "Download your account data as PDF or CSV file. The file will be saved to your device's Documents folder.",
-    downloadBudgetDataDescription: "Download your budget analysis as PDF or CSV file. The file will be saved to your device's Documents folder.",
-    downloadGoalsDataDescription: "Download your goals progress as PDF or CSV file. The file will be saved to your device's Documents folder.",
-    downloadSubscriptionDataDescription: "Download your subscription data as PDF or CSV file. The file will be saved to your device's Documents folder.",
+    downloadTransactionDataDescription:
+      "Download your transaction data as PDF or CSV file. The file will be saved to your device's Documents folder.",
+    downloadAccountDataDescription:
+      "Download your account data as PDF or CSV file. The file will be saved to your device's Documents folder.",
+    downloadBudgetDataDescription:
+      "Download your budget analysis as PDF or CSV file. The file will be saved to your device's Documents folder.",
+    downloadGoalsDataDescription:
+      "Download your goals progress as PDF or CSV file. The file will be saved to your device's Documents folder.",
+    downloadSubscriptionDataDescription:
+      "Download your subscription data as PDF or CSV file. The file will be saved to your device's Documents folder.",
     filesSavedToDocuments: "Files saved to your device's Documents folder",
     totalBalance: "Total Balance",
     accountDetails: "Account Details",
     activeCount: "Active Count",
     yourGoals: "Your Goals",
     budgetVsActual: "Budget vs Actual",
-    noTransactionsForDateRange: "No transactions found for the selected date range. Try expanding the date range or adding transactions.",
-    unableToLoadAccountInfo: "Unable to load account information. Please try again.",
-    noBudgetsSetUpYet: "No budgets set up yet. Create budgets to track your spending.",
-    noFinancialGoalsYet: "No financial goals created yet. Set up goals to track your savings progress.",
-    noActiveSubscriptionsYet: "You don't have any active subscriptions. Add subscriptions to track recurring expenses.",
+    noTransactionsForDateRange:
+      "No transactions found for the selected date range. Try expanding the date range or adding transactions.",
+    unableToLoadAccountInfo:
+      "Unable to load account information. Please try again.",
+    noBudgetsSetUpYet:
+      "No budgets set up yet. Create budgets to track your spending.",
+    noFinancialGoalsYet:
+      "No financial goals created yet. Set up goals to track your savings progress.",
+    noActiveSubscriptionsYet:
+      "You don't have any active subscriptions. Add subscriptions to track recurring expenses.",
     transactions: "Transactions",
     loadingAccountData: "Loading account data...",
     loadingBudgetData: "Loading budget data...",
@@ -765,18 +776,22 @@ export const LANGUAGES = {
     // Onboarding translations
     welcomeToApp: "Welcome to Qoondeeye",
     takeControlOfFinances: "Take control of your finances",
-    trackExpensesManageBudgets: "Track expenses, manage budgets, and achieve your financial goals",
+    trackExpensesManageBudgets:
+      "Track expenses, manage budgets, and achieve your financial goals",
     getStarted: "Get Started",
     readyToGetStarted: "Ready to get started?",
-    signInToAccountOrCreate: "Sign in to your account or create a new one to begin managing your finances",
+    signInToAccountOrCreate:
+      "Sign in to your account or create a new one to begin managing your finances",
     // createAccount: "Create Account",
-    termsAndPrivacy: "By continuing, you agree to our Terms of Service and Privacy Policy",
+    termsAndPrivacy:
+      "By continuing, you agree to our Terms of Service and Privacy Policy",
     termsAndPrivacyPrefix: "By continuing, you agree to our ",
     termsOfService: "Terms of Service",
     termsAndPrivacyAnd: " and ",
     privacyPolicy: "Privacy Policy",
     letsSetupFinances: "Let's set up your finances",
-    helpTrackMoney: "We'll help you track your money and reach your financial goals",
+    helpTrackMoney:
+      "We'll help you track your money and reach your financial goals",
     youllBeAbleTo: "You'll be able to:",
     trackIncomeAndExpenses: "Track your income and expenses",
     setAndMonitorBudget: "Set and monitor your budget",
@@ -784,7 +799,8 @@ export const LANGUAGES = {
     letsGetStarted: "Let's get started",
     settingUpAccount: "Setting up your account...",
     createFirstAccount: "Create Your First Account",
-    createMainAccountToStart: "Let's create your main account to start tracking your finances",
+    createMainAccountToStart:
+      "Let's create your main account to start tracking your finances",
     // createMainAccount: "Create Main Account",
     // skipForNow: "Skip for now",
     pleaseSignInToContinue: "Please sign in to continue",
@@ -834,10 +850,10 @@ export const LANGUAGES = {
     cards: "Kaarka",
     savings: "Kaydka",
     food: "Cuntada",
-      rent: "kiro",
-      bills: "Biil",
-      subscriptions: "Rukumo",
-      budgets: "Miisaaniyada",
+    rent: "kiro",
+    bills: "Biil",
+    subscriptions: "Rukumo",
+    budgets: "Miisaaniyada",
     reports: "Warbixinada",
     trends: "Isbadallo",
 
@@ -914,13 +930,17 @@ export const LANGUAGES = {
     socialSignInFailed: "Galitaanku waa guuldarreystay",
     socialSignInCancelled: "Galitaanku waa la joojiyay",
     socialSignInErrorOccurred: "Wax khalad ah ayaa dhacay",
-    socialSignInTokensMissing: "Galitaanku lama dhammeyn karin. Fadlan isku day mar kale.",
-    socialSignInNoUrl: "Galitaanka lama bilaabin karin. Fadlan isku day mar kale.",
+    socialSignInTokensMissing:
+      "Galitaanku lama dhammeyn karin. Fadlan isku day mar kale.",
+    socialSignInNoUrl:
+      "Galitaanka lama bilaabin karin. Fadlan isku day mar kale.",
 
     // DashboardScreen translations
     recentTransactions: "Dhaqdhaqaaqa",
     seeMore: "Eeg Dheeraad",
     noTransactionsForMonth: "Ma jiro dhaqdhaqaaq",
+    deleteTransactionConfirmation:
+      "Ma hubtaa inaad rabto inaad tirtirto dhaqdhaqaaqan?",
     historyExpenses: "Taariikhda Kharashaadka",
     generateReport: "Generate Report",
     compareExpenses: "Isku barbar dhig Kharashaadka",
@@ -1533,22 +1553,32 @@ export const LANGUAGES = {
     exportSubscriptionReport: "Soo saar Warbixinada Rukumada",
     pdfReport: "Warbixinada PDF",
     csvData: "Xogta CSV",
-    downloadTransactionDataDescription: "Soo deji xogta dhaqdhaqaaqaaga PDF ama CSV ahaan. Faylka waxaa lagu keydin doona document Faylka.",
-    downloadAccountDataDescription: "Soo deji xogta akoonaadkaaga PDF ama CSV ahaan. faylka waxaa lagu keydin doona document Faylka.",
-    downloadBudgetDataDescription: "Soo deji falanqaynta miisaaniyadaaga PDF ama CSV ahaan. faylka waxaa lagu keydin doona document Faylka.",
-    downloadGoalsDataDescription: "Soo deji horumarka hadafyaadkaaga PDF ama CSV ahaan. Faylka waxaa lagu keydin doona document Faylka.",
-    downloadSubscriptionDataDescription: "Soo deji xogta rukumadaaga PDF ama CSV ahaan. Faylka waxaa lagu keydin doona document Faylka.",
+    downloadTransactionDataDescription:
+      "Soo deji xogta dhaqdhaqaaqaaga PDF ama CSV ahaan. Faylka waxaa lagu keydin doona document Faylka.",
+    downloadAccountDataDescription:
+      "Soo deji xogta akoonaadkaaga PDF ama CSV ahaan. faylka waxaa lagu keydin doona document Faylka.",
+    downloadBudgetDataDescription:
+      "Soo deji falanqaynta miisaaniyadaaga PDF ama CSV ahaan. faylka waxaa lagu keydin doona document Faylka.",
+    downloadGoalsDataDescription:
+      "Soo deji horumarka hadafyaadkaaga PDF ama CSV ahaan. Faylka waxaa lagu keydin doona document Faylka.",
+    downloadSubscriptionDataDescription:
+      "Soo deji xogta rukumadaaga PDF ama CSV ahaan. Faylka waxaa lagu keydin doona document Faylka.",
     filesSavedToDocuments: "faylka waxaa lagu keydiyay document Faylka.",
     totalBalance: "Wadarta Lacagta",
     accountDetails: "Faahfaahinta Akoonaadka",
     activeCount: "Tirada Socda",
     yourGoals: "Hadafyaadkaaga",
     budgetVsActual: "Miisaaniyada vs Runta ah",
-    noTransactionsForDateRange: "Ma jiro dhaqdhaqaaq goobta taariikhda la doortay. Isku day inaad ballaarisid goobta taariikhda ama ku dar dhaqdhaqaaq.",
-    unableToLoadAccountInfo: "Lama soo dejin karo macluumaadka akoonaadka. Fadlan isku day mar kale.",
-    noBudgetsSetUpYet: "Wali miisaaniyada lama dejin. Abuur miisaaniyada si aad u socoto kharashaadkaaga.",
-    noFinancialGoalsYet: "Wali hadaf lacag ma abuurin. Deji hadafyaad si aad u socoto horumarka kaydkaaga.",
-    noActiveSubscriptionsYet: "Ma haysataa rukumo socda. Ku dar rukumo si aad u socoto kharashaadka joogtada ah.",
+    noTransactionsForDateRange:
+      "Ma jiro dhaqdhaqaaq goobta taariikhda la doortay. Isku day inaad ballaarisid goobta taariikhda ama ku dar dhaqdhaqaaq.",
+    unableToLoadAccountInfo:
+      "Lama soo dejin karo macluumaadka akoonaadka. Fadlan isku day mar kale.",
+    noBudgetsSetUpYet:
+      "Wali miisaaniyada lama dejin. Abuur miisaaniyada si aad u socoto kharashaadkaaga.",
+    noFinancialGoalsYet:
+      "Wali hadaf lacag ma abuurin. Deji hadafyaad si aad u socoto horumarka kaydkaaga.",
+    noActiveSubscriptionsYet:
+      "Ma haysataa rukumo socda. Ku dar rukumo si aad u socoto kharashaadka joogtada ah.",
     transactions: "Dhaqdhaqaaqa",
     loadingAccountData: "Xogta akoonaadka la soo dejinayaa...",
     loadingBudgetData: "Xogta miisaaniyada la soo dejinayaa...",
@@ -1576,18 +1606,22 @@ export const LANGUAGES = {
     // Onboarding translations
     welcomeToApp: "Soo dhowow Qoondeeye",
     takeControlOfFinances: "Maamul lacagtaaga",
-    trackExpensesManageBudgets: "La soco kharashaadka, maamul miisaaniyada, oo gaadhada hadafyada lacagtaaga",
+    trackExpensesManageBudgets:
+      "La soco kharashaadka, maamul miisaaniyada, oo gaadhada hadafyada lacagtaaga",
     getStarted: "Bilow",
     readyToGetStarted: "Diyaar u ah inaad bilowdo?",
-    signInToAccountOrCreate: "Soo gal akoonkaaga ama abuur mid cusub si aad u bilowdo maamulka lacagtaaga",
+    signInToAccountOrCreate:
+      "Soo gal akoonkaaga ama abuur mid cusub si aad u bilowdo maamulka lacagtaaga",
     // createAccount: "Abuur Akoon",
-    termsAndPrivacy: "Adoo sii wadaya, waxaad aqbashaa Shuruudaha Adeegga iyo Siyaasadda Sirta",
+    termsAndPrivacy:
+      "Adoo sii wadaya, waxaad aqbashaa Shuruudaha Adeegga iyo Siyaasadda Sirta",
     termsAndPrivacyPrefix: "Adoo sii wadaya, waxaad aqbashaa ",
     termsOfService: "Shuruudaha Adeegga",
     termsAndPrivacyAnd: " iyo ",
     privacyPolicy: "Siyaasadda Sirta",
     letsSetupFinances: "Aynu habeyno lacagtaaga",
-    helpTrackMoney: "Waxaan kugu caawin doonnaa inaad la socoto lacagtaaga oo aad gaadhdo hadafyada lacagtaaga",
+    helpTrackMoney:
+      "Waxaan kugu caawin doonnaa inaad la socoto lacagtaaga oo aad gaadhdo hadafyada lacagtaaga",
     youllBeAbleTo: "Waxaad awoodi doontaa:",
     trackIncomeAndExpenses: "La soco dakhligaaga iyo kharashaadkaaga",
     setAndMonitorBudget: "Deji oo la soco miisaaniyadaaga",
@@ -1595,7 +1629,8 @@ export const LANGUAGES = {
     letsGetStarted: "Aynu bilowno",
     settingUpAccount: "Akoonkaaga la dejinayaa...",
     createFirstAccount: "Abuur Akoonkaaga Ugu Horreeya",
-    createMainAccountToStart: "Aynu abuurno akoonkaaga ugu weyn si aad u bilowdo la socodka lacagtaaga",
+    createMainAccountToStart:
+      "Aynu abuurno akoonkaaga ugu weyn si aad u bilowdo la socodka lacagtaaga",
     // createMainAccount: "Abuur Akoonka Ugu Weyn",
     // skipForNow: "Ka saar hadda",
     pleaseSignInToContinue: "Fadlan soo gal si aad u sii wadato",
@@ -1603,6 +1638,7 @@ export const LANGUAGES = {
     welcomeToFinancialJourney: "Soo dhowow safarkaaga lacagta!",
     failedToCreateAccount: "Akoonka abuuritaanka waa la guuldarreysatay",
     pleaseTryAgain: "Fadlan isku day mar kale",
-    permissionToAccessCamera: "Rukhsada la heli karo sawirrada waa lagama maarmaan",
+    permissionToAccessCamera:
+      "Rukhsada la heli karo sawirrada waa lagama maarmaan",
   },
 };

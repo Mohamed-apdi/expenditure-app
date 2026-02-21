@@ -1,71 +1,71 @@
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Platform,
+  Pressable,
+  RefreshControl,
   ScrollView,
+  StatusBar,
   Text,
   TouchableOpacity,
   View,
-  RefreshControl,
-  StatusBar,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { supabase } from '~/lib';
-import { type FinancialSummary } from '~/lib';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   fetchProfile,
-  useAccount,
-  selectTransactionsByDateRange,
   selectProfile,
-} from '~/lib';
-import { transactions$ } from '~/lib/stores/transactionsStore';
+  selectTransactionsByDateRange,
+  supabase,
+  useAccount,
+  type FinancialSummary,
+} from "~/lib";
+import { transactions$ } from "~/lib/stores/transactionsStore";
 
 import {
-  TrendingUp,
-  Zap,
-  Film,
-  ShoppingBag,
-  Book,
-  MoreHorizontal,
-  Utensils,
-  Home,
-  Bus,
-  HeartPulse,
-  GraduationCap,
-  Smile,
-  Shield,
-  CreditCard,
-  Gift,
-  HandHeart,
-  Luggage,
-  PawPrint,
-  Baby,
-  Repeat,
-  Dumbbell,
-  Smartphone,
-  Sofa,
-  Wrench,
-  Receipt,
-  Clock,
-  Briefcase,
-  Percent,
-  Dice5,
-  RefreshCw,
-  Laptop,
-  HandCoins,
-  User,
-  DollarSign,
-  Award,
   ArrowRightLeft,
+  Award,
+  Baby,
+  Book,
+  Briefcase,
+  Bus,
+  Clock,
+  CreditCard,
+  Dice5,
+  DollarSign,
+  Dumbbell,
+  Film,
+  Gift,
+  GraduationCap,
+  HandCoins,
+  HandHeart,
+  HeartPulse,
+  Home,
   Inbox,
-} from 'lucide-react-native';
+  Laptop,
+  Luggage,
+  MoreHorizontal,
+  PawPrint,
+  Percent,
+  Receipt,
+  RefreshCw,
+  Repeat,
+  Shield,
+  ShoppingBag,
+  Smartphone,
+  Smile,
+  Sofa,
+  TrendingUp,
+  User,
+  Utensils,
+  Wrench,
+  Zap,
+} from "lucide-react-native";
 
-import { useTheme } from '~/lib';
-import { useLanguage } from '~/lib';
-import DashboardHeader from '~/components/(Dashboard)/DashboardHeader';
-import MonthYearScroller from '~/components/(Dashboard)/MonthYearScroll';
-import NotificationPermissionRequest from '~/components/NotificationPermissionRequest';
-import MemoizedTransactionItem from '~/components/(Dashboard)/MemoizedTransactionItem';
+import DashboardHeader from "~/components/(Dashboard)/DashboardHeader";
+import MemoizedTransactionItem from "~/components/(Dashboard)/MemoizedTransactionItem";
+import MonthYearScroller from "~/components/(Dashboard)/MonthYearScroll";
+import NotificationPermissionRequest from "~/components/NotificationPermissionRequest";
+import { useLanguage, useTheme } from "~/lib";
 
 type Transaction = {
   id: string;
@@ -74,7 +74,7 @@ type Transaction = {
   description?: string;
   created_at: string;
   date: string;
-  type: 'expense' | 'income' | 'transfer';
+  type: "expense" | "income" | "transfer";
   account_id: string;
 };
 
@@ -84,9 +84,9 @@ export default function DashboardScreen() {
 
   const { selectedAccount, refreshBalances, accounts } = useAccount();
   const [userProfile, setUserProfile] = useState({
-    fullName: '',
-    email: '',
-    image_url: '',
+    fullName: "",
+    email: "",
+    image_url: "",
   });
   const [financialSummary, setFinancialSummary] =
     useState<FinancialSummary | null>(null);
@@ -97,12 +97,25 @@ export default function DashboardScreen() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const theme = useTheme();
+  const openRowRef = useRef<(() => void) | null>(null);
+
+  const closeOpenRow = useCallback(() => {
+    openRowRef.current?.();
+    openRowRef.current = null;
+  }, []);
+
+  const handleRowOpen = useCallback((close: () => void) => {
+    openRowRef.current?.();
+    openRowRef.current = close;
+  }, []);
 
   const fetchUserProfile = async () => {
     try {
       let user = (await supabase.auth.getUser()).data?.user ?? null;
       if (!user) {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         user = session?.user ?? null;
       }
       if (!user) return;
@@ -111,25 +124,25 @@ export default function DashboardScreen() {
       const localProfile = selectProfile(user.id);
       if (localProfile?.full_name != null || localProfile?.image_url != null) {
         setUserProfile({
-          fullName: localProfile.full_name || '',
-          email: user.email || localProfile.email || '',
-          image_url: localProfile.image_url || '',
+          fullName: localProfile.full_name || "",
+          email: user.email || localProfile.email || "",
+          image_url: localProfile.image_url || "",
         });
       }
       try {
         const profileData = await fetchProfile(user.id);
         if (profileData) {
           setUserProfile({
-            fullName: profileData.full_name || '',
-            email: user.email || '',
-            image_url: profileData.image_url || '',
+            fullName: profileData.full_name || "",
+            email: user.email || "",
+            image_url: profileData.image_url || "",
           });
         }
       } catch {
         // Offline or fetch failed; keep local profile if already set
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error("Error fetching profile:", error);
     }
   };
 
@@ -147,15 +160,17 @@ export default function DashboardScreen() {
       try {
         let user = (await supabase.auth.getUser()).data?.user ?? null;
         if (!user) {
-          const { data: { session } } = await supabase.auth.getSession();
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
           user = session?.user ?? null;
         }
         if (!user) return { income: 0, expense: 0, balance: 0 };
 
-        const startDate = new Date(year, month, 1).toISOString().split('T')[0];
+        const startDate = new Date(year, month, 1).toISOString().split("T")[0];
         const endDate = new Date(year, month + 1, 0)
           .toISOString()
-          .split('T')[0];
+          .split("T")[0];
 
         let monthTransactions = selectTransactionsByDateRange(
           user.id,
@@ -173,8 +188,8 @@ export default function DashboardScreen() {
         const monthTransactionsList: Transaction[] = monthTransactions.map(
           (t) => {
             const amount = t.amount || 0;
-            if (t.type === 'income') monthIncome += amount;
-            else if (t.type === 'expense') monthExpense += amount;
+            if (t.type === "income") monthIncome += amount;
+            else if (t.type === "expense") monthExpense += amount;
             return {
               id: t.id,
               amount: t.amount,
@@ -204,7 +219,7 @@ export default function DashboardScreen() {
           balance,
         };
       } catch (error) {
-        console.error('Error fetching month data:', error);
+        console.error("Error fetching month data:", error);
         return { income: 0, expense: 0, balance: 0 };
       }
     },
@@ -212,10 +227,13 @@ export default function DashboardScreen() {
   );
 
   useEffect(() => {
-    if (Platform.OS === 'android') {
+    if (Platform.OS === "android") {
       StatusBar.setBackgroundColor(theme.background, true);
     }
-    StatusBar.setBarStyle(theme.isDark ? 'light-content' : 'dark-content', true);
+    StatusBar.setBarStyle(
+      theme.isDark ? "light-content" : "dark-content",
+      true,
+    );
 
     const checkAuthAndFetch = async () => {
       try {
@@ -226,17 +244,17 @@ export default function DashboardScreen() {
           fetchUserProfile();
         }
       } catch (error) {
-        console.error('Error in initial auth check:', error);
+        console.error("Error in initial auth check:", error);
       }
     };
     checkAuthAndFetch();
 
     return () => {
-      if (Platform.OS === 'android') {
+      if (Platform.OS === "android") {
         StatusBar.setBackgroundColor(theme.background, true);
       }
       StatusBar.setBarStyle(
-        theme.isDark ? 'light-content' : 'dark-content',
+        theme.isDark ? "light-content" : "dark-content",
         true,
       );
     };
@@ -245,10 +263,13 @@ export default function DashboardScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      if (Platform.OS === 'android') {
+      if (Platform.OS === "android") {
         StatusBar.setBackgroundColor(theme.background, true);
       }
-      StatusBar.setBarStyle(theme.isDark ? 'light-content' : 'dark-content', true);
+      StatusBar.setBarStyle(
+        theme.isDark ? "light-content" : "dark-content",
+        true,
+      );
       refreshBalances();
       setRefreshTrigger((prev) => prev + 1);
     }, [refreshBalances]),
@@ -275,7 +296,7 @@ export default function DashboardScreen() {
         // Trigger MonthYearScroller to refetch current month
         setRefreshTrigger((prev) => prev + 1);
       } catch (error) {
-        console.error('Error during manual refresh:', error);
+        console.error("Error during manual refresh:", error);
       } finally {
         setRefreshing(false);
       }
@@ -336,62 +357,62 @@ export default function DashboardScreen() {
   const getCategoryColor = (category: string) => {
     const colors: Record<string, string> = {
       // Expense colors (matching AddExpense.tsx translated names and colors)
-      [t.foodAndDrinks]: '#059669',
-      [t.homeAndRent]: '#0891b2',
-      [t.travel]: '#3b82f6',
-      [t.bills]: '#f97316',
-      [t.fun]: '#8b5cf6',
-      [t.health]: '#dc2626',
-      [t.shopping]: '#06b6d4',
-      [t.learning]: '#84cc16',
-      [t.personalCare]: '#ec4899',
-      [t.insurance]: '#14b8a6',
-      [t.loans]: '#f97316',
-      [t.gifts]: '#8b5cf6',
-      [t.donations]: '#ef4444',
-      [t.vacation]: '#3b82f6',
-      [t.pets]: '#f59e0b',
-      [t.children]: '#ec4899',
-      [t.subscriptions]: '#8b5cf6',
-      [t.gymAndSports]: '#059669',
-      [t.electronics]: '#64748b',
-      [t.furniture]: '#f59e0b',
-      [t.repairs]: '#3b82f6',
-      [t.taxes]: '#ef4444',
+      [t.foodAndDrinks]: "#059669",
+      [t.homeAndRent]: "#0891b2",
+      [t.travel]: "#3b82f6",
+      [t.bills]: "#f97316",
+      [t.fun]: "#8b5cf6",
+      [t.health]: "#dc2626",
+      [t.shopping]: "#06b6d4",
+      [t.learning]: "#84cc16",
+      [t.personalCare]: "#ec4899",
+      [t.insurance]: "#14b8a6",
+      [t.loans]: "#f97316",
+      [t.gifts]: "#8b5cf6",
+      [t.donations]: "#ef4444",
+      [t.vacation]: "#3b82f6",
+      [t.pets]: "#f59e0b",
+      [t.children]: "#ec4899",
+      [t.subscriptions]: "#8b5cf6",
+      [t.gymAndSports]: "#059669",
+      [t.electronics]: "#64748b",
+      [t.furniture]: "#f59e0b",
+      [t.repairs]: "#3b82f6",
+      [t.taxes]: "#ef4444",
 
       // Income colors (matching AddExpense.tsx translated names and colors)
-      [t.jobSalary]: '#059669',
-      [t.bonus]: '#3b82f6',
-      [t.partTimeWork]: '#f97316',
-      [t.business]: '#8b5cf6',
-      [t.investments]: '#ef4444',
-      [t.bankInterest]: '#06b6d4',
-      [t.rentIncome]: '#84cc16',
-      [t.sales]: '#64748b',
-      [t.gambling]: '#f43f5e',
-      [t.awards]: '#8b5cf6',
-      [t.refunds]: '#3b82f6',
-      [t.freelance]: '#f97316',
-      [t.royalties]: '#84cc16',
-      [t.grants]: '#059669',
-      [t.giftsReceived]: '#8b5cf6',
-      [t.pension]: '#64748b',
+      [t.jobSalary]: "#059669",
+      [t.bonus]: "#3b82f6",
+      [t.partTimeWork]: "#f97316",
+      [t.business]: "#8b5cf6",
+      [t.investments]: "#ef4444",
+      [t.bankInterest]: "#06b6d4",
+      [t.rentIncome]: "#84cc16",
+      [t.sales]: "#64748b",
+      [t.gambling]: "#f43f5e",
+      [t.awards]: "#8b5cf6",
+      [t.refunds]: "#3b82f6",
+      [t.freelance]: "#f97316",
+      [t.royalties]: "#84cc16",
+      [t.grants]: "#059669",
+      [t.giftsReceived]: "#8b5cf6",
+      [t.pension]: "#64748b",
 
       // Special categories (hardcoded in Debt_Loan component)
-      Loan: '#f97316',
-      Transfer: '#3b82f6',
+      Loan: "#f97316",
+      Transfer: "#3b82f6",
     };
-    return colors[category] || '#64748b';
+    return colors[category] || "#64748b";
   };
 
   // Get translated category label - now categories are already translated
   const getCategoryLabel = (categoryKey: string) => {
     // Since categories are now stored with translated names, return as-is
     // Only handle special cases like Transfer and Loan
-    if (categoryKey === 'Transfer') {
+    if (categoryKey === "Transfer") {
       return t.transfer;
     }
-    if (categoryKey === 'Loan') {
+    if (categoryKey === "Loan") {
       return t.loans;
     }
     return categoryKey;
@@ -402,7 +423,7 @@ export default function DashboardScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
       <StatusBar
-        barStyle={theme.isDark ? 'light-content' : 'dark-content'}
+        barStyle={theme.isDark ? "light-content" : "dark-content"}
         backgroundColor={theme.background}
       />
       <ScrollView
@@ -416,7 +437,9 @@ export default function DashboardScreen() {
             tintColor={theme.primary}
           />
         }
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        onScrollBeginDrag={closeOpenRow}
+      >
         {/* Compact header bar - same background as screen */}
         <View
           style={{
@@ -426,7 +449,8 @@ export default function DashboardScreen() {
             backgroundColor: theme.background,
             borderBottomWidth: 1,
             borderBottomColor: theme.border,
-          }}>
+          }}
+        >
           <DashboardHeader
             variant="light"
             userName={userProfile.fullName}
@@ -434,10 +458,10 @@ export default function DashboardScreen() {
             userImageUrl={userProfile.image_url}
             onLogoutPress={() => {
               supabase.auth.signOut();
-              router.replace('/login');
+              router.replace("/login");
             }}
-            onSettingsPress={() => router.push('/(main)/SettingScreen')}
-            onNotificationPress={() => router.push('/(main)/notifications')}
+            onSettingsPress={() => router.push("/(main)/SettingScreen")}
+            onNotificationPress={() => router.push("/(main)/notifications")}
           />
         </View>
 
@@ -455,96 +479,99 @@ export default function DashboardScreen() {
 
         {/* Recent Transactions */}
         <View style={{ paddingHorizontal: 16, paddingTop: 24, minHeight: 320 }}>
-              <View className="flex-row justify-between items-center mb-4">
-                <View>
-                  <Text
-                    style={{
-                      color: theme.text,
-                      fontSize: 20,
-                      fontWeight: 'bold',
-                    }}>
-                    {t.recentTransactions || 'Recent Transactions'}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: theme.cardBackground,
-                    paddingVertical: 8,
-                    paddingHorizontal: 16,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: theme.border,
-                  }}
-                  onPress={() => router.push('/components/TransactionsScreen')}>
-                  <Text
-                    style={{
-                      color: theme.primary,
-                      fontWeight: '600',
-                      fontSize: 13,
-                    }}>
-                    {t.seeMore || 'See All'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {filteredTransactions.length > 0 ? (
-                <View style={{ gap: 10 }}>
-                  {filteredTransactions.slice(0, 6).map((transaction) => (
-                    <MemoizedTransactionItem
-                      key={transaction.id}
-                      transaction={transaction}
-                      getCategoryIcon={getCategoryIcon}
-                      getCategoryColor={getCategoryColor}
-                      getCategoryLabel={getCategoryLabel}
-                      onPress={() =>
-                        router.push(
-                          `/(transactions)/transaction-detail/${transaction.id}`,
-                        )
-                      }
-                    />
-                  ))}
-                </View>
-              ) : (
-                <View
-                  style={{
-                    paddingVertical: 48,
-                    alignItems: 'center',
-                  }}>
-                  <View
-                    style={{
-                      width: 80,
-                      height: 80,
-                      borderRadius: 40,
-                      backgroundColor: theme.cardBackground,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginBottom: 16,
-                    }}>
-                    <Inbox
-                      size={40}
-                      color={theme.textMuted}
-                      strokeWidth={1.5}
-                    />
-                  </View>
-                  <Text
-                    style={{
-                      color: theme.textSecondary,
-                      fontSize: 16,
-                      fontWeight: '500',
-                    }}>
-                    {t.noTransactionsForMonth || 'No transactions yet'}
-                  </Text>
-                  <Text
-                    style={{
-                      color: theme.textMuted,
-                      fontSize: 14,
-                      marginTop: 8,
-                    }}>
-                    Add your first transaction
-                  </Text>
-                </View>
-              )}
+          <View className="flex-row justify-between items-center mb-4">
+            <View>
+              <Text
+                style={{
+                  color: theme.text,
+                  fontSize: 20,
+                  fontWeight: "bold",
+                }}
+              >
+                {t.recentTransactions || "Recent Transactions"}
+              </Text>
             </View>
+            <TouchableOpacity
+              style={{
+                backgroundColor: theme.cardBackground,
+                paddingVertical: 8,
+                paddingHorizontal: 16,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: theme.border,
+              }}
+              onPress={() => router.push("/components/TransactionsScreen")}
+            >
+              <Text
+                style={{
+                  color: theme.primary,
+                  fontWeight: "600",
+                  fontSize: 13,
+                }}
+              >
+                {t.seeMore || "See All"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {filteredTransactions.length > 0 ? (
+            <View style={{ gap: 10 }}>
+              {filteredTransactions.slice(0, 6).map((transaction) => (
+                <MemoizedTransactionItem
+                  key={transaction.id}
+                  transaction={transaction}
+                  getCategoryIcon={getCategoryIcon}
+                  getCategoryColor={getCategoryColor}
+                  getCategoryLabel={getCategoryLabel}
+                  onPress={() =>
+                    router.push(
+                      `/(transactions)/transaction-detail/${transaction.id}`,
+                    )
+                  }
+                />
+              ))}
+            </View>
+          ) : (
+            <View
+              style={{
+                paddingVertical: 48,
+                alignItems: "center",
+              }}
+            >
+              <View
+                style={{
+                  width: 80,
+                  height: 80,
+                  borderRadius: 40,
+                  backgroundColor: theme.cardBackground,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 16,
+                }}
+              >
+                <Inbox size={40} color={theme.textMuted} strokeWidth={1.5} />
+              </View>
+              <Text
+                style={{
+                  color: theme.textSecondary,
+                  fontSize: 16,
+                  fontWeight: "500",
+                }}
+              >
+                {t.noTransactionsForMonth || "No transactions yet"}
+              </Text>
+              <Text
+                style={{
+                  color: theme.textMuted,
+                  fontSize: 14,
+                  marginTop: 8,
+                }}
+              >
+                Add your first transaction
+              </Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
     </View>
   );

@@ -8,16 +8,21 @@ import {
   Dimensions,
   ActivityIndicator,
   Modal,
-  Platform,
+  Pressable,
 } from 'react-native';
 import {
   Calendar,
+  ChevronLeft,
+  ChevronRight,
   Wallet,
   X,
   FileText,
   Download,
 } from 'lucide-react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, {
+  useDefaultStyles,
+  type CalendarComponents,
+} from 'react-native-ui-datepicker';
 import { BarChart as GiftedBarChart, PieChart as GiftedPieChart } from 'react-native-gifted-charts';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAccount } from '~/lib';
@@ -51,6 +56,9 @@ export default function ReportsScreen() {
   const { t } = useLanguage();
   useScreenStatusBar();
   const { selectedAccount, accounts } = useAccount();
+  const defaultDatePickerStyles = useDefaultStyles(
+    theme.isDarkColorScheme ? 'dark' : 'light',
+  );
 
   // Set default date range to last 30 days
   const getDefaultDateRange = () => {
@@ -64,14 +72,7 @@ export default function ReportsScreen() {
   };
 
   const [dateRange, setDateRange] = useState(getDefaultDateRange());
-  const [pendingDateRange, setPendingDateRange] = useState(
-    getDefaultDateRange(),
-  );
-  const [datePickerVisible, setDatePickerVisible] = useState(false);
-  const [datePickerMode, setDatePickerMode] = useState<'start' | 'end'>(
-    'start',
-  );
-  const [rangeModalVisible, setRangeModalVisible] = useState(false);
+  const [rangePickerVisible, setRangePickerVisible] = useState(false);
   const [downloadMenuVisible, setDownloadMenuVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -1220,43 +1221,8 @@ export default function ReportsScreen() {
     }
   };
 
-  // Date picker callbacks
-  const onDismiss = useCallback(() => setDatePickerVisible(false), []);
-
-  const onDateChange = useCallback(
-    (event: any, selectedDate?: Date) => {
-      if (Platform.OS === 'android') {
-        setDatePickerVisible(false);
-      }
-
-      if (selectedDate) {
-        if (datePickerMode === 'start') {
-          setPendingDateRange((prev) => ({ ...prev, startDate: selectedDate }));
-        } else {
-          setPendingDateRange((prev) => ({ ...prev, endDate: selectedDate }));
-        }
-      }
-    },
-    [datePickerMode],
-  );
-
-  const confirmIOSDate = useCallback(() => {
-    setDatePickerVisible(false);
-  }, []);
-
-  const openRangeModal = useCallback(() => {
-    setPendingDateRange(dateRange);
-    setRangeModalVisible(true);
-  }, [dateRange]);
-
-  const applyDateRange = useCallback(() => {
-    setDateRange(pendingDateRange);
-    setRangeModalVisible(false);
-  }, [pendingDateRange]);
-
-  const openDatePicker = useCallback((mode: 'start' | 'end') => {
-    setDatePickerMode(mode);
-    setDatePickerVisible(true);
+  const toggleRangePicker = useCallback(() => {
+    setRangePickerVisible((v) => !v);
   }, []);
 
   const renderTransactionTab = () => {
@@ -2348,7 +2314,7 @@ export default function ReportsScreen() {
             </Text>
           </View>
 
-          {/* Date Range - single field, tap to open range picker */}
+          {/* Date Range - tap to open bottom sheet */}
           <View className="flex-row gap-2 mt-3">
             <TouchableOpacity
               style={{
@@ -2361,7 +2327,7 @@ export default function ReportsScreen() {
                 borderWidth: 1,
                 borderColor: theme.border,
               }}
-              onPress={openRangeModal}
+              onPress={toggleRangePicker}
               disabled={loading}>
               <Calendar size={16} color={theme.primary} />
               <Text
@@ -2375,7 +2341,6 @@ export default function ReportsScreen() {
                 {formatDate(dateRange.endDate.toISOString())}
               </Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={{
                 backgroundColor: theme.primary,
@@ -2642,232 +2607,107 @@ export default function ReportsScreen() {
           </TouchableOpacity>
         </Modal>
 
-        {/* Date range selection modal - pick start & end then Apply */}
+        {/* Date range bottom sheet */}
         <Modal
-          visible={rangeModalVisible}
+          visible={rangePickerVisible}
           transparent
           animationType="slide"
-          onRequestClose={() => setRangeModalVisible(false)}>
-          <TouchableOpacity
-            activeOpacity={1}
+          onRequestClose={() => setRangePickerVisible(false)}>
+          <Pressable
             style={{
               flex: 1,
               justifyContent: 'flex-end',
-              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              backgroundColor: 'rgba(0,0,0,0.4)',
             }}
-            onPress={() => setRangeModalVisible(false)}>
-            <TouchableOpacity
-              activeOpacity={1}
+            onPress={() => setRangePickerVisible(false)}>
+            <Pressable
               style={{
+                maxHeight: '85%',
                 backgroundColor: theme.cardBackground,
-                borderTopLeftRadius: 24,
-                borderTopRightRadius: 24,
-                padding: 20,
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                overflow: 'hidden',
               }}
               onPress={(e) => e.stopPropagation()}>
-              <View className="flex-row justify-between items-center mb-4">
-                <Text
-                  style={{
-                    color: theme.text,
-                    fontSize: 18,
-                    fontWeight: 'bold',
-                  }}>
-                  {t.selectDateRange || 'Select date range'}
-                </Text>
-                <TouchableOpacity onPress={() => setRangeModalVisible(false)}>
-                  <X size={24} color={theme.textMuted} />
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
+              <View
                 style={{
-                  flexDirection: 'row',
+                  paddingTop: 12,
+                  paddingBottom: 8,
                   alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingVertical: 12,
-                  paddingHorizontal: 12,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                  marginBottom: 12,
-                }}
-                onPress={() => openDatePicker('start')}>
-                <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
-                  {t.selectStartDate || 'Start date'}
-                </Text>
-                <Text style={{ color: theme.text, fontSize: 15, fontWeight: '500' }}>
-                  {formatDate(pendingDateRange.startDate.toISOString())}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingVertical: 12,
-                  paddingHorizontal: 12,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                  marginBottom: 20,
-                }}
-                onPress={() => openDatePicker('end')}>
-                <Text style={{ color: theme.textSecondary, fontSize: 14 }}>
-                  {t.selectEndDate || 'End date'}
-                </Text>
-                <Text style={{ color: theme.text, fontSize: 15, fontWeight: '500' }}>
-                  {formatDate(pendingDateRange.endDate.toISOString())}
-                </Text>
-              </TouchableOpacity>
-
-              <View className="flex-row gap-3">
-                <TouchableOpacity
-                  style={{
-                    flex: 1,
-                    paddingVertical: 14,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: theme.border,
-                    alignItems: 'center',
-                  }}
-                  onPress={() => setRangeModalVisible(false)}>
-                  <Text
-                    style={{
-                      color: theme.textSecondary,
-                      fontSize: 16,
-                      fontWeight: '600',
-                    }}>
-                    {t.cancel || 'Cancel'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{
-                    flex: 1,
-                    paddingVertical: 14,
-                    borderRadius: 12,
-                    backgroundColor: theme.primary,
-                    alignItems: 'center',
-                  }}
-                  onPress={applyDateRange}>
-                  <Text
-                    style={{
-                      color: theme.primaryText,
-                      fontSize: 16,
-                      fontWeight: '600',
-                    }}>
-                    {t.applyDateRange || 'Apply'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </Modal>
-
-        {/* Date Picker */}
-        {datePickerVisible && (
-          <>
-            {Platform.OS === 'ios' ? (
-              <Modal
-                transparent={true}
-                animationType="slide"
-                visible={datePickerVisible}
-                onRequestClose={onDismiss}>
+                }}>
                 <View
                   style={{
-                    flex: 1,
-                    justifyContent: 'flex-end',
-                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                    width: 36,
+                    height: 4,
+                    borderRadius: 2,
+                    backgroundColor: theme.border,
+                  }}
+                />
+              </View>
+              <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 16,
                   }}>
-                  <View
+                  <Text
                     style={{
-                      backgroundColor: theme.cardBackground,
-                      borderTopLeftRadius: 24,
-                      borderTopRightRadius: 24,
-                      padding: 20,
+                      color: theme.text,
+                      fontSize: 18,
+                      fontWeight: '700',
                     }}>
-                    <View className="flex-row justify-between items-center mb-4">
-                      <Text
-                        style={{
-                          color: theme.text,
-                          fontSize: 18,
-                          fontWeight: 'bold',
-                        }}>
-                        {datePickerMode === 'start'
-                          ? t.selectStartDate
-                          : t.selectEndDate}
-                      </Text>
-                      <TouchableOpacity onPress={onDismiss}>
-                        <X size={24} color={theme.textMuted} />
-                      </TouchableOpacity>
-                    </View>
-
-                    <DateTimePicker
-                      value={
-                        datePickerMode === 'start'
-                          ? pendingDateRange.startDate
-                          : pendingDateRange.endDate
-                      }
-                      mode="date"
-                      display="spinner"
-                      onChange={onDateChange}
-                      maximumDate={
-                        datePickerMode === 'start'
-                          ? pendingDateRange.endDate
-                          : new Date()
-                      }
-                      minimumDate={
-                        datePickerMode === 'end'
-                          ? pendingDateRange.startDate
-                          : new Date(2020, 0, 1)
-                      }
-                      themeVariant={theme.isDarkColorScheme ? 'dark' : 'light'}
-                    />
-
-                    <TouchableOpacity
-                      style={{
-                        backgroundColor: '#3b82f6',
-                        padding: 16,
-                        borderRadius: 12,
-                        marginTop: 16,
-                      }}
-                      onPress={confirmIOSDate}>
-                      <Text
-                        style={{
-                          color: 'white',
-                          textAlign: 'center',
-                          fontWeight: 'bold',
-                        }}>
-                        {t.confirm}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
+                    {t.selectDateRange || 'Select date range'}
+                  </Text>
+                  <TouchableOpacity onPress={() => setRangePickerVisible(false)}>
+                    <X size={24} color={theme.textMuted} />
+                  </TouchableOpacity>
                 </View>
-              </Modal>
-            ) : (
-              <DateTimePicker
-                value={
-                  datePickerMode === 'start'
-                    ? pendingDateRange.startDate
-                    : pendingDateRange.endDate
-                }
-                mode="date"
-                display="default"
-                onChange={onDateChange}
-                maximumDate={
-                  datePickerMode === 'start'
-                    ? pendingDateRange.endDate
-                    : new Date()
-                }
-                minimumDate={
-                  datePickerMode === 'end'
-                    ? pendingDateRange.startDate
-                    : new Date(2020, 0, 1)
-                }
-              />
-            )}
-          </>
-        )}
+                <DateTimePicker
+                  mode="range"
+                  startDate={dateRange.startDate}
+                  endDate={dateRange.endDate}
+                  onChange={(params) => {
+                    setDateRange({
+                      startDate: params.startDate
+                        ? new Date(params.startDate as string | number | Date)
+                        : dateRange.startDate,
+                      endDate: params.endDate
+                        ? new Date(params.endDate as string | number | Date)
+                        : dateRange.endDate,
+                    });
+                  }}
+                  minDate={new Date(2020, 0, 1)}
+                  maxDate={new Date()}
+                  showOutsideDays
+                  containerHeight={280}
+                  components={{
+                    IconPrev: <ChevronLeft size={20} color={theme.text} />,
+                    IconNext: <ChevronRight size={20} color={theme.text} />,
+                  } as CalendarComponents}
+                  styles={{
+                    ...defaultDatePickerStyles,
+                    range_fill: { backgroundColor: `${theme.primary}30` },
+                    range_fill_weekstart: {
+                      borderTopLeftRadius: 8,
+                      borderBottomLeftRadius: 8,
+                    },
+                    range_fill_weekend: {
+                      borderTopRightRadius: 8,
+                      borderBottomRightRadius: 8,
+                    },
+                    range_start: { backgroundColor: theme.primary },
+                    range_end: { backgroundColor: theme.primary },
+                    range_start_label: { color: theme.primaryText },
+                    range_end_label: { color: theme.primaryText },
+                    range_middle_label: { color: theme.text },
+                  }}
+                />
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
       </View>
     </SafeAreaView>
   );
