@@ -2,7 +2,6 @@ import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Platform,
-  Pressable,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -100,7 +99,15 @@ export default function DashboardScreen() {
   const openRowRef = useRef<(() => void) | null>(null);
 
   const closeOpenRow = useCallback(() => {
-    openRowRef.current?.();
+    try {
+      openRowRef.current?.();
+    } catch {
+      // Guard against stale refs
+    }
+    openRowRef.current = null;
+  }, []);
+
+  const clearOpenRow = useCallback(() => {
     openRowRef.current = null;
   }, []);
 
@@ -272,7 +279,8 @@ export default function DashboardScreen() {
       );
       refreshBalances();
       setRefreshTrigger((prev) => prev + 1);
-    }, [refreshBalances]),
+      return () => closeOpenRow();
+    }, [refreshBalances, closeOpenRow]),
   );
 
   // When transactions store updates (e.g. after sync), refresh month view
@@ -528,6 +536,9 @@ export default function DashboardScreen() {
                       `/(transactions)/transaction-detail/${transaction.id}`,
                     )
                   }
+                  onSwipeOpen={handleRowOpen}
+                  onSwipeStart={closeOpenRow}
+                  onSwipeClose={clearOpenRow}
                 />
               ))}
             </View>

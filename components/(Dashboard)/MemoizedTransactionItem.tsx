@@ -1,5 +1,12 @@
-import React, { memo } from "react";
-import { TouchableOpacity, View, Text } from "react-native";
+import React, { memo, useRef, useCallback } from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { formatDistanceToNow } from "date-fns";
 import { useTheme } from "~/lib";
@@ -44,6 +51,8 @@ import {
   User,
 } from "lucide-react-native";
 
+const ACTIONS_WIDTH = 160;
+
 type TransactionItemProps = {
   transaction: {
     id: string;
@@ -57,11 +66,12 @@ type TransactionItemProps = {
   getCategoryIcon?: (category: string) => React.ElementType;
   getCategoryColor?: (category: string) => string;
   getCategoryLabel?: (categoryKey: string) => string;
+  onSwipeOpen?: (close: () => void) => void;
+  onSwipeStart?: () => void;
+  onSwipeClose?: () => void;
 };
 
-// Memoized category icon mapping
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
-  // Expense categories
   Food: Utensils,
   Rent: Home,
   Transport: Bus,
@@ -85,8 +95,6 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   Furniture: Sofa,
   Repairs: Wrench,
   Taxes: Receipt,
-
-  // Income categories
   Salary: Landmark,
   Bonus: Gem,
   PartTime: Clock,
@@ -104,9 +112,7 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   Pension: User,
 };
 
-// Memoized category color mapping
 const CATEGORY_COLORS: Record<string, string> = {
-  // Expense colors
   Food: "#10b981",
   Rent: "#f59e0b",
   Transport: "#3b82f6",
@@ -130,8 +136,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   Furniture: "#f59e0b",
   Repairs: "#3b82f6",
   Taxes: "#ef4444",
-
-  // Income colors
   Salary: "#10b981",
   Bonus: "#3b82f6",
   PartTime: "#f59e0b",
@@ -149,6 +153,11 @@ const CATEGORY_COLORS: Record<string, string> = {
   Pension: "#64748b",
 };
 
+const springConfig = {
+  damping: 20,
+  stiffness: 300,
+};
+
 const MemoizedTransactionItem = memo<TransactionItemProps>(
   ({
     transaction,
@@ -156,11 +165,15 @@ const MemoizedTransactionItem = memo<TransactionItemProps>(
     getCategoryIcon,
     getCategoryColor,
     getCategoryLabel,
+    onSwipeOpen,
+    onSwipeStart,
+    onSwipeClose,
   }) => {
     const router = useRouter();
     const theme = useTheme();
+    const translateX = useSharedValue(0);
+    const isOpenRef = useRef(false);
 
-    // Use passed functions if available, otherwise use built-in mappings
     const IconComponent = getCategoryIcon
       ? getCategoryIcon(transaction.category || "")
       : CATEGORY_ICONS[transaction.category || ""] || MoreHorizontal;
@@ -170,6 +183,10 @@ const MemoizedTransactionItem = memo<TransactionItemProps>(
       : CATEGORY_COLORS[transaction.category || ""] || "#64748b";
 
     const handlePress = () => {
+      if (isOpenRef.current) {
+        close();
+        return;
+      }
       if (onPress) {
         onPress();
       } else {
@@ -181,69 +198,194 @@ const MemoizedTransactionItem = memo<TransactionItemProps>(
       ? getCategoryLabel(transaction.category || "")
       : transaction.category || "";
 
+    const close = useCallback(() => {
+      isOpenRef.current = false;
+      translateX.value = withSpring(0, springConfig);
+    }, []);
+
+    const setOpen = useCallback(() => {
+      isOpenRef.current = true;
+    }, []);
+    const setClosed = useCallback(() => {
+      isOpenRef.current = false;
+    }, []);
+
+    const closePrevious = useCallback(() => {
+      if (onSwipeStart) {
+        setTimeout(() => onSwipeStart(), 0);
+      }
+    }, [onSwipeStart]);
+
+    const panGesture = Gesture.Pan()
+      .activeOffsetX([-15, 15])
+      .failOffsetY([-15, 15])
+      .onStart(() => {
+        if (onSwipeStart) runOnJS(closePrevious)();
+      })
+      .onUpdate((e) => {
+        if (e.translationX > 0) return;
+        translateX.value = Math.max(e.translationX, -ACTIONS_WIDTH);
+      })
+      .onEnd((e) => {
+        const shouldOpen =
+          e.translationX < -ACTIONS_WIDTH / 2 || e.velocityX < -500;
+        translateX.value = withSpring(
+          shouldOpen ? -ACTIONS_WIDTH : 0,
+          springConfig
+        );
+        if (shouldOpen) {
+          if (onSwipeOpen) runOnJS(onSwipeOpen)(close);
+          runOnJS(setOpen)();
+        } else {
+          if (onSwipeClose) runOnJS(onSwipeClose)();
+          runOnJS(setClosed)();
+        }
+      });
+
+    const tapGesture = Gesture.Tap()
+      .maxDuration(250)
+      .onEnd(() => {
+        if (translateX.value < -10) {
+          translateX.value = withSpring(0, springConfig);
+          if (onSwipeClose) runOnJS(onSwipeClose)();
+          runOnJS(setClosed)();
+        } else {
+          runOnJS(handlePress)();
+        }
+      });
+
+    const composedGesture = Gesture.Race(panGesture, tapGesture);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+      transform: [{ translateX: translateX.value }],
+    }));
+
     return (
-      <TouchableOpacity onPress={handlePress}>
-        <View
-          className="flex-row items-center p-4 rounded-xl gap-3 mb-2"
-          style={{ backgroundColor: theme.cardBackground }}
-        >
-          <View
-            className="w-11 h-11 rounded-xl items-center justify-center"
-            style={{ backgroundColor: `${color}20` }}
-          >
-            <IconComponent size={20} color={color} />
+      <View style={styles.wrapper}>
+        <View style={styles.actionsContainer}>
+          <View style={[styles.actionButton, styles.editButton]}>
+            <Text style={styles.actionText}>Edit</Text>
           </View>
-          <View className="flex-1 flex-row justify-between items-center">
-            <View className="flex-1 flex-row items-center">
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <Text
-                  className="text-base font-semibold"
-                  style={{ color: theme.text }}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {categoryLabel}
-                </Text>
-                {transaction.description && (
-                  <Text
-                    className="text-xs"
-                    style={{ color: theme.textSecondary }}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {transaction.description}
-                  </Text>
-                )}
-              </View>
-              <View style={{ flexShrink: 1, alignItems: "flex-end" }}>
-                <Text
-                  className="text-base font-bold"
-                  style={{
-                    color:
-                      transaction.type === "expense" ? "#DC2626" : "#16A34A",
-                  }}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  {transaction.type === "expense" ? "-" : "+"}$
-                  {Math.abs(transaction.amount).toFixed(2)}
-                </Text>
-                <Text
-                  className="text-xs"
-                  style={{ color: theme.textMuted }}
-                >
-                  {formatDistanceToNow(new Date(transaction.created_at), {
-                    addSuffix: true,
-                  })}
-                </Text>
-              </View>
-            </View>
+          <View style={[styles.actionButton, styles.deleteButton]}>
+            <Text style={styles.actionText}>Delete</Text>
           </View>
         </View>
-      </TouchableOpacity>
+        <GestureDetector gesture={composedGesture}>
+          <Animated.View
+            style={[
+              styles.content,
+              animatedStyle,
+              { backgroundColor: theme.cardBackground },
+            ]}
+          >
+            <View style={styles.pressable}>
+              <View
+                className="flex-row items-center p-4 rounded-xl gap-3"
+                style={{ backgroundColor: theme.cardBackground }}
+              >
+                <View
+                  className="w-11 h-11 rounded-xl items-center justify-center"
+                  style={{ backgroundColor: `${color}20` }}
+                >
+                  <IconComponent size={20} color={color} />
+                </View>
+                <View className="flex-1 flex-row justify-between items-center">
+                  <View className="flex-1 flex-row items-center">
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <Text
+                        className="text-base font-semibold"
+                        style={{ color: theme.text }}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {categoryLabel}
+                      </Text>
+                      {transaction.description && (
+                        <Text
+                          className="text-xs"
+                          style={{ color: theme.textSecondary }}
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {transaction.description}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={{ flexShrink: 1, alignItems: "flex-end" }}>
+                      <Text
+                        className="text-base font-bold"
+                        style={{
+                          color:
+                            transaction.type === "expense"
+                              ? "#DC2626"
+                              : "#16A34A",
+                        }}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {transaction.type === "expense" ? "-" : "+"}$
+                        {Math.abs(transaction.amount).toFixed(2)}
+                      </Text>
+                      <Text
+                        className="text-xs"
+                        style={{ color: theme.textMuted }}
+                      >
+                        {formatDistanceToNow(
+                          new Date(transaction.created_at),
+                          { addSuffix: true }
+                        )}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </Animated.View>
+        </GestureDetector>
+      </View>
     );
   }
 );
+
+const styles = StyleSheet.create({
+  wrapper: {
+    marginBottom: 2,
+    overflow: "hidden",
+    borderRadius: 12,
+  },
+  actionsContainer: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    bottom: 0,
+    flexDirection: "row",
+    width: ACTIONS_WIDTH,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  actionButton: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  editButton: {
+    backgroundColor: "#ffab00",
+  },
+  deleteButton: {
+    backgroundColor: "#ff1744",
+  },
+  actionText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  content: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  pressable: {
+    borderRadius: 12,
+  },
+});
 
 MemoizedTransactionItem.displayName = "MemoizedTransactionItem";
 

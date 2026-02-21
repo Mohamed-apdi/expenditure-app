@@ -1,5 +1,5 @@
 // screens/TransactionsScreen.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,13 +9,13 @@ import {
 } from "react-native";
 import { Search, ArrowLeft } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { supabase } from "~/lib";
 import { getTransactionsGroupedByDate } from "~/lib";
 import { useAccount } from "~/lib";
-import { formatDistanceToNow } from "date-fns";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
+import MemoizedTransactionItem from "~/components/(Dashboard)/MemoizedTransactionItem";
 
 type Transaction = {
   id: string;
@@ -42,6 +42,23 @@ export default function TransactionsScreen() {
   const [activeFilter, setActiveFilter] = useState("all");
   const [transactions, setTransactions] = useState<TransactionSection[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+
+  const openRowRef = useRef<(() => void) | null>(null);
+  const closeOpenRow = useCallback(() => {
+    try {
+      openRowRef.current?.();
+    } catch {
+      // Guard against stale refs
+    }
+    openRowRef.current = null;
+  }, []);
+  const clearOpenRow = useCallback(() => {
+    openRowRef.current = null;
+  }, []);
+  const handleRowOpen = useCallback((close: () => void) => {
+    openRowRef.current?.();
+    openRowRef.current = close;
+  }, []);
 
   // Fetch transactions from database using enhanced local functions
   const fetchUserTransactions = async () => {
@@ -74,6 +91,11 @@ export default function TransactionsScreen() {
   useEffect(() => {
     fetchUserTransactions();
   }, [selectedAccount?.id, activeFilter, searchQuery]);
+
+  // Close swipe when navigating away
+  useFocusEffect(
+    useCallback(() => () => closeOpenRow(), [closeOpenRow])
+  );
 
   // Handle refresh
   const onRefresh = () => {
@@ -187,85 +209,19 @@ export default function TransactionsScreen() {
           onRefresh={onRefresh}
           style={{ backgroundColor: theme.background }}
           contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12 }}
+          onScrollBeginDrag={closeOpenRow}
           renderItem={({ item }) => (
-            <TouchableOpacity
-              style={{
-                backgroundColor: theme.cardBackground,
-                padding: 16,
-                borderRadius: 16,
-                marginBottom: 12,
-              }}
-              onPress={() => router.push(`/(transactions)/transaction-detail/${item.id}` as any)}
-            >
-              <View className="flex-row justify-between items-start">
-                <View className="flex-1">
-                  <Text
-                    style={{ color: theme.text, fontSize: 16, fontWeight: "600" }}
-                    numberOfLines={1}
-                  >
-                    {item.description || item.category || "No description"}
-                  </Text>
-                  <View className="flex-row items-center mt-1" style={{ gap: 6 }}>
-                    {item.category && (
-                      <View
-                        style={{
-                          backgroundColor: item.type === "expense"
-                            ? '#fee2e2'
-                            : item.type === "income"
-                              ? '#dcfce7'
-                              : '#dbeafe',
-                          paddingHorizontal: 8,
-                          paddingVertical: 4,
-                          borderRadius: 12,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            color: item.type === "expense"
-                              ? '#dc2626'
-                              : item.type === "income"
-                                ? '#16a34a'
-                                : '#3b82f6',
-                            fontSize: 11,
-                            fontWeight: "600"
-                          }}
-                        >
-                          {item.category}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={{ color: theme.textMuted, fontSize: 11, marginTop: 4 }}>
-                    {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
-                  </Text>
-                </View>
-                <View style={{ alignItems: "flex-end", marginLeft: 12 }}>
-                  <Text
-                    style={{
-                      fontSize: 20,
-                      fontWeight: "bold",
-                      color: item.type === "expense"
-                        ? "#ef4444"
-                        : item.type === "income"
-                          ? "#10b981"
-                          : "#3b82f6",
-                    }}
-                  >
-                    {item.type === "expense" ? "-" : "+"}${Math.abs(item.amount).toFixed(2)}
-                  </Text>
-                  <Text
-                    style={{
-                      color: theme.textMuted,
-                      fontSize: 11,
-                      marginTop: 2,
-                      textTransform: "capitalize",
-                    }}
-                  >
-                    {item.type}
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
+            <View style={{ marginBottom: 10 }}>
+              <MemoizedTransactionItem
+                transaction={item}
+                onPress={() =>
+                  router.push(`/(transactions)/transaction-detail/${item.id}` as any)
+                }
+                onSwipeOpen={handleRowOpen}
+                onSwipeStart={closeOpenRow}
+                onSwipeClose={clearOpenRow}
+              />
+            </View>
           )}
           renderSectionHeader={({ section: { title } }) => (
             <View style={{ paddingVertical: 8, paddingHorizontal: 4 }}>
