@@ -1,3 +1,6 @@
+/**
+ * Bottom tab bar for main app navigation
+ */
 import { useRouter } from "expo-router";
 import { Banknote, BarChart2, Home, Plus, Wallet } from "lucide-react-native";
 import React from "react";
