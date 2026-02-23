@@ -4,6 +4,7 @@
  */
 
 import Constants from "expo-constants";
+import { initLocalDb, closeLocalDb } from "../database/localDb";
 import type { SyncState } from "./types";
 import { getPendingChanges } from "./changeQueue";
 import { getPendingConflicts } from "./conflictResolver";
@@ -45,7 +46,6 @@ export async function connect(): Promise<void> {
     currentState = { ...currentState, status: "syncing" };
     notifyListeners();
 
-    const { initLocalDb } = await import("../database/localDb");
     const ok = await initLocalDb();
     if (ok) {
       currentState = {
@@ -72,7 +72,6 @@ export async function connect(): Promise<void> {
  * Disconnect and stop sync. Local data persists.
  */
 export async function disconnect(): Promise<void> {
-  const { closeLocalDb } = await import("../database/localDb");
   await closeLocalDb();
   currentState = { status: "offline", pendingCount: 0 };
   notifyListeners();

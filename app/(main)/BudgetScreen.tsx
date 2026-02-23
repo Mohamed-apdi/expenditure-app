@@ -6,40 +6,39 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
+  Pressable,
   TextInput,
   Alert,
   PanResponder,
   RefreshControl,
   Platform,
 } from 'react-native';
-import { X, Edit2, Trash2, Plus } from 'lucide-react-native';
+import { X, Edit2, Trash2, Plus, Wallet, ChevronDown } from 'lucide-react-native';
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import RNPickerSelect from 'react-native-picker-select';
 import SubscriptionsScreen from '../components/SubscriptionsScreen';
 import SavingsScreen from '../components/SavingsScreen';
 import { supabase } from '~/lib';
 import {
-  fetchBudgets,
-  fetchBudgetsWithAccounts,
-  addBudget,
-  updateBudget,
-  deleteBudget,
+  selectBudgets,
+  createBudgetLocal,
+  updateBudgetLocal,
+  deleteBudgetLocal,
+  getBudgetProgressFromLocal,
+  isOfflineGateLocked,
+  triggerSync,
   type Budget,
 } from '~/lib';
 import { type Account } from '~/lib';
-import {
-  getExpensesByCategory,
-  getBudgetProgress,
-  type BudgetProgress,
-} from '~/lib';
+import { getExpensesByCategory, type BudgetProgress } from '~/lib';
 import { useTheme, useScreenStatusBar, useAccount } from '~/lib';
 import { useLanguage } from '~/lib';
 
 import Investments from '../components/Investments';
 import Debt_Loan from '../components/Debt_Loan';
+import { playTabClickSound, preloadTabClickSound } from '~/lib/utils/playTabSound';
 
 // Use the exact same expense categories as AddExpense
 
@@ -55,6 +54,11 @@ export default function BudgetScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null); // For add/edit modal picker
   const insets = useSafeAreaInsets();
+
+  // Preload tab click feedback (same as Add Expense)
+  useEffect(() => {
+    void preloadTabClickSound();
+  }, []);
 
   // Show only budgets for the selected account (same as Dashboard)
   const budgetsForSelectedAccount = selectedAccountInApp
@@ -115,6 +119,7 @@ export default function BudgetScreen() {
           Math.abs(gestureState.dx) > 50 &&
           Math.abs(gestureState.dx) > Math.abs(gestureState.dy)
         ) {
+          void playTabClickSound();
           if (gestureState.dx > 0) {
             // Swipe right - go to previous tab
             switch (activeTab) {
@@ -157,39 +162,37 @@ export default function BudgetScreen() {
   ).current;
 
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [accountSheetOpen, setAccountSheetOpen] = useState(false);
+  const [categorySheetOpen, setCategorySheetOpen] = useState(false);
   const [currentBudget, setCurrentBudget] = useState<Budget | null>(null);
   const [newCategory, setNewCategory] = useState('');
   const [newAllocated, setNewAllocated] = useState('');
 
-  // Fetch budgets and accounts from database
   const fetchData = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
+      // Prefer getSession() - uses cached session, shows local data fast
+      let user = (await supabase.auth.getSession()).data?.session?.user ?? null;
+      if (!user) user = (await supabase.auth.getUser()).data?.user ?? null;
+      if (!user) return;
 
       setUserId(user.id);
 
-      // Fetch budgets and progress (accounts come from useAccount / local store so all accounts show in filter)
-      const [budgetsData, progressData] = await Promise.all([
-        fetchBudgetsWithAccounts(user.id),
-        getBudgetProgress(user.id),
-      ]);
+      const localBudgets = selectBudgets(user.id);
+      const withAccounts = localBudgets.map((b) => ({
+        ...b,
+        account: accounts.find((a) => a.id === b.account_id),
+      }));
 
-      setBudgets(budgetsData.map((b) => b as Budget));
-      setBudgetsWithAccounts(budgetsData);
-      setBudgetProgress(progressData);
+      setBudgets(withAccounts as Budget[]);
+      setBudgetsWithAccounts(withAccounts);
+      setBudgetProgress(getBudgetProgressFromLocal(user.id));
     } catch (error) {
       console.error('Error fetching data:', error);
       Alert.alert(t.error, t.failedToFetchData);
     }
   };
 
-  // Refresh data with pull-to-refresh
+  // Refresh data with pull-to-refresh (local only - no loading delay)
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchData();
@@ -198,7 +201,7 @@ export default function BudgetScreen() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [accounts.length]);
 
   // Keep modal account in sync with full account list; default to app selected account when opening add
   useEffect(() => {
@@ -254,19 +257,14 @@ export default function BudgetScreen() {
 
     try {
       if (currentBudget) {
-        // Update existing budget
-        const updatedBudget = await updateBudget(currentBudget.id, {
+        updateBudgetLocal(currentBudget.id, {
           category: newCategory,
           amount: parseFloat(newAllocated),
           account_id: selectedAccount.id,
         });
-        setBudgets((prev) =>
-          prev.map((b) => (b.id === currentBudget.id ? updatedBudget : b)),
-        );
         Alert.alert(t.success, t.budgetUpdated);
       } else {
-        // Add new budget
-        const newBudget = await addBudget({
+        createBudgetLocal({
           user_id: userId,
           account_id: selectedAccount.id,
           category: newCategory,
@@ -275,11 +273,10 @@ export default function BudgetScreen() {
           start_date: new Date().toISOString().split('T')[0],
           is_active: true,
         });
-        setBudgets((prev) => [...prev, newBudget]);
         Alert.alert(t.success, t.budgetAdded);
       }
       setIsModalVisible(false);
-      // Refresh data to get updated budget progress
+      if (!(await isOfflineGateLocked())) void triggerSync();
       fetchData();
     } catch (error) {
       console.error('Error saving budget:', error);
@@ -295,10 +292,10 @@ export default function BudgetScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteBudget(budgetId);
+            deleteBudgetLocal(budgetId);
             setBudgets((prev) => prev.filter((b) => b.id !== budgetId));
             Alert.alert(t.success, t.budgetDeleted);
-            // Refresh data to get updated budget progress
+            if (!(await isOfflineGateLocked())) void triggerSync();
             fetchData();
           } catch (error) {
             console.error('Error deleting budget:', error);
@@ -424,7 +421,10 @@ export default function BudgetScreen() {
                     marginRight: 4,
                     opacity: 1,
                   }}
-                  onPress={() => setActiveTab(tab.key)}>
+                  onPress={() => {
+                    void playTabClickSound();
+                    setActiveTab(tab.key);
+                  }}>
                   <Text
                     style={{
                       fontWeight: isActive ? '600' : '400',
@@ -769,7 +769,7 @@ export default function BudgetScreen() {
                   </TouchableOpacity>
                 </View>
 
-                {/* Category - Chip Selection */}
+                {/* Category - Card opens bottom sheet */}
                 <View className="mb-4">
                   <Text
                     style={{
@@ -780,156 +780,339 @@ export default function BudgetScreen() {
                     }}>
                     {t.category || 'Category'} *
                   </Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={{ marginHorizontal: -4 }}>
-                    <View className="flex-row gap-2 px-1">
-                      {expenseCategories.slice(0, 12).map((category) => (
-                        <TouchableOpacity
-                          key={category.key}
-                          style={{
-                            paddingVertical: 10,
-                            paddingHorizontal: 16,
-                            borderRadius: 20,
-                            borderWidth: 1,
-                            borderColor:
-                              newCategory === category.key
-                                ? theme.primary
-                                : theme.border,
-                            backgroundColor:
-                              newCategory === category.key
-                                ? `${theme.primary}20`
-                                : theme.background,
-                          }}
-                          onPress={() => {
-                            setNewCategory(category.key);
-                          }}>
-                          <Text
-                            style={{
-                              color:
-                                newCategory === category.key
-                                  ? theme.primary
-                                  : theme.textSecondary,
-                              fontSize: 13,
-                              fontWeight:
-                                newCategory === category.key ? '600' : '400',
-                            }}>
-                            {category.label}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </ScrollView>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => setCategorySheetOpen(true)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 14,
+                      paddingHorizontal: 14,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: newCategory ? theme.primary : theme.border,
+                      backgroundColor: theme.background,
+                      minHeight: 50,
+                    }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: '600',
+                        color: newCategory ? theme.text : theme.textMuted,
+                      }}
+                      numberOfLines={1}>
+                      {newCategory ? getCategoryLabel(newCategory) : (t.selectCategory || 'Select category')}
+                    </Text>
+                    <ChevronDown size={20} color={theme.textMuted} />
+                  </TouchableOpacity>
                 </View>
 
-                {/* Account & Budget Amount - Side by Side */}
-                <View className="flex-row gap-3 mb-4">
-                  <View className="flex-1">
-                    <Text
+                {/* Category bottom sheet */}
+                <Modal
+                  visible={categorySheetOpen}
+                  transparent
+                  animationType="slide"
+                  onRequestClose={() => setCategorySheetOpen(false)}>
+                  <Pressable
+                    style={{
+                      flex: 1,
+                      justifyContent: 'flex-end',
+                      backgroundColor: 'rgba(0,0,0,0.4)',
+                    }}
+                    onPress={() => setCategorySheetOpen(false)}>
+                    <Pressable
                       style={{
-                        color: theme.text,
-                        marginBottom: 8,
-                        fontWeight: '500',
-                        fontSize: 13,
-                      }}>
-                      {t.account || 'Account'} *
-                    </Text>
-                    <RNPickerSelect
-                      onValueChange={(value) => {
-                        const account = accounts.find(
-                          (acc) => acc.id === value,
-                        );
-                        setSelectedAccount(account || null);
+                        maxHeight: '75%',
+                        backgroundColor: theme.cardBackground,
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20,
+                        overflow: 'hidden',
                       }}
-                      items={accounts.map((account) => ({
-                        label: `${account.name}`,
-                        value: account.id,
-                      }))}
-                      value={selectedAccount?.id}
-                      placeholder={{
-                        label: t.selectAccount || 'Select account',
-                        value: null,
-                      }}
-                      style={{
-                        inputIOS: {
-                          fontSize: 14,
-                          paddingVertical: 14,
-                          paddingHorizontal: 14,
-                          borderRadius: 12,
-                          borderWidth: 1,
-                          borderColor: theme.border,
-                          backgroundColor: theme.background,
-                          color: selectedAccount ? theme.text : theme.textMuted,
-                          minHeight: 50,
-                        },
-                        inputAndroid: {
-                          fontSize: 14,
-                          paddingVertical: 14,
-                          paddingHorizontal: 14,
-                          borderRadius: 12,
-                          borderWidth: 1,
-                          borderColor: theme.border,
-                          backgroundColor: theme.background,
-                          color: selectedAccount ? theme.text : theme.textMuted,
-                          minHeight: 50,
-                        },
-                        placeholder: {
-                          color: theme.textMuted,
-                        },
-                        iconContainer: {
-                          top: 18,
-                          right: 12,
-                        },
-                      }}
-                      Icon={() => {
-                        return (
-                          <View
-                            style={{
-                              backgroundColor: 'transparent',
-                              borderTopWidth: 6,
-                              borderTopColor: theme.textMuted,
-                              borderRightWidth: 6,
-                              borderRightColor: 'transparent',
-                              borderLeftWidth: 6,
-                              borderLeftColor: 'transparent',
-                              width: 0,
-                              height: 0,
-                            }}
-                          />
-                        );
-                      }}
-                      useNativeAndroidPickerStyle={false}
-                    />
-                  </View>
+                      onPress={(e) => e.stopPropagation()}>
+                      <View
+                        style={{
+                          paddingTop: 12,
+                          paddingBottom: 8,
+                          alignItems: 'center',
+                        }}>
+                        <View
+                          style={{
+                            width: 36,
+                            height: 4,
+                            borderRadius: 2,
+                            backgroundColor: theme.border,
+                          }}
+                        />
+                      </View>
+                      <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+                        <Text
+                          style={{
+                            fontSize: 18,
+                            fontWeight: '700',
+                            color: theme.text,
+                            marginBottom: 16,
+                          }}>
+                          {t.selectCategory || 'Select category'}
+                        </Text>
+                        <ScrollView
+                          style={{ maxHeight: 320 }}
+                          contentContainerStyle={{ paddingBottom: 16 }}
+                          showsVerticalScrollIndicator={false}>
+                          {expenseCategories.map((category) => (
+                            <TouchableOpacity
+                              key={category.key}
+                              activeOpacity={0.7}
+                              onPress={() => {
+                                setNewCategory(category.key);
+                                setCategorySheetOpen(false);
+                              }}
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                paddingVertical: 14,
+                                paddingHorizontal: 12,
+                                borderRadius: 12,
+                                backgroundColor: theme.background,
+                                marginBottom: 8,
+                                borderWidth: 1,
+                                borderColor: theme.border,
+                              }}>
+                              <Text
+                                style={{
+                                  fontSize: 16,
+                                  fontWeight: '600',
+                                  color: theme.text,
+                                  flex: 1,
+                                }}>
+                                {category.label}
+                              </Text>
+                              <ChevronDown
+                                size={18}
+                                color={theme.textMuted}
+                                style={{ transform: [{ rotate: '-90deg' }] }}
+                              />
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    </Pressable>
+                  </Pressable>
+                </Modal>
 
-                  <View className="flex-1">
-                    <Text
+                {/* Account - Card opens bottom sheet */}
+                <View className="mb-4">
+                  <Text
+                    style={{
+                      color: theme.text,
+                      marginBottom: 8,
+                      fontWeight: '500',
+                      fontSize: 13,
+                    }}>
+                    {t.account || 'Account'} *
+                  </Text>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => setAccountSheetOpen(true)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 14,
+                      paddingHorizontal: 14,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: selectedAccount ? theme.primary : theme.border,
+                      backgroundColor: theme.background,
+                      minHeight: 50,
+                    }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                      <View
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 10,
+                          backgroundColor: selectedAccount ? `${theme.primary}18` : `${theme.border}40`,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: 12,
+                        }}>
+                        <Wallet size={20} color={selectedAccount ? theme.primary : theme.textMuted} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{
+                            fontSize: 15,
+                            fontWeight: '600',
+                            color: selectedAccount ? theme.text : theme.textMuted,
+                          }}
+                          numberOfLines={1}>
+                          {selectedAccount?.name ?? (t.selectAccount || 'Select account')}
+                        </Text>
+                        {selectedAccount && (
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              color: theme.textSecondary,
+                              marginTop: 2,
+                            }}>
+                            {t.balance || 'Balance'}: ${selectedAccount.amount.toFixed(2)}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                    <ChevronDown size={20} color={theme.textMuted} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Account bottom sheet */}
+                <Modal
+                  visible={accountSheetOpen}
+                  transparent
+                  animationType="slide"
+                  onRequestClose={() => setAccountSheetOpen(false)}>
+                  <Pressable
+                    style={{
+                      flex: 1,
+                      justifyContent: 'flex-end',
+                      backgroundColor: 'rgba(0,0,0,0.4)',
+                    }}
+                    onPress={() => setAccountSheetOpen(false)}>
+                    <Pressable
                       style={{
-                        color: theme.text,
-                        marginBottom: 8,
-                        fontWeight: '500',
-                        fontSize: 13,
-                      }}>
-                      {t.budgetAmount || 'Amount'} *
-                    </Text>
-                    <TextInput
-                      style={{
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        borderRadius: 12,
-                        padding: 14,
-                        color: theme.text,
-                        backgroundColor: theme.background,
-                        fontSize: 15,
+                        maxHeight: '75%',
+                        backgroundColor: theme.cardBackground,
+                        borderTopLeftRadius: 20,
+                        borderTopRightRadius: 20,
+                        overflow: 'hidden',
                       }}
-                      placeholder="0.00"
-                      placeholderTextColor={theme.textMuted}
-                      keyboardType="numeric"
-                      value={newAllocated}
-                      onChangeText={setNewAllocated}
-                    />
-                  </View>
+                      onPress={(e) => e.stopPropagation()}>
+                      <View
+                        style={{
+                          paddingTop: 12,
+                          paddingBottom: 8,
+                          alignItems: 'center',
+                        }}>
+                        <View
+                          style={{
+                            width: 36,
+                            height: 4,
+                            borderRadius: 2,
+                            backgroundColor: theme.border,
+                          }}
+                        />
+                      </View>
+                      <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+                        <Text
+                          style={{
+                            fontSize: 18,
+                            fontWeight: '700',
+                            color: theme.text,
+                            marginBottom: 16,
+                          }}>
+                          {t.selectAccount || 'Select account'}
+                        </Text>
+                        <ScrollView
+                          style={{ maxHeight: 320 }}
+                          contentContainerStyle={{ paddingBottom: 16 }}
+                          showsVerticalScrollIndicator={false}>
+                          {accounts.length === 0 ? (
+                            <Text
+                              style={{
+                                fontSize: 15,
+                                color: theme.textSecondary,
+                                textAlign: 'center',
+                                paddingVertical: 24,
+                              }}>
+                              {t.noAccountsAvailable || 'No accounts available'}
+                            </Text>
+                          ) : (
+                            accounts.map((account) => (
+                              <TouchableOpacity
+                                key={account.id}
+                                activeOpacity={0.7}
+                                onPress={() => {
+                                  setSelectedAccount(account);
+                                  setAccountSheetOpen(false);
+                                }}
+                                style={{
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  paddingVertical: 14,
+                                  paddingHorizontal: 12,
+                                  borderRadius: 12,
+                                  backgroundColor: theme.background,
+                                  marginBottom: 8,
+                                  borderWidth: 1,
+                                  borderColor: theme.border,
+                                }}>
+                                <View
+                                  style={{
+                                    width: 40,
+                                    height: 40,
+                                    borderRadius: 10,
+                                    backgroundColor: `${theme.primary}18`,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    marginRight: 12,
+                                  }}>
+                                  <Wallet size={20} color={theme.primary} />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                  <Text
+                                    style={{
+                                      fontSize: 16,
+                                      fontWeight: '600',
+                                      color: theme.text,
+                                    }}>
+                                    {account.name}
+                                  </Text>
+                                  <Text
+                                    style={{
+                                      fontSize: 13,
+                                      color: theme.textSecondary,
+                                      marginTop: 2,
+                                    }}>
+                                    {t.balance || 'Balance'}: ${account.amount.toFixed(2)}
+                                  </Text>
+                                </View>
+                                <ChevronDown size={18} color={theme.textMuted} style={{ transform: [{ rotate: '-90deg' }] }} />
+                              </TouchableOpacity>
+                            ))
+                          )}
+                        </ScrollView>
+                      </View>
+                    </Pressable>
+                  </Pressable>
+                </Modal>
+
+                {/* Budget Amount */}
+                <View className="mb-4">
+                  <Text
+                    style={{
+                      color: theme.text,
+                      marginBottom: 8,
+                      fontWeight: '500',
+                      fontSize: 13,
+                    }}>
+                    {t.budgetAmount || 'Amount'} *
+                  </Text>
+                  <TextInput
+                    style={{
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                      borderRadius: 12,
+                      padding: 14,
+                      color: theme.text,
+                      backgroundColor: theme.background,
+                      fontSize: 15,
+                    }}
+                    placeholder="0.00"
+                    placeholderTextColor={theme.textMuted}
+                    keyboardType="numeric"
+                    value={newAllocated}
+                    onChangeText={setNewAllocated}
+                  />
                 </View>
 
                 {/* Save Button */}

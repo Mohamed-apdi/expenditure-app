@@ -3,6 +3,7 @@ export * from "./services/accounts";
 export {
   getAccountBalances,
   getBudgetProgress,
+  getBudgetProgressFromLocal,
   getFinancialSummary,
   getMonthlySummary,
   getRecentTransactions,
@@ -45,17 +46,61 @@ export * from "./providers/AccountContext";
 export * from "./providers/LanguageProvider";
 export * from "./providers/SyncContext";
 
-// Sync (Legend-State)
-export { createAccountLocal, updateAccountLocal } from "./stores/accountsStore";
+// Sync (Legend-State) - local-first entity stores and sync helpers
+export {
+  createAccountLocal,
+  updateAccountLocal,
+  deleteAccountLocal,
+  selectAccounts,
+  selectAccountById,
+  toAccount,
+} from "./stores/accountsStore";
 export { selectConflicts } from "./stores/conflictsStore";
-export { createExpenseLocal } from "./stores/expensesStore";
-export { selectProfile } from "./stores/profileStore";
+export {
+  createExpenseLocal,
+  updateExpenseLocal,
+  deleteExpenseLocal,
+  selectExpenseById,
+} from "./stores/expensesStore";
+export { selectProfile, updateProfileLocal } from "./stores/profileStore";
 export {
   createTransactionLocal,
+  updateTransactionLocal,
+  deleteTransactionLocal,
   selectTransactions,
   selectTransactionsByDateRange,
+  selectTransactionById,
 } from "./stores/transactionsStore";
-export { createTransferLocal } from "./stores/transfersStore";
+export {
+  createTransferLocal,
+  deleteTransferLocal,
+  selectTransfers,
+} from "./stores/transfersStore";
+export {
+  createBudgetLocal,
+  updateBudgetLocal,
+  deleteBudgetLocal,
+  selectBudgets,
+} from "./stores/budgetsStore";
+export {
+  createGoalLocal,
+  updateGoalLocal,
+  deleteGoalLocal,
+  selectGoals,
+  selectGoalById,
+} from "./stores/goalsStore";
+export {
+  createSubscriptionLocal,
+  updateSubscriptionLocal,
+  deleteSubscriptionLocal,
+  selectSubscriptions,
+} from "./stores/subscriptionsStore";
+export {
+  createPersonalLoanLocal,
+  updatePersonalLoanLocal,
+  deletePersonalLoanLocal,
+  selectPersonalLoans,
+} from "./stores/personalLoansStore";
 export {
   isOfflineGateLocked,
   resolveConflictKeepLocal,

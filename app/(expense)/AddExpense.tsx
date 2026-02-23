@@ -20,14 +20,14 @@ import {
 import { toast } from "sonner-native";
 import type { Account } from "~/lib";
 import {
-  addExpense,
-  addSubscription,
-  addTransaction,
-  addTransfer,
+  createExpenseLocal,
+  createSubscriptionLocal,
   createTransactionLocal,
+  createTransferLocal,
+  isOfflineGateLocked,
   notificationService,
   supabase,
-  updateAccountBalance,
+  triggerSync,
   updateAccountLocal,
   useAccount,
   useLanguage,
@@ -35,6 +35,10 @@ import {
   useTheme,
 } from "~/lib";
 import { scanReceiptWithOCR } from "~/lib/services/ocr";
+import {
+  playTabClickSound,
+  preloadTabClickSound,
+} from "~/lib/utils/playTabSound";
 
 // Import the separated form components
 import {
@@ -96,13 +100,16 @@ export default function AddExpenseScreen() {
     }
   }, [accounts, selectedAccount]);
 
+  // Preload tab click sound so first tap plays immediately (dev build only; Expo Go uses haptics)
+  useEffect(() => {
+    void preloadTabClickSound();
+  }, []);
+
   const handleEntryTypeChange = (type: string) => {
+    void playTabClickSound();
     setEntryType(type);
     setSelectedCategory(null);
-    // Reset to normal mode when changing entry type
-    if (inputMode === "ocr") {
-      setInputMode("normal");
-    }
+    if (inputMode === "ocr") setInputMode("normal");
   };
 
   // Map OCR category to app category
@@ -244,8 +251,8 @@ export default function AddExpenseScreen() {
   };
 
   const handleSaveExpense = async () => {
-    // Basic validation
-    if (!amount || !description.trim()) {
+    // Basic validation (note/description is optional)
+    if (!amount) {
       toast.error(t.missingInfo || "Missing Information", {
         description:
           t.pleaseFillRequiredFields || "Please fill all required fields",
@@ -295,26 +302,13 @@ export default function AddExpenseScreen() {
       const amountNum = Number.parseFloat(amount);
       const dateStr = date.toISOString().split("T")[0];
 
-      // Create transaction in local store first so it shows on dashboard immediately (including recurring)
-      createTransactionLocal({
-        user_id: user.id,
-        account_id: selectedAccount.id,
-        amount: amountNum,
-        description: description.trim(),
-        date: dateStr,
-        category: selectedCategory?.name || "",
-        is_recurring: isRecurring,
-        recurrence_interval: isRecurring ? recurringFrequency : undefined,
-        type: entryType === "Income" ? "income" : "expense",
-      });
-
-      // Add expense using the service
-      await addExpense({
+      // Create local expense row (offline-first; sync engine will push to Supabase)
+      createExpenseLocal({
         user_id: user.id,
         entry_type: entryType as "Income" | "Expense",
         amount: amountNum,
         category: selectedCategory!.name,
-        description: description.trim(),
+        description: description.trim() || undefined,
         is_recurring: isRecurring,
         recurrence_interval: isRecurring ? recurringFrequency : undefined,
         date: dateStr,
@@ -322,12 +316,12 @@ export default function AddExpenseScreen() {
         is_essential: true,
       });
 
-      // Add transaction using the service
-      await addTransaction({
+      // Create transaction in local store so it shows on dashboard immediately (including recurring)
+      createTransactionLocal({
         user_id: user.id,
         account_id: selectedAccount.id,
         amount: amountNum,
-        description: description.trim(),
+        description: description.trim() || "",
         date: dateStr,
         category: selectedCategory?.name || "",
         is_recurring: isRecurring,
@@ -335,17 +329,13 @@ export default function AddExpenseScreen() {
         type: entryType === "Income" ? "income" : "expense",
       });
 
-      // Update account balance (local store for instant Dashboard update; Supabase when online)
+      // Update account balance in local store for instant Dashboard update;
+      // sync engine will persist this to Supabase when online.
       const newBalance =
         entryType === "Expense"
           ? selectedAccount.amount - amountNum
           : selectedAccount.amount + amountNum;
       updateAccountLocal(selectedAccount.id, { amount: newBalance });
-      try {
-        await updateAccountBalance(selectedAccount.id, newBalance);
-      } catch {
-        // Offline: balance already updated in store
-      }
 
       // Auto-create subscription if this is a recurring expense
       if (entryType === "Expense" && isRecurring && selectedCategory) {
@@ -372,7 +362,8 @@ export default function AddExpenseScreen() {
                 ? "yearly"
                 : "monthly";
 
-          await addSubscription({
+          // Local recurring subscription; sync engine will push it.
+          createSubscriptionLocal({
             user_id: user.id,
             account_id: selectedAccount.id,
             name: description.trim() || selectedCategory.name,
@@ -390,10 +381,15 @@ export default function AddExpenseScreen() {
         }
       }
 
-      // Check budget thresholds
+      // Kick sync if we're online so pending changes are pushed promptly.
+      if (!(await isOfflineGateLocked())) {
+        void triggerSync();
+      }
+
+      // Check budget thresholds only for the expense category (notify only if this category has a budget)
       if (entryType === "Expense" && selectedCategory?.name) {
         try {
-          await notificationService.checkBudgetsAndNotify();
+          await notificationService.checkBudgetsAndNotify(selectedCategory.name);
         } catch (error) {
           console.error("Error checking budget notifications:", error);
         }
@@ -476,8 +472,8 @@ export default function AddExpenseScreen() {
         type: "income",
       });
 
-      // Add transfer record
-      await addTransfer({
+      // Create transfer record locally; sync engine will push to Supabase.
+      createTransferLocal({
         user_id: user.id,
         from_account_id: fromAccount.id,
         to_account_id: toAccount.id,
@@ -486,42 +482,14 @@ export default function AddExpenseScreen() {
         date: dateStr,
       });
 
-      // Add EXPENSE transaction for FROM account
-      await addTransaction({
-        user_id: user.id,
-        account_id: fromAccount.id,
-        amount: amountNum,
-        description: `Transfer to ${toAccount.name}`,
-        date: dateStr,
-        category: "Transfer",
-        is_recurring: false,
-        type: "expense",
-      });
-
-      // Add INCOME transaction for TO account
-      await addTransaction({
-        user_id: user.id,
-        account_id: toAccount.id,
-        amount: amountNum,
-        description: `Transfer from ${fromAccount.name}`,
-        date: dateStr,
-        category: "Transfer",
-        is_recurring: false,
-        type: "income",
-      });
-
-      // Update account balances in local store (instant) and Supabase when online
+      // Update account balances in local store (instant); sync engine will persist remotely.
       const fromNew = fromAccount.amount - amountNum;
       const toNew = toAccount.amount + amountNum;
       updateAccountLocal(fromAccount.id, { amount: fromNew });
       updateAccountLocal(toAccount.id, { amount: toNew });
-      try {
-        await Promise.all([
-          updateAccountBalance(fromAccount.id, fromNew),
-          updateAccountBalance(toAccount.id, toNew),
-        ]);
-      } catch {
-        // Offline: balances already updated in store
+
+      if (!(await isOfflineGateLocked())) {
+        void triggerSync();
       }
 
       toast.success("Transfer Successful!", {
@@ -553,17 +521,15 @@ export default function AddExpenseScreen() {
       );
     }
 
-    // For Income and Expense
+    // For Income and Expense (note/description is optional)
     return (
       !!amount &&
-      !!description.trim() &&
       !!selectedAccount &&
       !!selectedCategory &&
       !isSubmitting
     );
   }, [
     amount,
-    description,
     selectedAccount,
     selectedCategory,
     entryType,
@@ -629,36 +595,37 @@ export default function AddExpenseScreen() {
                 overflow: "hidden",
               }}
             >
-              {ENTRY_TABS.map((tab, index) => (
-                <TouchableOpacity
-                  key={tab.id}
-                  style={{
-                    flex: 1,
-                    paddingVertical: 12,
-                    backgroundColor:
-                      entryType === tab.id
-                        ? theme.tabActive
-                        : theme.cardBackground,
-                    borderRightWidth: index < ENTRY_TABS.length - 1 ? 1 : 0,
-                    borderRightColor: theme.border,
-                  }}
-                  onPress={() => handleEntryTypeChange(tab.id)}
-                >
-                  <Text
+              {ENTRY_TABS.map((tab, index) => {
+                const isActive = entryType === tab.id;
+                const activeBg = "#40A5E7";
+                return (
+                  <TouchableOpacity
+                    key={tab.id}
+                    activeOpacity={1}
                     style={{
-                      textAlign: "center",
-                      fontWeight: entryType === tab.id ? "600" : "400",
-                      fontSize: 14,
-                      color:
-                        entryType === tab.id
-                          ? theme.primaryText
-                          : theme.textSecondary,
+                      flex: 1,
+                      paddingVertical: 12,
+                      backgroundColor: isActive
+                        ? activeBg
+                        : theme.cardBackground,
+                      borderRightWidth: index < ENTRY_TABS.length - 1 ? 1 : 0,
+                      borderRightColor: theme.border,
                     }}
+                    onPress={() => handleEntryTypeChange(tab.id)}
                   >
-                    {tab.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={{
+                        textAlign: "center",
+                        fontWeight: isActive ? "600" : "400",
+                        fontSize: 14,
+                        color: isActive ? "#FFFFFF" : theme.text,
+                      }}
+                    >
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 

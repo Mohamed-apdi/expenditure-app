@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Modal,
+  Pressable,
   TextInput,
   Alert,
   RefreshControl,
@@ -17,12 +18,13 @@ import {
   DollarSign,
   BarChart3,
   Plus,
+  Wallet,
+  ChevronDown,
 } from 'lucide-react-native';
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import RNPickerSelect from 'react-native-picker-select';
 import { supabase } from '~/lib';
 import { fetchAccounts, type Account } from '~/lib';
 import { useTheme } from '~/lib';
@@ -66,6 +68,8 @@ const Investments = ({
 
   // Modal states
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [accountSheetOpen, setAccountSheetOpen] = useState(false);
+  const [typeSheetOpen, setTypeSheetOpen] = useState(false);
   const [currentInvestment, setCurrentInvestment] = useState<Investment | null>(
     null,
   );
@@ -96,16 +100,12 @@ const Investments = ({
     return typeof label === 'string' ? label : String(typeKey);
   };
 
-  // Fetch investments and accounts
+  // Fetch investments and accounts (getSession first for fast cached user)
   const fetchData = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
+      let user = (await supabase.auth.getSession()).data?.session?.user ?? null;
+      if (!user) user = (await supabase.auth.getUser()).data?.user ?? null;
+      if (!user) return;
 
       setUserId(user.id);
 
@@ -770,74 +770,54 @@ const Investments = ({
                   </TouchableOpacity>
                 </View>
 
+                {/* Investment type - Card opens bottom sheet */}
                 <View className="mb-4">
-                  <Text style={{ color: theme.text, marginBottom: 4 }}>
-                    {t.investmentType}
-                  </Text>
-                  <RNPickerSelect
-                    onValueChange={(value) => {
-                      setNewType(value);
-                    }}
-                    items={investmentTypes.map((type) => ({
-                      label: String(type.label ?? type.key),
-                      value: type.key,
-                    }))}
-                    value={newType}
-                    placeholder={{
-                      label: t.selectInvestmentType || 'Select investment type',
-                      value: null,
-                    }}
+                  <Text style={{ color: theme.text, marginBottom: 4 }}>{t.investmentType}</Text>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => setTypeSheetOpen(true)}
                     style={{
-                      inputIOS: {
-                        fontSize: 14,
-                        paddingVertical: 12,
-                        paddingHorizontal: 12,
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        backgroundColor: theme.background,
-                        color: newType ? theme.text : theme.textMuted,
-                        minHeight: 50,
-                      },
-                      inputAndroid: {
-                        fontSize: 14,
-                        paddingVertical: 12,
-                        paddingHorizontal: 12,
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        backgroundColor: theme.background,
-                        color: newType ? theme.text : theme.textMuted,
-                        minHeight: 50,
-                      },
-                      placeholder: {
-                        color: theme.textMuted,
-                      },
-                      iconContainer: {
-                        top: 18,
-                        right: 12,
-                      },
-                    }}
-                    Icon={() => {
-                      return (
-                        <View
-                          style={{
-                            backgroundColor: 'transparent',
-                            borderTopWidth: 6,
-                            borderTopColor: theme.textMuted,
-                            borderRightWidth: 6,
-                            borderRightColor: 'transparent',
-                            borderLeftWidth: 6,
-                            borderLeftColor: 'transparent',
-                            width: 0,
-                            height: 0,
-                          }}
-                        />
-                      );
-                    }}
-                    useNativeAndroidPickerStyle={false}
-                  />
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 14,
+                      paddingHorizontal: 14,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: newType ? theme.primary : theme.border,
+                      backgroundColor: theme.background,
+                      minHeight: 50,
+                    }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: newType ? theme.text : theme.textMuted }} numberOfLines={1}>
+                      {newType ? getInvestmentTypeLabel(newType) : (t.selectInvestmentType || 'Select investment type')}
+                    </Text>
+                    <ChevronDown size={20} color={theme.textMuted} />
+                  </TouchableOpacity>
                 </View>
+
+                {/* Type bottom sheet */}
+                <Modal visible={typeSheetOpen} transparent animationType="slide" onRequestClose={() => setTypeSheetOpen(false)}>
+                  <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }} onPress={() => setTypeSheetOpen(false)}>
+                    <Pressable style={{ maxHeight: '75%', backgroundColor: theme.cardBackground, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' }} onPress={(e) => e.stopPropagation()}>
+                      <View style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}><View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: theme.border }} /></View>
+                      <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+                        <Text style={{ fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 16 }}>{t.selectInvestmentType || 'Select investment type'}</Text>
+                        <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
+                          {investmentTypes.map((type) => (
+                            <TouchableOpacity
+                              key={type.key}
+                              activeOpacity={0.7}
+                              onPress={() => { setNewType(type.key); setTypeSheetOpen(false); }}
+                              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.background, marginBottom: 8, borderWidth: 1, borderColor: theme.border }}>
+                              <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text, flex: 1 }}>{String(type.label ?? type.key)}</Text>
+                              <ChevronDown size={18} color={theme.textMuted} style={{ transform: [{ rotate: '-90deg' }] }} />
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    </Pressable>
+                  </Pressable>
+                </Modal>
 
                 <View className="mb-4">
                   <Text style={{ color: theme.text, marginBottom: 4 }}>
@@ -859,75 +839,72 @@ const Investments = ({
                   />
                 </View>
 
+                {/* Account - Card opens bottom sheet */}
                 <View className="mb-4">
-                  <Text style={{ color: theme.text, marginBottom: 4 }}>
-                    {t.account}
-                  </Text>
-                  <RNPickerSelect
-                    onValueChange={(value) => {
-                      const account = accounts.find((acc) => acc.id === value);
-                      setSelectedAccount(account || null);
-                    }}
-                    items={accounts.map((account) => ({
-                      label: String(account?.name ?? account?.id ?? 'Account'),
-                      value: account.id,
-                    }))}
-                    value={selectedAccount?.id}
-                    placeholder={{
-                      label: t.selectAccount || 'Select account',
-                      value: null,
-                    }}
+                  <Text style={{ color: theme.text, marginBottom: 4 }}>{t.account}</Text>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => setAccountSheetOpen(true)}
                     style={{
-                      inputIOS: {
-                        fontSize: 14,
-                        paddingVertical: 12,
-                        paddingHorizontal: 12,
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        backgroundColor: theme.background,
-                        color: selectedAccount ? theme.text : theme.textMuted,
-                        minHeight: 50,
-                      },
-                      inputAndroid: {
-                        fontSize: 14,
-                        paddingVertical: 12,
-                        paddingHorizontal: 12,
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        backgroundColor: theme.background,
-                        color: selectedAccount ? theme.text : theme.textMuted,
-                        minHeight: 50,
-                      },
-                      placeholder: {
-                        color: theme.textMuted,
-                      },
-                      iconContainer: {
-                        top: 18,
-                        right: 12,
-                      },
-                    }}
-                    Icon={() => {
-                      return (
-                        <View
-                          style={{
-                            backgroundColor: 'transparent',
-                            borderTopWidth: 6,
-                            borderTopColor: theme.textMuted,
-                            borderRightWidth: 6,
-                            borderRightColor: 'transparent',
-                            borderLeftWidth: 6,
-                            borderLeftColor: 'transparent',
-                            width: 0,
-                            height: 0,
-                          }}
-                        />
-                      );
-                    }}
-                    useNativeAndroidPickerStyle={false}
-                  />
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 14,
+                      paddingHorizontal: 14,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: selectedAccount ? theme.primary : theme.border,
+                      backgroundColor: theme.background,
+                      minHeight: 50,
+                    }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                      <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: selectedAccount ? `${theme.primary}18` : `${theme.border}40`, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                        <Wallet size={20} color={selectedAccount ? theme.primary : theme.textMuted} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '600', color: selectedAccount ? theme.text : theme.textMuted }} numberOfLines={1}>
+                          {selectedAccount?.name ?? (t.selectAccount || 'Select account')}
+                        </Text>
+                        {selectedAccount && <Text style={{ fontSize: 13, color: theme.textSecondary, marginTop: 2 }}>{t.balance || 'Balance'}: ${selectedAccount.amount.toFixed(2)}</Text>}
+                      </View>
+                    </View>
+                    <ChevronDown size={20} color={theme.textMuted} />
+                  </TouchableOpacity>
                 </View>
+
+                {/* Account bottom sheet */}
+                <Modal visible={accountSheetOpen} transparent animationType="slide" onRequestClose={() => setAccountSheetOpen(false)}>
+                  <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }} onPress={() => setAccountSheetOpen(false)}>
+                    <Pressable style={{ maxHeight: '75%', backgroundColor: theme.cardBackground, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' }} onPress={(e) => e.stopPropagation()}>
+                      <View style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}><View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: theme.border }} /></View>
+                      <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+                        <Text style={{ fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 16 }}>{t.selectAccount || 'Select account'}</Text>
+                        <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
+                          {accounts.length === 0 ? (
+                            <Text style={{ fontSize: 15, color: theme.textSecondary, textAlign: 'center', paddingVertical: 24 }}>{t.noAccountsAvailable || 'No accounts available'}</Text>
+                          ) : (
+                            accounts.map((account) => (
+                              <TouchableOpacity
+                                key={account.id}
+                                activeOpacity={0.7}
+                                onPress={() => { setSelectedAccount(account); setAccountSheetOpen(false); }}
+                                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.background, marginBottom: 8, borderWidth: 1, borderColor: theme.border }}>
+                                <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: `${theme.primary}18`, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                                  <Wallet size={20} color={theme.primary} />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text }}>{account.name}</Text>
+                                  <Text style={{ fontSize: 13, color: theme.textSecondary, marginTop: 2 }}>{t.balance || 'Balance'}: ${account.amount.toFixed(2)}</Text>
+                                </View>
+                                <ChevronDown size={18} color={theme.textMuted} style={{ transform: [{ rotate: '-90deg' }] }} />
+                              </TouchableOpacity>
+                            ))
+                          )}
+                        </ScrollView>
+                      </View>
+                    </Pressable>
+                  </Pressable>
+                </Modal>
 
                 <View className="mb-4">
                   <Text style={{ color: theme.text, marginBottom: 4 }}>

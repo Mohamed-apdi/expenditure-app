@@ -21,7 +21,13 @@ import {
   ArrowUpRight,
   Receipt,
 } from "lucide-react-native";
-import { supabase } from "~/lib";
+import {
+  supabase,
+  selectExpenseById,
+  deleteExpenseLocal,
+  isOfflineGateLocked,
+  triggerSync,
+} from "~/lib";
 import { format } from "date-fns";
 import { useTheme, useScreenStatusBar } from "~/lib";
 
@@ -48,53 +54,39 @@ export default function ExpenseDetailScreen() {
   const [deleting, setDeleting] = useState(false);
   const theme = useTheme();
   useScreenStatusBar();
-  // Fetch expense data
-  const fetchExpense = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("expenses")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      if (error) throw error;
-      setExpense(data);
-    } catch (error) {
-      console.error("Error fetching expense:", error);
-      Alert.alert("Error", "Failed to load expense details");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Set up realtime subscription
   useEffect(() => {
-    if (!id) return;
+    if (!id || typeof id !== "string") return;
 
-    // Initial fetch
-    fetchExpense();
-
-    // Subscribe to changes
-    const subscription = supabase
-      .channel("expense_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "expenses",
-          filter: `id=eq.${id}`,
-        },
-        (payload) => {
-          setExpense(payload.new as Expense);
+    const loadExpense = async () => {
+      try {
+        setLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const data = selectExpenseById(user.id, id);
+        if (data) {
+          setExpense({
+            id: data.id,
+            amount: data.amount,
+            category: data.category,
+            description: data.description ?? "",
+            date: data.date,
+            is_recurring: data.is_recurring ?? false,
+            recurrence_interval: data.recurrence_interval,
+            is_essential: data.is_essential ?? false,
+            tags: data.tags,
+            created_at: data.created_at,
+            receipt_url: data.receipt_url,
+          });
         }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(subscription);
+      } catch (error) {
+        console.error("Error loading expense:", error);
+        Alert.alert("Error", "Failed to load expense details");
+      } finally {
+        setLoading(false);
+      }
     };
+
+    loadExpense();
   }, [id]);
 
   const handleDelete = async () => {
@@ -109,12 +101,10 @@ export default function ExpenseDetailScreen() {
           onPress: async () => {
             try {
               setDeleting(true);
-              const { error } = await supabase
-                .from("expenses")
-                .delete()
-                .eq("id", id);
-
-              if (error) throw error;
+              if (id && typeof id === "string") {
+                deleteExpenseLocal(id);
+                if (!(await isOfflineGateLocked())) void triggerSync();
+              }
               router.back();
             } catch (error) {
               console.error("Error deleting expense:", error);

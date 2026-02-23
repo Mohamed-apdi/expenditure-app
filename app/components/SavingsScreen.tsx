@@ -29,27 +29,31 @@ import {
   Shield,
   User,
   Plus,
+  Wallet,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react-native';
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import RNPickerSelect from 'react-native-picker-select';
+import DateTimePicker, {
+  useDefaultStyles,
+  type CalendarComponents,
+} from 'react-native-ui-datepicker';
 import { supabase } from '~/lib';
 import {
-  fetchGoalsWithAccounts,
-  addGoal,
-  updateGoal,
-  deleteGoal,
-  toggleGoalStatus,
-  addAmountToGoal,
-  withdrawAmountFromGoal,
-  calculateGoalProgress,
-  getTotalSavings,
+  selectGoals,
+  selectGoalById,
+  createGoalLocal,
+  updateGoalLocal,
+  deleteGoalLocal,
+  isOfflineGateLocked,
+  triggerSync,
   type Goal,
 } from '~/lib';
-import { fetchAccounts, type Account } from '~/lib';
+import { useAccount, type Account } from '~/lib';
 import { useTheme } from '~/lib';
 import { useLanguage } from '~/lib';
 
@@ -110,15 +114,21 @@ export default function SavingsScreen({
 }: SavingsScreenProps = {}) {
   const theme = useTheme();
   const { t } = useLanguage();
+  const { accounts: contextAccounts } = useAccount();
+  const defaultDatePickerStyles = useDefaultStyles(
+    theme.isDarkColorScheme ? 'dark' : 'light',
+  );
   const [goals, setGoals] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState<string | null>(propUserId || null);
-  const [accounts, setAccounts] = useState<Account[]>(propAccounts || []);
+  const [accounts, setAccounts] = useState<Account[]>(propAccounts ?? contextAccounts);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const insets = useSafeAreaInsets();
   const [totalSavings, setTotalSavings] = useState(0);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [accountSheetOpen, setAccountSheetOpen] = useState(false);
+  const [categorySheetOpen, setCategorySheetOpen] = useState(false);
   const [isIconModalVisible, setIsIconModalVisible] = useState(false);
   const [isColorModalVisible, setIsColorModalVisible] = useState(false);
   const [isAddAmountModalVisible, setIsAddAmountModalVisible] = useState(false);
@@ -163,32 +173,24 @@ export default function SavingsScreen({
   // Fetch goals and accounts from database
   const fetchData = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
+      let user = (await supabase.auth.getSession()).data?.session?.user ?? null;
+      if (!user) user = (await supabase.auth.getUser()).data?.user ?? null;
+      if (!user) return;
 
       setUserId(user.id);
 
-      // Fetch goals with accounts, accounts, goal progress, and total savings in parallel
-      const [goalsData, accountsData, progressData, totalData] =
-        await Promise.all([
-          fetchGoalsWithAccounts(user.id),
-          fetchAccounts(user.id),
-          calculateGoalProgress(user.id),
-          getTotalSavings(user.id),
-        ]);
+      const accountList = propAccounts ?? contextAccounts;
+      const goalsData = selectGoals(user.id).map((g) => ({
+        ...g,
+        account: accountList.find((a) => a.id === g.account_id),
+      }));
+      const total = goalsData.reduce((s, g) => s + Number(g.current_amount ?? 0), 0);
 
       setGoals(goalsData);
-      setAccounts(accountsData);
-      setTotalSavings(totalData);
-
-      // Set default selected account if available
-      if (accountsData.length > 0) {
-        setSelectedAccount(accountsData[0]);
+      setAccounts(accountList);
+      setTotalSavings(total);
+      if (accountList.length > 0 && !selectedAccount) {
+        setSelectedAccount(accountList[0]);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -210,20 +212,16 @@ export default function SavingsScreen({
     }
   }, []);
 
-  // Sync with parent props when they change; respect selectedAccountId from app (e.g. Budget/Dashboard)
   useEffect(() => {
-    if (propAccounts !== undefined) {
-      setAccounts(propAccounts);
-      if (propAccounts.length > 0) {
-        if (propSelectedAccountId) {
-          const match = propAccounts.find((a) => a.id === propSelectedAccountId);
-          setSelectedAccount(match ?? propAccounts[0]);
-        } else if (!selectedAccount) {
-          setSelectedAccount(propAccounts[0]);
-        }
-      }
+    const list = propAccounts ?? contextAccounts;
+    setAccounts(list);
+    if (list.length > 0) {
+      if (propSelectedAccountId) {
+        const match = list.find((a) => a.id === propSelectedAccountId);
+        setSelectedAccount(match ?? list[0]);
+      } else if (!selectedAccount) setSelectedAccount(list[0]);
     }
-  }, [propAccounts, propSelectedAccountId]);
+  }, [propAccounts, contextAccounts, propSelectedAccountId]);
 
   useEffect(() => {
     if (propUserId !== undefined && propUserId !== null) {
@@ -231,10 +229,24 @@ export default function SavingsScreen({
     }
   }, [propUserId]);
 
+  // When used inside Budget screen: show local goals immediately (no loading)
+  useEffect(() => {
+    if (propUserId == null) return;
+    const list = propAccounts ?? contextAccounts ?? [];
+    setAccounts(list);
+    const goalsData = selectGoals(propUserId).map((g) => ({
+      ...g,
+      account: list.find((a) => a.id === g.account_id),
+    }));
+    setGoals(goalsData);
+    setTotalSavings(goalsData.reduce((s, g) => s + Number(g.current_amount ?? 0), 0));
+    if (list.length > 0 && !selectedAccount) setSelectedAccount(list[0]);
+  }, [propUserId, propAccounts, contextAccounts]);
+
   const handleToggleGoalStatus = async (id: string, currentStatus: boolean) => {
     try {
-      await toggleGoalStatus(id, !currentStatus);
-      // Refresh data to get updated status
+      updateGoalLocal(id, { is_active: !currentStatus });
+      if (!(await isOfflineGateLocked())) void triggerSync();
       fetchData();
     } catch (error) {
       console.error('Error toggling goal status:', error);
@@ -340,15 +352,19 @@ export default function SavingsScreen({
       };
 
       if (isEditMode && currentGoal) {
-        await updateGoal(currentGoal.id, goalData);
+        updateGoalLocal(currentGoal.id, goalData);
         Alert.alert(t.success, t.goalUpdated);
       } else {
-        await addGoal(goalData);
+        if (!selectedAccount || !userId) {
+          Alert.alert(t.error, t.selectAccount);
+          return;
+        }
+        createGoalLocal({ ...goalData, user_id: userId, account_id: selectedAccount.id });
         Alert.alert(t.success, t.goalAdded);
       }
 
       setIsModalVisible(false);
-      // Refresh data to get updated goals
+      if (!(await isOfflineGateLocked())) void triggerSync();
       fetchData();
     } catch (error) {
       console.error('Error saving goal:', error);
@@ -364,18 +380,21 @@ export default function SavingsScreen({
 
     try {
       const amount = parseFloat(amountModalData.amount);
+      if (!userId) return;
+      const existing = selectGoalById(userId, currentGoal.id);
+      const current = Number(existing?.current_amount ?? 0);
 
       if (amountModalData.type === 'add') {
-        await addAmountToGoal(currentGoal.id, amount);
+        updateGoalLocal(currentGoal.id, { current_amount: current + amount });
         Alert.alert(t.success, t.amountAdded);
       } else {
-        await withdrawAmountFromGoal(currentGoal.id, amount);
+        updateGoalLocal(currentGoal.id, { current_amount: Math.max(0, current - amount) });
         Alert.alert(t.success, t.amountWithdrawn);
       }
 
       setIsAddAmountModalVisible(false);
       setIsWithdrawModalVisible(false);
-      // Refresh data to get updated goals
+      if (!(await isOfflineGateLocked())) void triggerSync();
       fetchData();
     } catch (error) {
       console.error('Error updating goal amount:', error);
@@ -391,9 +410,9 @@ export default function SavingsScreen({
         style: 'destructive',
         onPress: async () => {
           try {
-            await deleteGoal(id);
+            deleteGoalLocal(id);
             Alert.alert(t.success, t.goalDeleted);
-            // Refresh data to get updated goals
+            if (!(await isOfflineGateLocked())) void triggerSync();
             fetchData();
           } catch (error) {
             console.error('Error deleting goal:', error);
@@ -421,17 +440,6 @@ export default function SavingsScreen({
   const selectColor = (color: string) => {
     setFormData({ ...formData, icon_color: color });
     setIsColorModalVisible(false);
-  };
-
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      setSelectedDate(selectedDate);
-      setFormData({
-        ...formData,
-        target_date: selectedDate.toISOString().split('T')[0],
-      });
-    }
   };
 
   const calculateProgress = (current: number, target: number) => {
@@ -1097,138 +1105,121 @@ export default function SavingsScreen({
                 />
               </View>
 
-              {/* Category - Simple Selection */}
+              {/* Category - Card opens bottom sheet */}
               <View className="mb-4">
-                <Text
+                <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500', fontSize: 13 }}>{t.goalCategory || 'Category'} *</Text>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => setCategorySheetOpen(true)}
                   style={{
-                    color: theme.text,
-                    marginBottom: 8,
-                    fontWeight: '500',
-                    fontSize: 13,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingVertical: 14,
+                    paddingHorizontal: 14,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: formData.category ? theme.primary : theme.border,
+                    backgroundColor: theme.background,
+                    minHeight: 50,
                   }}>
-                  {t.goalCategory || 'Category'} *
-                </Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={{ marginHorizontal: -4 }}>
-                  <View className="flex-row gap-2 px-1">
-                    {goalCategories.map((category) => (
-                      <TouchableOpacity
-                        key={category.key}
-                        style={{
-                          paddingVertical: 10,
-                          paddingHorizontal: 16,
-                          borderRadius: 20,
-                          borderWidth: 1,
-                          borderColor:
-                            formData.category === category.key
-                              ? theme.primary
-                              : theme.border,
-                          backgroundColor:
-                            formData.category === category.key
-                              ? `${theme.primary}20`
-                              : theme.background,
-                        }}
-                        onPress={() => {
-                          setFormData({ ...formData, category: category.key });
-                        }}>
-                        <Text
-                          style={{
-                            color:
-                              formData.category === category.key
-                                ? theme.primary
-                                : theme.textSecondary,
-                            fontSize: 13,
-                            fontWeight:
-                              formData.category === category.key
-                                ? '600'
-                                : '400',
-                          }}>
-                          {category.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
+                  <Text style={{ fontSize: 15, fontWeight: '600', color: formData.category ? theme.text : theme.textMuted }} numberOfLines={1}>
+                    {formData.category ? getGoalCategoryLabel(formData.category) : (t.selectCategory || 'Select category')}
+                  </Text>
+                  <ChevronDown size={20} color={theme.textMuted} />
+                </TouchableOpacity>
               </View>
 
-              {/* Account */}
+              {/* Category bottom sheet */}
+              <Modal visible={categorySheetOpen} transparent animationType="slide" onRequestClose={() => setCategorySheetOpen(false)}>
+                <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }} onPress={() => setCategorySheetOpen(false)}>
+                  <Pressable style={{ maxHeight: '75%', backgroundColor: theme.cardBackground, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' }} onPress={(e) => e.stopPropagation()}>
+                    <View style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}><View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: theme.border }} /></View>
+                    <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+                      <Text style={{ fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 16 }}>{t.selectCategory || 'Select category'}</Text>
+                      <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
+                        {goalCategories.map((category) => (
+                          <TouchableOpacity
+                            key={category.key}
+                            activeOpacity={0.7}
+                            onPress={() => { setFormData({ ...formData, category: category.key }); setCategorySheetOpen(false); }}
+                            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.background, marginBottom: 8, borderWidth: 1, borderColor: theme.border }}>
+                            <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text, flex: 1 }}>{category.label}</Text>
+                            <ChevronDown size={18} color={theme.textMuted} style={{ transform: [{ rotate: '-90deg' }] }} />
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  </Pressable>
+                </Pressable>
+              </Modal>
+
+              {/* Account - Card opens bottom sheet */}
               <View className="mb-4">
-                <Text
+                <Text style={{ color: theme.text, marginBottom: 8, fontWeight: '500', fontSize: 13 }}>{t.account || 'Account'} *</Text>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => setAccountSheetOpen(true)}
                   style={{
-                    color: theme.text,
-                    marginBottom: 8,
-                    fontWeight: '500',
-                    fontSize: 13,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingVertical: 14,
+                    paddingHorizontal: 14,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: selectedAccount ? theme.primary : theme.border,
+                    backgroundColor: theme.background,
+                    minHeight: 50,
                   }}>
-                  {t.account || 'Account'} *
-                </Text>
-                <RNPickerSelect
-                  onValueChange={(value) => {
-                    const account = accounts.find((acc) => acc.id === value);
-                    setSelectedAccount(account || null);
-                  }}
-                  items={accounts.map((account) => ({
-                    label: `${account.name}`,
-                    value: account.id,
-                  }))}
-                  value={selectedAccount?.id}
-                  placeholder={{
-                    label: t.selectAccount || 'Select account',
-                    value: null,
-                  }}
-                  style={{
-                    inputIOS: {
-                      fontSize: 14,
-                      paddingVertical: 14,
-                      paddingHorizontal: 14,
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      borderColor: theme.border,
-                      backgroundColor: theme.background,
-                      color: selectedAccount ? theme.text : theme.textMuted,
-                      minHeight: 50,
-                    },
-                    inputAndroid: {
-                      fontSize: 14,
-                      paddingVertical: 14,
-                      paddingHorizontal: 14,
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      borderColor: theme.border,
-                      backgroundColor: theme.background,
-                      color: selectedAccount ? theme.text : theme.textMuted,
-                      minHeight: 50,
-                    },
-                    placeholder: {
-                      color: theme.textMuted,
-                    },
-                    iconContainer: {
-                      top: 18,
-                      right: 12,
-                    },
-                  }}
-                  Icon={() => {
-                    return (
-                      <View
-                        style={{
-                          backgroundColor: 'transparent',
-                          borderTopWidth: 6,
-                          borderTopColor: theme.textMuted,
-                          borderRightWidth: 6,
-                          borderRightColor: 'transparent',
-                          borderLeftWidth: 6,
-                          borderLeftColor: 'transparent',
-                          width: 0,
-                          height: 0,
-                        }}
-                      />
-                    );
-                  }}
-                  useNativeAndroidPickerStyle={false}
-                />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: selectedAccount ? `${theme.primary}18` : `${theme.border}40`, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                      <Wallet size={20} color={selectedAccount ? theme.primary : theme.textMuted} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '600', color: selectedAccount ? theme.text : theme.textMuted }} numberOfLines={1}>
+                        {selectedAccount?.name ?? (t.selectAccount || 'Select account')}
+                      </Text>
+                      {selectedAccount && <Text style={{ fontSize: 13, color: theme.textSecondary, marginTop: 2 }}>{t.balance || 'Balance'}: ${selectedAccount.amount.toFixed(2)}</Text>}
+                    </View>
+                  </View>
+                  <ChevronDown size={20} color={theme.textMuted} />
+                </TouchableOpacity>
               </View>
+
+              {/* Account bottom sheet */}
+              <Modal visible={accountSheetOpen} transparent animationType="slide" onRequestClose={() => setAccountSheetOpen(false)}>
+                <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }} onPress={() => setAccountSheetOpen(false)}>
+                  <Pressable style={{ maxHeight: '75%', backgroundColor: theme.cardBackground, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' }} onPress={(e) => e.stopPropagation()}>
+                    <View style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}><View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: theme.border }} /></View>
+                    <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+                      <Text style={{ fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 16 }}>{t.selectAccount || 'Select account'}</Text>
+                      <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
+                        {accounts.length === 0 ? (
+                          <Text style={{ fontSize: 15, color: theme.textSecondary, textAlign: 'center', paddingVertical: 24 }}>{t.noAccountsAvailable || 'No accounts available'}</Text>
+                        ) : (
+                          accounts.map((account) => (
+                            <TouchableOpacity
+                              key={account.id}
+                              activeOpacity={0.7}
+                              onPress={() => { setSelectedAccount(account); setAccountSheetOpen(false); }}
+                              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.background, marginBottom: 8, borderWidth: 1, borderColor: theme.border }}>
+                              <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: `${theme.primary}18`, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                                <Wallet size={20} color={theme.primary} />
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text }}>{account.name}</Text>
+                                <Text style={{ fontSize: 13, color: theme.textSecondary, marginTop: 2 }}>{t.balance || 'Balance'}: ${account.amount.toFixed(2)}</Text>
+                              </View>
+                              <ChevronDown size={18} color={theme.textMuted} style={{ transform: [{ rotate: '-90deg' }] }} />
+                            </TouchableOpacity>
+                          ))
+                        )}
+                      </ScrollView>
+                    </View>
+                  </Pressable>
+                </Pressable>
+              </Modal>
 
               {/* Target Amount & Date - Side by Side */}
               <View className="flex-row gap-3 mb-4">
@@ -1283,9 +1274,10 @@ export default function SavingsScreen({
                     {t.targetDate || 'Target Date'} *
                   </Text>
                   <TouchableOpacity
+                    activeOpacity={0.85}
                     style={{
                       borderWidth: 1,
-                      borderColor: theme.border,
+                      borderColor: formData.target_date ? theme.primary : theme.border,
                       borderRadius: 12,
                       padding: 14,
                       backgroundColor: theme.background,
@@ -1293,20 +1285,24 @@ export default function SavingsScreen({
                       alignItems: 'center',
                       justifyContent: 'space-between',
                     }}
-                    onPress={() => setShowDatePicker(true)}>
+                    onPress={() => {
+                      setSelectedDate(formData.target_date ? new Date(formData.target_date + 'T12:00:00') : new Date());
+                      setShowDatePicker(true);
+                    }}>
                     <Text
                       style={{
                         color: formData.target_date
                           ? theme.text
                           : theme.textMuted,
-                        fontSize: 14,
+                        fontSize: 15,
+                        fontWeight: '500',
                       }}
                       numberOfLines={1}>
                       {formData.target_date
                         ? formatDate(formData.target_date).replace(',', '')
-                        : 'Select'}
+                        : (t.selectDate || 'Select target date')}
                     </Text>
-                    <Calendar size={14} color={theme.textMuted} />
+                    <Calendar size={20} color={formData.target_date ? theme.primary : theme.textMuted} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1398,6 +1394,79 @@ export default function SavingsScreen({
             </ScrollView>
           </View>
         </View>
+
+        {/* Target Date Picker - inside Goal modal so it shows on top */}
+        <Modal
+          visible={showDatePicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowDatePicker(false)}>
+          <Pressable
+            style={{
+              flex: 1,
+              justifyContent: 'flex-end',
+              backgroundColor: 'rgba(0,0,0,0.4)',
+            }}
+            onPress={() => setShowDatePicker(false)}>
+            <Pressable
+              style={{
+                maxHeight: '85%',
+                backgroundColor: theme.cardBackground,
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                overflow: 'hidden',
+              }}
+              onPress={(e) => e.stopPropagation()}>
+              <View style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}>
+                <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: theme.border }} />
+              </View>
+              <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: 16,
+                  }}>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontSize: 18,
+                      fontWeight: '700',
+                    }}>
+                    {t.selectTargetDate || 'Select target date'}
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                    <X size={24} color={theme.textMuted} />
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  mode="single"
+                  date={selectedDate}
+                  onChange={({ date }) => {
+                    if (date) {
+                      const d = new Date(date as string | number | Date);
+                      setFormData((prev) => ({
+                        ...prev,
+                        target_date: d.toISOString().split('T')[0],
+                      }));
+                      setSelectedDate(d);
+                      setShowDatePicker(false);
+                    }
+                  }}
+                  minDate={new Date()}
+                  showOutsideDays
+                  containerHeight={280}
+                  components={{
+                    IconPrev: <ChevronLeft size={20} color={theme.text} />,
+                    IconNext: <ChevronRight size={20} color={theme.text} />,
+                  } as CalendarComponents}
+                  styles={defaultDatePickerStyles}
+                />
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
       </Modal>
 
       {/* Add Amount Modal */}
@@ -1571,160 +1640,127 @@ export default function SavingsScreen({
         </View>
       </Modal>
 
-      {/* Icon Selection Modal */}
+      {/* Icon Selection - Bottom Sheet */}
       <Modal
         visible={isIconModalVisible}
-        animationType="fade"
-        transparent={true}
+        transparent
+        animationType="slide"
         onRequestClose={() => setIsIconModalVisible(false)}>
-        <View
-          style={{
-            flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            padding: 16,
-          }}>
-          <View
+        <Pressable
+          style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}
+          onPress={() => setIsIconModalVisible(false)}>
+          <Pressable
             style={{
+              maxHeight: '70%',
               backgroundColor: theme.cardBackground,
-              borderRadius: 16,
-              padding: 24,
-              width: '100%',
-              maxWidth: 400,
-            }}>
-            <View className="flex-row justify-between items-center mb-6">
-              <Text
-                style={{ color: theme.text, fontWeight: 'bold', fontSize: 12 }}>
-                {t.selectGoalIcon}
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              overflow: 'hidden',
+            }}
+            onPress={(e) => e.stopPropagation()}>
+            <View style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}>
+              <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: theme.border }} />
+            </View>
+            <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 16 }}>
+                {t.selectGoalIcon || 'Select icon'}
               </Text>
-              <TouchableOpacity onPress={() => setIsIconModalVisible(false)}>
-                <X size={24} color={theme.textMuted} />
-              </TouchableOpacity>
-            </View>
-
-            <View className="flex-row flex-wrap gap-3">
-              {Object.keys(goalIcons).map((icon) => (
-                <TouchableOpacity
-                  key={icon}
-                  style={{
-                    width: '30%',
-                    padding: 16,
-                    alignItems: 'center',
-                    backgroundColor:
-                      formData.icon === icon
-                        ? `${theme.primary}20`
-                        : theme.background,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor:
-                      formData.icon === icon ? theme.primary : theme.border,
-                  }}
-                  onPress={() => selectIcon(icon as GoalIcon)}>
-                  <View
-                    className="rounded-full mb-3"
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                {Object.keys(goalIcons).map((icon) => (
+                  <TouchableOpacity
+                    key={icon}
+                    activeOpacity={0.7}
                     style={{
-                      backgroundColor:
-                        formData.icon === icon
-                          ? formData.icon_color
-                          : `${theme.primary}20`,
-                      borderWidth: 2,
-                      borderColor:
-                        formData.icon === icon
-                          ? formData.icon_color
-                          : theme.border,
-                    }}>
-                    {React.createElement(getGoalIcon(icon), {
-                      size: 18,
-                      color: formData.icon === icon ? 'white' : theme.primary,
-                    })}
-                  </View>
-                  <Text
-                    style={{
-                      color:
-                        formData.icon === icon ? theme.primary : theme.text,
-                      fontSize: 12,
-                      fontWeight: formData.icon === icon ? '600' : '400',
-                      textTransform: 'capitalize',
-                      textAlign: 'center',
-                    }}>
-                    {icon === 'goal' ? 'General' : icon}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                      width: '30%',
+                      padding: 14,
+                      alignItems: 'center',
+                      backgroundColor: formData.icon === icon ? `${theme.primary}18` : theme.background,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: formData.icon === icon ? theme.primary : theme.border,
+                    }}
+                    onPress={() => selectIcon(icon as GoalIcon)}>
+                    <View
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 22,
+                        backgroundColor: formData.icon === icon ? formData.icon_color : `${theme.border}40`,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: 6,
+                      }}>
+                      {React.createElement(getGoalIcon(icon), {
+                        size: 22,
+                        color: formData.icon === icon ? 'white' : theme.textMuted,
+                      })}
+                    </View>
+                    <Text
+                      style={{
+                        color: formData.icon === icon ? theme.primary : theme.textSecondary,
+                        fontSize: 12,
+                        fontWeight: formData.icon === icon ? '600' : '400',
+                        textTransform: 'capitalize',
+                      }}
+                      numberOfLines={1}>
+                      {icon === 'goal' ? 'General' : icon}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
 
-      {/* Color Selection Modal */}
+      {/* Color Selection - Bottom Sheet */}
       <Modal
         visible={isColorModalVisible}
-        animationType="fade"
-        transparent={true}
+        transparent
+        animationType="slide"
         onRequestClose={() => setIsColorModalVisible(false)}>
-        <View
-          style={{
-            flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            padding: 16,
-          }}>
-          <View
+        <Pressable
+          style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}
+          onPress={() => setIsColorModalVisible(false)}>
+          <Pressable
             style={{
+              maxHeight: '50%',
               backgroundColor: theme.cardBackground,
-              borderRadius: 16,
-              padding: 24,
-              width: '100%',
-              maxWidth: 400,
-            }}>
-            <View className="flex-row justify-between items-center mb-6">
-              <Text
-                style={{ color: theme.text, fontWeight: 'bold', fontSize: 20 }}>
-                {t.selectGoalColor}
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              overflow: 'hidden',
+            }}
+            onPress={(e) => e.stopPropagation()}>
+            <View style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}>
+              <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: theme.border }} />
+            </View>
+            <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 16 }}>
+                {t.selectGoalColor || 'Select color'}
               </Text>
-              <TouchableOpacity onPress={() => setIsColorModalVisible(false)}>
-                <X size={24} color={theme.textMuted} />
-              </TouchableOpacity>
-            </View>
-
-            <View className="flex-row flex-wrap justify-between">
-              {colors.map((color) => (
-                <TouchableOpacity
-                  key={color}
-                  style={{
-                    width: '25%',
-                    padding: 16,
-                    alignItems: 'center',
-                    backgroundColor:
-                      formData.icon_color === color
-                        ? `${theme.primary}20`
-                        : 'transparent',
-                    borderRadius: 8,
-                  }}
-                  onPress={() => selectColor(color)}>
-                  <View
-                    className="w-10 h-10 rounded-full mb-2"
-                    style={{ backgroundColor: color }}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                {colors.map((color) => (
+                  <TouchableOpacity
+                    key={color}
+                    activeOpacity={0.7}
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 28,
+                      backgroundColor: color,
+                      borderWidth: 3,
+                      borderColor: formData.icon_color === color ? theme.primary : 'transparent',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onPress={() => selectColor(color)}
                   />
-                </TouchableOpacity>
-              ))}
+                ))}
+              </View>
             </View>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
-
-      {/* Date Picker */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={selectedDate}
-          mode="date"
-          display="default"
-          onChange={onDateChange}
-          minimumDate={new Date()}
-        />
-      )}
     </SafeAreaView>
   );
 }

@@ -47,6 +47,7 @@ import { generatePDFReport, sharePDF } from '~/lib/generators/pdfGenerator';
 import { generateCSVReport, shareCSV } from '~/lib/generators/csvGenerator';
 import { useTheme, useScreenStatusBar } from '~/lib';
 import { useLanguage } from '~/lib';
+import { playTabClickSound, preloadTabClickSound } from '~/lib/utils/playTabSound';
 import { toast } from 'sonner-native';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -81,6 +82,11 @@ export default function ReportsScreen() {
   const [activeTab, setActiveTab] = useState<
     'transactions' | 'accounts' | 'budgets' | 'goals' | 'subscriptions'
   >('transactions');
+
+  // Preload tab click feedback (same as Add Expense / Budget)
+  useEffect(() => {
+    void preloadTabClickSound();
+  }, []);
 
   // Report data states
   const [transactionData, setTransactionData] =
@@ -2377,16 +2383,18 @@ export default function ReportsScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View className="flex-row gap-2">
               <TouchableOpacity
+                activeOpacity={1}
                 style={{
                   paddingHorizontal: 14,
                   paddingVertical: 8,
                   borderRadius: 16,
                   backgroundColor:
-                    activeTab === 'transactions'
-                      ? theme.primary
-                      : theme.background,
+                    activeTab === 'transactions' ? '#40A5E7' : theme.background,
                 }}
-                onPress={() => setActiveTab('transactions')}>
+                onPress={() => {
+                void playTabClickSound();
+                setActiveTab('transactions');
+              }}>
                 <Text
                   style={{
                     color: activeTab === 'transactions' ? 'white' : theme.text,
@@ -2398,16 +2406,18 @@ export default function ReportsScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
+                activeOpacity={1}
                 style={{
                   paddingHorizontal: 14,
                   paddingVertical: 8,
                   borderRadius: 16,
                   backgroundColor:
-                    activeTab === 'subscriptions'
-                      ? theme.primary
-                      : theme.background,
+                    activeTab === 'subscriptions' ? '#40A5E7' : theme.background,
                 }}
-                onPress={() => setActiveTab('subscriptions')}>
+                onPress={() => {
+                void playTabClickSound();
+                setActiveTab('subscriptions');
+              }}>
                 <Text
                   style={{
                     color: activeTab === 'subscriptions' ? 'white' : theme.text,
@@ -2419,14 +2429,18 @@ export default function ReportsScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
+                activeOpacity={1}
                 style={{
                   paddingHorizontal: 14,
                   paddingVertical: 8,
                   borderRadius: 16,
                   backgroundColor:
-                    activeTab === 'budgets' ? theme.tabActive : theme.background,
+                    activeTab === 'budgets' ? '#40A5E7' : theme.background,
                 }}
-                onPress={() => setActiveTab('budgets')}>
+                onPress={() => {
+                void playTabClickSound();
+                setActiveTab('budgets');
+              }}>
                 <Text
                   style={{
                     color: activeTab === 'budgets' ? 'white' : theme.text,
@@ -2438,14 +2452,18 @@ export default function ReportsScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
+                activeOpacity={1}
                 style={{
                   paddingHorizontal: 14,
                   paddingVertical: 8,
                   borderRadius: 16,
                   backgroundColor:
-                    activeTab === 'goals' ? theme.tabActive : theme.background,
+                    activeTab === 'goals' ? '#40A5E7' : theme.background,
                 }}
-                onPress={() => setActiveTab('goals')}>
+                onPress={() => {
+                void playTabClickSound();
+                setActiveTab('goals');
+              }}>
                 <Text
                   style={{
                     color: activeTab === 'goals' ? 'white' : theme.text,
@@ -2457,14 +2475,18 @@ export default function ReportsScreen() {
               </TouchableOpacity>
 
               <TouchableOpacity
+                activeOpacity={1}
                 style={{
                   paddingHorizontal: 14,
                   paddingVertical: 8,
                   borderRadius: 16,
                   backgroundColor:
-                    activeTab === 'accounts' ? theme.tabActive : theme.background,
+                    activeTab === 'accounts' ? '#40A5E7' : theme.background,
                 }}
-                onPress={() => setActiveTab('accounts')}>
+                onPress={() => {
+                void playTabClickSound();
+                setActiveTab('accounts');
+              }}>
                 <Text
                   style={{
                     color: activeTab === 'accounts' ? 'white' : theme.text,

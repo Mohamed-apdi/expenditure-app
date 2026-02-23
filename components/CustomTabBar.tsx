@@ -6,6 +6,7 @@ import { Banknote, BarChart2, Home, Plus, Wallet } from "lucide-react-native";
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { useLanguage, useTheme } from "~/lib";
+import { playTabClickSound } from "~/lib/utils/playTabSound";
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
 import Entypo from '@expo/vector-icons/Entypo';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -82,7 +83,10 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
                   elevation: 8,
                   marginTop: -28,
                 }}
-                onPress={() => router.push("/(expense)/AddExpense")}
+                onPress={() => {
+                  void playTabClickSound();
+                  router.push("/(expense)/AddExpense");
+                }}
               >
                 <Plus size={28} color={theme.primaryText} />
               </TouchableOpacity>
@@ -123,7 +127,10 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
               paddingVertical: 6,
               opacity: 1,
             }}
-            onPress={() => router.push(tab.route as any)}
+            onPress={() => {
+              void playTabClickSound();
+              router.push(tab.route as any);
+            }}
           >
             <View
               style={{

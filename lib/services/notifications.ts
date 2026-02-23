@@ -329,8 +329,8 @@ export async function createBudgetNotification({
   const isExceeded = percentage >= 100;
 
   const title = isExceeded
-    ? `🚨 Budget Exceeded: ${budgetName}`
-    : `⚠️ Budget Warning: ${budgetName}`;
+    ? `Budget Exceeded: ${budgetName}`
+    : `Budget Warning: ${budgetName}`;
 
   const message = isExceeded
     ? `You've exceeded your ${budgetName} budget by $${(currentAmount - budgetLimit).toFixed(2)}. Current: $${currentAmount.toFixed(2)} / $${budgetLimit.toFixed(2)}`
@@ -371,8 +371,8 @@ export async function createSubscriptionNotification({
   isOverdue?: boolean;
 }): Promise<Notification | null> {
   const title = isOverdue
-    ? `🔴 Overdue: ${subscriptionName}`
-    : `💳 Payment Due: ${subscriptionName}`;
+    ? `Overdue: ${subscriptionName}`
+    : `Payment Due: ${subscriptionName}`;
 
   const message = isOverdue
     ? `Your ${subscriptionName} subscription payment of $${amount.toFixed(2)} is overdue.`

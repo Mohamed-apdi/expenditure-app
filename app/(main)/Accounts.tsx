@@ -6,15 +6,18 @@ import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Account,
-  addTransaction,
-  createAccount,
-  fetchAccounts,
+  createAccountLocal,
+  createTransactionLocal,
+  selectAccounts,
+  toAccount,
   formatCurrency,
   supabase,
   useAccount,
   useLanguage,
   useScreenStatusBar,
   useTheme,
+  isOfflineGateLocked,
+  triggerSync,
 } from "~/lib";
 import AddAccount from "../account-details/add-account";
 
@@ -50,24 +53,13 @@ const Accounts = () => {
   const loadAccounts = async () => {
     try {
       setError(null);
-
-      // Get the current user first
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
-        throw new Error("You must be logged in to view accounts");
-      }
-
-      const data = await fetchAccounts(user.id);
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error("You must be logged in to view accounts");
+      const data = selectAccounts(user.id).map(toAccount);
       setAccounts(data);
     } catch (error) {
       console.error("Failed to load accounts:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to load accounts",
-      );
+      setError(error instanceof Error ? error.message : "Failed to load accounts");
     }
   };
 
@@ -107,32 +99,26 @@ const Accounts = () => {
         currency: "USD", // Default currency
       };
 
-      const createdAccount = await createAccount(accountWithUser);
-      setAccounts((prev) => [...prev, createdAccount]);
+      const createdAccount = createAccountLocal(accountWithUser);
+      setAccounts((prev) => [...prev, toAccount(createdAccount)]);
 
-      // If account has an initial amount, create a transaction as income
       if (newAccount.amount && newAccount.amount > 0) {
         try {
-          await addTransaction({
+          createTransactionLocal({
             user_id: user.id,
             account_id: createdAccount.id,
             amount: newAccount.amount,
             description: `Initial balance for ${newAccount.name}`,
             date: new Date().toISOString().split("T")[0],
-            category: "Initial Balance", // Use existing income category
+            category: "Initial Balance",
             type: "income",
             is_recurring: false,
           });
         } catch (transactionError) {
-          console.error(
-            "Failed to create initial balance transaction:",
-            transactionError,
-          );
-          // Don't fail the account creation if transaction creation fails
+          console.error("Failed to create initial balance transaction:", transactionError);
         }
       }
-
-      // Refresh accounts in context to update MonthYearScroller
+      if (!(await isOfflineGateLocked())) void triggerSync();
       await refreshContextAccounts();
 
       setShowAddAccount(false);

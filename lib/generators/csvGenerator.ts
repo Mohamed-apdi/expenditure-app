@@ -52,8 +52,8 @@ export const generateCSVReport = async (data: CSVReportData): Promise<string> =>
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
     const filename = `${data.title.toLowerCase().replace(/\s+/g, '_')}_${timestamp}.csv`;
 
-    // Save to documents directory
-    const documentsDir = FileSystem.documentDirectory;
+    // Prefer documents directory; fall back to cache (e.g. Expo Go / simulators)
+    const documentsDir = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
     if (!documentsDir) {
       throw new Error('Documents directory not available');
     }
@@ -107,9 +107,8 @@ export const shareCSV = async (fileUri: string): Promise<void> => {
 // Function to save CSV to downloads directory (Android)
 export const saveCSVToDownloads = async (fileUri: string, filename: string) => {
   try {
-    // For Android, we can use the MediaLibrary API or Storage Access Framework
-    // For now, we'll save to the documents directory which is accessible
-    const documentsDir = FileSystem.documentDirectory;
+    // Prefer documents directory; fall back to cache (e.g. Expo Go / simulators)
+    const documentsDir = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
     if (!documentsDir) {
       throw new Error('Documents directory not available');
     }

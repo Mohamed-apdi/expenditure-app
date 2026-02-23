@@ -60,7 +60,7 @@ export default ({ config }) => ({
       {
         color: "#ffffff",
         icon: "./assets/qoondeeye-notification.png",
-        sounds: ["./assets/sounds/notification.wav"]
+        sounds: ["./assets/sounds/notification2.wav"]
       }
     ],
 

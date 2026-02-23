@@ -20,6 +20,7 @@ import { useAccount } from "~/lib";
 import { useNotifications } from "~/lib";
 import { useRouter } from "expo-router";
 import { useLanguage } from "~/lib";
+import { playTabClickSound } from "~/lib/utils/playTabSound";
 
 interface DashboardHeaderProps {
   variant?: "light" | "dark";
@@ -130,7 +131,12 @@ export default function DashboardHeader({
 
         {/* Right Section */}
         <View className="flex-row items-center gap-5">
-          <TouchableOpacity onPress={toggleColorScheme}>
+          <TouchableOpacity
+            onPress={() => {
+              void playTabClickSound();
+              toggleColorScheme();
+            }}
+          >
             {isDarkColorScheme ? (
               <Sun size={24} color={iconColor} />
             ) : (
@@ -139,7 +145,10 @@ export default function DashboardHeader({
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => router.push("/(main)/SettingScreen")}
+            onPress={() => {
+              void playTabClickSound();
+              router.push("/(main)/SettingScreen");
+            }}
           >
             <View style={{ position: "relative" }}>
               <Settings size={24} color={iconColor} />

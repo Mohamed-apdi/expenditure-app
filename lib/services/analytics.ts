@@ -3,6 +3,8 @@
  * Provides functions for calculating summaries, breakdowns, and insights
  */
 import { supabase } from "../database/supabase";
+import { selectBudgets } from "../stores/budgetsStore";
+import { selectTransactions } from "../stores/transactionsStore";
 import type { Account, Expense, Transaction, Budget } from "../types/types";
 
 export interface FinancialSummary {
@@ -190,6 +192,39 @@ export const getMonthlySummary = async (
     throw error;
   }
 };
+
+/** Offline-first: compute budget progress from local Legend-State stores. */
+export function getBudgetProgressFromLocal(
+  userId: string
+): BudgetProgress[] {
+  const budgets = selectBudgets(userId).filter((b) => b.is_active);
+  const transactions = selectTransactions(userId);
+  const result: BudgetProgress[] = [];
+
+  for (const budget of budgets) {
+    const spent = transactions
+      .filter(
+        (t) =>
+          t.account_id === budget.account_id &&
+          t.category === budget.category &&
+          t.type === "expense"
+      )
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+    const budgeted = Number(budget.amount);
+    const remaining = budgeted - spent;
+    const percentage = budgeted > 0 ? (spent / budgeted) * 100 : 0;
+    result.push({
+      category: budget.category,
+      account_id: budget.account_id,
+      budgeted,
+      spent,
+      remaining,
+      percentage,
+    });
+  }
+
+  return result.sort((a, b) => b.percentage - a.percentage);
+}
 
 export const getBudgetProgress = async (
   userId: string

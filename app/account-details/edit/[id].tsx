@@ -11,8 +11,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { X, ChevronDown, Check, DollarSign } from "lucide-react-native";
-import { supabase } from "~/lib";
-import { updateAccount, fetchAccounts } from "~/lib";
+import {
+  supabase,
+  updateAccountLocal,
+  selectAccountById,
+  isOfflineGateLocked,
+  triggerSync,
+} from "~/lib";
 import { useTheme, useScreenStatusBar } from "~/lib";
 import { useLanguage } from "~/lib";
 
@@ -74,33 +79,41 @@ export default function EditAccount() {
   }, [id]);
 
   const loadAccount = async () => {
+    const accountId = Array.isArray(id) ? id[0] : id;
+    if (!accountId) return;
+
     try {
       setLoading(true);
 
-      // Get current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.replace("/login");
         return;
       }
 
-      // Fetch account data
-      const { data: accountData, error: accountError } = await supabase
-        .from("accounts")
-        .select("*")
-        .eq("id", id)
-        .eq("user_id", user.id)
-        .single();
+      const accountData = selectAccountById(user.id, accountId);
+      if (!accountData) {
+        setError(t.failedToLoadAccount);
+        return;
+      }
 
-      if (accountError) throw accountError;
-
-      setAccount(accountData);
+      setAccount({
+        id: accountData.id,
+        user_id: accountData.user_id,
+        account_type: accountData.account_type,
+        name: accountData.name,
+        amount: accountData.amount,
+        description: accountData.description,
+        created_at: accountData.created_at,
+        updated_at: accountData.updated_at,
+        group_id: accountData.group_id,
+        is_default: accountData.is_default,
+        currency: accountData.currency,
+      });
       setFormData({
         account_type: accountData.account_type || "",
         name: accountData.name || "",
-        amount: accountData.amount || 0,
+        amount: accountData.amount ?? 0,
         description: accountData.description || "",
       });
     } catch (error) {
@@ -123,14 +136,15 @@ export default function EditAccount() {
 
       if (!account) return;
 
-      const updatedAccount = await updateAccount(account.id, {
+      updateAccountLocal(account.id, {
         account_type: formData.account_type,
         name: formData.name,
         amount: formData.amount,
         description: formData.description,
       });
 
-      // Navigate back to account details
+      if (!(await isOfflineGateLocked())) void triggerSync();
+
       router.back();
     } catch (error) {
       console.error("Error updating account:", error);

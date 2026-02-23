@@ -37,6 +37,8 @@ type MonthYearScrollerProps = {
     balance: number;
   }>;
   refreshTrigger?: number;
+  /** When provided, month data is only fetched after userId is set (avoids showing 0s before auth is ready). */
+  userId?: string | null;
 };
 
 type ItemLayout = { x: number; width: number };
@@ -46,6 +48,7 @@ export default function MonthYearScroller({
   onMonthChange,
   fetchMonthData,
   refreshTrigger = 0,
+  userId,
 }: MonthYearScrollerProps) {
   const current = new Date();
   const currentYear = current.getFullYear();
@@ -142,7 +145,7 @@ export default function MonthYearScroller({
     }
   }, [selected, centerSelected]);
 
-  // ---- Fetch month data when selected changes ----
+  // ---- Fetch month data when selected changes (and when userId is ready so we don't show 0s) ----
   useEffect(() => {
     const [monthStr, yearStr] = selected.split(' ');
     const monthIndex = months.indexOf(monthStr);
@@ -158,10 +161,12 @@ export default function MonthYearScroller({
       }
     };
 
-    if (monthIndex >= 0 && year > 0) {
+    // If userId is passed, wait until it's set so we don't show 0s before auth/store is ready
+    const canFetch = monthIndex >= 0 && year > 0 && (userId === undefined || userId !== null);
+    if (canFetch) {
       loadMonthData();
     }
-  }, [selected, refreshTrigger, selectedAccount?.id, fetchMonthData, onMonthChange]);
+  }, [selected, refreshTrigger, selectedAccount?.id, fetchMonthData, onMonthChange, userId]);
 
   return (
     <View className="py-4">

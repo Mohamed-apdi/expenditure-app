@@ -93,6 +93,36 @@ export const updateTransaction = async (
   return data;
 };
 
+/**
+ * Insert or update a transaction by id. Use when the row may not exist in
+ * Supabase yet (e.g. local-only or not yet synced) to avoid PGRST116.
+ */
+export const upsertTransaction = async (
+  transactionId: string,
+  data: Omit<Transaction, "id" | "created_at" | "updated_at">
+): Promise<Transaction> => {
+  if (!transactionId || transactionId.trim() === "") {
+    throw new Error("Transaction ID is required");
+  }
+
+  const { data: row, error } = await supabase
+    .from("transactions")
+    .upsert({ id: transactionId, ...data }, { onConflict: "id" })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error upserting transaction:", error);
+    throw error;
+  }
+
+  if (!row) {
+    throw new Error("Transaction upsert failed");
+  }
+
+  return row;
+};
+
 export const deleteTransaction = async (
   transactionId: string
 ): Promise<void> => {

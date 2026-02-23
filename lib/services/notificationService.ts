@@ -5,6 +5,7 @@
 import * as Notifications from "expo-notifications";
 import { SchedulableTriggerInputTypes } from "expo-notifications";
 import * as TaskManager from "expo-task-manager";
+import * as BackgroundFetch from "expo-background-fetch";
 import { Platform } from "react-native";
 import { isExpoGo } from "../utils/expoGoUtils";
 import { supabase } from "../database/supabase";
@@ -206,7 +207,7 @@ export const scheduleSubscriptionNotification = async (
   };
 
   const content = {
-    title: "💳 Subscription Payment Due",
+    title: "Subscription Payment Due",
     body: `${subscription.name} - $${subscription.amount.toFixed(2)} is due today`,
     categoryIdentifier: SUBSCRIPTION_NOTIFICATION_CATEGORY,
     data: {
@@ -216,7 +217,7 @@ export const scheduleSubscriptionNotification = async (
       accountId: subscription.account_id,
       billingCycle: subscription.billing_cycle,
     },
-    sound: "notification.wav",
+    sound: "notification2.wav",
   };
 
   await Notifications.scheduleNotificationAsync({
@@ -266,9 +267,9 @@ export const handleNotificationResponse = async (
         // Show success notification
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: "✅ Payment Processed",
+            title: "Payment Processed",
             body: `Successfully paid $${amount.toFixed(2)} for ${subscriptionName}`,
-            sound: "notification.wav",
+            sound: "notification2.wav",
           },
           trigger: null, // Show immediately
         });
@@ -279,9 +280,9 @@ export const handleNotificationResponse = async (
         // Show confirmation notification
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: "⏸️ Subscription Paused",
+            title: "Subscription Paused",
             body: `${subscriptionName} has been paused and won't charge automatically`,
-            sound: "notification.wav",
+            sound: "notification2.wav",
           },
           trigger: null, // Show immediately
         });
@@ -297,9 +298,9 @@ export const handleNotificationResponse = async (
         // For now, show a helpful message
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: "📊 Budget View",
+            title: "Budget View",
             body: `Open the app to view your ${category} budget details`,
-            sound: "notification.wav",
+            sound: "notification2.wav",
           },
           trigger: null,
         });
@@ -309,7 +310,7 @@ export const handleNotificationResponse = async (
 
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: "⚠️ Budget Reminder",
+            title: "Budget Reminder",
             body: `Don't forget to check your ${category} budget`,
             data: notificationData,
           },
@@ -319,9 +320,9 @@ export const handleNotificationResponse = async (
         // Show guidance for adjusting budget
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: "💡 Budget Adjustment",
+            title: "Budget Adjustment",
             body: `Open the app to adjust your ${category} budget or review your spending`,
-            sound: "notification.wav",
+            sound: "notification2.wav",
           },
           trigger: null,
         });
@@ -333,9 +334,9 @@ export const handleNotificationResponse = async (
     // Show error notification
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: "❌ Action Failed",
+        title: "Action Failed",
         body: "Failed to process your request. Please try again in the app.",
-        sound: "notification.wav",
+        sound: "notification2.wav",
       },
       trigger: null,
     });
@@ -431,7 +432,7 @@ export const sendBudgetNotification = async (
       ? BUDGET_EXCEEDED_CATEGORY
       : BUDGET_WARNING_CATEGORY;
 
-    const title = isExceeded ? "🚨 Budget Exceeded!" : "⚠️ Budget Alert!";
+    const title = isExceeded ? "Budget Exceeded!" : "Budget Alert!";
 
     const body = isExceeded
       ? `You've spent $${budgetProgress.spent.toFixed(2)} out of $${budgetProgress.budgeted.toFixed(2)} for ${budgetProgress.category} (${budgetProgress.percentage.toFixed(0)}%)`
@@ -450,7 +451,7 @@ export const sendBudgetNotification = async (
           remaining: budgetProgress.remaining,
           notificationType: type,
         },
-        sound: "notification.wav",
+        sound: "notification2.wav",
       },
       trigger: null, // Show immediately
     });
@@ -470,10 +471,10 @@ export const sendBudgetNotification = async (
   }
 };
 
-// Check all budgets and send appropriate notifications
-export const checkBudgetsAndNotify = async () => {
+// Check budgets and send notifications. When expenseCategory is provided (e.g. after
+// creating an expense), only send for that category; otherwise check all budgets.
+export const checkBudgetsAndNotify = async (expenseCategory?: string) => {
   try {
-    // Get current user
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -482,23 +483,21 @@ export const checkBudgetsAndNotify = async () => {
       return;
     }
 
-    // Get current budget progress
-    const budgetProgress = await getBudgetProgress(user.id);
+    let budgetProgress = await getBudgetProgress(user.id);
+    if (expenseCategory != null && expenseCategory !== "") {
+      budgetProgress = budgetProgress.filter(
+        (b) => b.category === expenseCategory
+      );
+    }
 
     for (const budget of budgetProgress) {
       const percentage = budget.percentage;
-
-      // Send notifications based on budget usage
       if (percentage >= 100) {
-        // Budget exceeded (100% or more)
         await sendBudgetNotification(budget, "exceeded");
       } else if (percentage >= 80) {
-        // Budget warning (80% or more but less than 100%)
         await sendBudgetNotification(budget, "warning");
       }
-      // You can add more thresholds here if needed (e.g., 90%)
     }
-
   } catch (error) {
     console.error("Error checking budget notifications:", error);
   }
@@ -532,7 +531,7 @@ export const checkDueSubscriptionsAndNotify = async () => {
         // Send notification with interactive buttons
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: "💳 Subscription Payment Due",
+            title: "Subscription Payment Due",
             body: `${subscription.name} - $${subscription.amount.toFixed(2)} is due today`,
             categoryIdentifier: SUBSCRIPTION_NOTIFICATION_CATEGORY,
             data: {
@@ -542,7 +541,7 @@ export const checkDueSubscriptionsAndNotify = async () => {
               accountId: subscription.account_id,
               billingCycle: subscription.billing_cycle,
             },
-            sound: "notification.wav",
+            sound: "notification2.wav",
           },
           trigger: null, // Show immediately
         });
@@ -599,15 +598,11 @@ export const registerBackgroundTask = async () => {
     // Register background fetch (for iOS)
     if (Platform.OS === "ios") {
       try {
-        const BackgroundFetch = await import("expo-background-fetch");
-        await BackgroundFetch.default.registerTaskAsync(
-          SUBSCRIPTION_CHECK_TASK,
-          {
-            minimumInterval: 12 * 60 * 60 * 1000, // 12 hours (more frequent)
-            stopOnTerminate: false,
-            startOnBoot: true,
-          }
-        );
+        await BackgroundFetch.registerTaskAsync(SUBSCRIPTION_CHECK_TASK, {
+          minimumInterval: 12 * 60 * 60 * 1000, // 12 hours (more frequent)
+          stopOnTerminate: false,
+          startOnBoot: true,
+        });
       } catch (error) {
       }
     }
@@ -720,7 +715,7 @@ export const scheduleBudgetCheckNotifications = async () => {
             userId: user.id,
             scheduledDate: checkDate.toISOString(),
           },
-          sound: "notification.wav",
+          sound: "notification2.wav",
         },
         trigger: {
           type: SchedulableTriggerInputTypes.DATE,

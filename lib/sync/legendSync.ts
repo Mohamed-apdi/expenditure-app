@@ -1,17 +1,10 @@
 import NetInfo from "@react-native-community/netinfo";
 
 import { supabase } from "../database/supabase";
-import { accounts$ } from "../stores/accountsStore";
 import { accountGroups$ } from "../stores/accountGroupsStore";
 import { accountTypes$ } from "../stores/accountTypesStore";
-import { expenses$ } from "../stores/expensesStore";
-import { transactions$ } from "../stores/transactionsStore";
+import { accounts$ } from "../stores/accountsStore";
 import { budgets$ } from "../stores/budgetsStore";
-import { goals$ } from "../stores/goalsStore";
-import { subscriptions$ } from "../stores/subscriptionsStore";
-import { personalLoans$ } from "../stores/personalLoansStore";
-import { transfers$ } from "../stores/transfersStore";
-import { profiles$ } from "../stores/profileStore";
 import {
   addConflictLocal,
   resolveConflictLocal,
@@ -19,6 +12,12 @@ import {
   selectConflictById,
   selectConflictsCount,
 } from "../stores/conflictsStore";
+import { expenses$ } from "../stores/expensesStore";
+import { goals$ } from "../stores/goalsStore";
+import { personalLoans$ } from "../stores/personalLoansStore";
+import { profiles$ } from "../stores/profileStore";
+import { ensureId, type LocalStatus } from "../stores/storeUtils";
+import { subscriptions$ } from "../stores/subscriptionsStore";
 import {
   getLastSyncAt,
   updateLastSyncAt,
@@ -28,8 +27,9 @@ import {
   selectSyncState,
   updateSyncStateLocal,
 } from "../stores/syncStateStore";
-import { ensureId, type LocalStatus } from "../stores/storeUtils";
-import type { SyncableEntityType, ConflictType } from "./types";
+import { transactions$ } from "../stores/transactionsStore";
+import { transfers$ } from "../stores/transfersStore";
+import type { ConflictType, SyncableEntityType } from "./types";
 
 type SyncEntity =
   | "account_types"
@@ -63,9 +63,7 @@ function nowIso(): string {
 }
 
 function isDirtyStatus(status: LocalStatus | undefined): boolean {
-  return (
-    status === "pending" || status === "conflict" || status === "failed"
-  );
+  return status === "pending" || status === "conflict" || status === "failed";
 }
 
 async function getCurrentUserId(): Promise<string | null> {
@@ -75,10 +73,20 @@ async function getCurrentUserId(): Promise<string | null> {
 }
 
 /** When true, sync (push/pull) is skipped. Wired to connectivity: locked when offline. */
+// export async function isOfflineGateLocked(): Promise<boolean> {
+//   const net = await NetInfo.fetch();
+//   const connected = net.isConnected ?? false;
+//   return !connected;
+// }
 export async function isOfflineGateLocked(): Promise<boolean> {
   const net = await NetInfo.fetch();
   const connected = net.isConnected ?? false;
-  return !connected;
+  const internetReachable =
+    net.isInternetReachable === null
+      ? true
+      : (net.isInternetReachable ?? false);
+
+  return !(connected && internetReachable);
 }
 
 async function computePendingCount(): Promise<number> {
@@ -100,14 +108,14 @@ async function computePendingCount(): Promise<number> {
   for (const store of tables) {
     const { byId } = store.get();
     total += Object.values(byId).filter(
-      (row: any) => row.__local_status === "pending"
+      (row: any) => row.__local_status === "pending",
     ).length;
   }
   return total;
 }
 
 async function updateGlobalSyncState(
-  patch: Partial<Parameters<typeof updateSyncStateLocal>[0]> = {}
+  patch: Partial<Parameters<typeof updateSyncStateLocal>[0]> = {},
 ): Promise<void> {
   const isOnline = (await NetInfo.fetch()).isConnected ?? false;
   const pendingCount = await computePendingCount();
@@ -136,9 +144,10 @@ function baseQueryForTable(table: SyncEntity, userId: string) {
   return query;
 }
 
-function storeForTable(
-  table: SyncEntity
-): { byId: () => Record<string, any>; set: (updater: (s: any) => any) => void } {
+function storeForTable(table: SyncEntity): {
+  byId: () => Record<string, any>;
+  set: (updater: (s: any) => any) => void;
+} {
   switch (table) {
     case "account_types":
       return {
@@ -266,10 +275,7 @@ function buildPayload(table: SyncEntity, row: any, userId: string): any {
   return payload;
 }
 
-async function pullTable(
-  table: SyncEntity,
-  userId: string
-): Promise<void> {
+async function pullTable(table: SyncEntity, userId: string): Promise<void> {
   const lastSyncAt = getLastSyncAt(table as SyncCursorTable);
   const baseQuery = baseQueryForTable(table, userId);
 
@@ -280,8 +286,11 @@ async function pullTable(
   // Build filter for incremental sync if we have a cursor
   let filteredQuery = baseQuery;
   if (lastSyncAt) {
+    // filteredQuery = filteredQuery.or(
+    //   `updated_at.gt.${lastSyncAt},deleted_at.gt.${lastSyncAt}`
+    // );
     filteredQuery = filteredQuery.or(
-      `updated_at.gt.${lastSyncAt},deleted_at.gt.${lastSyncAt}`
+      `created_at.gt.${lastSyncAt},updated_at.gt.${lastSyncAt},deleted_at.gt.${lastSyncAt}`,
     );
   }
 
@@ -289,7 +298,10 @@ async function pullTable(
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const pageQuery = filteredQuery.range(from, from + pageSize - 1);
-    const { data, error } = (await pageQuery) as { data: any[] | null; error: any };
+    const { data, error } = (await pageQuery) as {
+      data: any[] | null;
+      error: any;
+    };
 
     if (error) {
       await updateGlobalSyncState({ lastError: error.message });
@@ -321,7 +333,7 @@ async function pullTable(
 async function applyRemoteRow(
   table: SyncEntity,
   userId: string,
-  remote: any
+  remote: any,
 ): Promise<void> {
   const store = storeForTable(table);
   const byId = store.byId();
@@ -440,7 +452,8 @@ async function applyRemoteRow(
       __local_status: "synced" as LocalStatus,
       __last_error: null,
       __local_updated_at: nowIso(),
-      __remote_updated_at: remoteVersion ?? existing.__remote_updated_at ?? null,
+      __remote_updated_at:
+        remoteVersion ?? existing.__remote_updated_at ?? null,
     };
 
     const nextById = { ...state.byId, [remote.id]: merged };
@@ -449,15 +462,12 @@ async function applyRemoteRow(
   });
 }
 
-async function pushTable(
-  table: SyncEntity,
-  userId: string
-): Promise<void> {
+async function pushTable(table: SyncEntity, userId: string): Promise<void> {
   const store = storeForTable(table);
   const byId = store.byId();
 
   const pending = Object.values(byId).filter(
-    (row: any) => row.__local_status === "pending"
+    (row: any) => row.__local_status === "pending",
   );
 
   for (const row of pending) {
@@ -672,7 +682,8 @@ export function resolveConflictUseRemote(conflictId: string): void {
       __local_status: "synced" as LocalStatus,
       __last_error: null,
       __local_updated_at: nowIso(),
-      __remote_updated_at: remoteVersion ?? existing.__remote_updated_at ?? null,
+      __remote_updated_at:
+        remoteVersion ?? existing.__remote_updated_at ?? null,
     };
     return {
       ...state,
@@ -692,14 +703,25 @@ export const __test__ = {
 export async function startSync(): Promise<void> {
   if (netInfoUnsubscribe) return;
 
+  // netInfoUnsubscribe = NetInfo.addEventListener((state) => {
+  //   const online = !!state.isConnected;
+  //   updateSyncStateLocal({
+  //     isOnline: online,
+  //   });
+  //   if (online) {
+  //     void triggerSync();
+  //   }
+  // });
+
   netInfoUnsubscribe = NetInfo.addEventListener((state) => {
-    const online = !!state.isConnected;
-    updateSyncStateLocal({
-      isOnline: online,
-    });
-    if (online) {
-      void triggerSync();
-    }
+    const connected = !!state.isConnected;
+    const internetReachable =
+      state.isInternetReachable === null ? true : !!state.isInternetReachable;
+
+    const online = connected && internetReachable;
+
+    updateSyncStateLocal({ isOnline: online });
+    if (online) void triggerSync();
   });
 
   // Initial kick
@@ -712,4 +734,3 @@ export async function stopSync(): Promise<void> {
     netInfoUnsubscribe = null;
   }
 }
-

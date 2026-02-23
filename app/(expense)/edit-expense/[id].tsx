@@ -13,7 +13,20 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { supabase } from "~/lib";
+import {
+  supabase,
+  selectExpenseById,
+  selectTransactionById,
+  updateExpenseLocal,
+  updateTransactionLocal,
+  updateAccountLocal,
+  updateAccountBalance,
+  isOfflineGateLocked,
+  triggerSync,
+  useAccount,
+  upsertTransaction,
+  updateExpense,
+} from "~/lib";
 import {
   X,
   ShoppingCart,
@@ -64,8 +77,13 @@ export default function EditExpenseScreen() {
 
   const [tags, setTags] = useState<string[]>([]);
   const [isEssential, setIsEssential] = useState(false);
+  const [isTransactionRecord, setIsTransactionRecord] = useState(false);
   const theme = useTheme();
+  const { accounts } = useAccount();
   useScreenStatusBar();
+
+  const [originalAmount, setOriginalAmount] = useState<number | null>(null);
+  const [accountId, setAccountId] = useState<string | null>(null);
 
   const categories: Category[] = [
     { id: "food", name: "Food", icon: ShoppingCart, color: "#10b981" },
@@ -86,31 +104,67 @@ export default function EditExpenseScreen() {
   const quickAmounts = [10, 25, 50, 100];
 
   useEffect(() => {
-    const fetchExpense = async () => {
+    const loadExpense = async () => {
+      if (!id || typeof id !== "string") return;
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from("expenses")
-          .select("*")
-          .eq("id", id)
-          .single();
-
-        if (error) throw error;
-
-        // Pre-fill form with existing data
-        setAmount(data.amount.toString());
-        setDescription(data.description);
-        setDate(new Date(data.date));
-        setIsRecurring(data.is_recurring);
-        setRecurringFrequency(data.recurrence_interval || "monthly");
-        setTags(data.tags || []);
-        setIsEssential(data.is_essential);
-
-        // Set category
-        const category = categories.find((c) => c.name === data.category);
-        if (category) setSelectedCategory(category);
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          Alert.alert("Error", "Please sign in");
+          router.back();
+          return;
+        }
+        let data = selectExpenseById(user.id, id);
+        if (data) {
+          setAmount(data.amount.toString());
+          setDescription(data.description ?? "");
+          setDate(new Date(data.date));
+          setIsRecurring(data.is_recurring ?? false);
+          setRecurringFrequency(
+            (data.recurrence_interval as Frequency) || "monthly",
+          );
+          setTags(data.tags ?? []);
+          setIsEssential(data.is_essential ?? false);
+          setOriginalAmount(data.amount);
+          setAccountId(data.account_id ?? null);
+          const category = categories.find((c) => c.name === data.category);
+          if (category) setSelectedCategory(category);
+          setIsTransactionRecord(false);
+        } else {
+          const tx = selectTransactionById(user.id, id);
+          if (tx && tx.type === "expense") {
+            setAmount(tx.amount.toString());
+            setDescription(tx.description ?? "");
+            setDate(new Date(tx.date));
+            setIsRecurring(tx.is_recurring ?? false);
+            setRecurringFrequency(
+              (tx.recurrence_interval as Frequency) || "monthly",
+            );
+            setIsEssential(false);
+            setOriginalAmount(tx.amount);
+            setAccountId(tx.account_id);
+            const category = categories.find(
+              (c) => c.name === (tx.category ?? ""),
+            );
+            if (category) setSelectedCategory(category);
+            else if (tx.category)
+              setSelectedCategory({
+                id: "other",
+                name: tx.category,
+                icon: MoreHorizontal,
+                color: "#64748b",
+              });
+            setIsTransactionRecord(true);
+          } else {
+            Alert.alert("Error", "Expense not found");
+            router.back();
+            return;
+          }
+        }
       } catch (error) {
-        console.error("Error fetching expense:", error);
+        console.error("Error loading expense:", error);
         Alert.alert("Error", "Failed to load expense data");
         router.back();
       } finally {
@@ -118,34 +172,88 @@ export default function EditExpenseScreen() {
       }
     };
 
-    if (id) fetchExpense();
+    loadExpense();
   }, [id]);
 
   const handleSave = async () => {
-    if (!amount || !selectedCategory || !description.trim()) {
-      Alert.alert("Missing Information", "Please fill in all required fields");
+    if (!amount || !selectedCategory || !id || typeof id !== "string") {
+      Alert.alert("Missing Information", "Please fill in amount and category");
       return;
     }
 
     setSaving(true);
 
     try {
-      const { error } = await supabase
-        .from("expenses")
-        .update({
-          amount: parseFloat(amount),
-          category: selectedCategory.name,
-          description: description.trim(),
-          date: date.toISOString().split("T")[0],
-          is_recurring: isRecurring,
+      const newAmountNum = parseFloat(amount);
+      const basePatch = {
+        amount: newAmountNum,
+        category: selectedCategory.name,
+        description: description.trim() || undefined,
+        date: date.toISOString().split("T")[0],
+        is_recurring: isRecurring,
+      } as const;
+
+      if (isTransactionRecord) {
+        const txPatch = {
+          ...basePatch,
+          recurrence_interval: isRecurring ? recurringFrequency : undefined,
+        };
+
+        // 1) Update local transaction store (offline-first)
+        updateTransactionLocal(id, txPatch);
+
+        // 2) Best-effort Supabase upsert (insert or update so local-only rows are created)
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user && accountId) {
+            await upsertTransaction(id, {
+              user_id: user.id,
+              account_id: accountId,
+              type: "expense",
+              ...txPatch,
+            });
+          }
+        } catch (remoteError) {
+          console.error("Error upserting transaction on Supabase:", remoteError);
+          // Safe to ignore here; sync engine will retry when online
+        }
+      } else {
+        const expensePatch = {
+          ...basePatch,
           recurrence_interval: isRecurring ? recurringFrequency : null,
           is_essential: isEssential,
           tags: tags.length > 0 ? tags : null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", id);
+        };
 
-      if (error) throw error;
+        // 1) Update local expense store (offline-first)
+        updateExpenseLocal(id, expensePatch);
+
+        // 2) Best-effort Supabase update (online path)
+        try {
+          await updateExpense(id, expensePatch);
+        } catch (remoteError) {
+          console.error("Error updating expense on Supabase:", remoteError);
+          // Safe to ignore here; sync engine will retry when online
+        }
+      }
+
+      // Adjust account balance locally so Dashboard reflects the change immediately
+      if (accountId && originalAmount != null) {
+        const acc = accounts.find((a) => a.id === accountId);
+        if (acc) {
+          const diff = newAmountNum - originalAmount; // positive if expense increased
+          const newBalance = acc.amount - diff; // expenses reduce balance
+          updateAccountLocal(accountId, { amount: newBalance });
+          // Persist balance to Supabase so it survives reload
+          try {
+            await updateAccountBalance(accountId, newBalance);
+          } catch (balanceError) {
+            console.error("Error updating account balance on Supabase:", balanceError);
+          }
+        }
+      }
+
+      if (!(await isOfflineGateLocked())) void triggerSync();
 
       Alert.alert("Success", "Expense updated successfully!", [
         { text: "OK", onPress: () => router.back() },

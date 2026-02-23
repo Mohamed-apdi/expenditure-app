@@ -25,9 +25,15 @@ import {
   FileText,
   Heart,
 } from "lucide-react-native";
-import { supabase } from "~/lib";
 import { format, formatDistanceToNow } from "date-fns";
-import { useTheme, useScreenStatusBar } from "~/lib";
+import {
+  supabase,
+  selectTransactionById,
+  selectExpenseById,
+  selectAccountById,
+  useTheme,
+  useScreenStatusBar,
+} from "~/lib";
 
 type Transaction = {
   id: string;
@@ -78,48 +84,145 @@ export default function TransactionDetailScreen() {
   // Fetch transaction data
   const fetchTransaction = async () => {
     try {
-      // First, get the basic transaction data
-      const { data: transactionData, error: transactionError } = await supabase
+      const txId = Array.isArray(id) ? id[0] : id;
+      if (!txId || typeof txId !== "string") {
+        throw new Error("Invalid transaction id");
+      }
+
+      // Resolve user using cached auth (works offline)
+      let user = (await supabase.auth.getUser()).data?.user ?? null;
+      if (!user) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        user = session?.user ?? null;
+      }
+      if (!user) {
+        throw new Error("Please sign in");
+      }
+
+      // 1) Try local transactions store first (offline-first)
+      const localTx = selectTransactionById(user.id, txId);
+      if (localTx) {
+        const mainAccount =
+          localTx.account_id &&
+          selectAccountById(user.id, localTx.account_id);
+        const fromAccount =
+          (localTx as any).from_account_id &&
+          selectAccountById(user.id, (localTx as any).from_account_id);
+        const toAccount =
+          (localTx as any).to_account_id &&
+          selectAccountById(user.id, (localTx as any).to_account_id);
+
+        const enriched: Transaction = {
+          ...(localTx as any),
+          account: mainAccount
+            ? {
+                id: mainAccount.id,
+                name: mainAccount.name,
+                account_type: mainAccount.account_type,
+                amount: mainAccount.amount,
+              }
+            : undefined,
+          from_account: fromAccount
+            ? {
+                id: fromAccount.id,
+                name: fromAccount.name,
+                account_type: fromAccount.account_type,
+              }
+            : undefined,
+          to_account: toAccount
+            ? {
+                id: toAccount.id,
+                name: toAccount.name,
+                account_type: toAccount.account_type,
+              }
+            : undefined,
+        };
+
+        setTransaction(enriched);
+        return;
+      }
+
+      // 2) Fallback to local expenses store for legacy expense rows
+      const localExpense = selectExpenseById(user.id, txId);
+      if (localExpense) {
+        const account =
+          localExpense.account_id &&
+          selectAccountById(user.id, localExpense.account_id);
+
+        const enriched: Transaction = {
+          ...(localExpense as any),
+          type: "expense",
+          account: account
+            ? {
+                id: account.id,
+                name: account.name,
+                account_type: account.account_type,
+                amount: account.amount,
+              }
+            : undefined,
+        };
+
+        setTransaction(enriched);
+        return;
+      }
+
+      // 3) Final fallback: fetch from Supabase (transactions → expenses)
+      const {
+        data: transactionData,
+        error: transactionError,
+      } = await supabase
         .from("transactions")
         .select("*")
-        .eq("id", id)
+        .eq("id", txId)
         .single();
 
-      if (transactionError && transactionError.code !== "PGRST116") {
-        // If not found in transactions, try expenses table for backward compatibility
-        const { data: expenseData, error: expenseError } = await supabase
+      if (transactionError) {
+        if (transactionError.code !== "PGRST116") {
+          throw transactionError;
+        }
+
+        // Not found in transactions: try expenses table
+        const {
+          data: expenseData,
+          error: expenseError,
+        } = await supabase
           .from("expenses")
           .select("*")
-          .eq("id", id)
+          .eq("id", txId)
           .single();
 
         if (expenseError) throw expenseError;
 
-        // Get account data for expense
-        if (expenseData.account_id) {
-          const { data: accountData } = await supabase
-            .from("accounts")
-            .select("id, name, account_type, amount")
-            .eq("id", expenseData.account_id)
-            .single();
+        if (expenseData) {
+          if (expenseData.account_id) {
+            const { data: accountData } = await supabase
+              .from("accounts")
+              .select("id, name, account_type, amount")
+              .eq("id", expenseData.account_id)
+              .single();
 
-          setTransaction({
-            ...expenseData,
-            type: "expense" as const,
-            account: accountData,
-          });
-        } else {
-          setTransaction({
-            ...expenseData,
-            type: "expense" as const,
-          });
+            setTransaction({
+              ...expenseData,
+              type: "expense" as const,
+              account: accountData ?? undefined,
+            });
+          } else {
+            setTransaction({
+              ...expenseData,
+              type: "expense" as const,
+            });
+          }
+          return;
         }
-        return;
       }
 
       if (transactionData) {
         // Fetch related account data separately
-        const accountPromises = [];
+        const accountPromises: Array<
+          Promise<{ type: "account" | "from_account" | "to_account"; data: any }>
+        > = [];
 
         // Main account
         if (transactionData.account_id) {
@@ -157,11 +260,9 @@ export default function TransactionDetailScreen() {
           );
         }
 
-        // Fetch all account data
         const accountResults = await Promise.all(accountPromises);
 
-        // Build the final transaction object
-        const enrichedTransaction = { ...transactionData };
+        const enrichedTransaction: any = { ...transactionData };
 
         accountResults.forEach((result) => {
           if (result.data) {
@@ -169,7 +270,7 @@ export default function TransactionDetailScreen() {
           }
         });
 
-        setTransaction(enrichedTransaction);
+        setTransaction(enrichedTransaction as Transaction);
       } else {
         throw new Error("Transaction not found");
       }

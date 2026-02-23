@@ -317,8 +317,17 @@ export default function ExpenseForm({
         </Pressable>
       </Modal>
 
-      {/* Description - Optional */}
+      {/* Note - Optional */}
       <View style={{ marginBottom: 20 }}>
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: '500',
+            marginBottom: 8,
+            color: theme.textSecondary,
+          }}>
+          {t.note || 'Note'} ({t.optional || 'optional'})
+        </Text>
         <TextInput
           style={{
             borderRadius: 12,

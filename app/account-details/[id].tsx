@@ -10,7 +10,19 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, Pen, Trash2 } from "lucide-react-native";
-import { supabase } from "~/lib";
+import {
+  supabase,
+  selectAccountById,
+  selectTransactions,
+  selectBudgets,
+  selectTransfers,
+  deleteAccountLocal,
+  deleteBudgetLocal,
+  deleteTransactionLocal,
+  deleteTransferLocal,
+  isOfflineGateLocked,
+  triggerSync,
+} from "~/lib";
 import { format } from "date-fns";
 import { useTheme, useScreenStatusBar } from "~/lib";
 import { useLanguage } from "~/lib";
@@ -47,36 +59,36 @@ const AccountDetails = () => {
   }, [id]);
 
   const loadAccountData = async (isRefresh = false) => {
+    const accountId = Array.isArray(id) ? id[0] : id;
+    if (!accountId) return;
+
     try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
 
-      // Fetch account details
-      const { data: accountData, error: accountError } = await supabase
-        .from("accounts")
-        .select("name, amount")
-        .eq("id", id)
-        .single();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-      if (accountError) throw accountError;
-      setAccount(accountData);
+      const acc = selectAccountById(user.id, accountId);
+      if (acc) setAccount({ name: acc.name, amount: acc.amount });
 
-      // Fetch transactions for this specific account
-      const { data: transactionsData, error: transactionsError } =
-        await supabase
-          .from("transactions")
-          .select("*")
-          .eq("account_id", id)
-          .order("created_at", { ascending: false });
-
-      if (transactionsError) throw transactionsError;
-      setTransactions(transactionsData || []);
+      const allTx = selectTransactions(user.id);
+      const accountTx = allTx
+        .filter((t) => t.account_id === accountId)
+        .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
+        .map((t) => ({
+          id: t.id,
+          amount: t.amount,
+          category: t.category,
+          description: t.description,
+          date: t.date,
+          created_at: t.created_at,
+          type: t.type,
+          account_id: t.account_id,
+        }));
+      setTransactions(accountTx);
     } catch (error) {
       console.error("Failed to load account data:", error);
-      console.error("Error details:", JSON.stringify(error, null, 2));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -99,82 +111,37 @@ const AccountDetails = () => {
         text: t.delete || "Delete",
         style: "destructive",
         onPress: async () => {
+            const accountId = Array.isArray(id) ? id[0] : id;
+            if (!accountId) return;
+
             try {
               setLoading(true);
 
-              // First, delete all budgets associated with this account
-              const { error: budgetsError } = await supabase
-                .from("budgets")
-                .delete()
-                .eq("account_id", id);
+              const { data: { user } } = await supabase.auth.getUser();
+              if (!user) return;
 
-              if (budgetsError) {
-                console.error("Error deleting budgets:", budgetsError);
-                Alert.alert(t.error, t.failedToDeleteBudgets);
-                return;
-              }
+              selectBudgets(user.id)
+                .filter((b) => b.account_id === accountId)
+                .forEach((b) => deleteBudgetLocal(b.id));
 
-              // Second, delete all transfers where this account is the from_account or to_account
-              const { error: transfersFromError } = await supabase
-                .from("transfers")
-                .delete()
-                .eq("from_account_id", id);
+              selectTransfers(user.id)
+                .filter(
+                  (tr) =>
+                    tr.from_account_id === accountId ||
+                    tr.to_account_id === accountId
+                )
+                .forEach((tr) => deleteTransferLocal(tr.id));
 
-              if (transfersFromError) {
-                console.error(
-                  "Error deleting transfers from account:",
-                  transfersFromError
-                );
-                Alert.alert(t.error, t.failedToDeleteTransfersFrom);
-                return;
-              }
+              selectTransactions(user.id)
+                .filter((t) => t.account_id === accountId)
+                .forEach((t) => deleteTransactionLocal(t.id));
 
-              const { error: transfersToError } = await supabase
-                .from("transfers")
-                .delete()
-                .eq("to_account_id", id);
+              deleteAccountLocal(accountId);
 
-              if (transfersToError) {
-                console.error(
-                  "Error deleting transfers to account:",
-                  transfersToError
-                );
-                Alert.alert(t.error, t.failedToDeleteTransfersTo);
-                return;
-              }
-
-              // Third, delete all transactions associated with this account
-              const { error: transactionsError } = await supabase
-                .from("transactions")
-                .delete()
-                .eq("account_id", id);
-
-              if (transactionsError) {
-                console.error(
-                  "Error deleting transactions:",
-                  transactionsError
-                );
-                Alert.alert(t.error, t.failedToDeleteTransactions);
-                return;
-              }
-
-              // Finally, delete the account
-              const { error: accountError } = await supabase
-                .from("accounts")
-                .delete()
-                .eq("id", id);
-
-              if (accountError) {
-                console.error("Error deleting account:", accountError);
-                Alert.alert(t.error, t.failedToDeleteAccount);
-                return;
-              }
+              if (!(await isOfflineGateLocked())) void triggerSync();
 
               Alert.alert(t.success, t.accountDeletedSuccessfully, [
-                {
-                  text: t.ok,
-                  onPress: () => router.back(),
-                },
+                { text: t.ok, onPress: () => router.back() },
               ]);
             } catch (error) {
               console.error("Error deleting account:", error);

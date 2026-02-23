@@ -26,8 +26,8 @@ export const generatePDFReport = async (data: PDFReportData): Promise<string> =>
       base64: false
     });
 
-    // Move PDF to Documents directory for consistency
-    const documentsDir = FileSystem.documentDirectory;
+    // Prefer documents directory; fall back to cache (e.g. Expo Go / simulators)
+    const documentsDir = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
     if (!documentsDir) {
       throw new Error('Documents directory not available');
     }
@@ -87,7 +87,7 @@ export const sharePDF = async (fileUri: string): Promise<void> => {
 // Function to save PDF to documents directory
 export const savePDFToDocuments = async (fileUri: string, fileName: string): Promise<string> => {
   try {
-    const documentsDir = FileSystem.documentDirectory;
+    const documentsDir = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
     if (!documentsDir) {
       throw new Error('Documents directory not available');
     }

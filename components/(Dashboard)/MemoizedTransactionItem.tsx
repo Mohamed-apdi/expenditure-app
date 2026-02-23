@@ -1,5 +1,5 @@
 import React, { memo, useRef, useCallback } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue,
@@ -60,6 +60,7 @@ type TransactionItemProps = {
     category?: string;
     description?: string;
     created_at: string;
+    updated_at?: string;
     type: "expense" | "income" | "transfer";
   };
   onPress?: () => void;
@@ -69,6 +70,8 @@ type TransactionItemProps = {
   onSwipeOpen?: (close: () => void) => void;
   onSwipeStart?: () => void;
   onSwipeClose?: () => void;
+  onEdit?: (transactionId: string, type: "expense" | "income" | "transfer") => void;
+  onDelete?: (transactionId: string) => void;
 };
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -168,6 +171,8 @@ const MemoizedTransactionItem = memo<TransactionItemProps>(
     onSwipeOpen,
     onSwipeStart,
     onSwipeClose,
+    onEdit,
+    onDelete,
   }) => {
     const router = useRouter();
     const theme = useTheme();
@@ -216,6 +221,24 @@ const MemoizedTransactionItem = memo<TransactionItemProps>(
       }
     }, [onSwipeStart]);
 
+    const handleEdit = useCallback(() => {
+      close();
+      if (onEdit) {
+        onEdit(transaction.id, transaction.type);
+      } else {
+        if (transaction.type === "expense") {
+          router.push(`/(expense)/edit-expense/${transaction.id}` as any);
+        } else {
+          router.push(`/(transactions)/transaction-detail/${transaction.id}` as any);
+        }
+      }
+    }, [transaction.id, transaction.type, onEdit, close]);
+
+    const handleDelete = useCallback(() => {
+      close();
+      if (onDelete) onDelete(transaction.id);
+    }, [transaction.id, onDelete, close]);
+
     const panGesture = Gesture.Pan()
       .activeOffsetX([-15, 15])
       .failOffsetY([-15, 15])
@@ -263,12 +286,20 @@ const MemoizedTransactionItem = memo<TransactionItemProps>(
     return (
       <View style={styles.wrapper}>
         <View style={styles.actionsContainer}>
-          <View style={[styles.actionButton, styles.editButton]}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.editButton]}
+            onPress={handleEdit}
+            activeOpacity={0.8}
+          >
             <Text style={styles.actionText}>Edit</Text>
-          </View>
-          <View style={[styles.actionButton, styles.deleteButton]}>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.deleteButton]}
+            onPress={handleDelete}
+            activeOpacity={0.8}
+          >
             <Text style={styles.actionText}>Delete</Text>
-          </View>
+          </TouchableOpacity>
         </View>
         <GestureDetector gesture={composedGesture}>
           <Animated.View
@@ -331,7 +362,9 @@ const MemoizedTransactionItem = memo<TransactionItemProps>(
                         style={{ color: theme.textMuted }}
                       >
                         {formatDistanceToNow(
-                          new Date(transaction.created_at),
+                          new Date(
+                            transaction.updated_at ?? transaction.created_at
+                          ),
                           { addSuffix: true }
                         )}
                       </Text>

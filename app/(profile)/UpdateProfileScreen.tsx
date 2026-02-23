@@ -19,7 +19,7 @@ import {
   Mail,
   Phone,
 } from "lucide-react-native";
-import { supabase, isOfflineGateLocked } from "~/lib";
+import { supabase, updateProfileLocal, isOfflineGateLocked, triggerSync } from "~/lib";
 import * as ImagePicker from "expo-image-picker";
 import { decode } from "base64-arraybuffer";
 import { useTheme, useScreenStatusBar } from "~/lib";
@@ -148,16 +148,12 @@ export default function UpdateProfileScreen() {
     }
 
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          full_name: formData.fullName,
-          phone: formData.phone,
-          image_url: formData.image_url,
-        })
-        .eq("id", currentUserId);
-
-      if (error) throw error;
+      updateProfileLocal(currentUserId, {
+        full_name: formData.fullName,
+        phone: formData.phone,
+        image_url: formData.image_url,
+      });
+      if (!(await isOfflineGateLocked())) void triggerSync();
 
       Alert.alert(t.success, t.profileUpdatedSuccessfully, [
         {

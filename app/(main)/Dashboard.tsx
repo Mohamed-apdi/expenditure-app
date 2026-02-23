@@ -1,6 +1,7 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Platform,
   RefreshControl,
   ScrollView,
@@ -11,10 +12,17 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
+  deleteTransactionLocal,
+  deleteTransaction,
   fetchProfile,
   selectProfile,
+  selectTransactions,
   selectTransactionsByDateRange,
   supabase,
+  updateAccountLocal,
+  updateAccountBalance,
+  isOfflineGateLocked,
+  triggerSync,
   useAccount,
   type FinancialSummary,
 } from "~/lib";
@@ -72,6 +80,7 @@ type Transaction = {
   category?: string;
   description?: string;
   created_at: string;
+  updated_at?: string;
   date: string;
   type: "expense" | "income" | "transfer";
   account_id: string;
@@ -82,6 +91,7 @@ export default function DashboardScreen() {
   const { t } = useLanguage();
 
   const { selectedAccount, refreshBalances, accounts } = useAccount();
+  const [userId, setUserId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState({
     fullName: "",
     email: "",
@@ -126,6 +136,8 @@ export default function DashboardScreen() {
         user = session?.user ?? null;
       }
       if (!user) return;
+
+      setUserId(user.id);
 
       // Offline-first: show local profile immediately; refresh from server when online
       const localProfile = selectProfile(user.id);
@@ -179,6 +191,7 @@ export default function DashboardScreen() {
           .toISOString()
           .split("T")[0];
 
+        // Read from Legend-State store only (no Supabase)
         let monthTransactions = selectTransactionsByDateRange(
           user.id,
           startDate,
@@ -203,6 +216,7 @@ export default function DashboardScreen() {
               category: t.category,
               description: t.description,
               created_at: t.created_at,
+              updated_at: t.updated_at,
               date: t.date,
               type: t.type,
               account_id: t.account_id,
@@ -211,14 +225,40 @@ export default function DashboardScreen() {
         );
 
         const sortedTransactions = monthTransactionsList.sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+          (a, b) => {
+            const aTime = (a.updated_at || a.created_at) ?? "";
+            const bTime = (b.updated_at || b.created_at) ?? "";
+            return new Date(bTime).getTime() - new Date(aTime).getTime();
+          },
         );
         setFilteredTransactions(sortedTransactions);
 
-        const balance = selectedAccount
-          ? selectedAccount.amount || 0
-          : monthIncome - monthExpense;
+        // Balance: when an account is selected, derive from ALL its transactions
+        // so it stays correct after deletes (e.g. 0 when all transactions deleted)
+        let balance: number;
+        if (selectedAccount) {
+          const allForAccount = selectTransactions(user.id).filter(
+            (t) => t.account_id === selectedAccount.id,
+          );
+          const totalIncome = allForAccount
+            .filter((t) => t.type === "income")
+            .reduce((s, t) => s + (t.amount ?? 0), 0);
+          const totalExpense = allForAccount
+            .filter((t) => t.type === "expense")
+            .reduce((s, t) => s + (t.amount ?? 0), 0);
+          balance = totalIncome - totalExpense;
+          // Reconcile stored account balance so context and Supabase stay in sync
+          const currentStored = selectedAccount.amount ?? 0;
+          if (currentStored !== balance) {
+            updateAccountLocal(selectedAccount.id, { amount: balance });
+            try {
+              await updateAccountBalance(selectedAccount.id, balance);
+            } catch (_) {}
+            await refreshBalances();
+          }
+        } else {
+          balance = monthIncome - monthExpense;
+        }
 
         return {
           income: monthIncome,
@@ -230,7 +270,11 @@ export default function DashboardScreen() {
         return { income: 0, expense: 0, balance: 0 };
       }
     },
-    [selectedAccount?.id, selectedAccount?.amount],
+    [
+      selectedAccount?.id,
+      selectedAccount?.amount,
+      refreshBalances,
+    ],
   );
 
   useEffect(() => {
@@ -279,6 +323,10 @@ export default function DashboardScreen() {
       );
       refreshBalances();
       setRefreshTrigger((prev) => prev + 1);
+      // Ensure we have userId when returning to dashboard (e.g. after login)
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (user) setUserId(user.id);
+      });
       return () => closeOpenRow();
     }, [refreshBalances, closeOpenRow]),
   );
@@ -480,6 +528,7 @@ export default function DashboardScreen() {
             onMonthChange={handleMonthChange}
             fetchMonthData={fetchMonthData}
             refreshTrigger={refreshTrigger}
+            userId={userId}
           />
         </View>
 
@@ -539,6 +588,66 @@ export default function DashboardScreen() {
                   onSwipeOpen={handleRowOpen}
                   onSwipeStart={closeOpenRow}
                   onSwipeClose={clearOpenRow}
+                  onEdit={(transactionId, type) => {
+                    closeOpenRow();
+                    if (type === "expense") {
+                      router.push(`/(expense)/edit-expense/${transactionId}` as any);
+                    } else {
+                      router.push(`/(transactions)/transaction-detail/${transactionId}` as any);
+                    }
+                  }}
+                  onDelete={(transactionId) => {
+                    closeOpenRow();
+                    const tx = filteredTransactions.find(
+                      (t) => t.id === transactionId,
+                    );
+                    if (!tx) return;
+                    Alert.alert(
+                      t.deleteTransaction || "Delete transaction",
+                      t.deleteTransactionConfirmation ||
+                        "Are you sure you want to delete this transaction?",
+                      [
+                        { text: t.cancel || "Cancel", style: "cancel" },
+                        {
+                          text: t.delete || "Delete",
+                          style: "destructive",
+                          onPress: async () => {
+                            // Reverse balance: expense added back, income taken back
+                            const acc = accounts.find(
+                              (a) => a.id === tx.account_id,
+                            );
+                            if (acc) {
+                              const delta =
+                                tx.type === "expense"
+                                  ? tx.amount
+                                  : tx.type === "income"
+                                    ? -tx.amount
+                                    : 0;
+                              if (delta !== 0) {
+                                const newBalance = acc.amount + delta;
+                                updateAccountLocal(tx.account_id, {
+                                  amount: newBalance,
+                                });
+                                try {
+                                  await updateAccountBalance(
+                                    tx.account_id,
+                                    newBalance,
+                                  );
+                                } catch (_) {}
+                              }
+                            }
+                            deleteTransactionLocal(tx.id);
+                            try {
+                              await deleteTransaction(tx.id);
+                            } catch (_) {}
+                            if (!(await isOfflineGateLocked()))
+                              void triggerSync();
+                            setRefreshTrigger((prev) => prev + 1);
+                          },
+                        },
+                      ],
+                    );
+                  }}
                 />
               ))}
             </View>

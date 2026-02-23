@@ -5,6 +5,7 @@ import {
   ScrollView,
   Alert,
   Modal,
+  Pressable,
   TouchableOpacity,
   RefreshControl,
   TextInput,
@@ -14,7 +15,6 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import RNPickerSelect from 'react-native-picker-select';
 import { PersonalLoan, LoanRepayment, Account } from '~/lib';
 import {
   getUserLoans,
@@ -25,13 +25,15 @@ import {
   createRepayment,
   deleteRepayment,
 } from '~/lib';
-import { fetchAccounts } from '~/lib';
-import { addTransaction } from '~/lib';
+import { fetchAccounts, createTransactionLocal, isOfflineGateLocked, triggerSync } from '~/lib';
 import { supabase } from '~/lib';
 import { useFocusEffect } from '@react-navigation/native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAccount } from '~/lib';
-import { X, TrendingUp, TrendingDown, Plus } from 'lucide-react-native';
+import { X, TrendingUp, TrendingDown, Plus, Wallet, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import DateTimePicker, {
+  useDefaultStyles,
+  type CalendarComponents,
+} from 'react-native-ui-datepicker';
 import { useTheme } from '~/lib';
 import { useLanguage } from '~/lib';
 
@@ -57,12 +59,16 @@ const Debt_Loan = ({
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showRepaymentModal, setShowRepaymentModal] = useState(false);
+  const [accountSheetOpen, setAccountSheetOpen] = useState(false);
   const [selectedLoan, setSelectedLoan] = useState<PersonalLoan | null>(null);
   const [repayments, setRepayments] = useState<LoanRepayment[]>([]);
   const [currentUser, setCurrentUser] = useState<string | null>(
     propUserId || null,
   );
   const theme = useTheme();
+  const defaultDatePickerStyles = useDefaultStyles(
+    theme.isDarkColorScheme ? 'dark' : 'light',
+  );
 
   // Date picker states
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -91,12 +97,9 @@ const Debt_Loan = ({
 
   const getCurrentUser = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUser(user.id);
-      }
+      let user = (await supabase.auth.getSession()).data?.session?.user ?? null;
+      if (!user) user = (await supabase.auth.getUser()).data?.user ?? null;
+      if (user) setCurrentUser(user.id);
     } catch (error) {
       console.error('Error getting current user:', error);
     }
@@ -188,33 +191,13 @@ const Debt_Loan = ({
     }
   }, [propUserId]);
 
-  const handleDateChange = (event: any, date?: Date) => {
-    setShowDatePicker(false);
-    if (date) {
-      setSelectedDate(date);
-      setFormData({
-        ...formData,
-        due_date: date.toISOString().split('T')[0],
-      });
-    }
-  };
-
   const showDatepicker = () => {
+    setSelectedDate(formData.due_date ? new Date(formData.due_date + 'T12:00:00') : new Date());
     setShowDatePicker(true);
   };
 
-  const handleRepaymentDateChange = (event: any, date?: Date) => {
-    setShowRepaymentDatePicker(false);
-    if (date) {
-      setSelectedRepaymentDate(date);
-      setRepaymentData({
-        ...repaymentData,
-        payment_date: date.toISOString().split('T')[0],
-      });
-    }
-  };
-
   const showRepaymentDatepicker = () => {
+    setSelectedRepaymentDate(repaymentData.payment_date ? new Date(repaymentData.payment_date + 'T12:00:00') : new Date());
     setShowRepaymentDatePicker(true);
   };
 
@@ -252,7 +235,7 @@ const Debt_Loan = ({
           ? `Loan taken from ${formData.party_name}`
           : `Loan given to ${formData.party_name}`;
 
-      await addTransaction({
+      createTransactionLocal({
         user_id: currentUser,
         account_id: formData.account_id,
         amount: parseFloat(formData.principal_amount),
@@ -262,6 +245,7 @@ const Debt_Loan = ({
         is_recurring: false,
         type: transactionType,
       });
+      if (!(await isOfflineGateLocked())) void triggerSync();
 
       setLoans([newLoan, ...loans]);
       setShowAddModal(false);
@@ -389,7 +373,7 @@ const Debt_Loan = ({
             ? `Loan repayment to ${selectedLoan.party_name}`
             : `Loan repayment from ${selectedLoan.party_name}`;
 
-        await addTransaction({
+        createTransactionLocal({
           user_id: currentUser,
           account_id: selectedLoan.account_id,
           amount: parseFloat(repaymentData.amount),
@@ -399,6 +383,7 @@ const Debt_Loan = ({
           is_recurring: false,
           type: transactionType,
         });
+        if (!(await isOfflineGateLocked())) void triggerSync();
       }
 
       setRepayments([newRepayment, ...repayments]);
@@ -1010,110 +995,71 @@ const Debt_Loan = ({
                     {t.dueDate}
                   </Text>
                   <TouchableOpacity
+                    activeOpacity={0.85}
                     className="border rounded-lg p-3"
                     style={{
                       backgroundColor: theme.background,
-                      borderColor: theme.border,
+                      borderColor: formData.due_date ? theme.primary : theme.border,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
                     }}
                     onPress={showDatepicker}>
-                    <Text style={{ color: theme.text }}>
+                    <Text style={{ color: formData.due_date ? theme.text : theme.textMuted, fontSize: 15 }}>
                       {formData.due_date
-                        ? new Date(formData.due_date).toLocaleString()
-                        : 'Select date '}
+                        ? new Date(formData.due_date + 'T12:00:00').toLocaleDateString()
+                        : (t.selectDate || 'Select date')}
                     </Text>
+                    <ChevronDown size={20} color={theme.textMuted} style={{ transform: [{ rotate: '-90deg' }] }} />
                   </TouchableOpacity>
-                  {showDatePicker && (
-                    <DateTimePicker
-                      value={selectedDate}
-                      mode="date"
-                      display="default"
-                      onChange={handleDateChange}
-                    />
-                  )}
                 </View>
 
                 <View className="mb-6">
                   <Text className="mb-1" style={{ color: theme.text }}>
                     {t.account} *
                   </Text>
-                  <RNPickerSelect
-                    onValueChange={(value) => {
-                      setFormData({
-                        ...formData,
-                        account_id: value,
-                      });
-                    }}
-                    items={accounts.map((account) => ({
-                      label: String(account?.name ?? account?.id ?? 'Account'),
-                      value: account.id,
-                    }))}
-                    value={formData.account_id}
-                    placeholder={{
-                      label: (t.selectAccount ? `${t.selectAccount} *` : null) || 'Select account *',
-                      value: null,
-                    }}
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => setAccountSheetOpen(true)}
                     style={{
-                      inputIOS: {
-                        fontSize: 14,
-                        paddingVertical: 14,
-                        paddingHorizontal: 14,
-                        borderRadius: 12,
-                        borderWidth: 1,
-                        borderColor: formData.account_id
-                          ? theme.border
-                          : '#ef4444',
-                        backgroundColor: theme.background,
-                        color: formData.account_id
-                          ? theme.text
-                          : theme.textSecondary,
-                        minHeight: 50,
-                      },
-                      inputAndroid: {
-                        fontSize: 14,
-                        paddingVertical: 14,
-                        paddingHorizontal: 14,
-                        borderRadius: 12,
-                        borderWidth: 1,
-                        borderColor: formData.account_id
-                          ? theme.border
-                          : '#ef4444',
-                        backgroundColor: theme.background,
-                        color: formData.account_id
-                          ? theme.text
-                          : theme.textSecondary,
-                        minHeight: 50,
-                      },
-                      placeholder: {
-                        color: theme.textSecondary,
-                      },
-                      iconContainer: {
-                        top: 18,
-                        right: 12,
-                      },
-                    }}
-                    Icon={() => {
-                      return (
-                        <View
-                          style={{
-                            backgroundColor: 'transparent',
-                            borderTopWidth: 6,
-                            borderTopColor: theme.textMuted,
-                            borderRightWidth: 6,
-                            borderRightColor: 'transparent',
-                            borderLeftWidth: 6,
-                            borderLeftColor: 'transparent',
-                            width: 0,
-                            height: 0,
-                          }}
-                        />
-                      );
-                    }}
-                    useNativeAndroidPickerStyle={false}
-                  />
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 14,
+                      paddingHorizontal: 14,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: formData.account_id ? theme.primary : theme.border,
+                      backgroundColor: theme.background,
+                      minHeight: 50,
+                    }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                      <View
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 10,
+                          backgroundColor: formData.account_id ? `${theme.primary}18` : `${theme.border}40`,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: 12,
+                        }}>
+                        <Wallet size={20} color={formData.account_id ? theme.primary : theme.textMuted} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '600', color: formData.account_id ? theme.text : theme.textMuted }} numberOfLines={1}>
+                          {formData.account_id ? (accounts.find((a) => a.id === formData.account_id)?.name ?? formData.account_id) : (t.selectAccount ? `${t.selectAccount} *` : 'Select account *')}
+                        </Text>
+                        {formData.account_id && (() => {
+                          const acc = accounts.find((a) => a.id === formData.account_id);
+                          return acc ? <Text style={{ fontSize: 13, color: theme.textSecondary, marginTop: 2 }}>{t.balance || 'Balance'}: ${acc.amount.toFixed(2)}</Text> : null;
+                        })()}
+                      </View>
+                    </View>
+                    <ChevronDown size={20} color={theme.textMuted} />
+                  </TouchableOpacity>
                   {!formData.account_id && (
-                    <Text
-                      className="text-sm mt-1"
-                      style={{ color: theme.textSecondary }}>
+                    <Text className="text-sm mt-1" style={{ color: theme.textSecondary }}>
                       {t.selectAccount} {t.isRequired}
                     </Text>
                   )}
@@ -1339,110 +1285,71 @@ const Debt_Loan = ({
                     {t.dueDate}
                   </Text>
                   <TouchableOpacity
+                    activeOpacity={0.85}
                     className="border rounded-lg p-3"
                     style={{
                       backgroundColor: theme.background,
-                      borderColor: theme.border,
+                      borderColor: formData.due_date ? theme.primary : theme.border,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
                     }}
                     onPress={showDatepicker}>
-                    <Text style={{ color: theme.text }}>
+                    <Text style={{ color: formData.due_date ? theme.text : theme.textMuted, fontSize: 15 }}>
                       {formData.due_date
-                        ? new Date(formData.due_date).toLocaleString()
-                        : 'Select date '}
+                        ? new Date(formData.due_date + 'T12:00:00').toLocaleDateString()
+                        : (t.selectDate || 'Select date')}
                     </Text>
+                    <ChevronDown size={20} color={theme.textMuted} style={{ transform: [{ rotate: '-90deg' }] }} />
                   </TouchableOpacity>
-                  {showDatePicker && (
-                    <DateTimePicker
-                      value={selectedDate}
-                      mode="date"
-                      display="default"
-                      onChange={handleDateChange}
-                    />
-                  )}
                 </View>
 
                 <View className="mb-6">
                   <Text className="mb-1" style={{ color: theme.text }}>
                     {t.account}
                   </Text>
-                  <RNPickerSelect
-                    onValueChange={(value) => {
-                      setFormData({
-                        ...formData,
-                        account_id: value,
-                      });
-                    }}
-                    items={accounts.map((account) => ({
-                      label: String(account?.name ?? account?.id ?? 'Account'),
-                      value: account.id,
-                    }))}
-                    value={formData.account_id}
-                    placeholder={{
-                      label: (t.selectAccount ? `${t.selectAccount} *` : null) || 'Select account *',
-                      value: null,
-                    }}
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => setAccountSheetOpen(true)}
                     style={{
-                      inputIOS: {
-                        fontSize: 14,
-                        paddingVertical: 14,
-                        paddingHorizontal: 14,
-                        borderRadius: 12,
-                        borderWidth: 1,
-                        borderColor: formData.account_id
-                          ? theme.border
-                          : '#ef4444',
-                        backgroundColor: theme.background,
-                        color: formData.account_id
-                          ? theme.text
-                          : theme.textSecondary,
-                        minHeight: 50,
-                      },
-                      inputAndroid: {
-                        fontSize: 14,
-                        paddingVertical: 14,
-                        paddingHorizontal: 14,
-                        borderRadius: 12,
-                        borderWidth: 1,
-                        borderColor: formData.account_id
-                          ? theme.border
-                          : '#ef4444',
-                        backgroundColor: theme.background,
-                        color: formData.account_id
-                          ? theme.text
-                          : theme.textSecondary,
-                        minHeight: 50,
-                      },
-                      placeholder: {
-                        color: theme.textSecondary,
-                      },
-                      iconContainer: {
-                        top: 18,
-                        right: 12,
-                      },
-                    }}
-                    Icon={() => {
-                      return (
-                        <View
-                          style={{
-                            backgroundColor: 'transparent',
-                            borderTopWidth: 6,
-                            borderTopColor: theme.textMuted,
-                            borderRightWidth: 6,
-                            borderRightColor: 'transparent',
-                            borderLeftWidth: 6,
-                            borderLeftColor: 'transparent',
-                            width: 0,
-                            height: 0,
-                          }}
-                        />
-                      );
-                    }}
-                    useNativeAndroidPickerStyle={false}
-                  />
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 14,
+                      paddingHorizontal: 14,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: formData.account_id ? theme.primary : theme.border,
+                      backgroundColor: theme.background,
+                      minHeight: 50,
+                    }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                      <View
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 10,
+                          backgroundColor: formData.account_id ? `${theme.primary}18` : `${theme.border}40`,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: 12,
+                        }}>
+                        <Wallet size={20} color={formData.account_id ? theme.primary : theme.textMuted} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '600', color: formData.account_id ? theme.text : theme.textMuted }} numberOfLines={1}>
+                          {formData.account_id ? (accounts.find((a) => a.id === formData.account_id)?.name ?? formData.account_id) : (t.selectAccount ? `${t.selectAccount} *` : 'Select account *')}
+                        </Text>
+                        {formData.account_id && (() => {
+                          const acc = accounts.find((a) => a.id === formData.account_id);
+                          return acc ? <Text style={{ fontSize: 13, color: theme.textSecondary, marginTop: 2 }}>{t.balance || 'Balance'}: ${acc.amount.toFixed(2)}</Text> : null;
+                        })()}
+                      </View>
+                    </View>
+                    <ChevronDown size={20} color={theme.textMuted} />
+                  </TouchableOpacity>
                   {!formData.account_id && (
-                    <Text
-                      className="text-sm mt-1"
-                      style={{ color: theme.textSecondary }}>
+                    <Text className="text-sm mt-1" style={{ color: theme.textSecondary }}>
                       Account selection is required
                     </Text>
                   )}
@@ -1470,6 +1377,104 @@ const Debt_Loan = ({
               </ScrollView>
             </View>
           </View>
+        </Modal>
+
+        {/* Account bottom sheet (shared for Add/Edit) */}
+        <Modal visible={accountSheetOpen} transparent animationType="slide" onRequestClose={() => setAccountSheetOpen(false)}>
+          <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }} onPress={() => setAccountSheetOpen(false)}>
+            <Pressable style={{ maxHeight: '75%', backgroundColor: theme.cardBackground, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' }} onPress={(e) => e.stopPropagation()}>
+              <View style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}><View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: theme.border }} /></View>
+              <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 16 }}>{t.selectAccount || 'Select account'}</Text>
+                <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
+                  {accounts.length === 0 ? (
+                    <Text style={{ fontSize: 15, color: theme.textSecondary, textAlign: 'center', paddingVertical: 24 }}>{t.noAccountsAvailable || 'No accounts available'}</Text>
+                  ) : (
+                    accounts.map((account) => (
+                      <TouchableOpacity
+                        key={account.id}
+                        activeOpacity={0.7}
+                        onPress={() => { setFormData((prev) => ({ ...prev, account_id: account.id })); setAccountSheetOpen(false); }}
+                        style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.background, marginBottom: 8, borderWidth: 1, borderColor: theme.border }}>
+                        <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: `${theme.primary}18`, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                          <Wallet size={20} color={theme.primary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text }}>{account.name}</Text>
+                          <Text style={{ fontSize: 13, color: theme.textSecondary, marginTop: 2 }}>{t.balance || 'Balance'}: ${account.amount.toFixed(2)}</Text>
+                        </View>
+                        <ChevronDown size={18} color={theme.textMuted} style={{ transform: [{ rotate: '-90deg' }] }} />
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </ScrollView>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        {/* Due Date - Calendar bottom sheet (same style as Goals) */}
+        <Modal visible={showDatePicker} transparent animationType="slide" onRequestClose={() => setShowDatePicker(false)}>
+          <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }} onPress={() => setShowDatePicker(false)}>
+            <Pressable style={{ maxHeight: '85%', backgroundColor: theme.cardBackground, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' }} onPress={(e) => e.stopPropagation()}>
+              <View style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}><View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: theme.border }} /></View>
+              <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <Text style={{ color: theme.text, fontSize: 18, fontWeight: '700' }}>{t.dueDate || 'Select due date'}</Text>
+                  <TouchableOpacity onPress={() => setShowDatePicker(false)}><X size={24} color={theme.textMuted} /></TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  mode="single"
+                  date={selectedDate}
+                  onChange={({ date }) => {
+                    if (date) {
+                      const d = new Date(date as string | number | Date);
+                      setFormData((prev) => ({ ...prev, due_date: d.toISOString().split('T')[0] }));
+                      setSelectedDate(d);
+                      setShowDatePicker(false);
+                    }
+                  }}
+                  minDate={new Date()}
+                  showOutsideDays
+                  containerHeight={280}
+                  components={{ IconPrev: <ChevronLeft size={20} color={theme.text} />, IconNext: <ChevronRight size={20} color={theme.text} /> } as CalendarComponents}
+                  styles={defaultDatePickerStyles}
+                />
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        {/* Repayment Date - Calendar bottom sheet */}
+        <Modal visible={showRepaymentDatePicker} transparent animationType="slide" onRequestClose={() => setShowRepaymentDatePicker(false)}>
+          <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }} onPress={() => setShowRepaymentDatePicker(false)}>
+            <Pressable style={{ maxHeight: '85%', backgroundColor: theme.cardBackground, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' }} onPress={(e) => e.stopPropagation()}>
+              <View style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}><View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: theme.border }} /></View>
+              <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                  <Text style={{ color: theme.text, fontSize: 18, fontWeight: '700' }}>{t.paymentDate || 'Select payment date'}</Text>
+                  <TouchableOpacity onPress={() => setShowRepaymentDatePicker(false)}><X size={24} color={theme.textMuted} /></TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  mode="single"
+                  date={selectedRepaymentDate}
+                  onChange={({ date }) => {
+                    if (date) {
+                      const d = new Date(date as string | number | Date);
+                      setRepaymentData((prev) => ({ ...prev, payment_date: d.toISOString().split('T')[0] }));
+                      setSelectedRepaymentDate(d);
+                      setShowRepaymentDatePicker(false);
+                    }
+                  }}
+                  minDate={new Date()}
+                  showOutsideDays
+                  containerHeight={280}
+                  components={{ IconPrev: <ChevronLeft size={20} color={theme.text} />, IconNext: <ChevronRight size={20} color={theme.text} /> } as CalendarComponents}
+                  styles={defaultDatePickerStyles}
+                />
+              </View>
+            </Pressable>
+          </Pressable>
         </Modal>
 
         {/* Repayments Modal */}
@@ -1589,24 +1594,23 @@ const Debt_Loan = ({
                           {t.paymentDate}
                         </Text>
                         <TouchableOpacity
+                          activeOpacity={0.85}
                           className="border rounded-lg p-3"
                           style={{
                             backgroundColor: theme.cardBackground,
-                            borderColor: theme.border,
+                            borderColor: repaymentData.payment_date ? theme.primary : theme.border,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
                           }}
                           onPress={showRepaymentDatepicker}>
-                          <Text style={{ color: theme.text }}>
-                            {repaymentData.payment_date || t.selectPaymentDate}
+                          <Text style={{ color: repaymentData.payment_date ? theme.text : theme.textMuted, fontSize: 15 }}>
+                            {repaymentData.payment_date
+                              ? new Date(repaymentData.payment_date + 'T12:00:00').toLocaleDateString()
+                              : (t.selectPaymentDate || 'Select payment date')}
                           </Text>
+                          <ChevronDown size={20} color={theme.textMuted} style={{ transform: [{ rotate: '-90deg' }] }} />
                         </TouchableOpacity>
-                        {showRepaymentDatePicker && (
-                          <DateTimePicker
-                            value={selectedRepaymentDate}
-                            mode="date"
-                            display="default"
-                            onChange={handleRepaymentDateChange}
-                          />
-                        )}
                       </View>
                       <TouchableOpacity
                         className={`py-3 rounded-lg items-center ${
