@@ -1,3 +1,6 @@
+/**
+ * Banner/prompt to request notification permissions; can be dismissed and remembered
+ */
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { Bell, X } from 'lucide-react-native';
