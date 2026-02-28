@@ -1,3 +1,6 @@
+/**
+ * Dashboard header: greeting, account selector, and action buttons (profile, settings, theme, etc.)
+ */
 import React from "react";
 import { View, Text, TouchableOpacity, Image } from "react-native";
 import {
