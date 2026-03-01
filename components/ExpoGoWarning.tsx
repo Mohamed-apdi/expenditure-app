@@ -1,3 +1,6 @@
+/**
+ * Warning banner when running in Expo Go (e.g. limitations, link to build)
+ */
 import React from "react";
 import { View, Text, TouchableOpacity, Linking } from "react-native";
 import { AlertTriangle, ExternalLink } from "lucide-react-native";
