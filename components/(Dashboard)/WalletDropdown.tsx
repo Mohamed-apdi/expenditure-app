@@ -1,3 +1,6 @@
+/**
+ * Account selector dropdown used in the dashboard header
+ */
 import { useCallback, useState, useEffect } from "react";
 import {
   TouchableOpacity,
