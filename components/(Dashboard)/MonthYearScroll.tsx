@@ -1,3 +1,6 @@
+/**
+ * Horizontal month/year picker and income/expense summary for dashboard
+ */
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
   ScrollView,
