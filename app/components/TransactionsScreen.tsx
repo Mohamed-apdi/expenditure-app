@@ -10,8 +10,7 @@ import {
 import { Search, ArrowLeft } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
-import { supabase } from "~/lib";
-import { getTransactionsGroupedByDate } from "~/lib";
+import { getCurrentUserOfflineFirst, getTransactionsGroupedByDate } from "~/lib";
 import { useAccount } from "~/lib";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
@@ -63,13 +62,8 @@ export default function TransactionsScreen() {
   // Fetch transactions from database using enhanced local functions
   const fetchUserTransactions = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        return;
-      }
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) return;
 
       // Use the new enhanced function that handles filtering and grouping
       const groupedTransactions = await getTransactionsGroupedByDate(user.id, {

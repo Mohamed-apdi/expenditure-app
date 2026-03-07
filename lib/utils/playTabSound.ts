@@ -14,7 +14,7 @@ export async function preloadTabClickSound() {
     });
 
     const res = await Audio.Sound.createAsync(
-      require("../../assets/sounds/soft-click.wav"),
+      require("../../assets/sounds/click.wav"),
       { volume: 0.6 }
     );
 

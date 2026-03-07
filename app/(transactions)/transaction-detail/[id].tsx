@@ -27,7 +27,7 @@ import {
 } from "lucide-react-native";
 import { format, formatDistanceToNow } from "date-fns";
 import {
-  supabase,
+  getCurrentUserOfflineFirst,
   selectTransactionById,
   selectExpenseById,
   selectAccountById,
@@ -89,17 +89,8 @@ export default function TransactionDetailScreen() {
         throw new Error("Invalid transaction id");
       }
 
-      // Resolve user using cached auth (works offline)
-      let user = (await supabase.auth.getUser()).data?.user ?? null;
-      if (!user) {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        user = session?.user ?? null;
-      }
-      if (!user) {
-        throw new Error("Please sign in");
-      }
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) throw new Error("Please sign in");
 
       // 1) Try local transactions store first (offline-first)
       const localTx = selectTransactionById(user.id, txId);

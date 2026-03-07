@@ -1,3 +1,6 @@
+jest.mock("uuid", () => ({ v4: () => "test-uuid-123" }));
+jest.mock("../../stores/legendPersist", () => ({ legendPersist: jest.fn() }));
+
 import { accounts$ } from "../../stores/accountsStore";
 import { conflicts$ } from "../../stores/conflictsStore";
 import { syncCursors$ } from "../../stores/syncCursorsStore";
@@ -8,7 +11,9 @@ jest.mock("@react-native-community/netinfo", () => ({
   __esModule: true,
   default: {
     addEventListener: jest.fn(() => jest.fn()),
-    fetch: jest.fn(() => Promise.resolve({ isConnected: true })),
+    fetch: jest.fn(() =>
+      Promise.resolve({ isConnected: true, isInternetReachable: true }),
+    ),
   },
 }));
 
@@ -23,6 +28,9 @@ const singleMock = jest.fn().mockResolvedValue({ data: null, error: null });
 jest.mock("../../database/supabase", () => ({
   supabase: {
     auth: {
+      getSession: jest.fn().mockResolvedValue({
+        data: { session: { user: { id: "user1" } } },
+      }),
       getUser: jest
         .fn()
         .mockResolvedValue({ data: { user: { id: "user1" } }, error: null }),
@@ -102,17 +110,17 @@ describe("legendSync", () => {
   });
 
   it("does not call Supabase when offline gate is locked", async () => {
-    const legendSync = await import("../legendSync");
-    const gateSpy = jest
-      .spyOn(legendSync, "isOfflineGateLocked")
-      .mockResolvedValue(true);
+    const NetInfo = require("@react-native-community/netinfo").default;
+    (NetInfo.fetch as jest.Mock).mockResolvedValueOnce({
+      isConnected: false,
+      isInternetReachable: false,
+    });
 
-    const { supabase } = await import("../../database/supabase");
+    const { supabase } = require("../../database/supabase");
     const fromSpy = jest.spyOn(supabase, "from");
 
     await triggerSync();
 
-    expect(gateSpy).toHaveBeenCalled();
     expect(fromSpy).not.toHaveBeenCalled();
   });
 
@@ -125,7 +133,10 @@ describe("legendSync", () => {
 
   it("isOfflineGateLocked returns false when NetInfo reports online", async () => {
     const NetInfo = require("@react-native-community/netinfo").default;
-    (NetInfo.fetch as jest.Mock).mockResolvedValueOnce({ isConnected: true });
+    (NetInfo.fetch as jest.Mock).mockResolvedValueOnce({
+      isConnected: true,
+      isInternetReachable: true,
+    });
     const locked = await isOfflineGateLocked();
     expect(locked).toBe(false);
   });
@@ -313,7 +324,7 @@ describe("legendSync", () => {
     await __test__.pullTable("transactions", "user1");
 
     expect(orMock).toHaveBeenCalledWith(
-      `updated_at.gt.${now},deleted_at.gt.${now}`
+      `created_at.gt.${now},updated_at.gt.${now},deleted_at.gt.${now}`,
     );
   });
 
@@ -354,12 +365,6 @@ describe("legendSync", () => {
       },
       error: null,
     });
-
-    // Ensure gate is open for this test
-    const legendSync = await import("../legendSync");
-    jest
-      .spyOn(legendSync, "isOfflineGateLocked")
-      .mockResolvedValue(false as any);
 
     upsertMock.mockClear();
 

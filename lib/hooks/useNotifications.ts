@@ -3,6 +3,7 @@
  * Subscribes to auth and refetches when user changes
  */
 import { useState, useEffect, useCallback } from "react";
+import { getCurrentUserOfflineFirst } from "../auth";
 import { supabase } from "../database/supabase";
 import { getUnreadNotificationCount } from "../services/notifications";
 
@@ -10,22 +11,16 @@ export function useNotifications() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Fetch unread count
+  // Fetch unread count (uses cached session when offline)
   const fetchUnreadCount = useCallback(async () => {
     try {
-      const { data, error } = await supabase.auth.getUser();
-      if (error) {
-        console.error("Auth error:", error);
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) {
         setUnreadCount(0);
         return;
       }
 
-      if (!data?.user) {
-        setUnreadCount(0);
-        return;
-      }
-
-      const count = await getUnreadNotificationCount(data.user.id);
+      const count = await getUnreadNotificationCount(user.id);
       setUnreadCount(count);
     } catch (error) {
       console.error("Error fetching unread notification count:", error);
@@ -43,13 +38,8 @@ export function useNotifications() {
 
     const setupSubscription = async () => {
       try {
-        const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser();
-        if (error || !user) {
-          return;
-        }
+        const user = await getCurrentUserOfflineFirst();
+        if (!user) return;
 
         // Subscribe to notification changes
         subscription = supabase

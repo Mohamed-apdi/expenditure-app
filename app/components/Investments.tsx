@@ -25,7 +25,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import { supabase } from '~/lib';
+import { supabase, getCurrentUserOfflineFirst } from '~/lib';
 import { fetchAccounts, type Account } from '~/lib';
 import { useTheme } from '~/lib';
 import { useLanguage } from '~/lib';
@@ -100,11 +100,9 @@ const Investments = ({
     return typeof label === 'string' ? label : String(typeKey);
   };
 
-  // Fetch investments and accounts (getSession first for fast cached user)
   const fetchData = async () => {
     try {
-      let user = (await supabase.auth.getSession()).data?.session?.user ?? null;
-      if (!user) user = (await supabase.auth.getUser()).data?.user ?? null;
+      const user = await getCurrentUserOfflineFirst();
       if (!user) return;
 
       setUserId(user.id);
@@ -157,11 +155,9 @@ const Investments = ({
     setRefreshing(false);
   };
 
+  // Always fetch investments on mount; parent may pass accounts/userId for display sync but investments are never passed as props
   useEffect(() => {
-    // Only fetch data if not provided by parent
-    if (!propAccounts && !propUserId) {
-      fetchData();
-    }
+    fetchData();
   }, []);
 
   // Sync with parent props when they change; respect selectedAccountId from app (e.g. Budget/Dashboard)

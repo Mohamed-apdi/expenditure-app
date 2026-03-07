@@ -1,8 +1,11 @@
 /**
  * Unit tests for balance calculations and negative value support
- * Run with: npx jest lib/utils/__tests__/balance.test.ts
- * Requires Jest to be configured in package.json
+ * Run with: npm test
  */
+jest.mock("../../database/supabase", () => ({
+  supabase: {},
+}));
+
 import { formatCurrency } from "../../services/localReports";
 
 describe("Balance calculations and negative value support", () => {

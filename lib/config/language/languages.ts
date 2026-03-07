@@ -193,6 +193,7 @@ export const LANGUAGES = {
     phoneRequired: "Phone number is required",
     validPhoneNumber: "Please enter a valid phone number",
     youNeedToBeLoggedIn: "You need to be logged in to update your profile",
+    cantVerifySignInOffline: "Can't verify sign-in while offline. Please connect to the internet and try again.",
     failedToFetchUser: "Failed to fetch user data",
     ok: "OK",
     failedToUploadImage: "Failed to upload image",
@@ -1012,6 +1013,8 @@ export const LANGUAGES = {
     validPhoneNumber: "Fadlan geli telefoon ah oo sax ah",
     youNeedToBeLoggedIn:
       "Waxaad u baahan tahay inaad gasho si aad u cusboonaysiiso profile-kaaga",
+    cantVerifySignInOffline:
+      "Ma xaqiijin karno galitaanka marka aad offline tahay. Fadlan ku xidh internetka oo isku day mar kale.",
     failedToFetchUser: "Isticmaalaha macluumaadka waa la guuldarreysatay",
     ok: "Hagaag",
     failedToUploadImage: "Sawirka soo dejinta waa la guuldarreysatay",

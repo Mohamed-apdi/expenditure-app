@@ -26,7 +26,7 @@ import {
   Globe,
 } from "lucide-react-native";
 import { deleteItemAsync } from "expo-secure-store";
-import { supabase } from "~/lib";
+import { supabase, getCurrentUserOfflineFirst } from "~/lib";
 import { UserProfile } from "~/types/userTypes";
 import { useTheme, useScreenStatusBar } from "~/lib";
 import { useLanguage } from "~/lib";
@@ -76,11 +76,7 @@ export default function ProfileScreen() {
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        // Get the current user session
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
+        const user = await getCurrentUserOfflineFirst();
         if (user) {
           // Fetch profile data using the service
           const profileData = await fetchProfile(user.id);

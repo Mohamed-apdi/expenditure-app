@@ -15,10 +15,10 @@ import {
   deleteTransactionLocal,
   deleteTransaction,
   fetchProfile,
+  getCurrentUserOfflineFirst,
   selectProfile,
   selectTransactions,
   selectTransactionsByDateRange,
-  supabase,
   updateAccountLocal,
   updateAccountBalance,
   isOfflineGateLocked,
@@ -128,13 +128,7 @@ export default function DashboardScreen() {
 
   const fetchUserProfile = async () => {
     try {
-      let user = (await supabase.auth.getUser()).data?.user ?? null;
-      if (!user) {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        user = session?.user ?? null;
-      }
+      const user = await getCurrentUserOfflineFirst();
       if (!user) return;
 
       setUserId(user.id);
@@ -177,13 +171,7 @@ export default function DashboardScreen() {
   const fetchMonthData = React.useCallback(
     async (month: number, year: number) => {
       try {
-        let user = (await supabase.auth.getUser()).data?.user ?? null;
-        if (!user) {
-          const {
-            data: { session },
-          } = await supabase.auth.getSession();
-          user = session?.user ?? null;
-        }
+        const user = await getCurrentUserOfflineFirst();
         if (!user) return { income: 0, expense: 0, balance: 0 };
 
         const startDate = new Date(year, month, 1).toISOString().split("T")[0];
@@ -288,12 +276,8 @@ export default function DashboardScreen() {
 
     const checkAuthAndFetch = async () => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
-          fetchUserProfile();
-        }
+        const user = await getCurrentUserOfflineFirst();
+        if (user) fetchUserProfile();
       } catch (error) {
         console.error("Error in initial auth check:", error);
       }
@@ -323,8 +307,8 @@ export default function DashboardScreen() {
       );
       refreshBalances();
       setRefreshTrigger((prev) => prev + 1);
-      // Ensure we have userId when returning to dashboard (e.g. after login)
-      supabase.auth.getUser().then(({ data: { user } }) => {
+      // Ensure we have userId when returning to dashboard (e.g. after login); use cached session for offline
+      getCurrentUserOfflineFirst().then((user) => {
         if (user) setUserId(user.id);
       });
       return () => closeOpenRow();

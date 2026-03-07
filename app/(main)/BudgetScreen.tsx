@@ -1,5 +1,5 @@
 // screens/BudgetScreen.tsx
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,8 +20,8 @@ import {
 } from 'react-native-safe-area-context';
 import SubscriptionsScreen from '../components/SubscriptionsScreen';
 import SavingsScreen from '../components/SavingsScreen';
-import { supabase } from '~/lib';
 import {
+  getCurrentUserOfflineFirst,
   selectBudgets,
   createBudgetLocal,
   updateBudgetLocal,
@@ -47,6 +47,11 @@ export default function BudgetScreen() {
   const { t } = useLanguage();
   const { accounts, selectedAccount: selectedAccountInApp } = useAccount(); // Same selected account as Dashboard
   const [activeTab, setActiveTab] = useState('Budget');
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+  const tabsScrollRef = useRef<ScrollView>(null);
+  const tabLayoutsRef = useRef<Record<string, { x: number; width: number }>>({});
+  const tabsScrollWidthRef = useRef(0);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetsWithAccounts, setBudgetsWithAccounts] = useState<any[]>([]);
   const [budgetProgress, setBudgetProgress] = useState<BudgetProgress[]>([]);
@@ -59,6 +64,37 @@ export default function BudgetScreen() {
   useEffect(() => {
     void preloadTabClickSound();
   }, []);
+
+  const TAB_KEYS = ['Budget', 'Subscriptions', 'Goals', 'Investments', 'Debt/Loan'];
+
+  // When active tab changes (tap or swipe), scroll tab bar so active tab is visible
+  const scrollTabBarToActive = useCallback(() => {
+    const scrollView = tabsScrollRef.current;
+    if (!scrollView) return;
+    const w = tabsScrollWidthRef.current;
+    const layout = tabLayoutsRef.current[activeTab];
+    if (layout && w > 0) {
+      const targetX = Math.max(0, layout.x - w / 2 + layout.width / 2);
+      scrollView.scrollTo({ x: targetX, animated: true });
+      return;
+    }
+    // Fallback: scroll by tab index when layout not yet available (e.g. first paint)
+    const index = TAB_KEYS.indexOf(activeTab);
+    if (index >= 0) {
+      const padding = 16;
+      const gap = 8;
+      const marginRight = 4;
+      const approxTabWidth = 100;
+      const targetX = Math.max(0, padding + index * (approxTabWidth + gap + marginRight) - w / 2 + approxTabWidth / 2);
+      scrollView.scrollTo({ x: targetX, animated: true });
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    // Defer so tab bar layout (and tab onLayouts) have run
+    const t = setTimeout(scrollTabBarToActive, 50);
+    return () => clearTimeout(t);
+  }, [activeTab, scrollTabBarToActive]);
 
   // Show only budgets for the selected account (same as Dashboard)
   const budgetsForSelectedAccount = selectedAccountInApp
@@ -93,36 +129,24 @@ export default function BudgetScreen() {
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: (evt, gestureState) => {
-        // Only respond to horizontal gestures on the tab area
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponderCapture: (evt, gestureState) => {
+        // Capture horizontal swipes so they work on every tab (not stolen by child ScrollViews)
         return (
-          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) &&
-          Math.abs(gestureState.dx) > 10
+          Math.abs(gestureState.dx) > 15 &&
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy)
         );
-      },
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        // Only respond to horizontal gestures
-        return (
-          Math.abs(gestureState.dx) > Math.abs(gestureState.dy) &&
-          Math.abs(gestureState.dx) > 10
-        );
-      },
-      onPanResponderGrant: () => {
-        // Reset any gesture state if needed
-      },
-      onPanResponderMove: () => {
-        // Allow the gesture to continue
       },
       onPanResponderRelease: (evt, gestureState) => {
-        // Check if the swipe is horizontal and significant enough
+        const current = activeTabRef.current;
         if (
           Math.abs(gestureState.dx) > 50 &&
           Math.abs(gestureState.dx) > Math.abs(gestureState.dy)
         ) {
-          void playTabClickSound();
           if (gestureState.dx > 0) {
-            // Swipe right - go to previous tab
-            switch (activeTab) {
+            // Swipe right - previous tab
+            switch (current) {
               case 'Subscriptions':
                 setActiveTab('Budget');
                 break;
@@ -137,8 +161,8 @@ export default function BudgetScreen() {
                 break;
             }
           } else {
-            // Swipe left - go to next tab
-            switch (activeTab) {
+            // Swipe left - next tab
+            switch (current) {
               case 'Budget':
                 setActiveTab('Subscriptions');
                 break;
@@ -170,9 +194,7 @@ export default function BudgetScreen() {
 
   const fetchData = async () => {
     try {
-      // Prefer getSession() - uses cached session, shows local data fast
-      let user = (await supabase.auth.getSession()).data?.session?.user ?? null;
-      if (!user) user = (await supabase.auth.getUser()).data?.user ?? null;
+      const user = await getCurrentUserOfflineFirst();
       if (!user) return;
 
       setUserId(user.id);
@@ -386,9 +408,12 @@ export default function BudgetScreen() {
             paddingVertical: 12,
             borderBottomWidth: 1,
             borderBottomColor: theme.border,
-          }}
-          {...panResponder.panHandlers}>
+          }}>
           <ScrollView
+            ref={tabsScrollRef}
+            onLayout={(e) => {
+              tabsScrollWidthRef.current = e.nativeEvent.layout.width;
+            }}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{
@@ -411,6 +436,16 @@ export default function BudgetScreen() {
                 <TouchableOpacity
                   key={tab.key}
                   activeOpacity={1}
+                  onLayout={(e) => {
+                    const { x, width } = e.nativeEvent.layout;
+                    tabLayoutsRef.current[tab.key] = { x, width };
+                    // Scroll to this tab if it's the active one (handles late layout)
+                    if (activeTab === tab.key && tabsScrollRef.current && tabsScrollWidthRef.current > 0) {
+                      const w = tabsScrollWidthRef.current;
+                      const targetX = Math.max(0, x - w / 2 + width / 2);
+                      tabsScrollRef.current.scrollTo({ x: targetX, animated: true });
+                    }
+                  }}
                   style={{
                     paddingVertical: 10,
                     paddingHorizontal: 20,
@@ -439,8 +474,8 @@ export default function BudgetScreen() {
           </ScrollView>
         </View>
 
-        {/* Tab Content - View with flex:1 so FABs in Subscriptions/Goals etc stay fixed at bottom */}
-        <View style={{ flex: 1 }}>
+        {/* Tab Content - swipe left/right on this area to change tab */}
+        <View style={{ flex: 1 }} {...panResponder.panHandlers}>
           {activeTab === 'Budget' && (
             <ScrollView
               className="flex-1"

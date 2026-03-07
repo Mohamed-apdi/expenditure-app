@@ -42,7 +42,7 @@ import DateTimePicker, {
   useDefaultStyles,
   type CalendarComponents,
 } from 'react-native-ui-datepicker';
-import { supabase } from '~/lib';
+import { getCurrentUserOfflineFirst } from '~/lib';
 import {
   selectGoals,
   selectGoalById,
@@ -173,8 +173,7 @@ export default function SavingsScreen({
   // Fetch goals and accounts from database
   const fetchData = async () => {
     try {
-      let user = (await supabase.auth.getSession()).data?.session?.user ?? null;
-      if (!user) user = (await supabase.auth.getUser()).data?.user ?? null;
+      const user = await getCurrentUserOfflineFirst();
       if (!user) return;
 
       setUserId(user.id);

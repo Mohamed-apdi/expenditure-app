@@ -1,8 +1,10 @@
 {
   "name": "Qoondeeye",
   "main": "index.js",
-  "version": "2.0.1",
+  "version": "2.2.0",
   "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
     "dev": "expo start -c",
     "dev:web": "expo start -c --web",
     "dev:android": "expo start -c --android",
@@ -87,6 +89,7 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "react-native-svg-transformer": "^1.5.2",
+    "react-native-toast-message": "^2.3.3",
     "react-native-ui-datepicker": "^3.1.2",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "^0.21.0",
@@ -99,10 +102,14 @@
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
+    "@types/jest": "^29.5.14",
     "@types/react": "~19.1.10",
+    "jest": "^29.7.0",
+    "jest-expo": "~52.0.0",
     "prettier-plugin-tailwindcss": "^0.5.14",
     "react-native-dotenv": "^3.4.11",
     "tailwindcss": "^3.4.17",
+    "ts-jest": "^29.4.6",
     "typescript": "^5.8.3"
   },
   "expo": {

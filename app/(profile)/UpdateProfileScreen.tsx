@@ -19,7 +19,7 @@ import {
   Mail,
   Phone,
 } from "lucide-react-native";
-import { supabase, updateProfileLocal, isOfflineGateLocked, triggerSync } from "~/lib";
+import { supabase, getCurrentUserOfflineFirst, updateProfileLocal, isOfflineGateLocked, triggerSync } from "~/lib";
 import * as ImagePicker from "expo-image-picker";
 import { decode } from "base64-arraybuffer";
 import { useTheme, useScreenStatusBar } from "~/lib";
@@ -62,23 +62,36 @@ export default function UpdateProfileScreen() {
   const theme = useTheme();
   useScreenStatusBar();
 
-  // Get current user ID when component mounts
+  // Get current user ID when component mounts (works offline from cached session)
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const user = await getCurrentUserOfflineFirst();
         if (user) {
           setCurrentUserId(user.id);
+          return;
+        }
+        const offline = await isOfflineGateLocked();
+        if (offline) {
+          Alert.alert(
+            t.error,
+            t.cantVerifySignInOffline ?? "Can't verify sign-in while offline. Please connect to the internet and try again.",
+            [{ text: t.ok ?? "OK", onPress: () => router.back() }]
+          );
         } else {
           Alert.alert(t.error, t.youNeedToBeLoggedIn);
           router.back();
         }
       } catch (error) {
         console.error("Error fetching user:", error);
-        Alert.alert(t.error, t.failedToFetchUser);
-        router.back();
+        const offline = await isOfflineGateLocked();
+        Alert.alert(
+          t.error,
+          offline
+            ? (t.cantVerifySignInOffline ?? "Can't verify sign-in while offline. Please connect to the internet and try again.")
+            : t.failedToFetchUser,
+          [{ text: t.ok ?? "OK", onPress: () => router.back() }]
+        );
       }
     };
 

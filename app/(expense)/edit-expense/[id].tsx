@@ -14,7 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
-  supabase,
+  getCurrentUserOfflineFirst,
   selectExpenseById,
   selectTransactionById,
   updateExpenseLocal,
@@ -108,9 +108,7 @@ export default function EditExpenseScreen() {
       if (!id || typeof id !== "string") return;
       try {
         setLoading(true);
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const user = await getCurrentUserOfflineFirst();
         if (!user) {
           Alert.alert("Error", "Please sign in");
           router.back();
@@ -204,7 +202,7 @@ export default function EditExpenseScreen() {
 
         // 2) Best-effort Supabase upsert (insert or update so local-only rows are created)
         try {
-          const { data: { user } } = await supabase.auth.getUser();
+          const user = await getCurrentUserOfflineFirst();
           if (user && accountId) {
             await upsertTransaction(id, {
               user_id: user.id,

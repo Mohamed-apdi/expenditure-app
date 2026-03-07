@@ -23,7 +23,7 @@ import DateTimePicker, {
   type CalendarComponents,
 } from 'react-native-ui-datepicker';
 import * as Notifications from 'expo-notifications';
-import { supabase } from '~/lib';
+import { getCurrentUserOfflineFirst } from '~/lib';
 import {
   selectSubscriptions,
   createSubscriptionLocal,
@@ -175,8 +175,7 @@ export default function SubscriptionsScreen({
   };
   const fetchData = async () => {
     try {
-      let user = (await supabase.auth.getSession()).data?.session?.user ?? null;
-      if (!user) user = (await supabase.auth.getUser()).data?.user ?? null;
+      const user = await getCurrentUserOfflineFirst();
       if (!user) return;
 
       setUserId(user.id);

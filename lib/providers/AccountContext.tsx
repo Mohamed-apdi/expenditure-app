@@ -12,6 +12,7 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
+import { getCurrentUserOfflineFirst } from "../auth";
 import { supabase } from "../database/supabase";
 import {
   accounts$,
@@ -132,9 +133,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const calculateAccountBalance = useCallback(
     async (accountId: string): Promise<number> => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const user = await getCurrentUserOfflineFirst();
         if (!user) return 0;
         const account = selectAccountById(user.id, accountId);
         return account?.amount ?? 0;
@@ -187,11 +186,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     if (loading) return;
     try {
       setLoading(true);
-      let user = (await supabase.auth.getUser()).data?.user ?? null;
-      if (!user) {
-        const { data: { session } } = await supabase.auth.getSession();
-        user = session?.user ?? null;
-      }
+      const user = await getCurrentUserOfflineFirst();
       if (!user) {
         setLoading(false);
         return;
@@ -238,11 +233,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     try {
       setHasInitialized(false);
       setLoading(true);
-      let user = (await supabase.auth.getUser()).data?.user ?? null;
-      if (!user) {
-        const { data: { session } } = await supabase.auth.getSession();
-        user = session?.user ?? null;
-      }
+      const user = await getCurrentUserOfflineFirst();
       if (!user) {
         setLoading(false);
         return;

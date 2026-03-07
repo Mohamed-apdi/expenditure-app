@@ -8,10 +8,10 @@ import {
   Account,
   createAccountLocal,
   createTransactionLocal,
+  getCurrentUserOfflineFirst,
   selectAccounts,
   toAccount,
   formatCurrency,
-  supabase,
   useAccount,
   useLanguage,
   useScreenStatusBar,
@@ -53,8 +53,8 @@ const Accounts = () => {
   const loadAccounts = async () => {
     try {
       setError(null);
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) throw new Error("You must be logged in to view accounts");
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) throw new Error("You must be logged in to view accounts");
       const data = selectAccounts(user.id).map(toAccount);
       setAccounts(data);
     } catch (error) {
@@ -83,12 +83,8 @@ const Accounts = () => {
     try {
       setError(null);
 
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) {
         throw new Error("You must be logged in to add an account");
       }
 

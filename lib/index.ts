@@ -41,6 +41,9 @@ export * from "./types/types";
 // Supabase client
 export { getSupabaseWithToken, supabase } from "./database/supabase";
 
+// Offline-first auth (use cached session when offline)
+export { getCurrentUserOfflineFirst } from "./auth";
+
 // Providers
 export * from "./providers/AccountContext";
 export * from "./providers/LanguageProvider";

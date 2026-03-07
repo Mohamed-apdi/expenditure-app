@@ -1,5 +1,6 @@
 import NetInfo from "@react-native-community/netinfo";
 
+import { getCurrentUserOfflineFirst } from "../auth";
 import { supabase } from "../database/supabase";
 import { accountGroups$ } from "../stores/accountGroupsStore";
 import { accountTypes$ } from "../stores/accountTypesStore";
@@ -67,9 +68,8 @@ function isDirtyStatus(status: LocalStatus | undefined): boolean {
 }
 
 async function getCurrentUserId(): Promise<string | null> {
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
-  return data.user.id;
+  const user = await getCurrentUserOfflineFirst();
+  return user?.id ?? null;
 }
 
 /** When true, sync (push/pull) is skipped. Wired to connectivity: locked when offline. */
@@ -550,7 +550,8 @@ export async function triggerSync(): Promise<void> {
 
   const gateLocked = await isOfflineGateLocked();
   if (gateLocked) {
-    await updateGlobalSyncState({ lastError: "Offline security gate locked" });
+    // Offline is normal; don't set lastError so UI shows "Offline" not "Sync error"
+    await updateGlobalSyncState({ lastError: null });
     return;
   }
 

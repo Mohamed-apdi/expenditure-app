@@ -8,6 +8,7 @@ import * as TaskManager from "expo-task-manager";
 import * as BackgroundFetch from "expo-background-fetch";
 import { Platform } from "react-native";
 import { isExpoGo } from "../utils/expoGoUtils";
+import { getCurrentUserOfflineFirst } from "../auth";
 import { supabase } from "../database/supabase";
 import { addTransaction } from "./transactions";
 import {
@@ -217,7 +218,7 @@ export const scheduleSubscriptionNotification = async (
       accountId: subscription.account_id,
       billingCycle: subscription.billing_cycle,
     },
-    sound: "notification2.wav",
+    sound: "notification-1.wav",
   };
 
   await Notifications.scheduleNotificationAsync({
@@ -236,10 +237,7 @@ export const handleNotificationResponse = async (
   const notificationData = notification.request.content.data as any;
 
   try {
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUserOfflineFirst();
     if (!user) {
       console.error("User not authenticated");
       return;
@@ -269,7 +267,7 @@ export const handleNotificationResponse = async (
           content: {
             title: "Payment Processed",
             body: `Successfully paid $${amount.toFixed(2)} for ${subscriptionName}`,
-            sound: "notification2.wav",
+            sound: "notification-1.wav",
           },
           trigger: null, // Show immediately
         });
@@ -282,7 +280,7 @@ export const handleNotificationResponse = async (
           content: {
             title: "Subscription Paused",
             body: `${subscriptionName} has been paused and won't charge automatically`,
-            sound: "notification2.wav",
+            sound: "notification-1.wav",
           },
           trigger: null, // Show immediately
         });
@@ -300,7 +298,7 @@ export const handleNotificationResponse = async (
           content: {
             title: "Budget View",
             body: `Open the app to view your ${category} budget details`,
-            sound: "notification2.wav",
+            sound: "notification-1.wav",
           },
           trigger: null,
         });
@@ -322,7 +320,7 @@ export const handleNotificationResponse = async (
           content: {
             title: "Budget Adjustment",
             body: `Open the app to adjust your ${category} budget or review your spending`,
-            sound: "notification2.wav",
+            sound: "notification-1.wav",
           },
           trigger: null,
         });
@@ -336,7 +334,7 @@ export const handleNotificationResponse = async (
       content: {
         title: "Action Failed",
         body: "Failed to process your request. Please try again in the app.",
-        sound: "notification2.wav",
+        sound: "notification-1.wav",
       },
       trigger: null,
     });
@@ -415,13 +413,13 @@ export const sendBudgetNotification = async (
   type: "warning" | "exceeded"
 ) => {
   try {
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData?.user) return;
+    const user = await getCurrentUserOfflineFirst();
+    if (!user) return;
 
     // Skip if we already sent a notification for this budget (category+account)/type recently
     const budgetId = `${budgetProgress.category}-${budgetProgress.account_id}`;
     const alreadyNotified = await hasRecentBudgetNotification(
-      userData.user.id,
+      user.id,
       budgetId,
       type
     );
@@ -451,14 +449,14 @@ export const sendBudgetNotification = async (
           remaining: budgetProgress.remaining,
           notificationType: type,
         },
-        sound: "notification2.wav",
+        sound: "notification-1.wav",
       },
       trigger: null, // Show immediately
     });
 
     // Save to database notifications table
     await createBudgetNotification({
-      userId: userData.user.id,
+      userId: user.id,
       budgetName: budgetProgress.category,
       percentage: budgetProgress.percentage,
       currentAmount: budgetProgress.spent,
@@ -475,9 +473,7 @@ export const sendBudgetNotification = async (
 // creating an expense), only send for that category; otherwise check all budgets.
 export const checkBudgetsAndNotify = async (expenseCategory?: string) => {
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUserOfflineFirst();
     if (!user) {
       console.error("User not authenticated");
       return;
@@ -506,10 +502,7 @@ export const checkBudgetsAndNotify = async (expenseCategory?: string) => {
 // Check subscriptions due today and send notifications instead of auto-charging
 export const checkDueSubscriptionsAndNotify = async () => {
   try {
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUserOfflineFirst();
     if (!user) {
       console.error("User not authenticated");
       return;
@@ -541,7 +534,7 @@ export const checkDueSubscriptionsAndNotify = async () => {
               accountId: subscription.account_id,
               billingCycle: subscription.billing_cycle,
             },
-            sound: "notification2.wav",
+            sound: "notification-1.wav",
           },
           trigger: null, // Show immediately
         });
@@ -683,9 +676,7 @@ export const cancelAllSubscriptionNotifications = async () => {
 // Schedule budget check notifications for the next 7 days
 export const scheduleBudgetCheckNotifications = async () => {
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUserOfflineFirst();
     if (!user) return;
 
     // Cancel existing budget check notifications
@@ -715,7 +706,7 @@ export const scheduleBudgetCheckNotifications = async () => {
             userId: user.id,
             scheduledDate: checkDate.toISOString(),
           },
-          sound: "notification2.wav",
+          sound: "notification-1.wav",
         },
         trigger: {
           type: SchedulableTriggerInputTypes.DATE,
@@ -732,10 +723,7 @@ export const scheduleBudgetCheckNotifications = async () => {
 // Schedule notifications for all upcoming subscriptions
 export const scheduleAllUpcomingNotifications = async () => {
   try {
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUserOfflineFirst();
     if (!user) return;
 
     // Cancel existing subscription notifications

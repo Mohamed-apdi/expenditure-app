@@ -24,9 +24,9 @@ import {
   createSubscriptionLocal,
   createTransactionLocal,
   createTransferLocal,
+  getCurrentUserOfflineFirst,
   isOfflineGateLocked,
   notificationService,
-  supabase,
   triggerSync,
   updateAccountLocal,
   useAccount,
@@ -294,9 +294,7 @@ export default function AddExpenseScreen() {
     setIsSubmitting(true);
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getCurrentUserOfflineFirst();
       if (!user) throw new Error("Please log in first");
 
       const amountNum = Number.parseFloat(amount);
@@ -443,9 +441,7 @@ export default function AddExpenseScreen() {
     setIsSubmitting(true);
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getCurrentUserOfflineFirst();
       if (!user) throw new Error("Please log in first");
 
       const dateStr = date.toISOString().split("T")[0];

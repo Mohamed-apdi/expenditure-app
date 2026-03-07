@@ -11,7 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, Pen, Trash2 } from "lucide-react-native";
 import {
-  supabase,
+  getCurrentUserOfflineFirst,
   selectAccountById,
   selectTransactions,
   selectBudgets,
@@ -66,7 +66,7 @@ const AccountDetails = () => {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUserOfflineFirst();
       if (!user) return;
 
       const acc = selectAccountById(user.id, accountId);
@@ -117,7 +117,7 @@ const AccountDetails = () => {
             try {
               setLoading(true);
 
-              const { data: { user } } = await supabase.auth.getUser();
+              const user = await getCurrentUserOfflineFirst();
               if (!user) return;
 
               selectBudgets(user.id)

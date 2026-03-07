@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { X, ChevronDown, Check, DollarSign } from "lucide-react-native";
 import {
-  supabase,
+  getCurrentUserOfflineFirst,
   updateAccountLocal,
   selectAccountById,
   isOfflineGateLocked,
@@ -85,7 +85,7 @@ export default function EditAccount() {
     try {
       setLoading(true);
 
-      const { data: { user } } = await supabase.auth.getUser();
+      const user = await getCurrentUserOfflineFirst();
       if (!user) {
         router.replace("/login");
         return;

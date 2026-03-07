@@ -28,7 +28,7 @@ import {
   Zap,
 } from "lucide-react-native";
 import { format, formatDistanceToNow } from "date-fns";
-import { supabase } from "~/lib";
+import { getCurrentUserOfflineFirst } from "~/lib";
 import { useTheme, useScreenStatusBar } from "~/lib";
 import {
   getUserNotifications,
@@ -57,9 +57,7 @@ export default function NotificationsScreen() {
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getCurrentUserOfflineFirst();
       if (!user) return;
 
       const [notificationsData, unreadCountData] = await Promise.all([
@@ -134,9 +132,7 @@ export default function NotificationsScreen() {
   // Mark all as read
   const handleMarkAllAsRead = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getCurrentUserOfflineFirst();
       if (!user) return;
 
       await markAllNotificationsAsRead(user.id);

@@ -22,10 +22,11 @@ import {
   Receipt,
 } from "lucide-react-native";
 import {
-  supabase,
+  getCurrentUserOfflineFirst,
   selectExpenseById,
   deleteExpenseLocal,
   isOfflineGateLocked,
+  supabase,
   triggerSync,
 } from "~/lib";
 import { format } from "date-fns";
@@ -60,7 +61,7 @@ export default function ExpenseDetailScreen() {
     const loadExpense = async () => {
       try {
         setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
+        const user = await getCurrentUserOfflineFirst();
         if (!user) return;
         const data = selectExpenseById(user.id, id);
         if (data) {
@@ -135,10 +136,16 @@ export default function ExpenseDetailScreen() {
   const handleViewReceipt = async () => {
     if (!expense?.receipt_url) return;
 
+    const offline = await isOfflineGateLocked();
+    if (offline) {
+      Alert.alert("Offline", "Receipt is available when you're back online.");
+      return;
+    }
+
     try {
       const { data } = await supabase.storage
         .from("receipts")
-        .createSignedUrl(expense.receipt_url, 60); // 60 second URL expiry
+        .createSignedUrl(expense.receipt_url, 60);
 
       if (data?.signedUrl) {
         await Linking.openURL(data.signedUrl);

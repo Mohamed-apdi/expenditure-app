@@ -2,7 +2,7 @@ export default ({ config }) => ({
   ...config,
   name: "Qoondeeye",
   slug: "qoondeeye",
-  version: "2.0.1",
+  version: "2.2.0",
   orientation: "portrait",
   icon: "./assets/images/adaptive-icon.png",
   scheme: "qoondeeye",
@@ -60,7 +60,7 @@ export default ({ config }) => ({
       {
         color: "#ffffff",
         icon: "./assets/qoondeeye-notification.png",
-        sounds: ["./assets/sounds/notification2.wav"]
+        sounds: ["./assets/sounds/notification-1.wav"]
       }
     ],
 

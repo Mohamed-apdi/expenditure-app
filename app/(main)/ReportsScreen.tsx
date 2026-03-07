@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Modal,
   Pressable,
+  PanResponder,
 } from 'react-native';
 import {
   Calendar,
@@ -25,8 +26,7 @@ import DateTimePicker, {
 } from 'react-native-ui-datepicker';
 import { BarChart as GiftedBarChart, PieChart as GiftedPieChart } from 'react-native-gifted-charts';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAccount } from '~/lib';
-import { supabase } from '~/lib';
+import { useAccount, getCurrentUserOfflineFirst } from '~/lib';
 import {
   getLocalTransactionReports,
   getLocalAccountReports,
@@ -82,6 +82,101 @@ export default function ReportsScreen() {
   const [activeTab, setActiveTab] = useState<
     'transactions' | 'accounts' | 'budgets' | 'goals' | 'subscriptions'
   >('transactions');
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  // Tab bar scroll-to-active (same pattern as BudgetScreen)
+  const tabsScrollRef = useRef<ScrollView>(null);
+  const tabLayoutsRef = useRef<Record<string, { x: number; width: number }>>({});
+  const tabsScrollWidthRef = useRef(0);
+  const REPORT_TAB_KEYS = [
+    'transactions',
+    'subscriptions',
+    'budgets',
+    'goals',
+    'accounts',
+  ] as const;
+
+  const scrollTabBarToActive = useCallback(() => {
+    const scrollView = tabsScrollRef.current;
+    if (!scrollView) return;
+    const w = tabsScrollWidthRef.current;
+    const layout = tabLayoutsRef.current[activeTab];
+    if (layout && w > 0) {
+      const targetX = Math.max(0, layout.x - w / 2 + layout.width / 2);
+      scrollView.scrollTo({ x: targetX, animated: true });
+      return;
+    }
+    const index = REPORT_TAB_KEYS.indexOf(activeTab);
+    if (index >= 0) {
+      const padding = 16;
+      const gap = 8;
+      const approxTabWidth = 90;
+      const targetX = Math.max(
+        0,
+        padding + index * (approxTabWidth + gap) - w / 2 + approxTabWidth / 2,
+      );
+      scrollView.scrollTo({ x: targetX, animated: true });
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const t = setTimeout(scrollTabBarToActive, 50);
+    return () => clearTimeout(t);
+  }, [activeTab, scrollTabBarToActive]);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponderCapture: (evt, gestureState) => {
+        return (
+          Math.abs(gestureState.dx) > 15 &&
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy)
+        );
+      },
+      onPanResponderRelease: (evt, gestureState) => {
+        const current = activeTabRef.current;
+        if (
+          Math.abs(gestureState.dx) > 50 &&
+          Math.abs(gestureState.dx) > Math.abs(gestureState.dy)
+        ) {
+          if (gestureState.dx > 0) {
+            switch (current) {
+              case 'subscriptions':
+                setActiveTab('transactions');
+                break;
+              case 'budgets':
+                setActiveTab('subscriptions');
+                break;
+              case 'goals':
+                setActiveTab('budgets');
+                break;
+              case 'accounts':
+                setActiveTab('goals');
+                break;
+            }
+          } else {
+            switch (current) {
+              case 'transactions':
+                setActiveTab('subscriptions');
+                break;
+              case 'subscriptions':
+                setActiveTab('budgets');
+                break;
+              case 'budgets':
+                setActiveTab('goals');
+                break;
+              case 'goals':
+                setActiveTab('accounts');
+                break;
+            }
+          }
+        }
+      },
+      onPanResponderTerminate: () => {},
+    }),
+  ).current;
 
   // Preload tab click feedback (same as Add Expense / Budget)
   useEffect(() => {
@@ -321,14 +416,8 @@ export default function ReportsScreen() {
     try {
       setLoading(true);
 
-      // Get current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        return;
-      }
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) return;
 
       const startDateStr = dateRange.startDate.toISOString().split('T')[0];
       const endDateStr = dateRange.endDate.toISOString().split('T')[0];
@@ -365,14 +454,8 @@ export default function ReportsScreen() {
     try {
       setLoading(true);
 
-      // Get current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        return;
-      }
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) return;
 
       const data = await getLocalAccountReports(user.id, selectedAccount?.id);
       setAccountData(data);
@@ -395,14 +478,8 @@ export default function ReportsScreen() {
     try {
       setLoading(true);
 
-      // Get current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        return;
-      }
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) return;
 
       const data = await getLocalBudgetReports(
         user.id,
@@ -430,14 +507,8 @@ export default function ReportsScreen() {
     try {
       setLoading(true);
 
-      // Get current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        return;
-      }
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) return;
 
       const data = await getLocalGoalReports(user.id);
       setGoalData(data);
@@ -460,14 +531,8 @@ export default function ReportsScreen() {
     try {
       setLoading(true);
 
-      // Get current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        return;
-      }
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) return;
 
       const data = await getLocalSubscriptionReports(
         user.id,
@@ -2371,137 +2436,83 @@ export default function ReportsScreen() {
           </View>
         </View>
 
-        {/* Tab Navigation */}
+        {/* Tab Navigation - scrollable, scrolls to active tab on change */}
         <View
           style={{
             backgroundColor: theme.background,
-            paddingHorizontal: 16,
             paddingVertical: 10,
             borderBottomWidth: 1,
             borderBottomColor: theme.border,
           }}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View className="flex-row gap-2">
-              <TouchableOpacity
-                activeOpacity={1}
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  borderRadius: 16,
-                  backgroundColor:
-                    activeTab === 'transactions' ? '#40A5E7' : theme.background,
-                }}
-                onPress={() => {
-                void playTabClickSound();
-                setActiveTab('transactions');
-              }}>
-                <Text
+          <ScrollView
+            ref={tabsScrollRef}
+            onLayout={(e) => {
+              tabsScrollWidthRef.current = e.nativeEvent.layout.width;
+            }}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+            {(
+              [
+                { key: 'transactions' as const, label: t.transactions },
+                { key: 'subscriptions' as const, label: t.subscriptions },
+                { key: 'budgets' as const, label: t.budgets },
+                { key: 'goals' as const, label: t.goals },
+                { key: 'accounts' as const, label: t.accounts },
+              ] as const
+            ).map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  activeOpacity={1}
+                  onLayout={(e) => {
+                    const { x, width } = e.nativeEvent.layout;
+                    tabLayoutsRef.current[tab.key] = { x, width };
+                    if (
+                      activeTab === tab.key &&
+                      tabsScrollRef.current &&
+                      tabsScrollWidthRef.current > 0
+                    ) {
+                      const w = tabsScrollWidthRef.current;
+                      const targetX = Math.max(
+                        0,
+                        x - w / 2 + width / 2,
+                      );
+                      tabsScrollRef.current.scrollTo({
+                        x: targetX,
+                        animated: true,
+                      });
+                    }
+                  }}
                   style={{
-                    color: activeTab === 'transactions' ? 'white' : theme.text,
-                    fontWeight: '500',
-                    fontSize: 14,
+                    paddingHorizontal: 14,
+                    paddingVertical: 8,
+                    borderRadius: 16,
+                    backgroundColor: isActive ? '#40A5E7' : theme.background,
+                  }}
+                  onPress={() => {
+                    void playTabClickSound();
+                    setActiveTab(tab.key);
                   }}>
-                  {t.transactions}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={1}
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  borderRadius: 16,
-                  backgroundColor:
-                    activeTab === 'subscriptions' ? '#40A5E7' : theme.background,
-                }}
-                onPress={() => {
-                void playTabClickSound();
-                setActiveTab('subscriptions');
-              }}>
-                <Text
-                  style={{
-                    color: activeTab === 'subscriptions' ? 'white' : theme.text,
-                    fontWeight: '500',
-                    fontSize: 14,
-                  }}>
-                  {t.subscriptions}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={1}
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  borderRadius: 16,
-                  backgroundColor:
-                    activeTab === 'budgets' ? '#40A5E7' : theme.background,
-                }}
-                onPress={() => {
-                void playTabClickSound();
-                setActiveTab('budgets');
-              }}>
-                <Text
-                  style={{
-                    color: activeTab === 'budgets' ? 'white' : theme.text,
-                    fontWeight: '500',
-                    fontSize: 14,
-                  }}>
-                  {t.budgets}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={1}
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  borderRadius: 16,
-                  backgroundColor:
-                    activeTab === 'goals' ? '#40A5E7' : theme.background,
-                }}
-                onPress={() => {
-                void playTabClickSound();
-                setActiveTab('goals');
-              }}>
-                <Text
-                  style={{
-                    color: activeTab === 'goals' ? 'white' : theme.text,
-                    fontWeight: '500',
-                    fontSize: 14,
-                  }}>
-                  {t.goals}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                activeOpacity={1}
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  borderRadius: 16,
-                  backgroundColor:
-                    activeTab === 'accounts' ? '#40A5E7' : theme.background,
-                }}
-                onPress={() => {
-                void playTabClickSound();
-                setActiveTab('accounts');
-              }}>
-                <Text
-                  style={{
-                    color: activeTab === 'accounts' ? 'white' : theme.text,
-                    fontWeight: '500',
-                    fontSize: 14,
-                  }}>
-                  {t.accounts}
-                </Text>
-              </TouchableOpacity>
-            </View>
+                  <Text
+                    style={{
+                      color: isActive ? 'white' : theme.text,
+                      fontWeight: '500',
+                      fontSize: 14,
+                    }}>
+                    {tab.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
 
-        {/* Content */}
-        <View style={{ flex: 1, backgroundColor: 'transparent', padding: 16 }}>
+        {/* Content - swipe left/right to change tab */}
+        <View
+          style={{ flex: 1, backgroundColor: 'transparent', padding: 16 }}
+          {...panResponder.panHandlers}>
           {loading ? (
             <View className="flex-1 justify-center items-center">
               <ActivityIndicator size="large" color={theme.primary} />
