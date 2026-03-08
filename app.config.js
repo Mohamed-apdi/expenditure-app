@@ -74,8 +74,8 @@ export default ({ config }) => ({
         resizeMode: "contain",
         backgroundColor: "#00BFFF",
         dark: {
-          image: "./assets/images/splash-icon-dark.png",
-          backgroundColor: "#1a1a2e"
+          image: "./assets/images/splash-icon-light.png",
+          backgroundColor: "#00BFFF"
         }
       }
     ],

@@ -852,9 +852,9 @@ export const LANGUAGES = {
     transaction: "transaction",
 
     // Onboarding translations (3 slides)
-    onboardingSlide1: "Transfer, track, and take charge—within seconds",
-    onboardingSlide2: "Manage your money smarter—insights that matter",
-    onboardingSlide3: "All your finances in one place—simple and secure",
+    onboardingSlide1: "Smart budgeting starts here—track every cent",
+    onboardingSlide2: "Beautiful reports—see your spending patterns",
+    onboardingSlide3: "Everything you need—budgets, goals, loans, and more",
     next: "Next",
     // Onboarding translations
     welcomeToApp: "Welcome to Qoondeeye",
@@ -1766,9 +1766,9 @@ export const LANGUAGES = {
     transaction: "dhaqdhaqaaq",
 
     // Onboarding translations (3 slides)
-    onboardingSlide1: "Wareeji, la soco, oo maamul—ilbaxnimada la mid ah",
-    onboardingSlide2: "Maamul lacagtaaga si xirfad leh—aragtiyo muhiim ah",
-    onboardingSlide3: "Dhammaan lacagtaaga meel keliya—fudud oo amaan ah",
+    onboardingSlide1: "Miisaaniyadda caqliga leh halkan ka bilow—la soco lacag kasta",
+    onboardingSlide2: "Warbixinno qurux badan—arag qaababka kharashkaaga",
+    onboardingSlide3: "Wax kasta oo aad u baahan tahay—miisaaniyad, hadaf, amaah, iyo wax kale",
     next: "Xiga",
     // Onboarding translations
     welcomeToApp: "Soo dhowow Qoondeeye",

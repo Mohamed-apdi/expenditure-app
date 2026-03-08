@@ -42,6 +42,17 @@ if (!isExpoGo) {
       shouldSetBadge: false,
     }),
   });
+
+  // Create Android notification channel
+  if (Platform.OS === "android") {
+    Notifications.setNotificationChannelAsync("default", {
+      name: "Default",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#00BFFF",
+      sound: "notification_alert.wav",
+    });
+  }
 }
 
 // Define interactive notification actions
@@ -793,6 +804,29 @@ export const scheduleAllUpcomingNotifications = async () => {
   }
 };
 
+// Send a test notification (for debugging)
+export const sendTestNotification = async () => {
+  if (isExpoGo) {
+    console.warn("Test notifications not available in Expo Go");
+    return false;
+  }
+
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Test Notification",
+        body: "This is a test notification from Qoondeeye!",
+        sound: "notification_alert.wav",
+      },
+      trigger: null, // Show immediately
+    });
+    return true;
+  } catch (error) {
+    console.error("Failed to send test notification:", error);
+    return false;
+  }
+};
+
 export default {
   setupNotificationCategories,
   requestNotificationPermissions,
@@ -808,4 +842,5 @@ export default {
   cancelAllSubscriptionNotifications,
   scheduleAllUpcomingNotifications,
   scheduleBudgetCheckNotifications,
+  sendTestNotification,
 };

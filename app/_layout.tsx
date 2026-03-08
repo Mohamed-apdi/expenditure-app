@@ -80,6 +80,8 @@ export default function RootLayout() {
 
   // Initialize notifications globally
   React.useEffect(() => {
+    let subscription: Notifications.Subscription | undefined;
+    
     const initializeNotifications = async () => {
       try {
         // Check if we're in Expo Go (where notifications are limited)
@@ -87,13 +89,13 @@ export default function RootLayout() {
 
         if (isExpoGo) return;
 
-        // Set up notification response listener globally
-        const subscription =
-          Notifications.addNotificationResponseReceivedListener(
-            notificationService.handleNotificationResponse,
-          );
+        // Register background task and request permissions
+        await notificationService.registerBackgroundTask();
 
-        return () => subscription.remove();
+        // Set up notification response listener globally
+        subscription = Notifications.addNotificationResponseReceivedListener(
+          notificationService.handleNotificationResponse,
+        );
       } catch (error) {
         console.error('Failed to initialize global notifications:', error);
         // Don't crash the app if notifications fail to initialize
@@ -101,6 +103,12 @@ export default function RootLayout() {
     };
 
     initializeNotifications();
+    
+    return () => {
+      if (subscription) {
+        subscription.remove();
+      }
+    };
   }, []);
 
   // Error boundary for catching initialization errors

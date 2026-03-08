@@ -29,6 +29,7 @@ const BOTTOM_RATIO = 1 / 3;
 const LIGHT_BG = APP_COLORS.inputBg;
 const DARK_BG = APP_COLORS.darkCard;
 const DASH_INACTIVE = "#4A4A4A";
+const ACCENT_COLOR = "#00BFFF";
 
 const SLIDES = [
   { key: "1", icon: "starburst" },
@@ -57,7 +58,7 @@ function StarburstIcon() {
               position: "absolute",
               width: lineLength,
               height: lineThickness,
-              backgroundColor: "#1A1A1A",
+              backgroundColor: ACCENT_COLOR,
               borderRadius: lineThickness / 2,
               transform: [{ rotate: `${deg}deg` }],
               shadowColor: "#000",
@@ -92,7 +93,7 @@ function BarsIllustration() {
           style={{
             width: barWidth,
             height: h,
-            backgroundColor: "#2D2D2D",
+            backgroundColor: ACCENT_COLOR,
             borderRadius: barWidth / 2,
             shadowColor: "#000",
             shadowOffset: { width: 0, height: 2 },
@@ -120,7 +121,7 @@ function WalletIcon() {
       >
         <Wallet
           size={280}
-          color="#1A1A1A"
+          color={ACCENT_COLOR}
           strokeWidth={1.5}
           style={{
             shadowColor: "#000",
@@ -171,7 +172,7 @@ function NextButton({
             cx={size / 2}
             cy={size / 2}
             r={r}
-            stroke={APP_COLORS.yellow}
+            stroke={ACCENT_COLOR}
             strokeWidth={stroke}
             fill="transparent"
             strokeDasharray={circumference}
@@ -319,7 +320,7 @@ export default function WelcomeScreen() {
                   width: 32,
                   height: 4,
                   borderRadius: 2,
-                  backgroundColor: i === currentIndex ? APP_COLORS.yellow : DASH_INACTIVE,
+                  backgroundColor: i === currentIndex ? ACCENT_COLOR : DASH_INACTIVE,
                 }}
               />
             ))}
