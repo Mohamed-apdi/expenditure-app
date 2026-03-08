@@ -2,7 +2,7 @@ export default ({ config }) => ({
   ...config,
   name: "Qoondeeye",
   slug: "qoondeeye",
-  version: "2.2.0",
+  version: "2.3.0",
   orientation: "portrait",
   icon: "./assets/images/adaptive-icon.png",
   scheme: "qoondeeye",
@@ -10,9 +10,9 @@ export default ({ config }) => ({
   userInterfaceStyle: "automatic",
 
   splash: {
-    image: "./assets/images/splash-icon-dark.png",
+    image: "./assets/images/splash-icon-light.png",
     resizeMode: "contain",
-    backgroundColor: "#ffffff"
+    backgroundColor: "#00BFFF"
   },
 
   assetBundlePatterns: ["**/*"],
@@ -21,18 +21,18 @@ export default ({ config }) => ({
     bundleIdentifier: "com.mohamed-99.qoondeeye",
     supportsTablet: true,
     jsEngine: "hermes",
-    // iOS only accepts ONE app icon
     icon: {
-      dark:"./assets/images/ios-dark.png",
-      light:"./assets/images/ios-light.png",
-      tinted:"./assets/images/ios-tinted.png"
+      dark: "./assets/images/ios-light.png",
+      light: "./assets/images/ios-light.png",
+      tinted: "./assets/images/ios-light.png"
     }
   },
 
   android: {
+    versionCode: 24,
     adaptiveIcon: {
       foregroundImage: "./assets/images/adaptive-icon.png",
-      backgroundColor: "#ffffff"
+      backgroundColor: "#00BFFF"
     },
     jsEngine: "hermes",
     package: "com.mohamed_99.qoondeeye",
@@ -47,7 +47,7 @@ export default ({ config }) => ({
   web: {
     bundler: "metro",
     output: "static",
-    favicon: "./assets/images/favicon.png"
+    favicon: "./assets/images/adaptive-icon.png"
   },
 
   plugins: [
@@ -59,8 +59,8 @@ export default ({ config }) => ({
       "expo-notifications",
       {
         color: "#ffffff",
-        icon: "./assets/qoondeeye-notification.png",
-        sounds: ["./assets/sounds/notification-1.wav"]
+        icon: "./assets/images/notification-icon.png",
+        sounds: ["./assets/sounds/notification_alert.wav"]
       }
     ],
 
@@ -68,13 +68,13 @@ export default ({ config }) => ({
     [
       "expo-splash-screen",
       {
-        image: "./assets/images/splash-icon-dark.png",
+        image: "./assets/images/splash-icon-light.png",
         imageWidth: 200,
         resizeMode: "contain",
-        backgroundColor: "#ffffff",
+        backgroundColor: "#00BFFF",
         dark: {
-          image: "./assets/images/splash-icon-light.png",
-          backgroundColor: "#000000"
+          image: "./assets/images/splash-icon-dark.png",
+          backgroundColor: "#1a1a2e"
         }
       }
     ],
@@ -94,8 +94,6 @@ export default ({ config }) => ({
     },
     // Supabase env vars for EAS builds
     SUPABASE_URL: process.env.SUPABASE_URL,
-    SUPABASE_KEY: process.env.SUPABASE_KEY,
-    // PowerSync URL for offline sync (optional; add via EAS secrets)
-    POWER_SYNC_URL: process.env.POWER_SYNC_URL
+    SUPABASE_KEY: process.env.SUPABASE_KEY
   }
 });

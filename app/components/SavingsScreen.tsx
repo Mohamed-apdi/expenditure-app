@@ -173,13 +173,19 @@ export default function SavingsScreen({
   // Fetch goals and accounts from database
   const fetchData = async () => {
     try {
-      const user = await getCurrentUserOfflineFirst();
-      if (!user) return;
-
-      setUserId(user.id);
+      // Use already-known userId if available (from props or previous fetch)
+      let currentUserId = userId || propUserId;
+      
+      // If no userId yet, try to get it from auth
+      if (!currentUserId) {
+        const user = await getCurrentUserOfflineFirst();
+        if (!user) return;
+        currentUserId = user.id;
+        setUserId(currentUserId);
+      }
 
       const accountList = propAccounts ?? contextAccounts;
-      const goalsData = selectGoals(user.id).map((g) => ({
+      const goalsData = selectGoals(currentUserId).map((g) => ({
         ...g,
         account: accountList.find((a) => a.id === g.account_id),
       }));
@@ -245,8 +251,12 @@ export default function SavingsScreen({
   const handleToggleGoalStatus = async (id: string, currentStatus: boolean) => {
     try {
       updateGoalLocal(id, { is_active: !currentStatus });
+      
+      // Refresh data immediately after state update
+      await fetchData();
+      
+      // Only trigger sync if online
       if (!(await isOfflineGateLocked())) void triggerSync();
-      fetchData();
     } catch (error) {
       console.error('Error toggling goal status:', error);
       Alert.alert(t.error, t.goalToggleError);
@@ -352,19 +362,24 @@ export default function SavingsScreen({
 
       if (isEditMode && currentGoal) {
         updateGoalLocal(currentGoal.id, goalData);
-        Alert.alert(t.success, t.goalUpdated);
       } else {
         if (!selectedAccount || !userId) {
           Alert.alert(t.error, t.selectAccount);
           return;
         }
         createGoalLocal({ ...goalData, user_id: userId, account_id: selectedAccount.id });
-        Alert.alert(t.success, t.goalAdded);
       }
 
       setIsModalVisible(false);
+      
+      // Refresh data immediately after state update
+      await fetchData();
+      
+      // Show success alert after data is refreshed
+      Alert.alert(t.success, isEditMode ? t.goalUpdated : t.goalAdded);
+      
+      // Only trigger sync if online
       if (!(await isOfflineGateLocked())) void triggerSync();
-      fetchData();
     } catch (error) {
       console.error('Error saving goal:', error);
       Alert.alert(t.error, t.goalSaveError);
@@ -382,19 +397,25 @@ export default function SavingsScreen({
       if (!userId) return;
       const existing = selectGoalById(userId, currentGoal.id);
       const current = Number(existing?.current_amount ?? 0);
+      const isAdding = amountModalData.type === 'add';
 
-      if (amountModalData.type === 'add') {
+      if (isAdding) {
         updateGoalLocal(currentGoal.id, { current_amount: current + amount });
-        Alert.alert(t.success, t.amountAdded);
       } else {
         updateGoalLocal(currentGoal.id, { current_amount: Math.max(0, current - amount) });
-        Alert.alert(t.success, t.amountWithdrawn);
       }
 
       setIsAddAmountModalVisible(false);
       setIsWithdrawModalVisible(false);
+      
+      // Refresh data immediately after state update
+      await fetchData();
+      
+      // Show success alert after data is refreshed
+      Alert.alert(t.success, isAdding ? t.amountAdded : t.amountWithdrawn);
+      
+      // Only trigger sync if online
       if (!(await isOfflineGateLocked())) void triggerSync();
-      fetchData();
     } catch (error) {
       console.error('Error updating goal amount:', error);
       Alert.alert(t.error, t.amountSaveError);
@@ -410,9 +431,16 @@ export default function SavingsScreen({
         onPress: async () => {
           try {
             deleteGoalLocal(id);
+            setIsModalVisible(false);
+            
+            // Refresh data immediately after state update
+            await fetchData();
+            
+            // Show success alert after data is refreshed
             Alert.alert(t.success, t.goalDeleted);
+            
+            // Only trigger sync if online
             if (!(await isOfflineGateLocked())) void triggerSync();
-            fetchData();
           } catch (error) {
             console.error('Error deleting goal:', error);
             Alert.alert(t.error, t.goalDeleteError);
@@ -1468,175 +1496,304 @@ export default function SavingsScreen({
         </Modal>
       </Modal>
 
-      {/* Add Amount Modal */}
+      {/* Add Amount Modal - Improved UI */}
       <Modal
         visible={isAddAmountModalVisible}
-        animationType="fade"
+        animationType="slide"
         transparent={true}
         onRequestClose={() => setIsAddAmountModalVisible(false)}>
-        <View
+        <Pressable
           style={{
             flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
+            justifyContent: 'flex-end',
             backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            padding: 16,
-          }}>
-          <View
+          }}
+          onPress={() => setIsAddAmountModalVisible(false)}>
+          <Pressable
             style={{
               backgroundColor: theme.cardBackground,
-              borderRadius: 16,
-              padding: 24,
-              width: '100%',
-              maxWidth: 400,
-            }}>
-            <View className="flex-row justify-between items-center mb-6">
-              <Text
-                style={{ color: theme.text, fontWeight: 'bold', fontSize: 20 }}>
-                {t.addAmount}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setIsAddAmountModalVisible(false)}>
-                <X size={24} color={theme.textMuted} />
-              </TouchableOpacity>
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              paddingBottom: insets.bottom + 20,
+            }}
+            onPress={(e) => e.stopPropagation()}>
+            {/* Handle bar */}
+            <View style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}>
+              <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: theme.border }} />
             </View>
 
-            <View className="space-y-5">
-              <View>
-                <Text
-                  style={{
-                    color: theme.text,
-                    marginBottom: 8,
-                    fontWeight: '500',
-                  }}>
-                  {t.amount}
-                </Text>
-                <View
-                  className="flex items-center "
-                  style={{
-                    borderWidth: 1,
-                    borderColor: theme.border,
-                    borderRadius: 12,
-                    backgroundColor: theme.background,
-                  }}>
-                  <View style={{ paddingHorizontal: 16 }}>
-                    <DollarSign size={18} color={theme.textMuted} />
+            <View style={{ paddingHorizontal: 24 }}>
+              {/* Header with goal info */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 22 }}>
+                    {t.addAmount || 'Add Savings'}
+                  </Text>
+                  {currentGoal && (
+                    <Text style={{ color: theme.textSecondary, fontSize: 14, marginTop: 4 }}>
+                      {currentGoal.name}
+                    </Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={{ padding: 8, backgroundColor: theme.background, borderRadius: 20 }}
+                  onPress={() => setIsAddAmountModalVisible(false)}>
+                  <X size={20} color={theme.textMuted} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Goal progress summary */}
+              {currentGoal && (
+                <View style={{
+                  backgroundColor: '#dcfce7',
+                  padding: 16,
+                  borderRadius: 16,
+                  marginBottom: 20,
+                }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <Text style={{ color: '#16a34a', fontSize: 13, fontWeight: '500' }}>
+                      {t.currentAmount || 'Current'}
+                    </Text>
+                    <Text style={{ color: '#16a34a', fontSize: 13, fontWeight: '500' }}>
+                      {t.targetAmount || 'Target'}
+                    </Text>
                   </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ color: '#15803d', fontSize: 20, fontWeight: 'bold' }}>
+                      ${currentGoal.current_amount?.toFixed(2) || '0.00'}
+                    </Text>
+                    <Text style={{ color: '#15803d', fontSize: 20, fontWeight: 'bold' }}>
+                      ${currentGoal.target_amount?.toFixed(2) || '0.00'}
+                    </Text>
+                  </View>
+                  <View style={{ height: 6, backgroundColor: '#bbf7d0', borderRadius: 3, marginTop: 12, overflow: 'hidden' }}>
+                    <View style={{
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: '#16a34a',
+                      width: `${Math.min(calculateProgress(currentGoal.current_amount, currentGoal.target_amount), 100)}%`,
+                    }} />
+                  </View>
+                </View>
+              )}
+
+              {/* Amount Input - Large centered */}
+              <View style={{ alignItems: 'center', marginBottom: 24 }}>
+                <Text style={{ color: theme.textSecondary, fontSize: 14, marginBottom: 12, fontWeight: '500' }}>
+                  {t.enterAmount || 'Enter amount to add'}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ color: '#16a34a', fontSize: 32, fontWeight: '600', marginRight: 4 }}>$</Text>
                   <TextInput
-                    style={{ flex: 1, padding: 16, color: theme.text }}
-                    placeholder={t.enterAmount}
+                    style={{
+                      color: theme.text,
+                      fontSize: 32,
+                      fontWeight: '600',
+                      minWidth: 120,
+                      textAlign: 'center',
+                    }}
+                    placeholder="0.00"
                     placeholderTextColor={theme.textMuted}
-                    keyboardType="numeric"
+                    keyboardType="decimal-pad"
                     value={amountModalData.amount}
                     onChangeText={(text) =>
-                      setAmountModalData({ ...amountModalData, amount: text })
+                      setAmountModalData({ ...amountModalData, amount: text.replace(/[^0-9.]/g, '') })
                     }
+                    autoFocus
                   />
                 </View>
               </View>
 
+              {/* Quick amount buttons */}
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24, justifyContent: 'center' }}>
+                {[25, 50, 100, 200].map((amt) => (
+                  <TouchableOpacity
+                    key={amt}
+                    style={{
+                      paddingVertical: 10,
+                      paddingHorizontal: 18,
+                      borderRadius: 20,
+                      backgroundColor: theme.background,
+                      borderWidth: 1,
+                      borderColor: theme.border,
+                    }}
+                    onPress={() => setAmountModalData({ ...amountModalData, amount: amt.toString() })}>
+                    <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600' }}>
+                      +${amt}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Add Button */}
               <TouchableOpacity
                 style={{
-                  backgroundColor: '#10b981',
-                  padding: 16,
-                  borderRadius: 12,
+                  backgroundColor: '#16a34a',
+                  paddingVertical: 16,
+                  borderRadius: 14,
                   alignItems: 'center',
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  gap: 8,
                 }}
                 onPress={handleAddAmount}>
-                <Text
-                  style={{ color: 'white', fontWeight: '500', fontSize: 18 }}>
-                  {t.addAmount}
+                <Plus size={20} color="white" />
+                <Text style={{ color: 'white', fontWeight: '600', fontSize: 17 }}>
+                  {t.addAmount || 'Add to Savings'}
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
 
-      {/* Withdraw Amount Modal */}
+      {/* Withdraw Amount Modal - Improved UI */}
       <Modal
         visible={isWithdrawModalVisible}
-        animationType="fade"
+        animationType="slide"
         transparent={true}
         onRequestClose={() => setIsWithdrawModalVisible(false)}>
-        <View
+        <Pressable
           style={{
             flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
+            justifyContent: 'flex-end',
             backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            padding: 16,
-          }}>
-          <View
+          }}
+          onPress={() => setIsWithdrawModalVisible(false)}>
+          <Pressable
             style={{
               backgroundColor: theme.cardBackground,
-              borderRadius: 16,
-              padding: 24,
-              width: '100%',
-              maxWidth: 400,
-            }}>
-            <View className="flex-row justify-between items-center mb-6">
-              <Text
-                style={{ color: theme.text, fontWeight: 'bold', fontSize: 20 }}>
-                {t.withdrawAmount}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setIsWithdrawModalVisible(false)}>
-                <X size={24} color={theme.textMuted} />
-              </TouchableOpacity>
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              paddingBottom: insets.bottom + 20,
+            }}
+            onPress={(e) => e.stopPropagation()}>
+            {/* Handle bar */}
+            <View style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}>
+              <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: theme.border }} />
             </View>
 
-            <View className="space-y-5">
-              <View>
-                <Text
-                  style={{
-                    color: theme.text,
-                    marginBottom: 8,
-                    fontWeight: '500',
-                  }}>
-                  {t.amount}
+            <View style={{ paddingHorizontal: 24 }}>
+              {/* Header with goal info */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.text, fontWeight: 'bold', fontSize: 22 }}>
+                    {t.withdrawAmount || 'Withdraw Savings'}
+                  </Text>
+                  {currentGoal && (
+                    <Text style={{ color: theme.textSecondary, fontSize: 14, marginTop: 4 }}>
+                      {currentGoal.name}
+                    </Text>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={{ padding: 8, backgroundColor: theme.background, borderRadius: 20 }}
+                  onPress={() => setIsWithdrawModalVisible(false)}>
+                  <X size={20} color={theme.textMuted} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Available balance */}
+              {currentGoal && (
+                <View style={{
+                  backgroundColor: '#fef3c7',
+                  padding: 16,
+                  borderRadius: 16,
+                  marginBottom: 20,
+                }}>
+                  <Text style={{ color: '#92400e', fontSize: 13, fontWeight: '500', marginBottom: 4 }}>
+                    {t.availableToWithdraw || 'Available to withdraw'}
+                  </Text>
+                  <Text style={{ color: '#78350f', fontSize: 28, fontWeight: 'bold' }}>
+                    ${currentGoal.current_amount?.toFixed(2) || '0.00'}
+                  </Text>
+                </View>
+              )}
+
+              {/* Amount Input - Large centered */}
+              <View style={{ alignItems: 'center', marginBottom: 24 }}>
+                <Text style={{ color: theme.textSecondary, fontSize: 14, marginBottom: 12, fontWeight: '500' }}>
+                  {t.enterWithdrawAmount || 'Enter amount to withdraw'}
                 </Text>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    borderWidth: 1,
-                    borderColor: theme.border,
-                    borderRadius: 12,
-                    backgroundColor: theme.background,
-                  }}>
-                  <View style={{ paddingHorizontal: 16 }}>
-                    <DollarSign size={18} color={theme.textMuted} />
-                  </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ color: '#d97706', fontSize: 32, fontWeight: '600', marginRight: 4 }}>$</Text>
                   <TextInput
-                    style={{ flex: 1, padding: 16, color: theme.text }}
-                    placeholder={t.enterAmount}
+                    style={{
+                      color: theme.text,
+                      fontSize: 32,
+                      fontWeight: '600',
+                      minWidth: 120,
+                      textAlign: 'center',
+                    }}
+                    placeholder="0.00"
                     placeholderTextColor={theme.textMuted}
-                    keyboardType="numeric"
+                    keyboardType="decimal-pad"
                     value={amountModalData.amount}
                     onChangeText={(text) =>
-                      setAmountModalData({ ...amountModalData, amount: text })
+                      setAmountModalData({ ...amountModalData, amount: text.replace(/[^0-9.]/g, '') })
                     }
+                    autoFocus
                   />
                 </View>
               </View>
 
+              {/* Quick amount buttons */}
+              {currentGoal && currentGoal.current_amount > 0 && (
+                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  {[25, 50, 100].filter(amt => amt <= currentGoal.current_amount).map((amt) => (
+                    <TouchableOpacity
+                      key={amt}
+                      style={{
+                        paddingVertical: 10,
+                        paddingHorizontal: 18,
+                        borderRadius: 20,
+                        backgroundColor: theme.background,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                      }}
+                      onPress={() => setAmountModalData({ ...amountModalData, amount: amt.toString() })}>
+                      <Text style={{ color: theme.text, fontSize: 14, fontWeight: '600' }}>
+                        ${amt}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  <TouchableOpacity
+                    style={{
+                      paddingVertical: 10,
+                      paddingHorizontal: 18,
+                      borderRadius: 20,
+                      backgroundColor: '#fef3c7',
+                      borderWidth: 1,
+                      borderColor: '#fbbf24',
+                    }}
+                    onPress={() => setAmountModalData({ ...amountModalData, amount: currentGoal.current_amount.toString() })}>
+                    <Text style={{ color: '#92400e', fontSize: 14, fontWeight: '600' }}>
+                      {t.all || 'All'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Withdraw Button */}
               <TouchableOpacity
                 style={{
-                  backgroundColor: '#f59e0b',
-                  padding: 16,
-                  borderRadius: 12,
+                  backgroundColor: '#d97706',
+                  paddingVertical: 16,
+                  borderRadius: 14,
                   alignItems: 'center',
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  gap: 8,
                 }}
                 onPress={handleAddAmount}>
-                <Text
-                  style={{ color: 'white', fontWeight: '500', fontSize: 18 }}>
-                  {t.withdrawAmount}
+                <TrendingUp size={20} color="white" style={{ transform: [{ rotate: '180deg' }] }} />
+                <Text style={{ color: 'white', fontWeight: '600', fontSize: 17 }}>
+                  {t.withdrawAmount || 'Withdraw'}
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* Icon Selection - Bottom Sheet */}

@@ -1,8 +1,15 @@
 /**
  * Local reports service for generating transaction and financial reports
- * Builds report data from local Supabase data (CSV, PDF, summaries)
+ * Builds report data from local Legend-State stores (offline-first)
  */
-import { supabase } from "../database/supabase";
+import { selectAccounts } from "../stores/accountsStore";
+import { selectBudgets } from "../stores/budgetsStore";
+import { selectGoals } from "../stores/goalsStore";
+import { selectSubscriptions } from "../stores/subscriptionsStore";
+import { selectTransactionsByDateRange, selectTransactions } from "../stores/transactionsStore";
+import { selectInvestments } from "../stores/investmentsStore";
+import { selectPersonalLoans } from "../stores/personalLoansStore";
+import { selectLoanRepayments } from "../stores/loanRepaymentsStore";
 import type { Transaction } from "../types/types";
 
 // Local transaction report interface (matching API structure)
@@ -114,37 +121,84 @@ export interface SubscriptionReport {
   category_breakdown: Record<string, number>;
 }
 
-// Get transaction reports locally
+export interface InvestmentReport {
+  summary: {
+    total_investments: number;
+    total_invested: number;
+    total_current_value: number;
+    total_gain_loss: number;
+    gain_loss_percentage: number;
+  };
+  investments: Array<{
+    id: string;
+    name: string;
+    type: string;
+    invested_amount: number;
+    current_value: number;
+    gain_loss: number;
+    gain_loss_percentage: number;
+    created_at: string;
+  }>;
+  type_breakdown: Record<string, { invested: number; current: number }>;
+}
+
+export interface LoanReport {
+  summary: {
+    total_loans: number;
+    loans_given: number;
+    loans_taken: number;
+    total_given_amount: number;
+    total_taken_amount: number;
+    total_outstanding_given: number;
+    total_outstanding_taken: number;
+    net_position: number;
+  };
+  loans: Array<{
+    id: string;
+    party_name: string;
+    type: "loan_given" | "loan_taken";
+    principal_amount: number;
+    remaining_amount: number;
+    paid_amount: number;
+    interest_rate?: number;
+    due_date?: string;
+    status: string;
+    is_overdue: boolean;
+    days_until_due?: number;
+  }>;
+  repayment_history: Array<{
+    loan_id: string;
+    party_name: string;
+    amount: number;
+    payment_date: string;
+  }>;
+}
+
+// Get transaction reports locally from Legend-State store
 export const getLocalTransactionReports = async (
   userId: string,
   accountId?: string,
   startDate?: string,
   endDate?: string
 ): Promise<TransactionReport> => {
-  let query = supabase
-    .from("transactions")
-    .select("*")
-    .eq("user_id", userId);
+  // Fetch from local store (works offline)
+  let transactionList: Transaction[];
 
-  // Apply filters
+  if (startDate && endDate) {
+    transactionList = selectTransactionsByDateRange(userId, startDate, endDate) as Transaction[];
+  } else {
+    transactionList = selectTransactions(userId) as Transaction[];
+  }
+
+  // Apply account filter if specified
   if (accountId) {
-    query = query.eq("account_id", accountId);
-  }
-  if (startDate) {
-    query = query.gte("date", startDate);
-  }
-  if (endDate) {
-    query = query.lte("date", endDate);
+    transactionList = transactionList.filter(t => t.account_id === accountId);
   }
 
-  const { data: transactions, error } = await query.order("date", { ascending: false });
-
-  if (error) {
-    console.error("Error fetching transactions for report:", error);
-    throw error;
-  }
-
-  const transactionList = transactions || [];
+  // Sort by date descending
+  transactionList = [...transactionList].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
 
   // Calculate summary
   const totalIncome = transactionList
@@ -231,44 +285,29 @@ export const getLocalTransactionReports = async (
   };
 };
 
-// Get account reports locally
+// Get account reports locally from Legend-State store
 export const getLocalAccountReports = async (
   userId: string,
   accountId?: string
 ): Promise<AccountReport> => {
-  // For account reports, always show ALL accounts regardless of selected account
-  const { data: accounts, error: accountsError } = await supabase
-    .from("accounts")
-    .select("*")
-    .eq("user_id", userId);
-
-  if (accountsError) {
-    console.error("Error fetching accounts for report:", accountsError);
-    throw accountsError;
-  }
-
-  const accountList = accounts || [];
+  // Fetch from local store (works offline)
+  const accountList = selectAccounts(userId);
+  const allTransactions = selectTransactions(userId);
 
   // Get transaction counts for each account
-  const accountsWithCounts = await Promise.all(
-    accountList.map(async (account) => {
-      const { count } = await supabase
-        .from("transactions")
-        .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .eq("account_id", account.id);
+  const accountsWithCounts = accountList.map((account) => {
+    const transactionCount = allTransactions.filter(t => t.account_id === account.id).length;
 
-      return {
-        id: account.id,
-        name: account.name,
-        type: account.account_type,
-        balance: account.amount,
-        currency: account.currency || "USD",
-        transaction_count: count || 0,
-        created_at: account.created_at,
-      };
-    })
-  );
+    return {
+      id: account.id,
+      name: account.name,
+      type: account.account_type,
+      balance: account.amount,
+      currency: account.currency || "USD",
+      transaction_count: transactionCount,
+      created_at: account.created_at,
+    };
+  });
 
   const totalBalance = accountList.reduce((sum, account) => sum + account.amount, 0);
   const totalTransactions = accountsWithCounts.reduce((sum, account) => sum + account.transaction_count, 0);
@@ -283,32 +322,24 @@ export const getLocalAccountReports = async (
   };
 };
 
-// Get budget reports locally
+// Get budget reports locally from Legend-State store
 export const getLocalBudgetReports = async (
   userId: string,
   startDate?: string,
   endDate?: string,
   accountId?: string
 ): Promise<BudgetReport> => {
-  // Fetch budgets
-  let budgetQuery = supabase
-    .from("budgets")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("is_active", true);
+  // Fetch from local store (works offline)
+  let budgetList = selectBudgets(userId).filter(b => b.is_active);
 
   if (accountId) {
-    budgetQuery = budgetQuery.eq("account_id", accountId);
+    budgetList = budgetList.filter(b => b.account_id === accountId);
   }
 
-  const { data: budgets, error: budgetError } = await budgetQuery.order("created_at", { ascending: false });
-
-  if (budgetError) {
-    console.error("Error fetching budgets for report:", budgetError);
-    throw budgetError;
-  }
-
-  const budgetList = budgets || [];
+  // Sort by created_at descending
+  budgetList = [...budgetList].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
   if (budgetList.length === 0) {
     return {
@@ -328,36 +359,24 @@ export const getLocalBudgetReports = async (
   const analysisStartDate = startDate || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
   const analysisEndDate = endDate || new Date().toISOString().split('T')[0];
 
-  // Fetch transactions for spending analysis
-  let transactionQuery = supabase
-    .from("transactions")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("type", "expense")
-    .gte("date", analysisStartDate)
-    .lte("date", analysisEndDate);
+  // Fetch transactions for spending analysis from local store
+  let transactionList = selectTransactionsByDateRange(userId, analysisStartDate, analysisEndDate)
+    .filter(t => t.type === "expense");
 
   if (accountId) {
-    transactionQuery = transactionQuery.eq("account_id", accountId);
+    transactionList = transactionList.filter(t => t.account_id === accountId);
   }
-
-  const { data: transactions, error: transactionError } = await transactionQuery;
-
-  if (transactionError) {
-    console.error("Error fetching transactions for budget analysis:", transactionError);
-    throw transactionError;
-  }
-
-  const transactionList = transactions || [];
 
   // Calculate spending by category
   const spendingByCategory: Record<string, number> = {};
   transactionList.forEach(transaction => {
     const category = transaction.category;
-    if (!spendingByCategory[category]) {
-      spendingByCategory[category] = 0;
+    if (category) {
+      if (!spendingByCategory[category]) {
+        spendingByCategory[category] = 0;
+      }
+      spendingByCategory[category] += Math.abs(transaction.amount);
     }
-    spendingByCategory[category] += Math.abs(transaction.amount);
   });
 
   // Calculate budget comparison
@@ -412,22 +431,15 @@ export const getLocalBudgetReports = async (
   };
 };
 
-// Get goal reports locally
+// Get goal reports locally from Legend-State store
 export const getLocalGoalReports = async (userId: string): Promise<GoalReport> => {
-  // Fetch goals
-  const { data: goals, error: goalError } = await supabase
-    .from("goals")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("is_active", true)
-    .order("created_at", { ascending: false });
+  // Fetch from local store (works offline)
+  let goalList = selectGoals(userId).filter(g => g.is_active);
 
-  if (goalError) {
-    console.error("Error fetching goals for report:", goalError);
-    throw goalError;
-  }
-
-  const goalList = goals || [];
+  // Sort by created_at descending
+  goalList = [...goalList].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
   if (goalList.length === 0) {
     return {
@@ -504,29 +516,22 @@ export const getLocalGoalReports = async (userId: string): Promise<GoalReport> =
   };
 };
 
-// Get subscription reports locally
+// Get subscription reports locally from Legend-State store
 export const getLocalSubscriptionReports = async (
   userId: string,
   accountId?: string
 ): Promise<SubscriptionReport> => {
-  let query = supabase
-    .from("subscriptions")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("is_active", true);
+  // Fetch from local store (works offline)
+  let subscriptionList = selectSubscriptions(userId).filter(s => s.is_active);
 
   if (accountId) {
-    query = query.eq("account_id", accountId);
+    subscriptionList = subscriptionList.filter(s => s.account_id === accountId);
   }
 
-  const { data: subscriptions, error } = await query.order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("Error fetching subscriptions for report:", error);
-    throw error;
-  }
-
-  const subscriptionList = subscriptions || [];
+  // Sort by created_at descending
+  subscriptionList = [...subscriptionList].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
   // Calculate summary
   const totalSubscriptions = subscriptionList.length;
@@ -557,20 +562,22 @@ export const getLocalSubscriptionReports = async (
   // Calculate category breakdown
   const categoryBreakdown: Record<string, number> = {};
   subscriptionList.forEach(sub => {
-    if (!categoryBreakdown[sub.category]) {
-      categoryBreakdown[sub.category] = 0;
+    if (sub.category) {
+      if (!categoryBreakdown[sub.category]) {
+        categoryBreakdown[sub.category] = 0;
+      }
+      // Convert to monthly equivalent for comparison
+      let monthlyEquivalent = sub.amount;
+      switch (sub.billing_cycle) {
+        case "weekly":
+          monthlyEquivalent = sub.amount * 4.33;
+          break;
+        case "yearly":
+          monthlyEquivalent = sub.amount / 12;
+          break;
+      }
+      categoryBreakdown[sub.category] += monthlyEquivalent;
     }
-    // Convert to monthly equivalent for comparison
-    let monthlyEquivalent = sub.amount;
-    switch (sub.billing_cycle) {
-      case "weekly":
-        monthlyEquivalent = sub.amount * 4.33;
-        break;
-      case "yearly":
-        monthlyEquivalent = sub.amount / 12;
-        break;
-    }
-    categoryBreakdown[sub.category] += monthlyEquivalent;
   });
 
   // Format subscriptions for report
@@ -611,6 +618,169 @@ export const getLocalSubscriptionReports = async (
     },
     subscriptions: formattedSubscriptions,
     category_breakdown: categoryBreakdown,
+  };
+};
+
+// Get investment reports locally from Legend-State store
+export const getLocalInvestmentReports = async (
+  userId: string,
+  accountId?: string
+): Promise<InvestmentReport> => {
+  let investmentList = selectInvestments(userId);
+
+  if (accountId) {
+    investmentList = investmentList.filter(i => i.account_id === accountId);
+  }
+
+  // Sort by created_at descending
+  investmentList = [...investmentList].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  // Calculate summary
+  const totalInvestments = investmentList.length;
+  const totalInvested = investmentList.reduce((sum, inv) => sum + inv.invested_amount, 0);
+  const totalCurrentValue = investmentList.reduce((sum, inv) => sum + inv.current_value, 0);
+  const totalGainLoss = totalCurrentValue - totalInvested;
+  const gainLossPercentage = totalInvested > 0 ? (totalGainLoss / totalInvested) * 100 : 0;
+
+  // Calculate type breakdown
+  const typeBreakdown: Record<string, { invested: number; current: number }> = {};
+  investmentList.forEach(inv => {
+    const type = inv.type || "Other";
+    if (!typeBreakdown[type]) {
+      typeBreakdown[type] = { invested: 0, current: 0 };
+    }
+    typeBreakdown[type].invested += inv.invested_amount;
+    typeBreakdown[type].current += inv.current_value;
+  });
+
+  // Format investments for report
+  const formattedInvestments = investmentList.map(inv => {
+    const gainLoss = inv.current_value - inv.invested_amount;
+    const gainLossPct = inv.invested_amount > 0 ? (gainLoss / inv.invested_amount) * 100 : 0;
+
+    return {
+      id: inv.id,
+      name: inv.name,
+      type: inv.type || "Other",
+      invested_amount: inv.invested_amount,
+      current_value: inv.current_value,
+      gain_loss: gainLoss,
+      gain_loss_percentage: gainLossPct,
+      created_at: inv.created_at,
+    };
+  });
+
+  return {
+    summary: {
+      total_investments: totalInvestments,
+      total_invested: totalInvested,
+      total_current_value: totalCurrentValue,
+      total_gain_loss: totalGainLoss,
+      gain_loss_percentage: gainLossPercentage,
+    },
+    investments: formattedInvestments,
+    type_breakdown: typeBreakdown,
+  };
+};
+
+// Get loan reports locally from Legend-State store
+export const getLocalLoanReports = async (
+  userId: string,
+  accountId?: string
+): Promise<LoanReport> => {
+  let loanList = selectPersonalLoans(userId);
+
+  if (accountId) {
+    loanList = loanList.filter(l => l.account_id === accountId);
+  }
+
+  // Sort by created_at descending
+  loanList = [...loanList].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Calculate summary
+  const loansGiven = loanList.filter(l => l.type === "loan_given");
+  const loansTaken = loanList.filter(l => l.type === "loan_taken");
+
+  const totalGivenAmount = loansGiven.reduce((sum, l) => sum + l.principal_amount, 0);
+  const totalTakenAmount = loansTaken.reduce((sum, l) => sum + l.principal_amount, 0);
+  const totalOutstandingGiven = loansGiven
+    .filter(l => l.status !== "settled")
+    .reduce((sum, l) => sum + l.remaining_amount, 0);
+  const totalOutstandingTaken = loansTaken
+    .filter(l => l.status !== "settled")
+    .reduce((sum, l) => sum + l.remaining_amount, 0);
+
+  // Net position: positive means others owe you more than you owe
+  const netPosition = totalOutstandingGiven - totalOutstandingTaken;
+
+  // Format loans for report
+  const formattedLoans = loanList.map(loan => {
+    const paidAmount = loan.principal_amount - loan.remaining_amount;
+    let isOverdue = false;
+    let daysUntilDue: number | undefined;
+
+    if (loan.due_date && loan.status !== "settled") {
+      const dueDate = new Date(loan.due_date);
+      dueDate.setHours(0, 0, 0, 0);
+      const diffTime = dueDate.getTime() - today.getTime();
+      daysUntilDue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      isOverdue = daysUntilDue < 0;
+    }
+
+    return {
+      id: loan.id,
+      party_name: loan.party_name,
+      type: loan.type,
+      principal_amount: loan.principal_amount,
+      remaining_amount: loan.remaining_amount,
+      paid_amount: paidAmount,
+      interest_rate: loan.interest_rate,
+      due_date: loan.due_date,
+      status: loan.status,
+      is_overdue: isOverdue,
+      days_until_due: daysUntilDue,
+    };
+  });
+
+  // Get all repayment history
+  const repaymentHistory: LoanReport["repayment_history"] = [];
+  for (const loan of loanList) {
+    const repayments = selectLoanRepayments(loan.id);
+    for (const repayment of repayments) {
+      repaymentHistory.push({
+        loan_id: loan.id,
+        party_name: loan.party_name,
+        amount: repayment.amount,
+        payment_date: repayment.payment_date,
+      });
+    }
+  }
+
+  // Sort repayments by date descending
+  repaymentHistory.sort(
+    (a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime()
+  );
+
+  return {
+    summary: {
+      total_loans: loanList.length,
+      loans_given: loansGiven.length,
+      loans_taken: loansTaken.length,
+      total_given_amount: totalGivenAmount,
+      total_taken_amount: totalTakenAmount,
+      total_outstanding_given: totalOutstandingGiven,
+      total_outstanding_taken: totalOutstandingTaken,
+      net_position: netPosition,
+    },
+    loans: formattedLoans,
+    repayment_history: repaymentHistory.slice(0, 20), // Limit to recent 20
   };
 };
 

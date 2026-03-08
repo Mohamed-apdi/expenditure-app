@@ -1,5 +1,6 @@
 /**
  * Sync status indicator: offline, syncing, up-to-date, conflict, error.
+ * Shows pending count when there are unsynced changes.
  * See specs/002-offline-online-support/contracts/sync-status-contract.md
  */
 
@@ -12,12 +13,23 @@ const LABELS: Record<SyncStatus, string> = {
   offline: "Offline",
   syncing: "Syncing...",
   "up-to-date": "Synced",
-  conflict: "Conflict",
+  conflict: "Synced",
   error: "Sync error",
 };
 
 export function SyncStatusIndicator(): React.ReactElement {
   const state = useSyncStatus();
+  const hasPending = state.pendingCount > 0;
+
+  const getLabel = () => {
+    if (state.status === "offline" && hasPending) {
+      return `Offline (${state.pendingCount} pending)`;
+    }
+    if (state.status === "syncing" && hasPending) {
+      return `Syncing ${state.pendingCount}...`;
+    }
+    return LABELS[state.status];
+  };
 
   return (
     <View style={styles.container}>
@@ -26,12 +38,13 @@ export function SyncStatusIndicator(): React.ReactElement {
           styles.dot,
           state.status === "offline" && styles.dotOffline,
           state.status === "syncing" && styles.dotSyncing,
-          state.status === "up-to-date" && styles.dotUpToDate,
-          state.status === "conflict" && styles.dotConflict,
+          state.status === "up-to-date" && !hasPending && styles.dotUpToDate,
+          state.status === "up-to-date" && hasPending && styles.dotPending,
+          state.status === "conflict" && styles.dotUpToDate,
           state.status === "error" && styles.dotError,
         ]}
       />
-      <Text style={styles.label}>{LABELS[state.status]}</Text>
+      <Text style={styles.label}>{getLabel()}</Text>
     </View>
   );
 }
@@ -53,6 +66,7 @@ const styles = StyleSheet.create({
   dotOffline: { backgroundColor: "#94a3b8" },
   dotSyncing: { backgroundColor: "#f59e0b" },
   dotUpToDate: { backgroundColor: "#22c55e" },
+  dotPending: { backgroundColor: "#f59e0b" },
   dotConflict: { backgroundColor: "#ef4444" },
   dotError: { backgroundColor: "#ef4444" },
   label: {

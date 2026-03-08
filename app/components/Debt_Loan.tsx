@@ -16,16 +16,7 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 import { PersonalLoan, LoanRepayment, Account } from '~/lib';
-import {
-  getUserLoans,
-  createLoan,
-  updateLoan,
-  deleteLoan,
-  getLoanRepayments,
-  createRepayment,
-  deleteRepayment,
-} from '~/lib';
-import { fetchAccounts, createTransactionLocal, getCurrentUserOfflineFirst, isOfflineGateLocked, triggerSync } from '~/lib';
+import { createTransactionLocal, getCurrentUserOfflineFirst, isOfflineGateLocked, triggerSync } from '~/lib';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAccount } from '~/lib';
 import { X, TrendingUp, TrendingDown, Plus, Wallet, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
@@ -35,6 +26,19 @@ import DateTimePicker, {
 } from 'react-native-ui-datepicker';
 import { useTheme } from '~/lib';
 import { useLanguage } from '~/lib';
+import {
+  selectPersonalLoans,
+  createPersonalLoanLocal,
+  updatePersonalLoanLocal,
+  deletePersonalLoanLocal,
+} from '~/lib/stores/personalLoansStore';
+import {
+  selectLoanRepayments,
+  createLoanRepaymentLocal,
+  deleteLoanRepaymentLocal,
+} from '~/lib/stores/loanRepaymentsStore';
+import { selectAccounts, toAccount } from '~/lib/stores/accountsStore';
+import type { LocalPersonalLoan, LocalLoanRepayment } from '~/lib/stores/storeUtils';
 
 interface DebtLoanProps {
   accounts?: Account[];
@@ -107,50 +111,51 @@ const Debt_Loan = ({
     if (!currentUser) return;
 
     try {
-      const [loansData, accountsData] = await Promise.all([
-        getUserLoans(currentUser),
-        fetchAccounts(currentUser),
-      ]);
+      // Load from local stores (offline-first)
+      const loansData = selectPersonalLoans(currentUser);
+      const localAccounts = selectAccounts(currentUser);
+      const accountsData = localAccounts.map(toAccount);
 
       // Ensure remaining amounts are accurate by recalculating from repayments
-      const updatedLoans = await Promise.all(
-        loansData.map(async (loan) => {
-          try {
-            const repayments = await getLoanRepayments(loan.id);
-            const totalRepaid = repayments.reduce(
-              (sum, r) => sum + r.amount,
-              0,
-            );
-            const calculatedRemaining = Math.max(
-              0,
-              loan.principal_amount - totalRepaid,
-            );
+      const updatedLoans = loansData.map((loan) => {
+        try {
+          const loanRepayments = selectLoanRepayments(loan.id);
+          const totalRepaid = loanRepayments.reduce(
+            (sum, r) => sum + r.amount,
+            0,
+          );
+          const calculatedRemaining = Math.max(
+            0,
+            loan.principal_amount - totalRepaid,
+          );
 
-            // Update loan if remaining amount is different
-            if (Math.abs(calculatedRemaining - loan.remaining_amount) > 0.01) {
-              const newStatus =
-                calculatedRemaining <= 0
-                  ? 'settled'
-                  : calculatedRemaining < loan.principal_amount
-                    ? 'partial'
-                    : 'active';
+          // Update loan if remaining amount is different
+          if (Math.abs(calculatedRemaining - loan.remaining_amount) > 0.01) {
+            const newStatus =
+              calculatedRemaining <= 0
+                ? 'settled'
+                : calculatedRemaining < loan.principal_amount
+                  ? 'partial'
+                  : 'active';
 
-              const updatedLoan = await updateLoan(loan.id, {
-                remaining_amount: calculatedRemaining,
-                status: newStatus,
-              });
-              return updatedLoan;
-            }
-            return loan;
-          } catch (error) {
-            console.error(`Error syncing loan ${loan.id}:`, error);
-            return loan;
+            const updatedLoan = updatePersonalLoanLocal(loan.id, {
+              remaining_amount: calculatedRemaining,
+              status: newStatus,
+            });
+            return updatedLoan || loan;
           }
-        }),
-      );
+          return loan;
+        } catch (error) {
+          console.error(`Error syncing loan ${loan.id}:`, error);
+          return loan;
+        }
+      });
 
-      setLoans(updatedLoans);
+      setLoans(updatedLoans as PersonalLoan[]);
       setAccounts(accountsData);
+
+      // Trigger background sync to get latest data from server
+      triggerSync().catch(console.error);
     } catch (error) {
       console.error('Error loading data:', error);
       Alert.alert(t.error, t.failedToLoadData);
@@ -211,7 +216,8 @@ const Debt_Loan = ({
     }
 
     try {
-      const newLoan = await createLoan({
+      // Create loan locally
+      const newLoan = createPersonalLoanLocal({
         user_id: currentUser,
         type: formData.type,
         party_name: formData.party_name,
@@ -243,9 +249,11 @@ const Debt_Loan = ({
         is_recurring: false,
         type: transactionType,
       });
-      if (!(await isOfflineGateLocked())) void triggerSync();
 
-      setLoans([newLoan, ...loans]);
+      // Trigger sync
+      triggerSync().catch(console.error);
+
+      setLoans([newLoan as PersonalLoan, ...loans]);
       setShowAddModal(false);
       resetForm();
 
@@ -272,7 +280,8 @@ const Debt_Loan = ({
     }
 
     try {
-      const updatedLoan = await updateLoan(selectedLoan.id, {
+      // Update loan locally
+      const updatedLoan = updatePersonalLoanLocal(selectedLoan.id, {
         type: formData.type,
         party_name: formData.party_name,
         principal_amount: parseFloat(formData.principal_amount),
@@ -283,20 +292,21 @@ const Debt_Loan = ({
         account_id: formData.account_id,
       });
 
-      setLoans(
-        loans.map((loan) => (loan.id === updatedLoan.id ? updatedLoan : loan)),
-      );
+      if (updatedLoan) {
+        setLoans(
+          loans.map((loan) => (loan.id === updatedLoan.id ? (updatedLoan as PersonalLoan) : loan)),
+        );
+      }
       setShowEditModal(false);
       setSelectedLoan(null);
       resetForm();
 
+      // Trigger sync
+      triggerSync().catch(console.error);
+
       // Refresh data to show updated account balances
       await loadData();
       refreshAccounts();
-
-      // Note: Transaction updates for loan edits should be handled manually through the transactions screen
-      // This is because loan edits can be complex (changing amounts, accounts, etc.) and may require
-      // more sophisticated transaction management than can be safely automated here.
 
       Alert.alert(t.success, t.loanUpdated);
     } catch (error) {
@@ -316,8 +326,12 @@ const Debt_Loan = ({
           style: 'destructive',
           onPress: async () => {
             try {
-              await deleteLoan(loan.id);
+              // Delete loan locally (soft delete)
+              deletePersonalLoanLocal(loan.id);
               setLoans(loans.filter((l) => l.id !== loan.id));
+
+              // Trigger sync
+              triggerSync().catch(console.error);
 
               // Refresh data to show updated account balances
               await loadData();
@@ -356,7 +370,8 @@ const Debt_Loan = ({
     }
 
     try {
-      const newRepayment = await createRepayment({
+      // Create repayment locally
+      const newRepayment = createLoanRepaymentLocal({
         loan_id: selectedLoan.id,
         amount: parseFloat(repaymentData.amount),
         payment_date: repaymentData.payment_date,
@@ -381,10 +396,12 @@ const Debt_Loan = ({
           is_recurring: false,
           type: transactionType,
         });
-        if (!(await isOfflineGateLocked())) void triggerSync();
       }
 
-      setRepayments([newRepayment, ...repayments]);
+      // Trigger sync
+      triggerSync().catch(console.error);
+
+      setRepayments([newRepayment as LoanRepayment, ...repayments]);
 
       // Reset repayment form
       setRepaymentData({
@@ -406,8 +423,9 @@ const Debt_Loan = ({
     setSelectedLoan(loan);
     setSelectedRepaymentDate(new Date());
     try {
-      const repaymentsData = await getLoanRepayments(loan.id);
-      setRepayments(repaymentsData);
+      // Load repayments from local store
+      const repaymentsData = selectLoanRepayments(loan.id);
+      setRepayments(repaymentsData as LoanRepayment[]);
       setShowRepaymentModal(true);
     } catch (error) {
       console.error('Error loading repayments:', error);
@@ -1799,10 +1817,15 @@ const Debt_Loan = ({
                           className="p-2 bg-red-100 rounded-lg"
                           onPress={async () => {
                             try {
-                              await deleteRepayment(repayment.id);
+                              // Delete repayment locally (soft delete)
+                              deleteLoanRepaymentLocal(repayment.id);
                               setRepayments(
                                 repayments.filter((r) => r.id !== repayment.id),
                               );
+
+                              // Trigger sync
+                              triggerSync().catch(console.error);
+
                               await loadData(); // Refresh loans
 
                               // Refresh AccountContext to update all components using account balances

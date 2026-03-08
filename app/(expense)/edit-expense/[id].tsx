@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Modal,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -26,6 +28,7 @@ import {
   useAccount,
   upsertTransaction,
   updateExpense,
+  useLanguage,
 } from "~/lib";
 import {
   X,
@@ -39,12 +42,11 @@ import {
   MoreHorizontal,
   Calendar as CalendarIcon,
   ChevronDown,
-  Tag,
-  CreditCard,
   Wallet,
+  Briefcase,
+  TrendingUp,
+  Gift,
   DollarSign,
-  Check,
-  ChevronRight,
 } from "lucide-react-native";
 import { useTheme, useScreenStatusBar } from "~/lib";
 
@@ -55,7 +57,20 @@ type Category = {
   color: string;
 };
 
-type Frequency = "weekly" | "monthly" | "yearly";
+type TransactionType = "expense" | "income";
+
+const CARD_STYLE = {
+  paddingVertical: 16,
+  paddingHorizontal: 16,
+  borderRadius: 16,
+  minHeight: 72,
+  borderWidth: 1,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.06,
+  shadowRadius: 8,
+  elevation: 3,
+};
 
 export default function EditExpenseScreen() {
   const router = useRouter();
@@ -63,119 +78,153 @@ export default function EditExpenseScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Form state
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
-    null
-  );
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [date, setDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [recurringFrequency, setRecurringFrequency] =
-    useState<Frequency>("monthly");
-
-  const [tags, setTags] = useState<string[]>([]);
-  const [isEssential, setIsEssential] = useState(false);
+  const [transactionType, setTransactionType] = useState<TransactionType>("expense");
   const [isTransactionRecord, setIsTransactionRecord] = useState(false);
+  
+  const [dateSheetOpen, setDateSheetOpen] = useState(false);
+  const [categorySheetOpen, setCategorySheetOpen] = useState(false);
+  
   const theme = useTheme();
+  const { t } = useLanguage();
   const { accounts } = useAccount();
   useScreenStatusBar();
 
   const [originalAmount, setOriginalAmount] = useState<number | null>(null);
   const [accountId, setAccountId] = useState<string | null>(null);
 
-  const categories: Category[] = [
+  const expenseCategories: Category[] = [
     { id: "food", name: "Food", icon: ShoppingCart, color: "#10b981" },
     { id: "transport", name: "Transport", icon: Truck, color: "#3b82f6" },
     { id: "utilities", name: "Utilities", icon: Zap, color: "#f59e0b" },
-    {
-      id: "entertainment",
-      name: "Entertainment",
-      icon: Film,
-      color: "#8b5cf6",
-    },
+    { id: "entertainment", name: "Entertainment", icon: Film, color: "#8b5cf6" },
     { id: "healthcare", name: "Healthcare", icon: Heart, color: "#ef4444" },
     { id: "shopping", name: "Shopping", icon: ShoppingBag, color: "#06b6d4" },
     { id: "education", name: "Education", icon: Book, color: "#84cc16" },
     { id: "other", name: "Other", icon: MoreHorizontal, color: "#64748b" },
   ];
 
-  const quickAmounts = [10, 25, 50, 100];
+  const incomeCategories: Category[] = [
+    { id: "salary", name: "Salary", icon: Briefcase, color: "#10b981" },
+    { id: "freelance", name: "Freelance", icon: DollarSign, color: "#3b82f6" },
+    { id: "investment", name: "Investment", icon: TrendingUp, color: "#8b5cf6" },
+    { id: "gift", name: "Gift", icon: Gift, color: "#f59e0b" },
+    { id: "other", name: "Other", icon: MoreHorizontal, color: "#64748b" },
+  ];
+
+  const categories = transactionType === "expense" ? expenseCategories : incomeCategories;
+
+  const openDateSheet = useCallback(() => setDateSheetOpen(true), []);
+  const closeDateSheet = useCallback(() => setDateSheetOpen(false), []);
+  const openCategorySheet = useCallback(() => setCategorySheetOpen(true), []);
+  const closeCategorySheet = useCallback(() => setCategorySheetOpen(false), []);
+
+  const handleSelectCategory = useCallback(
+    (category: Category) => {
+      setSelectedCategory(category);
+      setCategorySheetOpen(false);
+    },
+    []
+  );
+
+  const formatDate = (d: Date) => {
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const onDateChange = useCallback(
+    (_event: any, selectedDate?: Date) => {
+      if (selectedDate) {
+        setDate(selectedDate);
+        setDateSheetOpen(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
-    const loadExpense = async () => {
+    const loadTransaction = async () => {
       if (!id || typeof id !== "string") return;
       try {
         setLoading(true);
         const user = await getCurrentUserOfflineFirst();
         if (!user) {
-          Alert.alert("Error", "Please sign in");
+          Alert.alert(t.error || "Error", t.pleaseSignIn || "Please sign in");
           router.back();
           return;
         }
-        let data = selectExpenseById(user.id, id);
-        if (data) {
-          setAmount(data.amount.toString());
-          setDescription(data.description ?? "");
-          setDate(new Date(data.date));
-          setIsRecurring(data.is_recurring ?? false);
-          setRecurringFrequency(
-            (data.recurrence_interval as Frequency) || "monthly",
-          );
-          setTags(data.tags ?? []);
-          setIsEssential(data.is_essential ?? false);
-          setOriginalAmount(data.amount);
-          setAccountId(data.account_id ?? null);
-          const category = categories.find((c) => c.name === data.category);
+        
+        const expenseData = selectExpenseById(user.id, id);
+        if (expenseData) {
+          setAmount(expenseData.amount.toString());
+          setDescription(expenseData.description ?? "");
+          setDate(new Date(expenseData.date));
+          setOriginalAmount(expenseData.amount);
+          setAccountId(expenseData.account_id ?? null);
+          setTransactionType("expense");
+          const category = expenseCategories.find((c) => c.name === expenseData.category);
           if (category) setSelectedCategory(category);
+          else if (expenseData.category) {
+            setSelectedCategory({
+              id: "other",
+              name: expenseData.category,
+              icon: MoreHorizontal,
+              color: "#64748b",
+            });
+          }
           setIsTransactionRecord(false);
         } else {
           const tx = selectTransactionById(user.id, id);
-          if (tx && tx.type === "expense") {
+          if (tx) {
             setAmount(tx.amount.toString());
             setDescription(tx.description ?? "");
             setDate(new Date(tx.date));
-            setIsRecurring(tx.is_recurring ?? false);
-            setRecurringFrequency(
-              (tx.recurrence_interval as Frequency) || "monthly",
-            );
-            setIsEssential(false);
             setOriginalAmount(tx.amount);
             setAccountId(tx.account_id);
-            const category = categories.find(
-              (c) => c.name === (tx.category ?? ""),
-            );
+            setTransactionType(tx.type === "income" ? "income" : "expense");
+            
+            const catList = tx.type === "income" ? incomeCategories : expenseCategories;
+            const category = catList.find((c) => c.name === (tx.category ?? ""));
             if (category) setSelectedCategory(category);
-            else if (tx.category)
+            else if (tx.category) {
               setSelectedCategory({
                 id: "other",
                 name: tx.category,
                 icon: MoreHorizontal,
                 color: "#64748b",
               });
+            }
             setIsTransactionRecord(true);
           } else {
-            Alert.alert("Error", "Expense not found");
+            Alert.alert(t.error || "Error", t.transactionNotFound || "Transaction not found");
             router.back();
             return;
           }
         }
       } catch (error) {
-        console.error("Error loading expense:", error);
-        Alert.alert("Error", "Failed to load expense data");
+        console.error("Error loading transaction:", error);
+        Alert.alert(t.error || "Error", t.failedToLoadTransaction || "Failed to load transaction data");
         router.back();
       } finally {
         setLoading(false);
       }
     };
 
-    loadExpense();
+    loadTransaction();
   }, [id]);
 
   const handleSave = async () => {
     if (!amount || !selectedCategory || !id || typeof id !== "string") {
-      Alert.alert("Missing Information", "Please fill in amount and category");
+      Alert.alert(
+        t.missingInformation || "Missing Information", 
+        t.pleaseFillAmountAndCategory || "Please fill in amount and category"
+      );
       return;
     }
 
@@ -188,61 +237,44 @@ export default function EditExpenseScreen() {
         category: selectedCategory.name,
         description: description.trim() || undefined,
         date: date.toISOString().split("T")[0],
-        is_recurring: isRecurring,
-      } as const;
+      };
 
       if (isTransactionRecord) {
-        const txPatch = {
-          ...basePatch,
-          recurrence_interval: isRecurring ? recurringFrequency : undefined,
-        };
+        const txPatch = { ...basePatch };
 
-        // 1) Update local transaction store (offline-first)
         updateTransactionLocal(id, txPatch);
 
-        // 2) Best-effort Supabase upsert (insert or update so local-only rows are created)
         try {
           const user = await getCurrentUserOfflineFirst();
           if (user && accountId) {
             await upsertTransaction(id, {
               user_id: user.id,
               account_id: accountId,
-              type: "expense",
+              type: transactionType,
               ...txPatch,
             });
           }
         } catch (remoteError) {
           console.error("Error upserting transaction on Supabase:", remoteError);
-          // Safe to ignore here; sync engine will retry when online
         }
       } else {
-        const expensePatch = {
-          ...basePatch,
-          recurrence_interval: isRecurring ? recurringFrequency : null,
-          is_essential: isEssential,
-          tags: tags.length > 0 ? tags : null,
-        };
-
-        // 1) Update local expense store (offline-first)
+        const expensePatch = { ...basePatch };
         updateExpenseLocal(id, expensePatch);
 
-        // 2) Best-effort Supabase update (online path)
         try {
           await updateExpense(id, expensePatch);
         } catch (remoteError) {
           console.error("Error updating expense on Supabase:", remoteError);
-          // Safe to ignore here; sync engine will retry when online
         }
       }
 
-      // Adjust account balance locally so Dashboard reflects the change immediately
       if (accountId && originalAmount != null) {
         const acc = accounts.find((a) => a.id === accountId);
         if (acc) {
-          const diff = newAmountNum - originalAmount; // positive if expense increased
-          const newBalance = acc.amount - diff; // expenses reduce balance
+          const diff = newAmountNum - originalAmount;
+          const balanceChange = transactionType === "expense" ? -diff : diff;
+          const newBalance = acc.amount + balanceChange;
           updateAccountLocal(accountId, { amount: newBalance });
-          // Persist balance to Supabase so it survives reload
           try {
             await updateAccountBalance(accountId, newBalance);
           } catch (balanceError) {
@@ -253,345 +285,416 @@ export default function EditExpenseScreen() {
 
       if (!(await isOfflineGateLocked())) void triggerSync();
 
-      Alert.alert("Success", "Expense updated successfully!", [
-        { text: "OK", onPress: () => router.back() },
+      const successMsg = transactionType === "expense" 
+        ? (t.expenseUpdatedSuccessfully || "Expense updated successfully!")
+        : (t.incomeUpdatedSuccessfully || "Income updated successfully!");
+      
+      Alert.alert(t.success || "Success", successMsg, [
+        { text: t.ok || "OK", onPress: () => router.back() },
       ]);
     } catch (error) {
-      console.error("Error updating expense:", error);
-      Alert.alert("Error", "Failed to update expense");
+      console.error("Error updating transaction:", error);
+      Alert.alert(t.error || "Error", t.failedToUpdateTransaction || "Failed to update transaction");
     } finally {
       setSaving(false);
     }
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
-
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      setDate(selectedDate);
-    }
-  };
-
-  const toggleEssential = () => {
-    setIsEssential(!isEssential);
-  };
+  const accentColor = transactionType === "expense" ? theme.danger : theme.success;
 
   if (loading) {
     return (
-      <SafeAreaView className="flex-1 bg-slate-900 items-center justify-center">
-        <ActivityIndicator size="large" color="#10b981" />
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background, alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView
-      className="flex-1 "
-      style={{ backgroundColor: theme.background }}
-    >
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
       <KeyboardAvoidingView
-        className="flex-1"
+        style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         {/* Header */}
         <View
-          className="flex-row justify-between items-center px-6 py-4 border-b "
-          style={{ borderColor: theme.border }}
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingHorizontal: 20,
+            paddingVertical: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: theme.border,
+          }}
         >
           <TouchableOpacity onPress={() => router.back()}>
             <X size={24} color={theme.icon} />
           </TouchableOpacity>
-          <Text className=" text-lg font-bold" style={{ color: theme.text }}>
-            Edit Expense
+          <Text style={{ color: theme.text, fontSize: 18, fontWeight: "700" }}>
+            {transactionType === "expense" 
+              ? (t.editExpense || "Edit Expense")
+              : (t.editIncome || "Edit Income")}
           </Text>
           <TouchableOpacity
-            className={`py-2 px-4 rounded-lg ${
-              !amount || !selectedCategory || !description.trim() || saving
-                ? "bg-slate-700"
-                : "bg-emerald-500"
-            }`}
+            style={{
+              paddingVertical: 8,
+              paddingHorizontal: 16,
+              borderRadius: 8,
+              backgroundColor: !amount || !selectedCategory || saving
+                ? theme.border
+                : accentColor,
+            }}
             onPress={handleSave}
-            disabled={
-              !amount || !selectedCategory || !description.trim() || saving
-            }
+            disabled={!amount || !selectedCategory || saving}
           >
             <Text
-              className={`font-bold ${
-                !amount || !selectedCategory || !description.trim() || saving
-                  ? "text-slate-500"
-                  : "text-white"
-              }`}
+              style={{
+                fontWeight: "600",
+                color: !amount || !selectedCategory || saving
+                  ? theme.textMuted
+                  : "#ffffff",
+              }}
             >
-              {saving ? "Saving..." : "Save"}
+              {saving ? (t.saving || "Saving...") : (t.save || "Save")}
             </Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
+        <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
           {/* Amount Input */}
-          <View className="px-6 py-8 items-center">
-            <Text className=" mb-4" style={{ color: theme.textSecondary }}>
-              Amount
-            </Text>
-            <View className="flex-row items-center mb-6">
-              <Text className="text-emerald-500 text-3xl font-bold mr-2">
+          <View style={{ alignItems: "center", paddingVertical: 32 }}>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Text style={{ color: accentColor, fontSize: 28, fontWeight: "600", marginRight: 8 }}>
                 $
               </Text>
               <TextInput
-                className=" text-4xl font-bold min-w-[120px] text-center"
-                style={{ color: theme.placeholder }}
+                style={{
+                  color: theme.text,
+                  fontSize: 28,
+                  fontWeight: "600",
+                  minWidth: 100,
+                  textAlign: "center",
+                }}
                 value={amount}
                 onChangeText={(text) => setAmount(text.replace(/[^0-9.]/g, ""))}
                 placeholder="0.00"
-                placeholderTextColor="#64748b"
+                placeholderTextColor={theme.placeholder}
                 keyboardType="decimal-pad"
                 autoFocus
               />
             </View>
+          </View>
 
-            {/* Quick Amount Buttons */}
-            <View className="flex-row gap-3">
-              {quickAmounts.map((quickAmount) => (
-                <TouchableOpacity
-                  key={quickAmount}
-                  style={{
-                    backgroundColor: theme.background,
-                    borderColor: theme.border,
-                  }}
-                  className=" py-2 px-4 rounded-full border "
-                  onPress={() => setAmount(quickAmount.toString())}
-                >
+          <View style={{ paddingHorizontal: 20 }}>
+            {/* Category Selection */}
+            <View style={{ marginBottom: 20 }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "500",
+                  marginBottom: 8,
+                  color: theme.textSecondary,
+                }}
+              >
+                {t.select_category || "Category"}
+              </Text>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={openCategorySheet}
+                style={{
+                  ...CARD_STYLE,
+                  backgroundColor: theme.cardBackground,
+                  borderColor: selectedCategory ? selectedCategory.color : theme.border,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 12,
+                      backgroundColor: selectedCategory
+                        ? `${selectedCategory.color}18`
+                        : `${theme.border}40`,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 14,
+                    }}
+                  >
+                    {selectedCategory ? (
+                      <selectedCategory.icon size={22} color={selectedCategory.color} />
+                    ) : (
+                      <ChevronDown size={22} color={theme.textMuted} />
+                    )}
+                  </View>
                   <Text
-                    className=" font-medium"
-                    style={{ color: theme.textSecondary }}
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "600",
+                      color: selectedCategory ? theme.text : theme.placeholder,
+                    }}
+                    numberOfLines={1}
                   >
-                    ${quickAmount}
+                    {selectedCategory?.name ?? (t.select_category || "Select category")}
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Category Selection */}
-          <View className="px-6 mb-8">
-            <Text
-              className=" text-lg font-bold mb-4"
-              style={{ color: theme.text }}
-            >
-              Category
-            </Text>
-            <View className="flex-row flex-wrap gap-3">
-              {categories.map((category) => {
-                const IconComponent = category.icon;
-                return (
-                  <TouchableOpacity
-                    key={category.id}
-                    className={`w-[22%] aspect-square justify-center items-center rounded-xl border ${
-                      selectedCategory?.id === category.id
-                        ? " bg-emerald-500/10"
-                        : theme.cardBackground
-                    }`}
-                    style={{ borderColor: theme.border }}
-                    onPress={() => setSelectedCategory(category)}
-                  >
-                    <View
-                      className={`w-8 h-8 rounded-full justify-center items-center ${
-                        selectedCategory?.id === category.id
-                          ? ""
-                          : `bg-[${category.color}50]`
-                      }`}
-                    >
-                      <IconComponent
-                        size={20}
-                        color={
-                          selectedCategory?.id === category.id
-                            ? category.color
-                            : category.color
-                        }
-                      />
-                    </View>
-                    <Text
-                      className={`mt-2 text-xs ${
-                        selectedCategory?.id === category.id
-                          ? "text-emerald-500 font-semibold"
-                          : "text-slate-400 font-medium"
-                      }`}
-                    >
-                      {category.name}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Description */}
-          <View className="px-6 mb-8">
-            <Text
-              className=" text-lg font-bold mb-4"
-              style={{ color: theme.text }}
-            >
-              Description
-            </Text>
-            <TextInput
-              className=" rounded-xl border p-4  text-base h-24"
-              style={{
-                color: theme.text,
-                borderColor: theme.border,
-                backgroundColor: theme.background,
-              }}
-              value={description}
-              onChangeText={setDescription}
-              placeholder="What did you spend on?"
-              placeholderTextColor="#64748b"
-              multiline
-              textAlignVertical="top"
-            />
-          </View>
-
-          {/* Date Selection */}
-          <View className="px-6 mb-8">
-            <Text
-              className="text-lg font-bold mb-4"
-              style={{ color: theme.text }}
-            >
-              Date
-            </Text>
-            <TouchableOpacity
-              className="flex-row items-center  p-4 rounded-xl border "
-              onPress={() => setShowDatePicker(true)}
-              style={{
-                borderColor: theme.border,
-                backgroundColor: theme.background,
-              }}
-            >
-              <CalendarIcon size={20} color="#10b981" />
-              <Text className=" ml-3 flex-1" style={{ color: theme.text }}>
-                {formatDate(date)}
-              </Text>
-              <ChevronDown size={16} color="#64748b" />
-            </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
-                value={date}
-                mode="date"
-                display="default"
-                onChange={onDateChange}
-                maximumDate={new Date()}
-              />
-            )}
-          </View>
-
-          {/* Recurring Option */}
-          <View className="px-6 mb-8">
-            <View className="flex-row justify-between items-center mb-4">
-              <Text
-                className=" text-lg font-bold"
-                style={{ color: theme.text }}
-              >
-                Recurring Expense
-              </Text>
-              <TouchableOpacity
-                className={`w-12 h-7 rounded-full justify-center ${
-                  isRecurring ? "bg-emerald-500" : "bg-slate-700"
-                }`}
-                onPress={() => setIsRecurring(!isRecurring)}
-              >
-                <View
-                  className={`w-6 h-6 rounded-full bg-white ${
-                    isRecurring ? "self-end" : "self-start"
-                  }`}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {isRecurring && (
-              <View>
-                <Text className="mb-3" style={{ color: theme.textSecondary }}>
-                  Frequency
-                </Text>
-                <View className="flex-row gap-3">
-                  {["weekly", "monthly", "yearly"].map((freq) => {
-                    const isSelected = recurringFrequency === freq;
-                    return (
-                      <TouchableOpacity
-                        key={freq}
-                        className="flex-1 py-3 rounded-lg border"
-                        style={{
-                          backgroundColor: isSelected
-                            ? "#10b981"
-                            : theme.cardBackground,
-                          borderColor: isSelected ? "#10b981" : theme.border,
-                        }}
-                        onPress={() => setRecurringFrequency(freq as Frequency)}
-                      >
-                        <Text
-                          className="text-center font-medium"
-                          style={{
-                            color: isSelected ? "#ffffff" : theme.textSecondary,
-                            fontWeight: isSelected ? "600" : "500",
-                          }}
-                        >
-                          {freq.charAt(0).toUpperCase() + freq.slice(1)}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
                 </View>
-              </View>
-            )}
-          </View>
-
-          {/* Essential/Discretionary Toggle */}
-          <View className="px-6 mb-8">
-            <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-white text-lg font-bold">
-                Essential Expense
-              </Text>
-              <TouchableOpacity
-                className={`w-12 h-7 rounded-full justify-center ${
-                  isEssential ? "bg-emerald-500" : "bg-slate-700"
-                }`}
-                onPress={toggleEssential}
-              >
-                <View
-                  className={`w-6 h-6 rounded-full bg-white ${
-                    isEssential ? "self-end" : "self-start"
-                  }`}
-                />
+                <ChevronDown size={20} color={theme.textMuted} />
               </TouchableOpacity>
             </View>
-          </View>
 
-          {/* Tags */}
-          <View className="px-6 mb-8">
-            <Text className="mb-3" style={{ color: theme.text }}>
-              Tags
-            </Text>
-            <TouchableOpacity
-              className="flex-row items-center p-4 rounded-xl border "
-              style={{
-                backgroundColor: theme.background,
-                borderColor: theme.border,
-              }}
+            {/* Category bottom sheet */}
+            <Modal
+              visible={categorySheetOpen}
+              transparent
+              animationType="slide"
+              onRequestClose={closeCategorySheet}
             >
-              <Tag size={20} color="#f59e0b" />
-              <Text
-                className=" ml-3 flex-1 font-medium"
-                style={{ color: theme.text }}
+              <Pressable
+                style={{
+                  flex: 1,
+                  justifyContent: "flex-end",
+                  backgroundColor: "rgba(0,0,0,0.4)",
+                }}
+                onPress={closeCategorySheet}
               >
-                {tags.length > 0 ? tags.join(", ") : "Add tags..."}
+                <Pressable
+                  style={{
+                    maxHeight: "75%",
+                    backgroundColor: theme.cardBackground,
+                    borderTopLeftRadius: 20,
+                    borderTopRightRadius: 20,
+                    overflow: "hidden",
+                  }}
+                  onPress={(e) => e.stopPropagation()}
+                >
+                  <View style={{ paddingTop: 12, paddingBottom: 8, alignItems: "center" }}>
+                    <View
+                      style={{
+                        width: 36,
+                        height: 4,
+                        borderRadius: 2,
+                        backgroundColor: theme.border,
+                      }}
+                    />
+                  </View>
+                  <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+                    <Text
+                      style={{
+                        fontSize: 18,
+                        fontWeight: "700",
+                        color: theme.text,
+                        marginBottom: 16,
+                      }}
+                    >
+                      {t.select_category || "Select category"}
+                    </Text>
+                    <ScrollView
+                      style={{ maxHeight: 320 }}
+                      contentContainerStyle={{ paddingBottom: 16 }}
+                      showsVerticalScrollIndicator={false}
+                    >
+                      {categories
+                        .filter((cat) => cat.name && cat.name !== "undefined")
+                        .map((category) => {
+                          const CategoryIcon = category.icon;
+                          return (
+                            <TouchableOpacity
+                              key={category.id}
+                              activeOpacity={0.7}
+                              onPress={() => handleSelectCategory(category)}
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                paddingVertical: 14,
+                                paddingHorizontal: 12,
+                                borderRadius: 12,
+                                backgroundColor: theme.background,
+                                marginBottom: 8,
+                                borderWidth: 1,
+                                borderColor: theme.border,
+                              }}
+                            >
+                              <View
+                                style={{
+                                  width: 40,
+                                  height: 40,
+                                  borderRadius: 10,
+                                  backgroundColor: `${category.color}18`,
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  marginRight: 12,
+                                }}
+                              >
+                                <CategoryIcon size={20} color={category.color} />
+                              </View>
+                              <Text
+                                style={{
+                                  fontSize: 16,
+                                  fontWeight: "600",
+                                  color: theme.text,
+                                  flex: 1,
+                                }}
+                              >
+                                {category.name}
+                              </Text>
+                              <View style={{ transform: [{ rotate: "-90deg" }] }}>
+                                <ChevronDown size={18} color={theme.textMuted} />
+                              </View>
+                            </TouchableOpacity>
+                          );
+                        })}
+                    </ScrollView>
+                  </View>
+                </Pressable>
+              </Pressable>
+            </Modal>
+
+            {/* Note - Optional */}
+            <View style={{ marginBottom: 20 }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "500",
+                  marginBottom: 8,
+                  color: theme.textSecondary,
+                }}
+              >
+                {t.note || "Note"} ({t.optional || "optional"})
               </Text>
-              <ChevronRight size={16} color="#64748b" />
-            </TouchableOpacity>
+              <TextInput
+                style={{
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  padding: 16,
+                  fontSize: 16,
+                  minHeight: 50,
+                  backgroundColor: theme.inputBackground ?? theme.background,
+                  color: theme.text,
+                  textAlignVertical: "top",
+                }}
+                value={description}
+                onChangeText={setDescription}
+                placeholder={
+                  transactionType === "expense"
+                    ? (t.addNoteAboutExpense || "Add a note (optional)...")
+                    : (t.addNoteAboutIncome || "Add a note (optional)...")
+                }
+                placeholderTextColor={theme.placeholder}
+                multiline
+              />
+            </View>
+
+            {/* Date Selection */}
+            <View style={{ marginBottom: 20 }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "500",
+                  marginBottom: 8,
+                  color: theme.textSecondary,
+                }}
+              >
+                {t.date || "Date"}
+              </Text>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={openDateSheet}
+                style={{
+                  ...CARD_STYLE,
+                  backgroundColor: theme.cardBackground,
+                  borderColor: theme.border,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 12,
+                      backgroundColor: `${accentColor}18`,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 14,
+                    }}
+                  >
+                    <CalendarIcon size={22} color={accentColor} />
+                  </View>
+                  <Text
+                    style={{ fontSize: 16, fontWeight: "600", color: theme.text }}
+                    numberOfLines={1}
+                  >
+                    {formatDate(date)}
+                  </Text>
+                </View>
+                <ChevronDown size={20} color={theme.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Date bottom sheet */}
+            <Modal
+              visible={dateSheetOpen}
+              transparent
+              animationType="slide"
+              onRequestClose={closeDateSheet}
+            >
+              <Pressable
+                style={{
+                  flex: 1,
+                  justifyContent: "flex-end",
+                  backgroundColor: "rgba(0,0,0,0.4)",
+                }}
+                onPress={closeDateSheet}
+              >
+                <Pressable
+                  style={{
+                    backgroundColor: theme.cardBackground,
+                    borderTopLeftRadius: 20,
+                    borderTopRightRadius: 20,
+                    overflow: "hidden",
+                    paddingBottom: 24,
+                  }}
+                  onPress={(e) => e.stopPropagation()}
+                >
+                  <View style={{ paddingTop: 12, paddingBottom: 8, alignItems: "center" }}>
+                    <View
+                      style={{
+                        width: 36,
+                        height: 4,
+                        borderRadius: 2,
+                        backgroundColor: theme.border,
+                      }}
+                    />
+                  </View>
+                  <View style={{ paddingHorizontal: 20 }}>
+                    <Text
+                      style={{
+                        fontSize: 18,
+                        fontWeight: "700",
+                        color: theme.text,
+                        marginBottom: 16,
+                      }}
+                    >
+                      {t.selectDate || "Select date"}
+                    </Text>
+                    <DateTimePicker
+                      value={date}
+                      mode="date"
+                      display={Platform.OS === "ios" ? "inline" : "default"}
+                      onChange={onDateChange}
+                      maximumDate={new Date()}
+                    />
+                  </View>
+                </Pressable>
+              </Pressable>
+            </Modal>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

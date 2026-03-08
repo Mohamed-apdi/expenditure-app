@@ -1,17 +1,23 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useRef, useState, useEffect } from "react";
 import {
   RefreshControl,
   Text,
   TouchableOpacity,
   View,
+  Alert,
 } from "react-native";
 import { FlatList } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Swipeable from "react-native-gesture-handler/Swipeable";
 import { RectButton } from "react-native-gesture-handler";
 import { formatDistanceToNow } from "date-fns";
-import { ArrowLeft, MoreHorizontal, Pencil, Trash2 } from "lucide-react-native";
-import { useTheme, useLanguage } from "~/lib";
+import { ArrowLeft, MoreHorizontal, Pencil, Trash2, Inbox } from "lucide-react-native";
+import { useTheme, useLanguage, getCurrentUserOfflineFirst, useAccount } from "~/lib";
+import { selectTransactions, deleteTransactionLocal } from "~/lib/stores/transactionsStore";
+import { updateAccountLocal, updateAccountBalance } from "~/lib/stores/accountsStore";
+import { isOfflineGateLocked, triggerSync } from "~/lib/sync/legendSync";
+import { deleteTransaction } from "~/lib/services/transactions";
+import { useRouter } from "expo-router";
 
 type Transaction = {
   id: string;
@@ -19,64 +25,11 @@ type Transaction = {
   category?: string;
   description?: string;
   created_at: string;
+  updated_at?: string;
   date: string;
   type: "expense" | "income" | "transfer";
   account_id: string;
 };
-
-// Mock data for UI-only screen
-const MOCK_TRANSACTIONS: Transaction[] = [
-  {
-    id: "1",
-    amount: -45.99,
-    category: "Food",
-    description: "Grocery store",
-    created_at: new Date().toISOString(),
-    date: new Date().toISOString().split("T")[0],
-    type: "expense",
-    account_id: "acc1",
-  },
-  {
-    id: "2",
-    amount: 2500,
-    category: "Salary",
-    description: "Monthly salary",
-    created_at: new Date(Date.now() - 86400000).toISOString(),
-    date: new Date(Date.now() - 86400000).toISOString().split("T")[0],
-    type: "income",
-    account_id: "acc1",
-  },
-  {
-    id: "3",
-    amount: -12.5,
-    category: "Transport",
-    description: "Bus fare",
-    created_at: new Date(Date.now() - 172800000).toISOString(),
-    date: new Date(Date.now() - 172800000).toISOString().split("T")[0],
-    type: "expense",
-    account_id: "acc1",
-  },
-  {
-    id: "4",
-    amount: -89,
-    category: "Utilities",
-    description: "Electric bill",
-    created_at: new Date(Date.now() - 259200000).toISOString(),
-    date: new Date(Date.now() - 259200000).toISOString().split("T")[0],
-    type: "expense",
-    account_id: "acc1",
-  },
-  {
-    id: "5",
-    amount: 150,
-    category: "Freelance",
-    description: "Project payment",
-    created_at: new Date(Date.now() - 345600000).toISOString(),
-    date: new Date(Date.now() - 345600000).toISOString().split("T")[0],
-    type: "income",
-    account_id: "acc1",
-  },
-];
 
 const ACTION_WIDTH = 80;
 
@@ -147,23 +100,27 @@ function TransactionRow({
   theme,
   onRowOpen,
   onRowClose,
+  onEdit,
+  onDelete,
 }: {
   transaction: Transaction;
   theme: ReturnType<typeof useTheme>;
   onRowOpen: (close: () => void) => void;
   onRowClose: () => void;
+  onEdit: (id: string, type: string) => void;
+  onDelete: (id: string) => void;
 }) {
   const swipeableRef = useRef<React.ComponentRef<typeof Swipeable> | null>(null);
 
   const handleEdit = useCallback(() => {
     swipeableRef.current?.close();
-    // Placeholder - no real logic
-  }, []);
+    onEdit(transaction.id, transaction.type);
+  }, [transaction.id, transaction.type, onEdit]);
 
   const handleDelete = useCallback(() => {
     swipeableRef.current?.close();
-    // Placeholder - no real logic
-  }, []);
+    onDelete(transaction.id);
+  }, [transaction.id, onDelete]);
 
   const renderRightActions = useCallback(
     () => (
@@ -278,9 +235,49 @@ function TransactionRow({
 export default function TransactionsScreen() {
   const theme = useTheme();
   const { t } = useLanguage();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
   const openRowRef = useRef<(() => void) | null>(null);
+  const { account } = useAccount();
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const user = await getCurrentUserOfflineFirst();
+        if (user) {
+          setUserId(user.id);
+        }
+      } catch (error) {
+        console.error("Failed to load user:", error);
+      }
+    };
+    loadUser();
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const loadTransactions = async () => {
+      try {
+        setLoading(true);
+        const data = await selectTransactions(userId);
+        const sorted = data.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setTransactions(sorted as Transaction[]);
+      } catch (error) {
+        console.error("Failed to load transactions:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadTransactions();
+  }, [userId]);
 
   const closeOpenRow = useCallback(() => {
     openRowRef.current?.();
@@ -292,10 +289,84 @@ export default function TransactionsScreen() {
     openRowRef.current = close;
   }, []);
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
+    if (!userId) return;
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 800);
-  }, []);
+    try {
+      const offline = await isOfflineGateLocked();
+      if (!offline) {
+        await triggerSync();
+      }
+      const data = await selectTransactions(userId);
+      const sorted = data.sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      setTransactions(sorted as Transaction[]);
+    } catch (error) {
+      console.error("Error refreshing transactions:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [userId]);
+
+  const handleEdit = useCallback(
+    (id: string, _type: string) => {
+      router.push(`/(expense)/edit-expense/${id}` as any);
+    },
+    [router]
+  );
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      Alert.alert(
+        t.deleteTransaction || "Delete Transaction",
+        t.confirmDeleteTransaction || "Are you sure you want to delete this transaction?",
+        [
+          { text: t.cancel || "Cancel", style: "cancel" },
+          {
+            text: t.delete || "Delete",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                const transaction = transactions.find((tx) => tx.id === id);
+                if (!transaction || !userId) return;
+
+                const offline = await isOfflineGateLocked();
+                if (offline) {
+                  await deleteTransactionLocal(id);
+                  if (account && transaction.account_id === account.id) {
+                    const newBalance =
+                      transaction.type === "expense"
+                        ? account.balance + transaction.amount
+                        : account.balance - transaction.amount;
+                    await updateAccountLocal(account.id, { balance: newBalance });
+                  }
+                } else {
+                  await deleteTransaction(id);
+                  if (account && transaction.account_id === account.id) {
+                    const newBalance =
+                      transaction.type === "expense"
+                        ? account.balance + transaction.amount
+                        : account.balance - transaction.amount;
+                    await updateAccountBalance(account.id, newBalance);
+                  }
+                }
+                setTransactions((prev) => prev.filter((tx) => tx.id !== id));
+              } catch (error) {
+                console.error("Error deleting transaction:", error);
+                Alert.alert(
+                  t.error || "Error",
+                  t.failedToDeleteTransaction || "Failed to delete transaction"
+                );
+              }
+            },
+          },
+        ]
+      );
+    },
+    [transactions, userId, account, t]
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: Transaction }) => (
@@ -304,9 +375,11 @@ export default function TransactionsScreen() {
         theme={theme}
         onRowOpen={handleRowOpen}
         onRowClose={closeOpenRow}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
       />
     ),
-    [theme, handleRowOpen, closeOpenRow]
+    [theme, handleRowOpen, closeOpenRow, handleEdit, handleDelete]
   );
 
   const keyExtractor = useCallback((item: Transaction) => item.id, []);
@@ -318,6 +391,7 @@ export default function TransactionsScreen() {
         alignItems: "center",
       }}
     >
+      <Inbox size={48} color={theme.textMuted} style={{ marginBottom: 12 }} />
       <Text
         style={{
           color: theme.textSecondary,
@@ -326,6 +400,15 @@ export default function TransactionsScreen() {
         }}
       >
         {t.noTransactionsForMonth || "No transactions yet"}
+      </Text>
+      <Text
+        style={{
+          color: theme.textMuted,
+          fontSize: 13,
+          marginTop: 4,
+        }}
+      >
+        {t.addYourFirstTransaction || "Add your first transaction to get started"}
       </Text>
     </View>
   );
@@ -345,6 +428,7 @@ export default function TransactionsScreen() {
       >
         <View className="flex-row items-center justify-between">
           <TouchableOpacity
+            onPress={() => router.back()}
             style={{
               padding: 8,
               borderRadius: 12,
@@ -371,7 +455,7 @@ export default function TransactionsScreen() {
                 marginTop: 2,
               }}
             >
-              {MOCK_TRANSACTIONS.length} total
+              {transactions.length} {t.total || "total"}
             </Text>
           </View>
         </View>
@@ -379,7 +463,7 @@ export default function TransactionsScreen() {
 
       {/* FlatList with Swipeable rows */}
       <FlatList
-        data={MOCK_TRANSACTIONS}
+        data={transactions}
         keyExtractor={keyExtractor}
         renderItem={renderItem}
         contentContainerStyle={{
@@ -396,7 +480,7 @@ export default function TransactionsScreen() {
           />
         }
         onScrollBeginDrag={closeOpenRow}
-        ListEmptyComponent={ListEmptyComponent}
+        ListEmptyComponent={!loading ? ListEmptyComponent : null}
       />
     </View>
   );

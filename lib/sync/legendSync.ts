@@ -7,14 +7,15 @@ import { accountTypes$ } from "../stores/accountTypesStore";
 import { accounts$ } from "../stores/accountsStore";
 import { budgets$ } from "../stores/budgetsStore";
 import {
-  addConflictLocal,
-  resolveConflictLocal,
   resolveConflictsForEntity,
-  selectConflictById,
   selectConflictsCount,
+  selectConflictById,
+  resolveConflictLocal,
 } from "../stores/conflictsStore";
 import { expenses$ } from "../stores/expensesStore";
 import { goals$ } from "../stores/goalsStore";
+import { investments$ } from "../stores/investmentsStore";
+import { loanRepayments$ } from "../stores/loanRepaymentsStore";
 import { personalLoans$ } from "../stores/personalLoansStore";
 import { profiles$ } from "../stores/profileStore";
 import { ensureId, type LocalStatus } from "../stores/storeUtils";
@@ -30,7 +31,7 @@ import {
 } from "../stores/syncStateStore";
 import { transactions$ } from "../stores/transactionsStore";
 import { transfers$ } from "../stores/transfersStore";
-import type { ConflictType, SyncableEntityType } from "./types";
+import type { SyncableEntityType } from "./types";
 
 type SyncEntity =
   | "account_types"
@@ -43,6 +44,8 @@ type SyncEntity =
   | "goals"
   | "subscriptions"
   | "personal_loans"
+  | "loan_repayments"
+  | "investments"
   | "profiles";
 
 const ENTITY_ORDER: SyncEntity[] = [
@@ -56,6 +59,8 @@ const ENTITY_ORDER: SyncEntity[] = [
   "goals",
   "subscriptions",
   "personal_loans",
+  "loan_repayments",
+  "investments",
   "profiles",
 ];
 
@@ -101,6 +106,8 @@ async function computePendingCount(): Promise<number> {
     goals$,
     subscriptions$,
     personalLoans$,
+    loanRepayments$,
+    investments$,
     profiles$,
   ];
 
@@ -135,6 +142,14 @@ function baseQueryForTable(table: SyncEntity, userId: string) {
 
   if (table === "profiles") {
     return query.eq("id", userId);
+  }
+
+  if (table === "loan_repayments") {
+    // loan_repayments doesn't have user_id directly; we'll filter via personal_loans
+    // For now, just pull all and filter locally, or we join. Simplified: pull all related to user's loans.
+    // Actually, let's add a subquery approach or just pull all repayments for user's loans.
+    // For simplicity, we'll need to handle this differently - pull all then filter.
+    return query;
   }
 
   if (table !== "account_types") {
@@ -199,6 +214,16 @@ function storeForTable(table: SyncEntity): {
         byId: () => personalLoans$.get().byId as any,
         set: personalLoans$.set as any,
       };
+    case "loan_repayments":
+      return {
+        byId: () => loanRepayments$.get().byId as any,
+        set: loanRepayments$.set as any,
+      };
+    case "investments":
+      return {
+        byId: () => investments$.get().byId as any,
+        set: investments$.set as any,
+      };
     case "profiles":
       return {
         byId: () => profiles$.get().byId as any,
@@ -229,6 +254,10 @@ function syncableEntityTypeFor(table: SyncEntity): SyncableEntityType {
       return "subscription";
     case "personal_loans":
       return "personal_loan";
+    case "loan_repayments":
+      return "loan_repayment";
+    case "investments":
+      return "investment";
     case "profiles":
       return "profile";
   }
@@ -246,6 +275,8 @@ function tableForEntityType(entityType: SyncableEntityType): SyncEntity {
     goal: "goals",
     subscription: "subscriptions",
     personal_loan: "personal_loans",
+    loan_repayment: "loan_repayments",
+    investment: "investments",
     profile: "profiles",
   };
   return map[entityType];
@@ -256,18 +287,41 @@ function remoteUpdatedAt(remote: any): string | null {
 }
 
 function buildPayload(table: SyncEntity, row: any, userId: string): any {
-  const payload: any = { ...row };
+  // Define allowed columns for each table to avoid sending invalid fields
+  // NOTE: deleted_at is NOT included here - it's handled separately for soft deletes
+  // If your database doesn't have deleted_at columns, records are hard-deleted
+  const tableColumns: Record<SyncEntity, string[]> = {
+    account_types: ["id", "name", "description", "is_asset", "created_at", "updated_at"],
+    account_groups: ["id", "user_id", "name", "description", "type_id", "created_at", "updated_at"],
+    accounts: ["id", "user_id", "account_type", "name", "amount", "description", "created_at", "updated_at", "is_default", "currency"],
+    expenses: ["id", "user_id", "account_id", "amount", "category", "description", "date", "is_recurring", "recurrence_interval", "is_essential", "created_at", "updated_at", "receipt_url", "entry_type"],
+    transactions: ["id", "user_id", "account_id", "amount", "description", "date", "category", "is_recurring", "recurrence_interval", "type", "created_at", "updated_at"],
+    transfers: ["id", "user_id", "from_account_id", "to_account_id", "amount", "description", "date", "created_at", "updated_at"],
+    budgets: ["id", "user_id", "account_id", "category", "amount", "period", "start_date", "end_date", "is_active", "created_at", "updated_at"],
+    goals: ["id", "user_id", "account_id", "name", "target_amount", "current_amount", "category", "target_date", "is_active", "icon", "icon_color", "description", "created_at", "updated_at"],
+    subscriptions: ["id", "user_id", "account_id", "name", "amount", "category", "billing_cycle", "next_payment_date", "is_active", "icon", "icon_color", "description", "created_at", "updated_at"],
+    personal_loans: ["id", "user_id", "account_id", "type", "party_name", "principal_amount", "remaining_amount", "interest_rate", "due_date", "status", "created_at", "updated_at"],
+    loan_repayments: ["id", "loan_id", "amount", "payment_date", "created_at"],
+    investments: ["id", "user_id", "account_id", "type", "name", "invested_amount", "current_value", "created_at", "updated_at"],
+    profiles: ["id", "full_name", "phone", "user_type", "created_at", "image_url", "email"],
+  };
 
-  // Remove local-only metadata
-  delete payload.__local_status;
-  delete payload.__local_updated_at;
-  delete payload.__last_error;
-  delete payload.__remote_updated_at;
+  const allowedColumns = tableColumns[table] || [];
+  const payload: any = {};
 
-  if (table !== "account_types" && table !== "profiles") {
+  // Only include allowed columns (explicitly excludes deleted_at)
+  for (const col of allowedColumns) {
+    if (row[col] !== undefined) {
+      payload[col] = row[col];
+    }
+  }
+
+  // Ensure user_id is set for tables that need it
+  if (table !== "account_types" && table !== "profiles" && table !== "loan_repayments") {
     payload.user_id = row.user_id ?? userId;
   }
 
+  // For profiles, ensure id matches userId
   if (table === "profiles") {
     payload.id = userId;
   }
@@ -284,13 +338,11 @@ async function pullTable(table: SyncEntity, userId: string): Promise<void> {
   let maxUpdatedAt = lastSyncAt;
 
   // Build filter for incremental sync if we have a cursor
+  // NOTE: Database doesn't have deleted_at column, so we only filter by created_at and updated_at
   let filteredQuery = baseQuery;
   if (lastSyncAt) {
-    // filteredQuery = filteredQuery.or(
-    //   `updated_at.gt.${lastSyncAt},deleted_at.gt.${lastSyncAt}`
-    // );
     filteredQuery = filteredQuery.or(
-      `created_at.gt.${lastSyncAt},updated_at.gt.${lastSyncAt},deleted_at.gt.${lastSyncAt}`,
+      `created_at.gt.${lastSyncAt},updated_at.gt.${lastSyncAt}`,
     );
   }
 
@@ -386,26 +438,22 @@ async function applyRemoteRow(
     }
 
     // Modify-vs-modify: remote version changed compared to base
+    // Auto-resolve by keeping local changes (last-write-wins from user's device)
+    // This simplifies UX - user's local edits are preserved, will sync on next push
     if (
       remoteVersion &&
       remoteVersion !== local.__remote_updated_at &&
       !local.deleted_at &&
       !remote.deleted_at
     ) {
-      addConflictLocal({
-        entityType: syncableEntityTypeFor(table),
-        entityId: remote.id,
-        localVersion: local,
-        remoteVersion: remote,
-        conflictType: "modify_vs_modify" as ConflictType,
-      });
-
+      // Keep local version as-is, it will be pushed on next sync cycle
+      // Update the remote version tracker so we don't re-detect this conflict
       store.set((state: any) => {
         const existing = state.byId[remote.id];
         if (!existing) return state;
         const updated = {
           ...existing,
-          __local_status: "conflict" as LocalStatus,
+          __remote_updated_at: remoteVersion,
         };
         return {
           ...state,
@@ -470,38 +518,71 @@ async function pushTable(table: SyncEntity, userId: string): Promise<void> {
     (row: any) => row.__local_status === "pending",
   );
 
+  if (pending.length > 0) {
+    console.log(`[Sync] Pushing ${pending.length} pending rows for ${table}`);
+  }
+
   for (const row of pending) {
     try {
       const payload = buildPayload(table, row, userId);
       let remoteRow: any | null = null;
 
       if (row.deleted_at) {
-        let query = supabase
+        console.log(`[Sync] Pushing delete for ${table}/${row.id}`);
+        
+        // First check if the record exists on the server
+        let checkQuery = supabase
           .from(table)
-          .update({
-            deleted_at: row.deleted_at,
-          })
+          .select("id")
           .eq("id", row.id);
-
+        
         if (table !== "account_types" && table !== "profiles") {
-          query = query.eq("user_id", userId);
+          checkQuery = checkQuery.eq("user_id", userId);
         }
+        
+        const { data: existsData } = await checkQuery.maybeSingle();
+        
+        if (existsData) {
+          // Record exists on server - perform hard delete (database has no deleted_at column)
+          let deleteQuery = supabase
+            .from(table)
+            .delete()
+            .eq("id", row.id);
 
-        const { data, error } = await query.select().single();
+          if (table !== "account_types" && table !== "profiles") {
+            deleteQuery = deleteQuery.eq("user_id", userId);
+          }
 
-        if (error) throw error;
-        remoteRow = data;
+          const { error } = await deleteQuery;
+
+          if (error) {
+            console.error(`[Sync] Supabase delete error for ${table}/${row.id}:`, error.message, error.details, error.hint);
+            throw error;
+          }
+          console.log(`[Sync] Successfully deleted ${table}/${row.id} from server`);
+          remoteRow = null;
+        } else {
+          // Record doesn't exist on server (was created and deleted offline)
+          // Just mark as synced locally, nothing to do on server
+          console.log(`[Sync] Record ${table}/${row.id} doesn't exist on server, skipping delete`);
+          remoteRow = null;
+        }
       } else {
+        console.log(`[Sync] Pushing upsert for ${table}/${row.id}`, JSON.stringify(payload));
         const { data, error } = await supabase
           .from(table)
           .upsert(payload, { onConflict: "id" })
           .select()
           .single();
-        if (error) throw error;
+        if (error) {
+          console.error(`[Sync] Supabase upsert error for ${table}/${row.id}:`, error.message, error.details, error.hint);
+          throw error;
+        }
         remoteRow = data;
       }
 
       const remoteVersion = remoteUpdatedAt(remoteRow ?? {});
+      console.log(`[Sync] Successfully pushed ${table}/${row.id}`);
 
       // Mark as synced
       store.set((state: any) => {
@@ -520,9 +601,10 @@ async function pushTable(table: SyncEntity, userId: string): Promise<void> {
           byId: { ...state.byId, [row.id]: updated },
         };
       });
-    } catch (e) {
-      const msg =
-        e instanceof Error ? e.message : `Failed to sync changes for ${table}`;
+    } catch (e: any) {
+      const msg = e?.message || `Failed to sync changes for ${table}`;
+      const details = e?.details || e?.hint || '';
+      console.error(`[Sync] Failed to push ${table}/${row.id}:`, msg, details);
       store.set((state: any) => {
         const existing = state.byId[row.id];
         if (!existing) return state;
@@ -546,19 +628,27 @@ let isSyncing = false;
 let netInfoUnsubscribe: (() => void) | null = null;
 
 export async function triggerSync(): Promise<void> {
-  if (isSyncing) return;
+  if (isSyncing) {
+    console.log("[Sync] Sync already in progress, skipping");
+    return;
+  }
 
   const gateLocked = await isOfflineGateLocked();
   if (gateLocked) {
-    // Offline is normal; don't set lastError so UI shows "Offline" not "Sync error"
+    console.log("[Sync] Offline - skipping sync");
     await updateGlobalSyncState({ lastError: null });
     return;
   }
 
   const userId = await getCurrentUserId();
-  if (!userId) return;
+  if (!userId) {
+    console.log("[Sync] No user ID - skipping sync");
+    return;
+  }
 
   isSyncing = true;
+  const pendingBefore = await computePendingCount();
+  console.log("[Sync] Starting sync, pending changes:", pendingBefore);
   await updateGlobalSyncState({ isSyncing: true, lastError: null });
 
   try {
@@ -572,6 +662,9 @@ export async function triggerSync(): Promise<void> {
       await pushTable(table, userId);
     }
 
+    const pendingAfter = await computePendingCount();
+    console.log("[Sync] Sync completed, pending changes remaining:", pendingAfter);
+
     await updateGlobalSyncState({
       isSyncing: false,
       lastSyncedAt: nowIso(),
@@ -579,6 +672,7 @@ export async function triggerSync(): Promise<void> {
   } catch (e) {
     const msg =
       e instanceof Error ? e.message : "Sync failed due to unexpected error";
+    console.error("[Sync] Sync failed:", msg);
     await updateGlobalSyncState({ isSyncing: false, lastError: msg });
   } finally {
     isSyncing = false;
@@ -632,6 +726,8 @@ export async function retryFailedSync(): Promise<void> {
   bumpFailed(goals$);
   bumpFailed(subscriptions$);
   bumpFailed(personalLoans$);
+  bumpFailed(loanRepayments$);
+  bumpFailed(investments$);
   bumpFailed(profiles$);
 
   await triggerSync();
@@ -701,18 +797,10 @@ export const __test__ = {
   pushTable,
 };
 
+let wasOffline = true;
+
 export async function startSync(): Promise<void> {
   if (netInfoUnsubscribe) return;
-
-  // netInfoUnsubscribe = NetInfo.addEventListener((state) => {
-  //   const online = !!state.isConnected;
-  //   updateSyncStateLocal({
-  //     isOnline: online,
-  //   });
-  //   if (online) {
-  //     void triggerSync();
-  //   }
-  // });
 
   netInfoUnsubscribe = NetInfo.addEventListener((state) => {
     const connected = !!state.isConnected;
@@ -721,11 +809,27 @@ export async function startSync(): Promise<void> {
 
     const online = connected && internetReachable;
 
+    console.log("[Sync] Network state changed:", { connected, internetReachable, online, wasOffline });
+    
     updateSyncStateLocal({ isOnline: online });
-    if (online) void triggerSync();
+    
+    if (online) {
+      // If we were offline and now online, retry any failed syncs first
+      if (wasOffline) {
+        console.log("[Sync] Coming back online - retrying failed syncs and triggering full sync");
+        void retryFailedSync();
+      } else {
+        void triggerSync();
+      }
+    }
+    
+    wasOffline = !online;
   });
 
   // Initial kick
+  const initialState = await NetInfo.fetch();
+  wasOffline = !(initialState.isConnected && (initialState.isInternetReachable ?? true));
+  console.log("[Sync] Initial sync kick, wasOffline:", wasOffline);
   void triggerSync();
 }
 

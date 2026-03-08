@@ -29,6 +29,8 @@ export type SyncableEntityType =
   | "subscription"
   | "transfer"
   | "personal_loan"
+  | "loan_repayment"
+  | "investment"
   | "account_group"
   | "account_type"
   | "profile";

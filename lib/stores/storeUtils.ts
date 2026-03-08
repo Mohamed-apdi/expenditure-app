@@ -5,6 +5,8 @@ import type {
   Budget,
   Expense,
   Goal,
+  Investment,
+  LoanRepayment,
   PersonalLoan,
   Profile,
   Subscription,
@@ -79,4 +81,6 @@ export type LocalTransaction = WithLocalMetadata<Transaction>;
 export type LocalTransfer = WithLocalMetadata<Transfer>;
 export type LocalPersonalLoan = WithLocalMetadata<PersonalLoan>;
 export type LocalProfile = WithLocalMetadata<Profile>;
+export type LocalInvestment = WithLocalMetadata<Investment>;
+export type LocalLoanRepayment = WithLocalMetadata<LoanRepayment>;
 

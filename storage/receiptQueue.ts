@@ -1,87 +1,35 @@
 /**
- * Attachment queue for expense receipts.
- *
- * Constraint: PowerSync only syncs DB rows; files in Supabase Storage are
- * handled here. Backend bucket policies and migrations live in the backend
- * repo; this module only:
- * - Stores local file URIs and metadata
- * - Uploads files when online
- * - Updates the expense row (receipt_url) in the local DB and Supabase
+ * Attachment queue for expense receipts using Legend-State.
+ * Queues receipt uploads for when the device comes back online.
  */
 
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import NetInfo from "@react-native-community/netinfo";
+import { observable } from "@legendapp/state";
 import { supabase } from "../lib/database/supabase";
-import { getPowerSyncDb } from "../lib/powersync/client";
-import type { AttachmentQueueItem } from "../lib/db/schema";
-import { getSessionStatus } from "../lib/auth/session";
+import { updateExpenseLocal } from "../lib/stores/expensesStore";
+import { isOfflineGateLocked, triggerSync } from "../lib/sync/legendSync";
+import { decode } from "base64-arraybuffer";
 
-async function insertQueueItem(item: AttachmentQueueItem): Promise<void> {
-  const db = getPowerSyncDb();
-  if (!db) return;
-
-  await db.execute(
-    `
-    INSERT INTO attachment_queue (
-      id, user_id, kind, entity_table, entity_id, local_uri,
-      bucket, object_path, mime_type, status, retry_count, last_error,
-      created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `,
-    [
-      item.id,
-      item.user_id,
-      item.kind,
-      item.entity_table,
-      item.entity_id,
-      item.local_uri,
-      item.bucket,
-      item.object_path,
-      item.mime_type,
-      item.status,
-      item.retry_count,
-      item.last_error,
-      item.created_at,
-      item.updated_at,
-    ],
-  );
+interface QueuedReceipt {
+  id: string;
+  user_id: string;
+  expenseId: string;
+  localUri: string;
+  mimeType: string;
+  status: "queued" | "uploading" | "done" | "failed";
+  retryCount: number;
+  lastError: string | null;
+  createdAt: string;
 }
 
-async function getPendingReceiptItems(): Promise<AttachmentQueueItem[]> {
-  const db = getPowerSyncDb();
-  if (!db) return [];
-
-  const result = await db.execute(
-    `
-    SELECT * FROM attachment_queue
-    WHERE kind = 'receipt'
-      AND status IN ('queued', 'failed')
-  `,
-  );
-
-  return (result.rows?._array ?? []) as AttachmentQueueItem[];
+interface ReceiptQueueState {
+  items: QueuedReceipt[];
 }
 
-async function updateQueueItemStatus(
-  id: string,
-  status: AttachmentQueueItem["status"],
-  last_error: string | null,
-  retry_count?: number,
-  object_path?: string | null,
-): Promise<void> {
-  const db = getPowerSyncDb();
-  if (!db) return;
-
-  const now = new Date().toISOString();
-  await db.execute(
-    `
-    UPDATE attachment_queue
-    SET status = ?, last_error = ?, retry_count = COALESCE(?, retry_count), object_path = COALESCE(?, object_path), updated_at = ?
-    WHERE id = ?
-  `,
-    [status, last_error, retry_count ?? null, object_path ?? null, now, id],
-  );
-}
+const receiptQueue$ = observable<ReceiptQueueState>({
+  items: [],
+});
 
 export async function enqueueReceipt(item: {
   id: string;
@@ -91,26 +39,29 @@ export async function enqueueReceipt(item: {
   mimeType?: string;
 }): Promise<void> {
   const now = new Date().toISOString();
-  await insertQueueItem({
+  
+  const queueItem: QueuedReceipt = {
     id: item.id,
-    user_id: item.user_id,
-    kind: "receipt",
-    entity_table: "expenses",
-    entity_id: item.expenseId,
-    local_uri: item.localUri,
-    bucket: "receipts",
-    object_path: null,
-    mime_type: item.mimeType ?? "image/jpeg",
+    user_id: item.user_id || "",
+    expenseId: item.expenseId,
+    localUri: item.localUri,
+    mimeType: item.mimeType ?? "image/jpeg",
     status: "queued",
-    retry_count: 0,
-    last_error: null,
-    created_at: now,
-    updated_at: now,
-  });
+    retryCount: 0,
+    lastError: null,
+    createdAt: now,
+  };
+  
+  receiptQueue$.items.push(queueItem);
+  
+  // Try to process immediately if online
+  processReceiptQueue().catch(() => {});
 }
 
-export async function getQueuedReceipts(): Promise<AttachmentQueueItem[]> {
-  return getPendingReceiptItems();
+export function getQueuedReceipts(): QueuedReceipt[] {
+  return receiptQueue$.items.get().filter(
+    (item) => item.status === "queued" || item.status === "failed"
+  );
 }
 
 export async function processReceiptQueue(): Promise<void> {
@@ -118,68 +69,73 @@ export async function processReceiptQueue(): Promise<void> {
   const online = !!net.isConnected && !!net.isInternetReachable;
   if (!online) return;
 
-  const sessionStatus = await getSessionStatus();
-  if (!sessionStatus.isOnline || sessionStatus.offlineGateState === "locked") {
-    // Do not process uploads when the offline gate is locked or when we
-    // cannot confirm a valid session.
-    return;
-  }
+  const isOffline = await isOfflineGateLocked();
+  if (isOffline) return;
 
-  const db = getPowerSyncDb();
-  if (!db) return;
-
-  const items = await getPendingReceiptItems();
+  const items = getQueuedReceipts();
 
   for (const item of items) {
+    const itemIndex = receiptQueue$.items.get().findIndex((i) => i.id === item.id);
+    if (itemIndex === -1) continue;
 
     try {
-      // 1) Ensure file still exists locally
-      const info = await FileSystem.getInfoAsync(item.local_uri);
+      // Update status to uploading
+      receiptQueue$.items[itemIndex].status.set("uploading");
+
+      const info = await FileSystem.getInfoAsync(item.localUri);
       if (!info.exists) {
-        await updateQueueItemStatus(item.id, "failed", "File not found", item.retry_count + 1);
+        receiptQueue$.items[itemIndex].status.set("failed");
+        receiptQueue$.items[itemIndex].lastError.set("File not found");
+        receiptQueue$.items[itemIndex].retryCount.set(item.retryCount + 1);
         continue;
       }
 
-      // 2) Upload to Supabase Storage (bucket: receipts)
-      const fileContents = await FileSystem.readAsStringAsync(item.local_uri, {
-        encoding: FileSystem.EncodingType.Base64,
+      const fileContents = await FileSystem.readAsStringAsync(item.localUri, {
+        encoding: "base64",
       });
 
-      const path = `${item.entity_id}/${Date.now()}.jpg`;
+      const path = `receipts/${item.expenseId}_${Date.now()}.jpg`;
       const { data, error } = await supabase.storage
         .from("receipts")
-        .upload(path, Buffer.from(fileContents, "base64"), {
+        .upload(path, decode(fileContents), {
           contentType: "image/jpeg",
           upsert: true,
         });
 
       if (error || !data) {
-        await updateQueueItemStatus(
-          item.id,
-          "failed",
-          error?.message ?? "Unknown upload error",
-          item.retry_count + 1,
-        );
+        receiptQueue$.items[itemIndex].status.set("failed");
+        receiptQueue$.items[itemIndex].lastError.set(error?.message ?? "Unknown upload error");
+        receiptQueue$.items[itemIndex].retryCount.set(item.retryCount + 1);
         continue;
       }
 
       const publicUrl = supabase.storage.from("receipts").getPublicUrl(data.path).data.publicUrl;
 
-      // 3) Update expense row locally (PowerSync will sync to server)
-      await db.execute(
-        "UPDATE expenses SET receipt_url = ? WHERE id = ?",
-        [publicUrl, item.entity_id],
-      );
-
-      await updateQueueItemStatus(item.id, "done", null, item.retry_count, data.path);
+      // Update expense with new receipt URL
+      updateExpenseLocal(item.expenseId, { receipt_url: publicUrl });
+      
+      // Mark as done
+      receiptQueue$.items[itemIndex].status.set("done");
+      
+      // Trigger sync to push changes
+      void triggerSync();
+      
     } catch (e) {
-      await updateQueueItemStatus(
-        item.id,
-        "failed",
-        e instanceof Error ? e.message : String(e),
-        item.retry_count + 1,
-      );
+      receiptQueue$.items[itemIndex].status.set("failed");
+      receiptQueue$.items[itemIndex].lastError.set(e instanceof Error ? e.message : String(e));
+      receiptQueue$.items[itemIndex].retryCount.set(item.retryCount + 1);
     }
   }
+
+  // Clean up completed items
+  const currentItems = receiptQueue$.items.get();
+  const pendingItems = currentItems.filter((item) => item.status !== "done");
+  receiptQueue$.items.set(pendingItems);
 }
 
+// Set up network listener to process queue when coming online
+NetInfo.addEventListener((state) => {
+  if (state.isConnected && state.isInternetReachable) {
+    processReceiptQueue().catch(() => {});
+  }
+});

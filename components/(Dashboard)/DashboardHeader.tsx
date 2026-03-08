@@ -2,7 +2,7 @@
  * Dashboard header: greeting, account selector, and action buttons (profile, settings, theme, etc.)
  */
 import React from "react";
-import { View, Text, TouchableOpacity, Image } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import {
   User,
   Settings,
@@ -24,6 +24,7 @@ import { useNotifications } from "~/lib";
 import { useRouter } from "expo-router";
 import { useLanguage } from "~/lib";
 import { playTabClickSound } from "~/lib/utils/playTabSound";
+import { CachedImage } from "~/components/CachedImage";
 
 interface DashboardHeaderProps {
   variant?: "light" | "dark";
@@ -72,12 +73,9 @@ export default function DashboardHeader({
         <View className="flex-row items-center gap-4">
           {/* Profile Image */}
           <View className="relative">
-            <Image
-              source={{
-                uri:
-                  userImageUrl ||
-                  `https://ui-avatars.com/api/?name=${encodeURIComponent(userName || "User")}`,
-              }}
+            <CachedImage
+              uri={userImageUrl}
+              fallbackName={userName || "User"}
               style={{
                 width: 40,
                 height: 40,

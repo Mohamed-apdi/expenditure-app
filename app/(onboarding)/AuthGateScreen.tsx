@@ -125,36 +125,69 @@ export default function AuthGateScreen() {
   const handleSignInWithGoogle = async () => {
     setSocialLoading("google");
     try {
-      const redirectUrl = AuthSession.makeRedirectUri();
+      const redirectUrl = AuthSession.makeRedirectUri({
+        scheme: "qoondeeye",
+        path: "auth-callback",
+      });
+      
+      console.log("Google OAuth redirect URL:", redirectUrl);
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: redirectUrl },
+        options: { 
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
+        },
       });
+      
       if (error) throw error;
       if (!data?.url) {
         toast.error(t.socialSignInFailed, {
-          description: t.socialSignInNoUrl,
+          description: t.socialSignInNoUrl || "Could not get authentication URL",
         });
         return;
       }
+      
       const result = await WebBrowser.openAuthSessionAsync(
-        data.url,
-        redirectUrl
-      );
-      if (result.type === "success") {
-        const url = new URL(result.url);
-        const params = new URLSearchParams(url.hash.substring(1));
-        let access_token = params.get("access_token");
-        let refresh_token = params.get("refresh_token");
-        if (!access_token || !refresh_token) {
-          const q = new URLSearchParams(url.search);
-          access_token = q.get("access_token");
-          refresh_token = q.get("refresh_token");
+        data.url, 
+        redirectUrl,
+        {
+          showInRecents: true,
+          preferEphemeralSession: false,
         }
+      );
+      
+      if (result.type === "success" && result.url) {
+        const url = new URL(result.url);
+        
+        const hashParams = new URLSearchParams(url.hash.substring(1));
+        let access_token = hashParams.get("access_token");
+        let refresh_token = hashParams.get("refresh_token");
+        
+        if (!access_token || !refresh_token) {
+          const queryParams = new URLSearchParams(url.search);
+          access_token = queryParams.get("access_token");
+          refresh_token = queryParams.get("refresh_token");
+        }
+        
+        if (!access_token || !refresh_token) {
+          const code = hashParams.get("code") || new URLSearchParams(url.search).get("code");
+          if (code) {
+            const { data: exchangeData, error: exchangeError } = 
+              await supabase.auth.exchangeCodeForSession(code);
+            if (exchangeError) throw exchangeError;
+            if (exchangeData.session) {
+              access_token = exchangeData.session.access_token;
+              refresh_token = exchangeData.session.refresh_token;
+            }
+          }
+        }
+        
         if (access_token && refresh_token) {
           const { data: sessionData, error: sessionError } =
             await supabase.auth.setSession({ access_token, refresh_token });
           if (sessionError) throw sessionError;
+          
           if (sessionData.session && sessionData.user?.id) {
             await setItemAsync("token", sessionData.session.access_token);
             await setItemAsync("userId", sessionData.user.id);
@@ -169,18 +202,20 @@ export default function AuthGateScreen() {
             }
             toast.success(t.loginSuccessfully);
             router.replace("/(main)/Dashboard");
+            return;
           }
-        } else {
-          toast.error(t.socialSignInFailed, {
-            description: t.socialSignInTokensMissing,
-          });
         }
+        
+        toast.error(t.socialSignInFailed, {
+          description: t.socialSignInTokensMissing || "Authentication tokens not received",
+        });
       } else if (result.type === "cancel" || result.type === "dismiss") {
-        toast.info(t.socialSignInCancelled);
+        toast.info(t.socialSignInCancelled || "Sign-in cancelled");
       }
     } catch (err: any) {
+      console.error("Google Sign-In error:", err);
       toast.error(t.socialSignInFailed, {
-        description: err?.message || t.socialSignInErrorOccurred,
+        description: err?.message || t.socialSignInErrorOccurred || "An error occurred during sign-in",
       });
     } finally {
       setSocialLoading(null);

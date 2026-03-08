@@ -26,13 +26,12 @@ export async function preloadTabClickSound() {
 
 export async function playTabClickSound() {
   try {
-    // optional: haptic + sound together feels great
     void Haptics.selectionAsync();
 
     if (!sound) await preloadTabClickSound();
     if (!sound) return;
 
-    await sound.replayAsync(); // best for short UI sounds
+    await sound.replayAsync();
   } catch {
     // ignore
   }

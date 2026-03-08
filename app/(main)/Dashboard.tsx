@@ -24,8 +24,10 @@ import {
   isOfflineGateLocked,
   triggerSync,
   useAccount,
+  supabase,
   type FinancialSummary,
 } from "~/lib";
+import { cacheImage } from "~/lib/utils/imageCache";
 import { transactions$ } from "~/lib/stores/transactionsStore";
 
 import {
@@ -141,6 +143,11 @@ export default function DashboardScreen() {
           email: user.email || localProfile.email || "",
           image_url: localProfile.image_url || "",
         });
+        
+        // Cache local profile image if it exists
+        if (localProfile.image_url) {
+          cacheImage(localProfile.image_url).catch(() => {});
+        }
       }
       try {
         const profileData = await fetchProfile(user.id);
@@ -150,6 +157,11 @@ export default function DashboardScreen() {
             email: user.email || "",
             image_url: profileData.image_url || "",
           });
+          
+          // Cache profile image for offline use
+          if (profileData.image_url) {
+            cacheImage(profileData.image_url).catch(() => {});
+          }
         }
       } catch {
         // Offline or fetch failed; keep local profile if already set

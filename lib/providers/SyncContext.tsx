@@ -6,8 +6,9 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import type { SyncState } from "../sync/types";
-import { syncState$, selectSyncState } from "../stores/syncStateStore";
+import { syncState$, selectSyncState, updateSyncStateLocal } from "../stores/syncStateStore";
 import { startSync } from "../sync/legendSync";
+import { clearAllConflicts } from "../stores/conflictsStore";
 
 const SyncContext = createContext<SyncState>({
   status: "offline",
@@ -47,6 +48,10 @@ export function SyncProvider({ children }: SyncProviderProps): React.ReactElemen
   );
 
   useEffect(() => {
+    // Clear any existing conflicts on app start (auto-resolve strategy)
+    clearAllConflicts();
+    updateSyncStateLocal({ conflictsCount: 0 });
+    
     const unsub = syncState$.onChange(() => {
       setState(deriveSyncState(selectSyncState()));
     });

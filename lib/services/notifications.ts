@@ -1,8 +1,11 @@
 /**
  * Notifications service functions for managing user notifications
  * Handles CRUD operations and notification preferences
+ * Supports offline-first with local store fallback
  */
 import { supabase } from "../database/supabase";
+import { isOfflineGateLocked } from "../sync/legendSync";
+import { createNotificationLocal } from "../stores/notificationsStore";
 
 export type NotificationType =
   | "budget"
@@ -23,15 +26,16 @@ export interface Notification {
   type: NotificationType;
   priority: NotificationPriority;
   is_read: boolean;
-  metadata?: Record<string, any>; // Additional data like transaction_id, budget_id, etc.
-  action_url?: string; // URL to navigate when notification is clicked
+  metadata?: Record<string, any>;
+  action_url?: string;
   created_at: string;
   read_at?: string;
   expires_at?: string;
 }
 
 /**
- * Create a new notification
+ * Create a new notification (offline-first)
+ * Creates locally first, then syncs to server when online
  */
 export async function createNotification({
   user_id,
@@ -53,24 +57,50 @@ export async function createNotification({
   expires_at?: string;
 }): Promise<Notification | null> {
   try {
-    const { data, error } = await supabase
-      .from("notifications")
-      .insert({
-        user_id,
-        title,
-        message,
-        type,
-        priority,
-        is_read: false,
-        metadata,
-        action_url,
-        expires_at,
-      })
-      .select()
-      .single();
+    // Always create locally first for offline support
+    const localNotification = createNotificationLocal({
+      user_id,
+      title,
+      message,
+      type,
+      priority,
+      is_read: false,
+      metadata,
+      action_url,
+      expires_at,
+    });
 
-    if (error) throw error;
-    return data;
+    // Check if we're offline
+    const offline = await isOfflineGateLocked();
+    if (offline) {
+      return localNotification;
+    }
+
+    // If online, also save to server
+    try {
+      const { data, error } = await supabase
+        .from("notifications")
+        .insert({
+          id: localNotification.id,
+          user_id,
+          title,
+          message,
+          type,
+          priority,
+          is_read: false,
+          metadata,
+          action_url,
+          expires_at,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (serverError) {
+      console.error("Error saving notification to server:", serverError);
+      return localNotification;
+    }
   } catch (error) {
     console.error("Error creating notification:", error);
     return null;

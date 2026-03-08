@@ -31,6 +31,8 @@ import {
   deleteSubscriptionLocal,
   isOfflineGateLocked,
   triggerSync,
+  createTransactionLocal,
+  updateAccountLocal,
   type Subscription,
 } from '~/lib';
 import { useAccount, type Account } from '~/lib';
@@ -395,16 +397,17 @@ export default function SubscriptionsScreen({
 
     try {
       const amount = parseFloat(formData.amount) || 0;
+      const category = formData.category || 'Subscriptions';
+      const nextPaymentDateStr = formData.next_payment_date.toISOString().split('T')[0];
+      
       const subscriptionData = {
         user_id: userId,
         account_id: selectedAccount.id,
         name: formData.name,
         amount,
-        category: formData.category || 'Subscriptions',
+        category,
         billing_cycle: formData.billing_cycle,
-        next_payment_date: formData.next_payment_date
-          .toISOString()
-          .split('T')[0],
+        next_payment_date: nextPaymentDateStr,
         is_active: formData.is_active,
         icon: formData.icon,
         icon_color: formData.icon_color,
@@ -427,6 +430,27 @@ export default function SubscriptionsScreen({
           user_id: userId,
           account_id: selectedAccount.id,
         });
+
+        const today = new Date().toISOString().split('T')[0];
+        const isPaymentDueToday = nextPaymentDateStr === today;
+        
+        if (isPaymentDueToday && formData.is_active) {
+          createTransactionLocal({
+            user_id: userId,
+            account_id: selectedAccount.id,
+            amount: amount,
+            description: `${formData.name} - ${t.subscriptionPayment || 'Subscription payment'}`,
+            date: today,
+            category,
+            type: 'expense',
+            is_recurring: true,
+            recurrence_interval: formData.billing_cycle,
+          });
+
+          const newBalance = selectedAccount.amount - amount;
+          updateAccountLocal(selectedAccount.id, { amount: newBalance });
+        }
+
         Alert.alert(t.success, t.subscriptionAdded);
       }
 
@@ -434,7 +458,6 @@ export default function SubscriptionsScreen({
       if (!(await isOfflineGateLocked())) void triggerSync();
       fetchData();
 
-      // Reschedule notifications for all subscriptions
       try {
         if (
           notificationService &&

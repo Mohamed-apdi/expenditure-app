@@ -4,11 +4,11 @@
  */
 export const APP_COLORS = {
   /** Primary blue for headers, buttons, links. */
-  primary: "#40A5E7",
+  primary: "#00BFFF",
   /** Primary blue for dark mode. */
-  primaryDark: "#40A5E7",
+  primaryDark: "#00BFFF",
   /** Darker blue for tabs/segments (active state) — solid, no opacity. */
-  tabActive: "#40A5E7",
+  tabActive: "#00BFFF",
   /** Light surface for cards and inputs. */
   inputBg: "#F8FAFC",
   /** Border color light. */
@@ -20,7 +20,7 @@ export const APP_COLORS = {
   /** Dark mode border. */
   borderDark: "#475569",
   /** Accent for auth/onboarding (same as primary for consistency). */
-  yellow: "#40A5E7",
+  yellow: "#00BFFF",
 } as const;
 
 export const NAV_THEME = {
@@ -54,6 +54,7 @@ export const NAV_THEME = {
     danger: "#DC2626",
     dangerText: "#FFFFFF",
     error: "#DC2626",
+    warning: "#F59E0B",
 
     // Icons
     icon: APP_COLORS.primary,
@@ -108,6 +109,7 @@ export const NAV_THEME = {
     danger: "#EF4444",
     dangerText: "#FFFFFF",
     error: "#F87171",
+    warning: "#F59E0B",
 
     // Status indicators
     stepInactive: APP_COLORS.darkSurface,

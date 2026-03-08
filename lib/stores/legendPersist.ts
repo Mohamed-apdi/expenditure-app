@@ -54,12 +54,36 @@ class ObservablePersistSQLite implements ObservablePersistLocal {
     return this.metadata.get(table) ?? {};
   }
 
-  async set(table: string, _changes: Change[], _config: PersistOptionsLocal): Promise<void> {
-    const value = this.data.get(table);
+  async set(table: string, changes: Change[], _config: PersistOptionsLocal): Promise<void> {
+    // Apply changes to in-memory data before persisting
+    let value = this.data.get(table);
+    
+    // If changes include the full value, update our in-memory copy
+    for (const change of changes) {
+      if (change.path && change.path.length === 0 && change.valueAtPath !== undefined) {
+        value = change.valueAtPath;
+        this.data.set(table, value);
+      } else if (change.path && change.path.length > 0 && value) {
+        // Apply nested change
+        let current = value;
+        const path = change.path;
+        for (let i = 0; i < path.length - 1; i++) {
+          if (current[path[i]] === undefined) {
+            current[path[i]] = {};
+          }
+          current = current[path[i]];
+        }
+        if (path.length > 0) {
+          current[path[path.length - 1]] = change.valueAtPath;
+        }
+        this.data.set(table, value);
+      }
+    }
+    
     try {
       await Storage.setItem(table, JSON.stringify(value));
-    } catch {
-      // Swallow persist errors for now; callers still have in-memory state.
+    } catch (e) {
+      console.error(`[legendPersist] Failed to persist ${table}:`, e);
     }
   }
 

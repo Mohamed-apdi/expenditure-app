@@ -14,6 +14,8 @@ export type SyncCursorTable =
   | "goals"
   | "subscriptions"
   | "personal_loans"
+  | "loan_repayments"
+  | "investments"
   | "profiles";
 
 export interface SyncCursorRow {
@@ -42,6 +44,8 @@ const initialState: SyncCursorsState = {
     goals: defaultRow("goals"),
     subscriptions: defaultRow("subscriptions"),
     personal_loans: defaultRow("personal_loans"),
+    loan_repayments: defaultRow("loan_repayments"),
+    investments: defaultRow("investments"),
     profiles: defaultRow("profiles"),
   },
 };

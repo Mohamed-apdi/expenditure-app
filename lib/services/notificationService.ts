@@ -218,7 +218,7 @@ export const scheduleSubscriptionNotification = async (
       accountId: subscription.account_id,
       billingCycle: subscription.billing_cycle,
     },
-    sound: "notification-1.wav",
+    sound: "notification_alert.wav",
   };
 
   await Notifications.scheduleNotificationAsync({
@@ -267,7 +267,7 @@ export const handleNotificationResponse = async (
           content: {
             title: "Payment Processed",
             body: `Successfully paid $${amount.toFixed(2)} for ${subscriptionName}`,
-            sound: "notification-1.wav",
+            sound: "notification_alert.wav",
           },
           trigger: null, // Show immediately
         });
@@ -280,7 +280,7 @@ export const handleNotificationResponse = async (
           content: {
             title: "Subscription Paused",
             body: `${subscriptionName} has been paused and won't charge automatically`,
-            sound: "notification-1.wav",
+            sound: "notification_alert.wav",
           },
           trigger: null, // Show immediately
         });
@@ -298,7 +298,7 @@ export const handleNotificationResponse = async (
           content: {
             title: "Budget View",
             body: `Open the app to view your ${category} budget details`,
-            sound: "notification-1.wav",
+            sound: "notification_alert.wav",
           },
           trigger: null,
         });
@@ -320,7 +320,7 @@ export const handleNotificationResponse = async (
           content: {
             title: "Budget Adjustment",
             body: `Open the app to adjust your ${category} budget or review your spending`,
-            sound: "notification-1.wav",
+            sound: "notification_alert.wav",
           },
           trigger: null,
         });
@@ -334,7 +334,7 @@ export const handleNotificationResponse = async (
       content: {
         title: "Action Failed",
         body: "Failed to process your request. Please try again in the app.",
-        sound: "notification-1.wav",
+        sound: "notification_alert.wav",
       },
       trigger: null,
     });
@@ -407,7 +407,24 @@ const pauseSubscription = async (subscriptionId: string) => {
 
 };
 
+// Local deduplication cache for offline support
+const recentNotificationCache = new Map<string, number>();
+const CACHE_EXPIRY_MS = 6 * 60 * 60 * 1000; // 6 hours for warnings, 24 hours handled separately
+
+function hasRecentLocalNotification(key: string, expiryMs: number): boolean {
+  const lastSent = recentNotificationCache.get(key);
+  if (lastSent && Date.now() - lastSent < expiryMs) {
+    return true;
+  }
+  return false;
+}
+
+function markNotificationSent(key: string): void {
+  recentNotificationCache.set(key, Date.now());
+}
+
 // Send budget warning notification (with deduplication to avoid repeats)
+// Works offline using local cache for deduplication
 export const sendBudgetNotification = async (
   budgetProgress: BudgetProgress,
   type: "warning" | "exceeded"
@@ -416,14 +433,29 @@ export const sendBudgetNotification = async (
     const user = await getCurrentUserOfflineFirst();
     if (!user) return;
 
-    // Skip if we already sent a notification for this budget (category+account)/type recently
     const budgetId = `${budgetProgress.category}-${budgetProgress.account_id}`;
-    const alreadyNotified = await hasRecentBudgetNotification(
-      user.id,
-      budgetId,
-      type
-    );
-    if (alreadyNotified) return;
+    const cacheKey = `${user.id}-${budgetId}-${type}`;
+    const expiryMs = type === "exceeded" ? 24 * 60 * 60 * 1000 : 6 * 60 * 60 * 1000;
+
+    // Check local cache first (works offline)
+    if (hasRecentLocalNotification(cacheKey, expiryMs)) {
+      return;
+    }
+
+    // Also check server if online (for cross-device deduplication)
+    try {
+      const alreadyNotified = await hasRecentBudgetNotification(
+        user.id,
+        budgetId,
+        type
+      );
+      if (alreadyNotified) {
+        markNotificationSent(cacheKey);
+        return;
+      }
+    } catch {
+      // If server check fails, proceed with local cache check only
+    }
 
     const isExceeded = type === "exceeded";
     const category = isExceeded
@@ -436,6 +468,7 @@ export const sendBudgetNotification = async (
       ? `You've spent $${budgetProgress.spent.toFixed(2)} out of $${budgetProgress.budgeted.toFixed(2)} for ${budgetProgress.category} (${budgetProgress.percentage.toFixed(0)}%)`
       : `You've used ${budgetProgress.percentage.toFixed(0)}% of your ${budgetProgress.category} budget ($${budgetProgress.spent.toFixed(2)}/$${budgetProgress.budgeted.toFixed(2)})`;
 
+    // Schedule local push notification (works offline)
     await Notifications.scheduleNotificationAsync({
       content: {
         title,
@@ -449,19 +482,22 @@ export const sendBudgetNotification = async (
           remaining: budgetProgress.remaining,
           notificationType: type,
         },
-        sound: "notification-1.wav",
+        sound: "notification_alert.wav",
       },
       trigger: null, // Show immediately
     });
 
-    // Save to database notifications table
+    // Mark as sent in local cache
+    markNotificationSent(cacheKey);
+
+    // Save to database notifications table (will use local store if offline)
     await createBudgetNotification({
       userId: user.id,
       budgetName: budgetProgress.category,
       percentage: budgetProgress.percentage,
       currentAmount: budgetProgress.spent,
       budgetLimit: budgetProgress.budgeted,
-      budgetId: `${budgetProgress.category}-${budgetProgress.account_id}`, // Unique per category+account
+      budgetId: budgetId,
     });
 
   } catch (error) {
@@ -500,6 +536,7 @@ export const checkBudgetsAndNotify = async (expenseCategory?: string) => {
 };
 
 // Check subscriptions due today and send notifications instead of auto-charging
+// Works offline using local subscription data and local notification scheduling
 export const checkDueSubscriptionsAndNotify = async () => {
   try {
     const user = await getCurrentUserOfflineFirst();
@@ -508,7 +545,7 @@ export const checkDueSubscriptionsAndNotify = async () => {
       return;
     }
 
-    // Fetch active subscriptions
+    // Fetch active subscriptions (uses local store if offline)
     const subscriptions = await fetchSubscriptionsWithAccounts(user.id);
     const activeSubscriptions = subscriptions.filter((sub) => sub.is_active);
 
@@ -521,7 +558,14 @@ export const checkDueSubscriptionsAndNotify = async () => {
 
       // Check if payment is due today
       if (nextPaymentString === todayString) {
-        // Send notification with interactive buttons
+        const cacheKey = `${user.id}-subscription-${subscription.id}-${todayString}`;
+        
+        // Check local cache to avoid duplicate notifications
+        if (hasRecentLocalNotification(cacheKey, 24 * 60 * 60 * 1000)) {
+          continue;
+        }
+
+        // Schedule local push notification (works offline)
         await Notifications.scheduleNotificationAsync({
           content: {
             title: "Subscription Payment Due",
@@ -534,12 +578,15 @@ export const checkDueSubscriptionsAndNotify = async () => {
               accountId: subscription.account_id,
               billingCycle: subscription.billing_cycle,
             },
-            sound: "notification-1.wav",
+            sound: "notification_alert.wav",
           },
           trigger: null, // Show immediately
         });
 
-        // Save to database notifications table
+        // Mark as sent in local cache
+        markNotificationSent(cacheKey);
+
+        // Save to database notifications table (uses local store if offline)
         await createSubscriptionNotification({
           userId: user.id,
           subscriptionName: subscription.name,
@@ -548,7 +595,6 @@ export const checkDueSubscriptionsAndNotify = async () => {
           subscriptionId: subscription.id,
           isOverdue: false,
         });
-
       }
     }
   } catch (error) {
@@ -706,7 +752,7 @@ export const scheduleBudgetCheckNotifications = async () => {
             userId: user.id,
             scheduledDate: checkDate.toISOString(),
           },
-          sound: "notification-1.wav",
+          sound: "notification_alert.wav",
         },
         trigger: {
           type: SchedulableTriggerInputTypes.DATE,

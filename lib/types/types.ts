@@ -76,7 +76,7 @@ export type Profile = {
   phone?: string;
   user_type: string;
   created_at: string;
-  image_url?: string;
+  image_url?: string | null;
   email?: string;
 };
 
@@ -194,4 +194,20 @@ export type PersonalLoan = {
   status: "active" | "partial" | "settled";
   created_at: string;
   updated_at: string;
+};
+
+export type Investment = {
+  id: string;
+  user_id: string;
+  account_id: string;
+  type: string;
+  name: string;
+  invested_amount: number;
+  current_value: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InvestmentWithAccount = Investment & {
+  account?: Account;
 };

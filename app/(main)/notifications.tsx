@@ -26,6 +26,7 @@ import {
   Wallet,
   Settings,
   Zap,
+  WifiOff,
 } from "lucide-react-native";
 import { format, formatDistanceToNow } from "date-fns";
 import { getCurrentUserOfflineFirst } from "~/lib";
@@ -40,6 +41,16 @@ import {
   type NotificationType,
   type NotificationPriority,
 } from "~/lib/services/notifications";
+import {
+  selectNotifications,
+  selectUnreadCount,
+  markNotificationAsReadLocal,
+  markAllNotificationsAsReadLocal,
+  deleteNotificationLocal,
+  syncNotificationsFromServer,
+  type LocalNotification,
+} from "~/lib/stores/notificationsStore";
+import { isOfflineGateLocked, triggerSync } from "~/lib/sync/legendSync";
 
 import { toast } from "sonner-native";
 
@@ -47,26 +58,54 @@ export default function NotificationsScreen() {
   const router = useRouter();
   const theme = useTheme();
   useScreenStatusBar();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<LocalNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Fetch notifications
+  // Fetch notifications with offline support
   const fetchNotifications = useCallback(async () => {
     try {
       const user = await getCurrentUserOfflineFirst();
       if (!user) return;
+      
+      setCurrentUserId(user.id);
+      const offline = await isOfflineGateLocked();
+      setIsOffline(offline);
 
-      const [notificationsData, unreadCountData] = await Promise.all([
-        getUserNotifications(user.id),
-        getUnreadNotificationCount(user.id),
-      ]);
+      // Always load from local store first (immediate display)
+      const localNotifications = selectNotifications(user.id);
+      const localUnreadCount = selectUnreadCount(user.id);
+      
+      setNotifications(localNotifications);
+      setUnreadCount(localUnreadCount);
 
-      setNotifications(notificationsData);
-      setUnreadCount(unreadCountData);
+      // If online, fetch from server and sync to local store
+      if (!offline) {
+        try {
+          const [serverNotifications, serverUnreadCount] = await Promise.all([
+            getUserNotifications(user.id),
+            getUnreadNotificationCount(user.id),
+          ]);
+
+          // Sync server data to local store
+          syncNotificationsFromServer(serverNotifications, user.id);
+          
+          // Refresh from local store after sync
+          const updatedNotifications = selectNotifications(user.id);
+          const updatedUnreadCount = selectUnreadCount(user.id);
+          
+          setNotifications(updatedNotifications);
+          setUnreadCount(updatedUnreadCount);
+        } catch (serverError) {
+          console.error("Error fetching from server, using local data:", serverError);
+          // Local data is already set, no action needed
+        }
+      }
     } catch (error) {
       console.error("Error fetching notifications:", error);
       toast.error("Error", { description: "Failed to load notifications" });
@@ -87,11 +126,13 @@ export default function NotificationsScreen() {
   }, [fetchNotifications]);
 
   // Handle notification press
-  const handleNotificationPress = async (notification: Notification) => {
+  const handleNotificationPress = async (notification: LocalNotification) => {
     try {
       // Mark as read if not already read
       if (!notification.is_read) {
-        await markNotificationAsRead(notification.id);
+        // Update local store first (offline-first)
+        markNotificationAsReadLocal(notification.id);
+        
         setNotifications((prev) =>
           prev.map((n) =>
             n.id === notification.id
@@ -101,7 +142,15 @@ export default function NotificationsScreen() {
         );
         setUnreadCount((prev) => Math.max(0, prev - 1));
 
-        // Show feedback for marking as read
+        // Sync to server if online
+        if (!isOffline) {
+          try {
+            await markNotificationAsRead(notification.id);
+          } catch (serverError) {
+            console.error("Failed to sync read status to server:", serverError);
+          }
+        }
+
         toast.info("Marked as Read", {
           description: "Notification marked as read",
           duration: 2000,
@@ -110,12 +159,10 @@ export default function NotificationsScreen() {
 
       // Navigate to action URL if available
       if (notification.action_url) {
-        // Small delay to allow the read state to update visually
         setTimeout(() => {
           router.push(notification.action_url as any);
         }, 100);
       } else {
-        // If no action URL, show a message
         toast.info(notification.title, {
           description: "Notification details viewed",
           duration: 2000,
@@ -132,10 +179,11 @@ export default function NotificationsScreen() {
   // Mark all as read
   const handleMarkAllAsRead = async () => {
     try {
-      const user = await getCurrentUserOfflineFirst();
-      if (!user) return;
+      if (!currentUserId) return;
 
-      await markAllNotificationsAsRead(user.id);
+      // Update local store first (offline-first)
+      markAllNotificationsAsReadLocal(currentUserId);
+      
       setNotifications((prev) =>
         prev.map((n) => ({
           ...n,
@@ -144,6 +192,15 @@ export default function NotificationsScreen() {
         }))
       );
       setUnreadCount(0);
+
+      // Sync to server if online
+      if (!isOffline) {
+        try {
+          await markAllNotificationsAsRead(currentUserId);
+        } catch (serverError) {
+          console.error("Failed to sync mark all read to server:", serverError);
+        }
+      }
 
       toast.success("Success", {
         description: "All notifications marked as read",
@@ -159,8 +216,18 @@ export default function NotificationsScreen() {
   // Delete notification
   const handleDeleteNotification = async (notificationId: string) => {
     try {
-      await deleteNotification(notificationId);
+      // Delete from local store first (offline-first)
+      deleteNotificationLocal(notificationId);
       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+
+      // Sync to server if online
+      if (!isOffline) {
+        try {
+          await deleteNotification(notificationId);
+        } catch (serverError) {
+          console.error("Failed to sync delete to server:", serverError);
+        }
+      }
 
       toast.success("Deleted", {
         description: "Notification deleted successfully",
@@ -202,14 +269,25 @@ export default function NotificationsScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              await Promise.all(
-                Array.from(selectedIds).map((id) => deleteNotification(id))
-              );
+              // Delete from local store first (offline-first)
+              Array.from(selectedIds).forEach((id) => deleteNotificationLocal(id));
+              
               setNotifications((prev) =>
                 prev.filter((n) => !selectedIds.has(n.id))
               );
               setSelectedIds(new Set());
               setIsSelectionMode(false);
+
+              // Sync to server if online
+              if (!isOffline) {
+                try {
+                  await Promise.all(
+                    Array.from(selectedIds).map((id) => deleteNotification(id))
+                  );
+                } catch (serverError) {
+                  console.error("Failed to sync deletes to server:", serverError);
+                }
+              }
 
               toast.success("Deleted", {
                 description: `${selectedIds.size} notification(s) deleted`,
@@ -258,7 +336,7 @@ export default function NotificationsScreen() {
   };
 
   // Render notification item
-  const renderNotificationItem = ({ item }: { item: Notification }) => {
+  const renderNotificationItem = ({ item }: { item: LocalNotification }) => {
     const isSelected = selectedIds.has(item.id);
 
     return (
@@ -486,6 +564,25 @@ export default function NotificationsScreen() {
           )}
         </View>
       </View>
+
+      {/* Offline Banner */}
+      {isOffline && (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: theme.warning + "20",
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            gap: 8,
+          }}
+        >
+          <WifiOff size={16} color={theme.warning} />
+          <Text style={{ color: theme.warning, fontSize: 13, flex: 1 }}>
+            You're offline. Showing cached notifications.
+          </Text>
+        </View>
+      )}
 
       {/* Notifications List */}
       {notifications.length === 0 ? (

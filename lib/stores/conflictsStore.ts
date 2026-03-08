@@ -123,3 +123,20 @@ export function resolveConflictsForEntity(
   });
 }
 
+export function clearAllConflicts(): void {
+  conflicts$.set((state) => {
+    const nextById: Record<string, ConflictRecord> = { ...state.byId };
+    for (const id of state.allIds) {
+      const existing = nextById[id];
+      if (!existing) continue;
+      nextById[id] = {
+        ...existing,
+        deleted_at: nowIso(),
+        __local_status: "deleted" as LocalStatus,
+        __local_updated_at: nowIso(),
+      };
+    }
+    return { ...state, byId: nextById, allIds: state.allIds };
+  });
+}
+

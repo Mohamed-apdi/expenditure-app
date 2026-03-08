@@ -72,17 +72,46 @@ export function updateProfileLocal(
 ): LocalProfile | undefined {
   let updated: LocalProfile | undefined;
 
+  console.log("[profileStore] updateProfileLocal called with patch:", JSON.stringify(patch));
+
   profiles$.set((state) => {
     const existing = state.byId[userId];
-    if (!existing) return state;
-
     const now = nowIso();
+    
+    if (!existing) {
+      console.log("[profileStore] No existing profile found for userId:", userId, "- creating new one");
+      // Create a new profile if one doesn't exist (upsert behavior)
+      const newProfile: LocalProfile = {
+        id: userId,
+        full_name: patch.full_name ?? null,
+        phone: patch.phone ?? null,
+        user_type: patch.user_type ?? null,
+        created_at: now,
+        image_url: patch.image_url ?? null,
+        email: patch.email ?? null,
+        deleted_at: null,
+        __local_status: "pending",
+        __local_updated_at: now,
+        __last_error: null,
+        __remote_updated_at: null,
+      };
+      
+      const row = markPending(newProfile);
+      updated = row;
+      console.log("[profileStore] Created new profile for userId:", userId);
+      
+      const nextById = { ...state.byId, [userId]: row };
+      const nextAllIds = ensureId(state.allIds, userId);
+      return { ...state, byId: nextById, allIds: nextAllIds };
+    }
+
     const merged = safeMerge<LocalProfile>(existing, {
       ...patch,
     } as Partial<LocalProfile>);
 
     const row = markPending(merged);
     updated = row;
+    console.log("[profileStore] Updated profile image_url:", row.image_url, "status:", row.__local_status);
 
     const nextById = { ...state.byId, [userId]: row };
     return { ...state, byId: nextById, allIds: state.allIds };

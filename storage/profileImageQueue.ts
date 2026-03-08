@@ -1,84 +1,35 @@
 /**
- * Attachment queue for profile images.
- *
- * Similar to receiptQueue but targets the "images" bucket and updates the
- * profiles table. PowerSync keeps the DB row in sync; this module handles
- * file upload and local reference updates.
+ * Attachment queue for profile images using Legend-State.
+ * Queues profile image uploads for when the device comes back online.
  */
 
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import NetInfo from "@react-native-community/netinfo";
+import { observable } from "@legendapp/state";
 import { supabase } from "../lib/database/supabase";
-import { getPowerSyncDb } from "../lib/powersync/client";
-import type { AttachmentQueueItem } from "../lib/db/schema";
-import { getSessionStatus } from "../lib/auth/session";
+import { updateProfileLocal } from "../lib/stores/profileStore";
+import { isOfflineGateLocked, triggerSync } from "../lib/sync/legendSync";
+import { decode } from "base64-arraybuffer";
 
-async function insertQueueItem(item: AttachmentQueueItem): Promise<void> {
-  const db = getPowerSyncDb();
-  if (!db) return;
-
-  await db.execute(
-    `
-    INSERT INTO attachment_queue (
-      id, user_id, kind, entity_table, entity_id, local_uri,
-      bucket, object_path, mime_type, status, retry_count, last_error,
-      created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `,
-    [
-      item.id,
-      item.user_id,
-      item.kind,
-      item.entity_table,
-      item.entity_id,
-      item.local_uri,
-      item.bucket,
-      item.object_path,
-      item.mime_type,
-      item.status,
-      item.retry_count,
-      item.last_error,
-      item.created_at,
-      item.updated_at,
-    ],
-  );
+interface QueuedProfileImage {
+  id: string;
+  user_id: string;
+  profileId: string;
+  localUri: string;
+  mimeType: string;
+  status: "queued" | "uploading" | "done" | "failed";
+  retryCount: number;
+  lastError: string | null;
+  createdAt: string;
 }
 
-async function getPendingProfileItems(): Promise<AttachmentQueueItem[]> {
-  const db = getPowerSyncDb();
-  if (!db) return [];
-
-  const result = await db.execute(
-    `
-    SELECT * FROM attachment_queue
-    WHERE kind = 'profile_image'
-      AND status IN ('queued', 'failed')
-  `,
-  );
-
-  return (result.rows?._array ?? []) as AttachmentQueueItem[];
+interface ProfileImageQueueState {
+  items: QueuedProfileImage[];
 }
 
-async function updateQueueItemStatus(
-  id: string,
-  status: AttachmentQueueItem["status"],
-  last_error: string | null,
-  retry_count?: number,
-  object_path?: string | null,
-): Promise<void> {
-  const db = getPowerSyncDb();
-  if (!db) return;
-
-  const now = new Date().toISOString();
-  await db.execute(
-    `
-    UPDATE attachment_queue
-    SET status = ?, last_error = ?, retry_count = COALESCE(?, retry_count), object_path = COALESCE(?, object_path), updated_at = ?
-    WHERE id = ?
-  `,
-    [status, last_error, retry_count ?? null, object_path ?? null, now, id],
-  );
-}
+const profileImageQueue$ = observable<ProfileImageQueueState>({
+  items: [],
+});
 
 export async function enqueueProfileImage(item: {
   id: string;
@@ -88,26 +39,29 @@ export async function enqueueProfileImage(item: {
   mimeType?: string;
 }): Promise<void> {
   const now = new Date().toISOString();
-  await insertQueueItem({
+  
+  const queueItem: QueuedProfileImage = {
     id: item.id,
-    user_id: item.user_id,
-    kind: "profile_image",
-    entity_table: "profiles",
-    entity_id: item.profileId,
-    local_uri: item.localUri,
-    bucket: "images",
-    object_path: null,
-    mime_type: item.mimeType ?? "image/jpeg",
+    user_id: item.user_id || "",
+    profileId: item.profileId,
+    localUri: item.localUri,
+    mimeType: item.mimeType ?? "image/jpeg",
     status: "queued",
-    retry_count: 0,
-    last_error: null,
-    created_at: now,
-    updated_at: now,
-  });
+    retryCount: 0,
+    lastError: null,
+    createdAt: now,
+  };
+  
+  profileImageQueue$.items.push(queueItem);
+  
+  // Try to process immediately if online
+  processProfileImageQueue().catch(() => {});
 }
 
-export async function getQueuedProfileImages(): Promise<AttachmentQueueItem[]> {
-  return getPendingProfileItems();
+export function getQueuedProfileImages(): QueuedProfileImage[] {
+  return profileImageQueue$.items.get().filter(
+    (item) => item.status === "queued" || item.status === "failed"
+  );
 }
 
 export async function processProfileImageQueue(): Promise<void> {
@@ -115,63 +69,73 @@ export async function processProfileImageQueue(): Promise<void> {
   const online = !!net.isConnected && !!net.isInternetReachable;
   if (!online) return;
 
-  const sessionStatus = await getSessionStatus();
-  if (!sessionStatus.isOnline || sessionStatus.offlineGateState === "locked") {
-    return;
-  }
+  const isOffline = await isOfflineGateLocked();
+  if (isOffline) return;
 
-  const db = getPowerSyncDb();
-  if (!db) return;
-
-  const items = await getPendingProfileItems();
+  const items = getQueuedProfileImages();
 
   for (const item of items) {
+    const itemIndex = profileImageQueue$.items.get().findIndex((i) => i.id === item.id);
+    if (itemIndex === -1) continue;
 
     try {
-      const info = await FileSystem.getInfoAsync(item.local_uri);
+      // Update status to uploading
+      profileImageQueue$.items[itemIndex].status.set("uploading");
+
+      const info = await FileSystem.getInfoAsync(item.localUri);
       if (!info.exists) {
-        await updateQueueItemStatus(item.id, "failed", "File not found", item.retry_count + 1);
+        profileImageQueue$.items[itemIndex].status.set("failed");
+        profileImageQueue$.items[itemIndex].lastError.set("File not found");
+        profileImageQueue$.items[itemIndex].retryCount.set(item.retryCount + 1);
         continue;
       }
 
-      const fileContents = await FileSystem.readAsStringAsync(item.local_uri, {
-        encoding: FileSystem.EncodingType.Base64,
+      const fileContents = await FileSystem.readAsStringAsync(item.localUri, {
+        encoding: "base64",
       });
 
-      const path = `${item.entity_id}/${Date.now()}.jpg`;
+      const path = `profile_images/${item.profileId}_${Date.now()}.jpg`;
       const { data, error } = await supabase.storage
         .from("images")
-        .upload(path, Buffer.from(fileContents, "base64"), {
+        .upload(path, decode(fileContents), {
           contentType: "image/jpeg",
           upsert: true,
         });
 
       if (error || !data) {
-        await updateQueueItemStatus(
-          item.id,
-          "failed",
-          error?.message ?? "Unknown upload error",
-          item.retry_count + 1,
-        );
+        profileImageQueue$.items[itemIndex].status.set("failed");
+        profileImageQueue$.items[itemIndex].lastError.set(error?.message ?? "Unknown upload error");
+        profileImageQueue$.items[itemIndex].retryCount.set(item.retryCount + 1);
         continue;
       }
 
       const publicUrl = supabase.storage.from("images").getPublicUrl(data.path).data.publicUrl;
 
-      await db.execute(
-        "UPDATE profiles SET image_url = ? WHERE id = ?",
-        [publicUrl, item.entity_id],
-      );
-
-      await updateQueueItemStatus(item.id, "done", null, item.retry_count, data.path);
+      // Update profile with new image URL
+      updateProfileLocal(item.profileId, { image_url: publicUrl });
+      
+      // Mark as done
+      profileImageQueue$.items[itemIndex].status.set("done");
+      
+      // Trigger sync to push changes
+      void triggerSync();
+      
     } catch (e) {
-      await updateQueueItemStatus(
-        item.id,
-        "failed",
-        e instanceof Error ? e.message : String(e),
-        item.retry_count + 1,
-      );
+      profileImageQueue$.items[itemIndex].status.set("failed");
+      profileImageQueue$.items[itemIndex].lastError.set(e instanceof Error ? e.message : String(e));
+      profileImageQueue$.items[itemIndex].retryCount.set(item.retryCount + 1);
     }
   }
+
+  // Clean up completed items
+  const currentItems = profileImageQueue$.items.get();
+  const pendingItems = currentItems.filter((item) => item.status !== "done");
+  profileImageQueue$.items.set(pendingItems);
 }
 
+// Set up network listener to process queue when coming online
+NetInfo.addEventListener((state) => {
+  if (state.isConnected && state.isInternetReachable) {
+    processProfileImageQueue().catch(() => {});
+  }
+});

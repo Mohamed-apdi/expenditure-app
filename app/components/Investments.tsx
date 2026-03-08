@@ -25,12 +25,22 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import { supabase, getCurrentUserOfflineFirst } from '~/lib';
+import { getCurrentUserOfflineFirst } from '~/lib';
 import { fetchAccounts, type Account } from '~/lib';
 import { useTheme } from '~/lib';
 import { useLanguage } from '~/lib';
+import { triggerSync } from '~/lib/sync/legendSync';
+import {
+  selectInvestments,
+  createInvestmentLocal,
+  updateInvestmentLocal,
+  deleteInvestmentLocal,
+} from '~/lib/stores/investmentsStore';
+import { selectAccounts, toAccount, updateAccountLocal } from '~/lib/stores/accountsStore';
+import { createTransactionLocal } from '~/lib/stores/transactionsStore';
+import type { LocalInvestment } from '~/lib/stores/storeUtils';
 
-// Investment interface based on your Supabase table
+// Investment interface based on local store
 interface Investment {
   id: string;
   user_id: string;
@@ -43,6 +53,24 @@ interface Investment {
   created_at: string;
   updated_at: string;
   account?: Account;
+}
+
+function toDisplayInvestment(inv: LocalInvestment, accounts: Account[]): Investment {
+  const profitLoss = inv.current_value - inv.invested_amount;
+  const account = accounts.find((a) => a.id === inv.account_id);
+  return {
+    id: inv.id,
+    user_id: inv.user_id,
+    account_id: inv.account_id,
+    type: inv.type,
+    name: inv.name,
+    invested_amount: inv.invested_amount,
+    current_value: inv.current_value,
+    profit_loss: profitLoss,
+    created_at: inv.created_at,
+    updated_at: inv.updated_at,
+    account,
+  };
 }
 
 interface InvestmentsProps {
@@ -107,44 +135,29 @@ const Investments = ({
 
       setUserId(user.id);
 
-      // Fetch investments with accounts and accounts in parallel
-      const [investmentsData, accountsData] = await Promise.all([
-        fetchInvestmentsWithAccounts(user.id),
-        fetchAccounts(user.id),
-      ]);
+      // Load from local stores (offline-first)
+      const localInvestments = selectInvestments(user.id);
+      const localAccounts = selectAccounts(user.id);
+      const accountsForDisplay = localAccounts.map(toAccount);
 
-      setInvestments(investmentsData);
-      setAccounts(accountsData);
+      // Convert to display format
+      const displayInvestments = localInvestments.map((inv) =>
+        toDisplayInvestment(inv, accountsForDisplay)
+      );
+
+      setInvestments(displayInvestments);
+      setAccounts(accountsForDisplay);
 
       // Set default selected account if available
-      if (accountsData.length > 0) {
-        setSelectedAccount(accountsData[0]);
+      if (accountsForDisplay.length > 0 && !selectedAccount) {
+        setSelectedAccount(accountsForDisplay[0]);
       }
+
+      // Trigger background sync to get latest data from server
+      triggerSync().catch(console.error);
     } catch (error) {
       console.error('Error fetching data:', error);
       Alert.alert(t.error, t.failedToFetchData);
-    }
-  };
-
-  // Fetch investments with account details
-  const fetchInvestmentsWithAccounts = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('investments')
-        .select(
-          `
-          *,
-          account:accounts(*)
-        `,
-        )
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching investments:', error);
-      return [];
     }
   };
 
@@ -232,50 +245,90 @@ const Investments = ({
     }
 
     try {
+      const investedAmount = parseFloat(newInvestedAmount);
+      const currentValue = parseFloat(newCurrentValue);
+      const today = new Date().toISOString().split('T')[0];
+
       if (currentInvestment) {
-        // Update existing investment
-        const { data, error } = await supabase
-          .from('investments')
-          .update({
-            type: newType,
-            name: newName,
-            invested_amount: parseFloat(newInvestedAmount),
-            current_value: parseFloat(newCurrentValue),
-            account_id: selectedAccount.id,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', currentInvestment.id)
-          .select()
-          .single();
+        const previousInvestedAmount = currentInvestment.invested_amount;
+        const amountDifference = investedAmount - previousInvestedAmount;
 
-        if (error) throw error;
+        const updated = updateInvestmentLocal(currentInvestment.id, {
+          type: newType,
+          name: newName,
+          invested_amount: investedAmount,
+          current_value: currentValue,
+          account_id: selectedAccount.id,
+        });
 
-        setInvestments((prev) =>
-          prev.map((inv) => (inv.id === currentInvestment.id ? data : inv)),
-        );
+        if (updated) {
+          const displayInv = toDisplayInvestment(updated, accounts);
+          setInvestments((prev) =>
+            prev.map((inv) => (inv.id === currentInvestment.id ? displayInv : inv)),
+          );
+
+          if (amountDifference !== 0) {
+            if (amountDifference > 0) {
+              createTransactionLocal({
+                user_id: userId,
+                account_id: selectedAccount.id,
+                amount: amountDifference,
+                description: `${newName} - ${t.additionalInvestment || 'Additional investment'}`,
+                date: today,
+                category: 'Investment',
+                type: 'expense',
+                is_recurring: false,
+              });
+              const newBalance = selectedAccount.amount - amountDifference;
+              updateAccountLocal(selectedAccount.id, { amount: newBalance });
+            } else {
+              const returnAmount = Math.abs(amountDifference);
+              createTransactionLocal({
+                user_id: userId,
+                account_id: selectedAccount.id,
+                amount: returnAmount,
+                description: `${newName} - ${t.investmentReduction || 'Investment reduction'}`,
+                date: today,
+                category: 'Investment',
+                type: 'income',
+                is_recurring: false,
+              });
+              const newBalance = selectedAccount.amount + returnAmount;
+              updateAccountLocal(selectedAccount.id, { amount: newBalance });
+            }
+          }
+        }
         Alert.alert(t.success, t.investmentUpdated);
       } else {
-        // Add new investment
-        const { data, error } = await supabase
-          .from('investments')
-          .insert({
-            user_id: userId,
-            account_id: selectedAccount.id,
-            type: newType,
-            name: newName,
-            invested_amount: parseFloat(newInvestedAmount),
-            current_value: parseFloat(newCurrentValue),
-          })
-          .select()
-          .single();
+        const created = createInvestmentLocal({
+          user_id: userId,
+          account_id: selectedAccount.id,
+          type: newType,
+          name: newName,
+          invested_amount: investedAmount,
+          current_value: currentValue,
+        });
 
-        if (error) throw error;
+        createTransactionLocal({
+          user_id: userId,
+          account_id: selectedAccount.id,
+          amount: investedAmount,
+          description: `${newName} - ${t.newInvestment || 'New investment'}`,
+          date: today,
+          category: 'Investment',
+          type: 'expense',
+          is_recurring: false,
+        });
 
-        setInvestments((prev) => [data, ...prev]);
+        const newBalance = selectedAccount.amount - investedAmount;
+        updateAccountLocal(selectedAccount.id, { amount: newBalance });
+
+        const displayInv = toDisplayInvestment(created, accounts);
+        setInvestments((prev) => [displayInv, ...prev]);
         Alert.alert(t.success, t.investmentAdded);
       }
       setIsModalVisible(false);
-      fetchData(); // Refresh to get updated data
+      triggerSync().catch(console.error);
     } catch (error) {
       console.error('Error saving investment:', error);
       Alert.alert(t.error, t.investmentSaveError);
@@ -290,17 +343,15 @@ const Investments = ({
         style: 'destructive',
         onPress: async () => {
           try {
-            const { error } = await supabase
-              .from('investments')
-              .delete()
-              .eq('id', investmentId);
-
-            if (error) throw error;
+            // Delete locally (soft delete)
+            deleteInvestmentLocal(investmentId);
 
             setInvestments((prev) =>
               prev.filter((inv) => inv.id !== investmentId),
             );
             Alert.alert(t.success, t.investmentDeleted);
+            // Trigger sync to push deletion to server
+            triggerSync().catch(console.error);
           } catch (error) {
             console.error('Error deleting investment:', error);
             Alert.alert(t.error, t.investmentDeleteError);

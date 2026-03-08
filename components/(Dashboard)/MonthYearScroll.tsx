@@ -9,6 +9,7 @@ import {
   View,
   StyleSheet,
   LayoutChangeEvent,
+  InteractionManager,
 } from 'react-native';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react-native';
 import { useLanguage, useAccount, useTheme } from '~/lib';
@@ -27,6 +28,11 @@ const months = [
   'NOV',
   'DEC',
 ];
+
+// Fixed pill width (minWidth: 88 + marginHorizontal: 4*2 + paddingHorizontal: 14*2 approximated)
+const PILL_WIDTH = 96;
+const PILL_MARGIN = 8;
+const CONTENT_PADDING = 12;
 
 type MonthYearScrollerProps = {
   variant?: 'light' | 'dark';
@@ -85,68 +91,125 @@ export default function MonthYearScroller({
     return arr;
   }, [currentYear, currentMonth]);
 
+  // Get index of current month in the data array
+  const currentMonthIndex = useMemo(() => {
+    return data.indexOf(currentLabel);
+  }, [data, currentLabel]);
+
   const [selected, setSelected] = useState<string>(currentLabel);
 
-  // Reset to current month on refresh trigger (optional behavior)
-  useEffect(() => {
-    setSelected(currentLabel);
-    didInitialCenter.current = false;
-  }, [refreshTrigger, currentLabel]);
-
-  // ---- ✅ PERFECT SCROLLING (measure each pill) ----
+  // ---- Scroll refs and state ----
   const scrollRef = useRef<ScrollView>(null);
   const containerWidthRef = useRef<number>(0);
   const itemLayoutsRef = useRef<Record<string, ItemLayout>>({});
-  const didInitialCenter = useRef(false);
+  const hasInitiallyCenteredRef = useRef(false);
+  const prevRefreshTriggerRef = useRef(refreshTrigger);
 
-  const centerSelected = useCallback(
-    (animated: boolean) => {
-      const containerWidth = containerWidthRef.current;
-      const layout = itemLayoutsRef.current[selected];
+  // Calculate estimated initial offset based on index (for immediate positioning)
+  const estimatedInitialOffset = useMemo(() => {
+    const itemTotalWidth = PILL_WIDTH + PILL_MARGIN;
+    return Math.max(0, CONTENT_PADDING + currentMonthIndex * itemTotalWidth - 150);
+  }, [currentMonthIndex]);
 
-      if (!scrollRef.current) return;
-      if (!containerWidth) return;
-      if (!layout) return;
+  // Helper to scroll to any item by label using measured layouts
+  const scrollToItem = useCallback((label: string, animated = true) => {
+    const containerWidth = containerWidthRef.current;
+    const layout = itemLayoutsRef.current[label];
+    if (!scrollRef.current || !containerWidth || !layout) return;
+    const targetX = Math.max(0, layout.x + layout.width / 2 - containerWidth / 2);
+    scrollRef.current.scrollTo({ x: targetX, animated });
+  }, []);
 
-      // center of selected item minus half container width
-      const targetX = Math.max(0, layout.x + layout.width / 2 - containerWidth / 2);
-
-      scrollRef.current.scrollTo({ x: targetX, animated });
-    },
-    [selected],
-  );
+  // Attempt to center selected item using accurate measurements
+  const attemptInitialCenter = useCallback(() => {
+    if (hasInitiallyCenteredRef.current) return;
+    const containerWidth = containerWidthRef.current;
+    const layout = itemLayoutsRef.current[selected];
+    if (containerWidth > 0 && layout) {
+      hasInitiallyCenteredRef.current = true;
+      scrollToItem(selected, false);
+    }
+  }, [selected, scrollToItem]);
 
   const onContainerLayout = (e: LayoutChangeEvent) => {
     containerWidthRef.current = e.nativeEvent.layout.width;
-
-    // once container knows its width, try centering (maybe layouts exist already)
-    if (!didInitialCenter.current) {
-      centerSelected(false);
-      // don't mark true yet; wait until we actually have the selected layout
-      // (we mark true in onItemLayout when selected item is measured)
-    }
+    attemptInitialCenter();
   };
 
   const onItemLayout = (item: string) => (e: LayoutChangeEvent) => {
     const { x, width } = e.nativeEvent.layout;
     itemLayoutsRef.current[item] = { x, width };
 
-    // when the SELECTED item is measured the first time, center it instantly
-    if (item === selected && !didInitialCenter.current) {
-      didInitialCenter.current = true;
-      // small microtask helps on iOS sometimes
-      setTimeout(() => centerSelected(false), 0);
+    // When selected item is measured, try to center with accurate position
+    if (item === selected) {
+      attemptInitialCenter();
     }
   };
 
-  // When user changes selected (tap), center it smoothly
+  // On mount: use InteractionManager to scroll after animations complete
   useEffect(() => {
-    // If we already measured selected, this will work immediately.
-    // If not measured yet, onItemLayout will center it when measured.
-    if (didInitialCenter.current) {
-      centerSelected(true);
+    const task = InteractionManager.runAfterInteractions(() => {
+      if (!hasInitiallyCenteredRef.current) {
+        attemptInitialCenter();
+      }
+    });
+
+    // Also set up fallback timeouts
+    const timeouts = [100, 250, 500].map((delay) =>
+      setTimeout(() => {
+        if (!hasInitiallyCenteredRef.current) {
+          attemptInitialCenter();
+        }
+      }, delay)
+    );
+
+    return () => {
+      task.cancel();
+      timeouts.forEach(clearTimeout);
+    };
+  }, [attemptInitialCenter]);
+
+  // When user taps a different month, center it with animation
+  const prevSelectedRef = useRef(selected);
+  useEffect(() => {
+    // Only animate if selected actually changed (not on mount)
+    if (prevSelectedRef.current !== selected && hasInitiallyCenteredRef.current) {
+      scrollToItem(selected, true);
     }
-  }, [selected, centerSelected]);
+    prevSelectedRef.current = selected;
+  }, [selected, scrollToItem]);
+
+  // Reset to current month on refreshTrigger change (skip initial mount)
+  useEffect(() => {
+    // Skip initial mount
+    if (prevRefreshTriggerRef.current === refreshTrigger) return;
+    prevRefreshTriggerRef.current = refreshTrigger;
+
+    setSelected(currentLabel);
+    hasInitiallyCenteredRef.current = false;
+    
+    // Use InteractionManager + fallback timeouts
+    const task = InteractionManager.runAfterInteractions(() => {
+      scrollToItem(currentLabel, false);
+      hasInitiallyCenteredRef.current = true;
+    });
+
+    const timeouts = [50, 150].map((delay) =>
+      setTimeout(() => {
+        if (!hasInitiallyCenteredRef.current) {
+          scrollToItem(currentLabel, false);
+          if (containerWidthRef.current > 0 && itemLayoutsRef.current[currentLabel]) {
+            hasInitiallyCenteredRef.current = true;
+          }
+        }
+      }, delay)
+    );
+
+    return () => {
+      task.cancel();
+      timeouts.forEach(clearTimeout);
+    };
+  }, [refreshTrigger, currentLabel, scrollToItem]);
 
   // ---- Fetch month data when selected changes (and when userId is ready so we don't show 0s) ----
   useEffect(() => {
@@ -181,6 +244,7 @@ export default function MonthYearScroller({
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.monthScrollerContent}
           style={styles.monthScrollerList}
+          contentOffset={{ x: estimatedInitialOffset, y: 0 }}
         >
           {data.map((item) => {
             const isActive = item === selected;

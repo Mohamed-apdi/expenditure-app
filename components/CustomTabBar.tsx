@@ -96,7 +96,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
 
         const isActive = state.index === tab.index;
         const Icon = tab.icon;
-        const activeColor = "#40A5E7";
+        const activeColor = "#00BFFF";
         const iconColor = isActive ? activeColor : theme.textMuted;
 
         const iconContent = React.isValidElement(Icon) ? (

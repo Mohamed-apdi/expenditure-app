@@ -593,7 +593,7 @@ export default function AddExpenseScreen() {
             >
               {ENTRY_TABS.map((tab, index) => {
                 const isActive = entryType === tab.id;
-                const activeBg = "#40A5E7";
+                const activeBg = "#00BFFF";
                 return (
                   <TouchableOpacity
                     key={tab.id}

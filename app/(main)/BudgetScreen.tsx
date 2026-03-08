@@ -65,7 +65,7 @@ export default function BudgetScreen() {
     void preloadTabClickSound();
   }, []);
 
-  const TAB_KEYS = ['Budget', 'Subscriptions', 'Goals', 'Investments', 'Debt/Loan'];
+  const TAB_KEYS = ['Budget', 'Subscriptions', 'Goals', 'Investments', 'Loan'];
 
   // When active tab changes (tap or swipe), scroll tab bar so active tab is visible
   const scrollTabBarToActive = useCallback(() => {
@@ -156,7 +156,7 @@ export default function BudgetScreen() {
               case 'Investments':
                 setActiveTab('Goals');
                 break;
-              case 'Debt/Loan':
+              case 'Loan':
                 setActiveTab('Investments');
                 break;
             }
@@ -173,7 +173,7 @@ export default function BudgetScreen() {
                 setActiveTab('Investments');
                 break;
               case 'Investments':
-                setActiveTab('Debt/Loan');
+                setActiveTab('Loan');
                 break;
             }
           }
@@ -388,8 +388,8 @@ export default function BudgetScreen() {
     />
   );
 
-  // Debt/Loan tab content (filter by same account as Dashboard)
-  const DebtLoanTab = () => (
+  // Loan tab content (filter by same account as Dashboard)
+  const LoanTab = () => (
     <Debt_Loan
       accounts={accounts}
       userId={userId}
@@ -428,10 +428,10 @@ export default function BudgetScreen() {
               },
               { key: 'Goals', label: t.goals || 'Goals' },
               { key: 'Investments', label: t.investments || 'Investments' },
-              { key: 'Debt/Loan', label: t.debtLoan || 'Debt/Loan' },
+              { key: 'Loan', label: t.loan || 'Loan' },
             ].map((tab) => {
               const isActive = activeTab === tab.key;
-              const activeBg = theme.tabActive ?? '#40A5E7';
+              const activeBg = theme.tabActive ?? '#00BFFF';
               return (
                 <TouchableOpacity
                   key={tab.key}
@@ -723,9 +723,9 @@ export default function BudgetScreen() {
               <InvestmentsTab />
             </View>
           )}
-          {activeTab === 'Debt/Loan' && (
+          {activeTab === 'Loan' && (
             <View style={{ flex: 1 }}>
-              <DebtLoanTab />
+              <LoanTab />
             </View>
           )}
         </View>

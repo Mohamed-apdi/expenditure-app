@@ -58,7 +58,7 @@ export {
   selectAccountById,
   toAccount,
 } from "./stores/accountsStore";
-export { selectConflicts } from "./stores/conflictsStore";
+export { selectConflicts, clearAllConflicts } from "./stores/conflictsStore";
 export {
   createExpenseLocal,
   updateExpenseLocal,
@@ -66,6 +66,15 @@ export {
   selectExpenseById,
 } from "./stores/expensesStore";
 export { selectProfile, updateProfileLocal } from "./stores/profileStore";
+export {
+  selectNotifications,
+  selectUnreadCount,
+  createNotificationLocal,
+  markNotificationAsReadLocal,
+  markAllNotificationsAsReadLocal,
+  deleteNotificationLocal,
+  syncNotificationsFromServer,
+} from "./stores/notificationsStore";
 export {
   createTransactionLocal,
   updateTransactionLocal,
@@ -105,6 +114,17 @@ export {
   selectPersonalLoans,
 } from "./stores/personalLoansStore";
 export {
+  createLoanRepaymentLocal,
+  deleteLoanRepaymentLocal,
+  selectLoanRepayments,
+} from "./stores/loanRepaymentsStore";
+export {
+  createInvestmentLocal,
+  updateInvestmentLocal,
+  deleteInvestmentLocal,
+  selectInvestments,
+} from "./stores/investmentsStore";
+export {
   isOfflineGateLocked,
   resolveConflictKeepLocal,
   resolveConflictUseRemote,
@@ -129,6 +149,7 @@ export * from "./utils/android-navigation-bar";
 export * from "./utils/chartColors";
 export * from "./utils/expoGoUtils";
 export * from "./utils/utils";
+export * from "./utils/imageCache";
 
 // Hooks
 export * from "./hooks/useDashboardData";
