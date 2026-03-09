@@ -257,11 +257,27 @@ export const DEFAULT_ACCOUNT_NAME = "Main Account";
  * Ensures the user has exactly one default account. If they have no accounts,
  * creates one (behind the scenes). Idempotent: safe to call on every login/signup.
  * Used to satisfy "auto create default account on registration" (spec 004).
+ * 
+ * Checks both local store and server to prevent duplicate account creation.
  */
 export const ensureDefaultAccount = async (userId: string): Promise<void> => {
-  const accounts = await fetchAccounts(userId);
-  if (accounts.length > 0) return;
+  // First check local store (offline-first) - import dynamically to avoid circular deps
+  const { selectAccounts } = await import("../stores/accountsStore");
+  const localAccounts = selectAccounts(userId);
+  if (localAccounts.length > 0) {
+    console.log("ensureDefaultAccount: User has local accounts, skipping creation");
+    return;
+  }
 
+  // Then check server
+  const serverAccounts = await fetchAccounts(userId);
+  if (serverAccounts.length > 0) {
+    console.log("ensureDefaultAccount: User has server accounts, skipping creation");
+    return;
+  }
+
+  // Only create if user truly has no accounts anywhere
+  console.log("ensureDefaultAccount: No accounts found, creating default account");
   await createAccount({
     user_id: userId,
     account_type: "Accounts",

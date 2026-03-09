@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import {
   ArrowRight,
-  ArrowUpDown,
+  ArrowLeftRight,
   ChevronDown,
   Wallet,
 } from "lucide-react-native";
@@ -28,19 +28,6 @@ type Props = {
   handleTransfer: () => void;
   theme: any;
   t: any;
-};
-
-const CARD_STYLE = {
-  paddingVertical: 16,
-  paddingHorizontal: 16,
-  borderRadius: 16,
-  minHeight: 72,
-  borderWidth: 1,
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.06,
-  shadowRadius: 8,
-  elevation: 3,
 };
 
 export default function TransferForm({
@@ -94,15 +81,33 @@ export default function TransferForm({
         ? t.to || "To account"
         : "";
 
+  const swapAccounts = () => {
+    const temp = fromAccount;
+    setFromAccount(toAccount);
+    setToAccount(temp);
+  };
+
+  const handleAmountChange = (text: string) => {
+    const cleaned = text.replace(/[^0-9.]/g, "");
+    const parts = cleaned.split(".");
+    if (parts.length > 2) {
+      return;
+    }
+    if (parts[1] && parts[1].length > 2) {
+      return;
+    }
+    setTransferAmount(cleaned);
+  };
+
   return (
-    <View style={{ paddingHorizontal: 20 }}>
-      {/* Amount Input */}
-      <View style={{ alignItems: "center", marginBottom: 32 }}>
+    <View style={{ paddingHorizontal: 0 }}>
+      {/* Amount Input - Large at top */}
+      <View style={{ alignItems: "center", marginTop: 24, marginBottom: 44 }}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Text
             style={{
               color: theme.primary,
-              fontSize: 28,
+              fontSize: 40,
               fontWeight: "600",
               marginRight: 8,
             }}
@@ -112,13 +117,14 @@ export default function TransferForm({
           <TextInput
             style={{
               color: theme.text,
-              fontSize: 28,
+              fontSize: 42,
               fontWeight: "600",
-              minWidth: 100,
+              minWidth: 140,
               textAlign: "center",
+              lineHeight: 50,
             }}
             value={transferAmount}
-            onChangeText={setTransferAmount}
+            onChangeText={handleAmountChange}
             placeholder="0.00"
             placeholderTextColor={theme.placeholder}
             keyboardType="decimal-pad"
@@ -127,198 +133,243 @@ export default function TransferForm({
         </View>
       </View>
 
-      {/* From Account - Card */}
-      <View style={{ marginBottom: 16 }}>
-        <Text
-          style={{
-            fontSize: 14,
-            fontWeight: "500",
-            marginBottom: 8,
-            color: theme.textSecondary,
-          }}
-        >
-          {t.from || "From"}
-        </Text>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={openFromSheet}
-          style={{
-            ...CARD_STYLE,
-            backgroundColor: theme.cardBackground,
-            borderColor: fromAccount ? theme.primary : theme.border,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                backgroundColor: fromAccount
-                  ? `${theme.primary}18`
-                  : `${theme.border}40`,
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: 14,
-              }}
-            >
-              <Wallet
-                size={22}
-                color={fromAccount ? theme.primary : theme.textMuted}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "600",
-                  color: fromAccount ? theme.text : theme.placeholder,
-                }}
-                numberOfLines={1}
-              >
-                {fromAccount?.name ?? (t.select_account || "Select account")}
-              </Text>
-              {fromAccount && (
-                <Text
-                  style={{
-                    fontSize: 13,
-                    color: theme.textSecondary,
-                    marginTop: 2,
-                  }}
-                >
-                  {t.balance || "Balance"}: ${fromAccount.amount.toFixed(2)}
-                </Text>
-              )}
-            </View>
-          </View>
-          <ChevronDown size={20} color={theme.textMuted} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Transfer Arrow */}
-      {fromAccount && toAccount && (
-        <View style={{ alignItems: "center", marginVertical: 8 }}>
-          <View
-            style={{
-              backgroundColor: theme.primary,
-              borderRadius: 20,
-              padding: 10,
-            }}
-          >
-            <ArrowRight size={18} color="white" />
-          </View>
-        </View>
-      )}
-
-      {/* To Account - Card */}
-      <View style={{ marginBottom: 20 }}>
-        <Text
-          style={{
-            fontSize: 14,
-            fontWeight: "500",
-            marginBottom: 8,
-            color: theme.textSecondary,
-          }}
-        >
-          {t.to || "To"}
-        </Text>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={openToSheet}
-          style={{
-            ...CARD_STYLE,
-            backgroundColor: theme.cardBackground,
-            borderColor: toAccount ? (theme.success ?? "#16a34a") : theme.border,
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                backgroundColor: toAccount
-                  ? `${theme.success ?? "#16a34a"}18`
-                  : `${theme.border}40`,
-                alignItems: "center",
-                justifyContent: "center",
-                marginRight: 14,
-              }}
-            >
-              <Wallet
-                size={22}
-                color={
-                  toAccount ? (theme.success ?? "#16a34a") : theme.textMuted
-                }
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "600",
-                  color: toAccount ? theme.text : theme.placeholder,
-                }}
-                numberOfLines={1}
-              >
-                {toAccount?.name ?? (t.select_account || "Select account")}
-              </Text>
-              {toAccount && (
-                <Text
-                  style={{
-                    fontSize: 13,
-                    color: theme.textSecondary,
-                    marginTop: 2,
-                  }}
-                >
-                  {t.balance || "Balance"}: ${toAccount.amount.toFixed(2)}
-                </Text>
-              )}
-            </View>
-          </View>
-          <ChevronDown size={20} color={theme.textMuted} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Swap Accounts Button */}
-      {fromAccount && toAccount && (
-        <TouchableOpacity
+      {/* Two Rounded Boxes with Arrow - Centered */}
+      <View
+        style={{
+          alignItems: "center",
+          justifyContent: "center",
+          marginBottom: 24,
+        }}
+      >
+        <View
           style={{
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: theme.inputBackground,
-            borderRadius: 12,
-            paddingVertical: 10,
-            paddingHorizontal: 16,
+            gap: 12,
+          }}
+        >
+          {/* From Account Box */}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={openFromSheet}
+            style={{
+              width: 130,
+              backgroundColor: fromAccount ? `${theme.primary}10` : theme.cardBackground,
+              borderRadius: 20,
+              padding: 16,
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 150,
+              borderWidth: 2,
+              borderColor: fromAccount ? theme.primary : theme.border,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.08,
+            shadowRadius: 12,
+            elevation: 4,
+          }}
+        >
+          <View
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 16,
+              backgroundColor: fromAccount
+                ? `${theme.primary}20`
+                : `${theme.border}40`,
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 12,
+            }}
+          >
+            <Wallet
+              size={26}
+              color={fromAccount ? theme.primary : theme.textMuted}
+            />
+          </View>
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: "600",
+              color: theme.textSecondary,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              marginBottom: 4,
+            }}
+          >
+            {t.from || "From"}
+          </Text>
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "700",
+              color: fromAccount ? theme.text : theme.placeholder,
+              textAlign: "center",
+            }}
+            numberOfLines={1}
+          >
+            {fromAccount?.name ?? (t.select || "Select")}
+          </Text>
+          {fromAccount && (
+            <Text
+              style={{
+                fontSize: 12,
+                color: theme.textSecondary,
+                marginTop: 4,
+              }}
+            >
+              ${fromAccount.amount.toFixed(2)}
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Arrow in the middle */}
+        <TouchableOpacity
+          onPress={fromAccount && toAccount ? swapAccounts : undefined}
+          activeOpacity={fromAccount && toAccount ? 0.7 : 1}
+          style={{
+            backgroundColor: fromAccount && toAccount ? theme.primary : theme.border,
+            borderRadius: 24,
+            width: 48,
+            height: 48,
+            alignItems: "center",
+            justifyContent: "center",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3,
+          }}
+        >
+          {fromAccount && toAccount ? (
+            <ArrowLeftRight size={22} color="white" />
+          ) : (
+            <ArrowRight size={22} color="white" />
+          )}
+        </TouchableOpacity>
+
+        {/* To Account Box */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={openToSheet}
+          style={{
+            width: 130,
+            backgroundColor: toAccount ? `${theme.success ?? "#16a34a"}10` : theme.cardBackground,
+            borderRadius: 20,
+            padding: 16,
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: 150,
+            borderWidth: 2,
+            borderColor: toAccount ? (theme.success ?? "#16a34a") : theme.border,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.08,
+            shadowRadius: 12,
+            elevation: 4,
+          }}
+        >
+          <View
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 16,
+              backgroundColor: toAccount
+                ? `${theme.success ?? "#16a34a"}20`
+                : `${theme.border}40`,
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 12,
+            }}
+          >
+            <Wallet
+              size={26}
+              color={toAccount ? (theme.success ?? "#16a34a") : theme.textMuted}
+            />
+          </View>
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: "600",
+              color: theme.textSecondary,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+              marginBottom: 4,
+            }}
+          >
+            {t.to || "To"}
+          </Text>
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: "700",
+              color: toAccount ? theme.text : theme.placeholder,
+              textAlign: "center",
+            }}
+            numberOfLines={1}
+          >
+            {toAccount?.name ?? (t.select || "Select")}
+          </Text>
+          {toAccount && (
+            <Text
+              style={{
+                fontSize: 12,
+                color: theme.textSecondary,
+                marginTop: 4,
+              }}
+            >
+              ${toAccount.amount.toFixed(2)}
+            </Text>
+          )}
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Transfer Preview - when both accounts selected */}
+      {fromAccount && toAccount && transferAmount && Number.parseFloat(transferAmount) > 0 && (
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            borderRadius: 16,
+            padding: 16,
             marginBottom: 20,
+            marginHorizontal: 23,
             borderWidth: 1,
             borderColor: theme.border,
           }}
-          onPress={() => {
-            const temp = fromAccount;
-            setFromAccount(toAccount);
-            setToAccount(temp);
-          }}
         >
-          <ArrowUpDown size={14} color={theme.primary} />
           <Text
             style={{
-              marginLeft: 8,
-              color: theme.primary,
-              fontWeight: "500",
-              fontSize: 14,
+              fontSize: 12,
+              fontWeight: "600",
+              color: theme.textSecondary,
+              marginBottom: 12,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
             }}
           >
-            {t.swapAccounts || "Swap"}
+            {t.transferPreview || "New Balances"}
           </Text>
-        </TouchableOpacity>
+          <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 12, color: theme.textMuted, marginBottom: 2 }}>
+                {fromAccount.name}
+              </Text>
+              <Text style={{ fontSize: 15, fontWeight: "600", color: theme.danger ?? "#ef4444" }}>
+                ${(fromAccount.amount - Number.parseFloat(transferAmount || "0")).toFixed(2)}
+              </Text>
+            </View>
+            <View style={{ flex: 1, alignItems: "flex-end" }}>
+              <Text style={{ fontSize: 12, color: theme.textMuted, marginBottom: 2 }}>
+                {toAccount.name}
+              </Text>
+              <Text style={{ fontSize: 15, fontWeight: "600", color: theme.success ?? "#16a34a" }}>
+                ${(toAccount.amount + Number.parseFloat(transferAmount || "0")).toFixed(2)}
+              </Text>
+            </View>
+          </View>
+        </View>
       )}
 
       {/* Bottom popup - Account picker (plain Modal to avoid Reanimated) */}

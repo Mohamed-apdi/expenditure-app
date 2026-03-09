@@ -12,7 +12,7 @@ import {
   Modal,
   Pressable,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
@@ -91,6 +91,7 @@ export default function EditExpenseScreen() {
   const theme = useTheme();
   const { t } = useLanguage();
   const { accounts } = useAccount();
+  const insets = useSafeAreaInsets();
   useScreenStatusBar();
 
   const [originalAmount, setOriginalAmount] = useState<number | null>(null);
@@ -322,46 +323,35 @@ export default function EditExpenseScreen() {
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "center",
-            paddingHorizontal: 20,
+            paddingHorizontal: 16,
             paddingVertical: 16,
             borderBottomWidth: 1,
             borderBottomColor: theme.border,
           }}
         >
-          <TouchableOpacity onPress={() => router.back()}>
-            <X size={24} color={theme.icon} />
+          <TouchableOpacity
+            style={{
+              padding: 8,
+              borderRadius: 12,
+              backgroundColor: theme.cardBackground,
+            }}
+            onPress={() => router.back()}
+          >
+            <X size={22} color={theme.textMuted} />
           </TouchableOpacity>
-          <Text style={{ color: theme.text, fontSize: 18, fontWeight: "700" }}>
+          <Text style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}>
             {transactionType === "expense" 
               ? (t.editExpense || "Edit Expense")
               : (t.editIncome || "Edit Income")}
           </Text>
-          <TouchableOpacity
-            style={{
-              paddingVertical: 8,
-              paddingHorizontal: 16,
-              borderRadius: 8,
-              backgroundColor: !amount || !selectedCategory || saving
-                ? theme.border
-                : accentColor,
-            }}
-            onPress={handleSave}
-            disabled={!amount || !selectedCategory || saving}
-          >
-            <Text
-              style={{
-                fontWeight: "600",
-                color: !amount || !selectedCategory || saving
-                  ? theme.textMuted
-                  : "#ffffff",
-              }}
-            >
-              {saving ? (t.saving || "Saving...") : (t.save || "Save")}
-            </Text>
-          </TouchableOpacity>
+          <View style={{ width: 38 }} />
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 24 }}
+        >
           {/* Amount Input */}
           <View style={{ alignItems: "center", paddingVertical: 32 }}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
@@ -697,6 +687,47 @@ export default function EditExpenseScreen() {
             </Modal>
           </View>
         </ScrollView>
+
+        {/* Save button - Fixed at bottom right */}
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingTop: 8,
+            paddingBottom: Math.max(insets.bottom, 12),
+            alignItems: "flex-end",
+            backgroundColor: theme.background,
+            borderTopWidth: 1,
+            borderTopColor: theme.border,
+          }}
+        >
+          <TouchableOpacity
+            style={{
+              paddingVertical: 14,
+              paddingHorizontal: 28,
+              borderRadius: 14,
+              backgroundColor: !amount || !selectedCategory || saving
+                ? theme.border
+                : accentColor,
+              minWidth: 120,
+              alignItems: "center",
+              opacity: !amount || !selectedCategory ? 0.7 : 1,
+            }}
+            onPress={handleSave}
+            disabled={!amount || !selectedCategory || saving}
+          >
+            <Text
+              style={{
+                fontWeight: "600",
+                fontSize: 16,
+                color: !amount || !selectedCategory || saving
+                  ? theme.textMuted
+                  : "#ffffff",
+              }}
+            >
+              {saving ? (t.saving || "Saving...") : (t.save || "Save")}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

@@ -1,8 +1,8 @@
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { X, Plus } from "lucide-react-native";
-import React, { useCallback, useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useState, useRef, useEffect } from "react";
+import { ScrollView, Text, TouchableOpacity, View, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Account,
@@ -47,8 +47,31 @@ const Accounts = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fabExpanded, setFabExpanded] = useState(false);
   const theme = useTheme();
   const { t } = useLanguage();
+
+  // Animation for FAB
+  const fabAnimation = useRef(new Animated.Value(0)).current;
+
+  const expandFab = () => {
+    fabAnimation.setValue(1);
+    setFabExpanded(true);
+  };
+
+  const collapseFab = () => {
+    fabAnimation.setValue(0);
+    setFabExpanded(false);
+  };
+
+  const handleFabPress = () => {
+    if (fabExpanded) {
+      setShowAddAccount(true);
+      collapseFab();
+    } else {
+      expandFab();
+    }
+  };
 
   const loadAccounts = async () => {
     try {
@@ -395,39 +418,73 @@ const Accounts = () => {
       </ScrollView>
       </View>
 
-      {/* Add account FAB - bottom right (same position as Budget/Subscriptions) */}
-      <TouchableOpacity
+      {/* Close area when expanded - must be before FAB */}
+      {fabExpanded && (
+        <TouchableOpacity
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
+          activeOpacity={1}
+          onPress={collapseFab}
+        />
+      )}
+
+      {/* Expandable FAB - rounded square at right edge, expands but stays at edge */}
+      <Animated.View
         style={{
           position: "absolute",
-          bottom: 18,
-          right: 20,
+          bottom: 20,
+          right: -10,
           flexDirection: "row",
           alignItems: "center",
-          justifyContent: "center",
-          paddingVertical: 14,
-          paddingHorizontal: 20,
-          borderRadius: 28,
           backgroundColor: theme.primary,
-          gap: 8,
+          borderRadius: 12,
+          overflow: "hidden",
           shadowColor: "#000",
-          shadowOffset: { width: 0, height: 4 },
+          shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.25,
-          shadowRadius: 6,
-          elevation: 8,
+          shadowRadius: 4,
+          elevation: 4,
+          height: 50,
+          width: fabAnimation.interpolate({
+            inputRange: [0, 1],
+            outputRange: [50, 175],
+          }),
         }}
-        onPress={() => setShowAddAccount(true)}
       >
-        <Plus size={22} color={theme.primaryText} />
-        <Text
+        <TouchableOpacity
           style={{
-            color: theme.primaryText,
-            fontSize: 15,
-            fontWeight: "600",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "flex-start",
+            height: "100%",
+            width: "100%",
+            paddingLeft: 12,
+            paddingRight: 20,
           }}
+          onPress={handleFabPress}
+          activeOpacity={0.8}
         >
-          {t.addNewAccount || "Add New Account"}
-        </Text>
-      </TouchableOpacity>
+          <Plus size={24} color="#FFFFFF" strokeWidth={2} />
+          {fabExpanded && (
+            <Text
+              style={{
+                color: "#FFFFFF",
+                fontSize: 13,
+                fontWeight: "600",
+                marginLeft: 10,
+                textTransform: "uppercase",
+              }}
+            >
+              Add Account
+            </Text>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
 
       {/* Add Account Modal */}
       <AddAccount

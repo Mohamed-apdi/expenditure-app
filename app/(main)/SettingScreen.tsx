@@ -7,6 +7,7 @@ import {
   TextInput,
   Modal,
   Alert,
+  Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
@@ -41,6 +42,7 @@ import {
   type Profile,
 } from "~/lib";
 import { SyncStatusIndicator } from "~/components/SyncStatusIndicator";
+import { retryFailedSync } from "~/lib/sync/legendSync";
 import { LinearGradient } from "expo-linear-gradient";
 import Constants from "expo-constants";
 import { CachedImage } from "~/components/CachedImage";
@@ -451,7 +453,13 @@ export default function ProfileScreen() {
                 overflow: "hidden",
               }}
             >
-              <View
+              <TouchableOpacity
+                activeOpacity={syncState.status === "error" ? 0.7 : 1}
+                onPress={() => {
+                  if (syncState.status === "error") {
+                    retryFailedSync();
+                  }
+                }}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
@@ -478,8 +486,13 @@ export default function ProfileScreen() {
                       {syncState.pendingCount} {t.pendingChanges || "pending changes"}
                     </Text>
                   )}
+                  {syncState.status === "error" && (
+                    <Text style={{ color: theme.primary, fontSize: 12, marginTop: 4, fontWeight: "500" }}>
+                      {t.tapToRetry || "Tap to retry"}
+                    </Text>
+                  )}
                 </View>
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -525,6 +538,14 @@ export default function ProfileScreen() {
                   })
                 }
               />
+              <Divider />
+              <SettingItem
+                icon={<HelpCircle size={22} color="#10b981" />}
+                iconBg="#10b98115"
+                title={t.help || "Help"}
+                subtitle="moh769888@gmail.com"
+                onPress={() => Linking.openURL("mailto:moh769888@gmail.com?subject=Qoondeeye App Support")}
+              />
             </View>
           </View>
 
@@ -555,7 +576,7 @@ export default function ProfileScreen() {
           {/* App Version */}
           <View style={{ alignItems: "center", marginTop: 32 }}>
             <Text style={{ color: theme.textMuted, fontSize: 12 }}>
-              Qoondeeye v{Constants.expoConfig?.version || "2.2.0"}
+              Qoondeeye v{Constants.expoConfig?.version || "2.4.0"}
             </Text>
           </View>
         </View>

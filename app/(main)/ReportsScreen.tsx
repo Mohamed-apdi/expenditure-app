@@ -2436,6 +2436,7 @@ export default function ReportsScreen() {
                   donut
                   radius={60}
                   innerRadius={40}
+                  innerCircleColor={theme.cardBackground}
                   centerLabelComponent={() => (
                     <View style={{ alignItems: 'center' }}>
                       <Text style={{ color: theme.text, fontSize: 16, fontWeight: '700' }}>
@@ -2718,6 +2719,7 @@ export default function ReportsScreen() {
                 donut
                 radius={50}
                 innerRadius={38}
+                innerCircleColor={theme.cardBackground}
                 centerLabelComponent={() => (
                   <View style={{ alignItems: 'center' }}>
                     <Text style={{ color: getStatusColor(overallStatus), fontSize: 18, fontWeight: '700' }}>
@@ -3179,6 +3181,7 @@ export default function ReportsScreen() {
                 donut
                 radius={50}
                 innerRadius={38}
+                innerCircleColor={theme.cardBackground}
                 centerLabelComponent={() => (
                   <View style={{ alignItems: 'center' }}>
                     <Text style={{ color: '#10B981', fontSize: 18, fontWeight: '700' }}>
@@ -3744,6 +3747,7 @@ export default function ReportsScreen() {
                   donut
                   radius={60}
                   innerRadius={40}
+                  innerCircleColor={theme.cardBackground}
                   centerLabelComponent={() => (
                     <View style={{ alignItems: 'center' }}>
                       <Text style={{ color: theme.text, fontSize: 16, fontWeight: '700' }}>
@@ -4107,6 +4111,7 @@ export default function ReportsScreen() {
                   donut
                   radius={60}
                   innerRadius={40}
+                  innerCircleColor={theme.cardBackground}
                   centerLabelComponent={() => (
                     <View style={{ alignItems: 'center' }}>
                       <Text style={{ color: theme.text, fontSize: 14, fontWeight: '700' }}>

@@ -243,7 +243,7 @@ export default function AuthGateScreen() {
                 width: 44,
                 height: 44,
                 borderRadius: 12,
-                backgroundColor: APP_COLORS.darkCard,
+                backgroundColor: APP_COLORS.primary,
                 alignItems: "center",
                 justifyContent: "center",
                 marginLeft: 20,
@@ -294,7 +294,7 @@ export default function AuthGateScreen() {
                   flex: 1,
                   paddingVertical: 12,
                   borderRadius: 10,
-                  backgroundColor: activeTab === "login" ? APP_COLORS.darkCard : "transparent",
+                  backgroundColor: activeTab === "login" ? APP_COLORS.primary : "transparent",
                   alignItems: "center",
                 }}
               >
@@ -315,7 +315,7 @@ export default function AuthGateScreen() {
                   flex: 1,
                   paddingVertical: 12,
                   borderRadius: 10,
-                  backgroundColor: activeTab === "signup" ? APP_COLORS.darkCard : "transparent",
+                  backgroundColor: activeTab === "signup" ? APP_COLORS.primary : "transparent",
                   alignItems: "center",
                 }}
               >
@@ -444,7 +444,7 @@ export default function AuthGateScreen() {
                     borderRadius: 6,
                     borderWidth: 2,
                     borderColor: APP_COLORS.border,
-                    backgroundColor: rememberMe ? APP_COLORS.darkCard : "transparent",
+                    backgroundColor: rememberMe ? APP_COLORS.primary : "transparent",
                     alignItems: "center",
                     justifyContent: "center",
                   }}
@@ -493,11 +493,11 @@ export default function AuthGateScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Social section - dark card */}
+            {/* Social section - primary card */}
             <View
               style={{
                 marginHorizontal: 24,
-                backgroundColor: APP_COLORS.darkCard,
+                backgroundColor: APP_COLORS.primary,
                 borderRadius: 16,
                 paddingTop: 20,
                 paddingBottom: 20,
@@ -529,7 +529,7 @@ export default function AuthGateScreen() {
                 }}
               >
                 {socialLoading === "google" ? (
-                  <ActivityIndicator size="small" color={APP_COLORS.darkCard} style={{ marginRight: 12 }} />
+                  <ActivityIndicator size="small" color={APP_COLORS.primary} style={{ marginRight: 12 }} />
                 ) : (
                   <Image
                     source={require("../../assets/images/google_icon.png")}

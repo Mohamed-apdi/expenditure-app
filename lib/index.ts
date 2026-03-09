@@ -68,7 +68,9 @@ export {
 export { selectProfile, updateProfileLocal } from "./stores/profileStore";
 export {
   selectNotifications,
+  selectNotificationsByAccount,
   selectUnreadCount,
+  selectUnreadCountByAccount,
   createNotificationLocal,
   markNotificationAsReadLocal,
   markAllNotificationsAsReadLocal,

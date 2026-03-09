@@ -668,6 +668,7 @@ export async function triggerSync(): Promise<void> {
     await updateGlobalSyncState({
       isSyncing: false,
       lastSyncedAt: nowIso(),
+      lastError: null, // Clear any previous errors on successful sync
     });
   } catch (e) {
     const msg =

@@ -509,6 +509,7 @@ export const sendBudgetNotification = async (
       currentAmount: budgetProgress.spent,
       budgetLimit: budgetProgress.budgeted,
       budgetId: budgetId,
+      accountId: budgetProgress.account_id,
     });
 
   } catch (error) {
@@ -604,6 +605,7 @@ export const checkDueSubscriptionsAndNotify = async () => {
           amount: subscription.amount,
           dueDate: subscription.next_payment_date,
           subscriptionId: subscription.id,
+          accountId: subscription.account_id,
           isOverdue: false,
         });
       }

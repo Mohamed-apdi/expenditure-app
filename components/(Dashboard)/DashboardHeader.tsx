@@ -135,8 +135,10 @@ export default function DashboardHeader({
           <TouchableOpacity
             onPress={() => {
               void playTabClickSound();
-              toggleColorScheme();
+              void toggleColorScheme();
             }}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             {isDarkColorScheme ? (
               <Sun size={24} color={iconColor} />

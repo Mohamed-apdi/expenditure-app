@@ -54,6 +54,39 @@ export function selectUnreadCount(userId: string): number {
     ).length;
 }
 
+export function selectNotificationsByAccount(
+  userId: string,
+  accountId: string
+): LocalNotification[] {
+  const state = notifications$.get();
+  return state.allIds
+    .map((id) => state.byId[id])
+    .filter((n) => {
+      if (!n || n.user_id !== userId || n.deleted_at != null) return false;
+      const metaAccountId = n.metadata?.account_id;
+      return metaAccountId === accountId;
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+}
+
+export function selectUnreadCountByAccount(
+  userId: string,
+  accountId: string
+): number {
+  const state = notifications$.get();
+  return state.allIds
+    .map((id) => state.byId[id])
+    .filter((n) => {
+      if (!n || n.user_id !== userId || n.is_read || n.deleted_at != null)
+        return false;
+      const metaAccountId = n.metadata?.account_id;
+      return metaAccountId === accountId;
+    }).length;
+}
+
 export function createNotificationLocal(
   data: Omit<Notification, "id" | "created_at"> & { id?: string }
 ): LocalNotification {

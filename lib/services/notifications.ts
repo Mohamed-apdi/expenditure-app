@@ -347,6 +347,7 @@ export async function createBudgetNotification({
   currentAmount,
   budgetLimit,
   budgetId,
+  accountId,
 }: {
   userId: string;
   budgetName: string;
@@ -354,6 +355,7 @@ export async function createBudgetNotification({
   currentAmount: number;
   budgetLimit: number;
   budgetId: string;
+  accountId?: string;
 }): Promise<Notification | null> {
   const isWarning = percentage >= 80 && percentage < 100;
   const isExceeded = percentage >= 100;
@@ -377,6 +379,7 @@ export async function createBudgetNotification({
       percentage,
       current_amount: currentAmount,
       budget_limit: budgetLimit,
+      account_id: accountId,
     },
     action_url: "/(main)/BudgetScreen",
   });
@@ -391,6 +394,7 @@ export async function createSubscriptionNotification({
   amount,
   dueDate,
   subscriptionId,
+  accountId,
   isOverdue = false,
 }: {
   userId: string;
@@ -398,6 +402,7 @@ export async function createSubscriptionNotification({
   amount: number;
   dueDate: string;
   subscriptionId: string;
+  accountId?: string;
   isOverdue?: boolean;
 }): Promise<Notification | null> {
   const title = isOverdue
@@ -419,6 +424,7 @@ export async function createSubscriptionNotification({
       amount,
       due_date: dueDate,
       is_overdue: isOverdue,
+      account_id: accountId,
     },
     action_url: "/components/SubscriptionsScreen",
   });

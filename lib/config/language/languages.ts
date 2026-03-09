@@ -131,6 +131,7 @@ export const LANGUAGES = {
 
     // ProfileScreen translations
     contactInformation: "Contact Information",
+    help: "Help",
     phoneNumber: "Phone Number",
     noNameProvided: "No name provided",
     noPhoneProvided: "No phone provided",
@@ -342,6 +343,7 @@ export const LANGUAGES = {
     repairs: "Repairs",
     taxes: "Taxes",
     InitialBalance: "Initial Balance",
+    jobSalary: "Salary",
     bonus: "Bonus",
     partTimeWork: "Part-time Work",
     business: "Business",
@@ -807,7 +809,7 @@ export const LANGUAGES = {
     liabilities: "Liabilities",
     accountDistribution: "Account Distribution",
     txns: "txns",
-    
+
     // Investment Report translations
     loadingInvestmentData: "Loading investment data...",
     noInvestmentsFound: "No Investments Found",
@@ -819,7 +821,7 @@ export const LANGUAGES = {
     types: "Types",
     allInvestments: "All Investments",
     invested: "Invested",
-    
+
     // Loan Report translations
     loadingLoanData: "Loading loan data...",
     noLoansFound: "No Loans Found",
@@ -838,7 +840,7 @@ export const LANGUAGES = {
     settled: "Settled",
     partial: "Partial",
     recentRepayments: "Recent Repayments",
-    
+
     // Transaction Report translations
     saved: "Saved",
     overspent: "Overspent",
@@ -905,7 +907,7 @@ export const LANGUAGES = {
     viewInsights: "Eeg Falanqaynta",
 
     // WelcomeScreen translations
-    home: "shashadda guud",
+    home: "Home",
     appName: "Qoondeeye",
     tagline:
       "Maamul lacagtaaga mustaqbalka adoo isticmaalaya maamul lacag oo caqliga ah",
@@ -936,8 +938,8 @@ export const LANGUAGES = {
     rent: "kiro",
     bills: "Biil",
     subscriptions: "Rukumo",
-    budgets: "Miisaaniyada",
-    reports: "Warbixinada",
+    budgets: "Miisaaniyad",
+    reports: "Warbixin",
     trends: "Isbadallo",
 
     // AuthGateScreen translations
@@ -1030,6 +1032,7 @@ export const LANGUAGES = {
 
     // ProfileScreen translations
     contactInformation: "Macluumaadka Xiriirka",
+    help: "Caawimaad",
     phoneNumber: "Telefoonka",
     noNameProvided: "Magac ma la bixin",
     noPhoneProvided: "Telefoon ma la bixin",
@@ -1248,6 +1251,7 @@ export const LANGUAGES = {
     repairs: "Dayactir",
     taxes: "Canshuur",
     InitialBalance: "Dheellitirka Bilowga",
+    jobSalary: "Mushaharka",
     bonus: "Gunno",
     partTimeWork: "Shaqada Maalmaha Fasaxa",
     business: "Ganacsi",
@@ -1269,9 +1273,8 @@ export const LANGUAGES = {
     daily: "Maalin kasta",
 
     // BudgetScreen translations
-    budget: "Miisaaniyada",
+    budget: "Miisaaniyad",
     goals: "Hadaf",
-    loan: "Amaah",
     monthlyBudget: "Miisaaniyada Bishii",
     addBudgets: "Ku dar Miisaaniyada",
     budgetAlertsEnabled: "Digniinta miisaaniyada waa la dhaqsiisay",
@@ -1549,9 +1552,6 @@ export const LANGUAGES = {
     accountReports: "Warbixinada Akoonka",
     investmentReports: "Warbixinada Maalgelinta",
     loanReports: "Warbixinada Amaahada",
-    reports: "Warbixinada",
-    investments: "Maalgelinta",
-    loans: "Amaahada",
     showingDataFor: "Waxay muujinayaan xogta:",
     pleaseSelectAccount: "Fadlan dooro akoon",
     netAmount: "Wadarta Guud",
@@ -1676,7 +1676,6 @@ export const LANGUAGES = {
     allSubscriptions: "Dhammaan Rukumada",
     categories: "Qaybaha",
     more: "dheeraad",
-    active: "Socda",
     today: "Maanta",
     tomorrow: "Berri",
     days: "maalmood",
@@ -1704,8 +1703,6 @@ export const LANGUAGES = {
     onTrack: "Waa Hagaagsan yahay",
     totalBudgets: "Wadarta Miisaaniyadaha",
     of: "ka mid ah",
-    left: "hadhay",
-    over: "ka badan",
     behind: "Ka Dambeeya",
     atRisk: "Khatar ku jira",
     completed: "La dhammeeyay",
@@ -1716,28 +1713,28 @@ export const LANGUAGES = {
     daysOverdue: "maalmood ka dhaaftay",
     dueToday: "Maanta ayuu dhacayaa",
     daysLeft: "maalmood hadhay",
-    accounts: "akoonyo",
+    accounts: "Akoon",
     assets: "Hantida",
     liabilities: "Deymaha",
     accountDistribution: "Qaybinta Akoonka",
     txns: "dhaq",
-    
+
     // Investment Report translations
     loadingInvestmentData: "Xogta maalgelinta la soo dejinayaa...",
     noInvestmentsFound: "Maalgelinti Lama Helin",
-    noInvestmentsYet: "Bilow la socoshada maalgelinkaaga si aad halkan ugu aragto.",
+    // noInvestmentsYet: "Bilow la socoshada maalgelinkaaga si aad halkan ugu aragto.",
     portfolioValue: "Qiimaha Guud",
-    totalInvested: "Wadarta La Maalgeliyay",
+    // totalInvested: "Wadarta La Maalgeliyay",
     totalInvestments: "Wadarta Maalgelinta",
     investmentsByType: "Maalgelinta Nooca",
     types: "Noocyada",
     allInvestments: "Dhammaan Maalgelinta",
     invested: "La maalgeliyay",
-    
+
     // Loan Report translations
     loadingLoanData: "Xogta amaahada la soo dejinayaa...",
     noLoansFound: "Amaaho Lama Helin",
-    noLoansYet: "Halkan ka la soco amaahada la siiyay iyo la qaatay.",
+    // noLoansYet: "Halkan ka la soco amaahada la siiyay iyo la qaatay.",
     netPosition: "Xaalad Guud",
     othersOweYou: "Dadka kale waxay kugu leeyihiin wax badan",
     youOweOthers: "Waxaad leedahay dad kale wax badan",
@@ -1749,10 +1746,10 @@ export const LANGUAGES = {
     allLoans: "Dhammaan Amaahada",
     given: "LA SIIYAY",
     taken: "LA QAATAY",
-    settled: "La Bixiyay",
-    partial: "Qayb",
+    // settled: "La Bixiyay",
+    // partial: "Qayb",
     recentRepayments: "Lacag Bixinaha Dhowaan",
-    
+
     // Transaction Report translations
     saved: "La kaydiyay",
     overspent: "Ka badan la bixiyay",

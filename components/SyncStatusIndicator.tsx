@@ -28,6 +28,9 @@ export function SyncStatusIndicator(): React.ReactElement {
     if (state.status === "syncing" && hasPending) {
       return `Syncing ${state.pendingCount}...`;
     }
+    if (state.status === "error" && hasPending) {
+      return `Sync error (${state.pendingCount} pending)`;
+    }
     return LABELS[state.status];
   };
 

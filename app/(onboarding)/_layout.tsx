@@ -50,7 +50,7 @@ export default function OnboardingLayout() {
   return (
     <>
       <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false, gestureEnabled: false }} />
     </>
   );
 }

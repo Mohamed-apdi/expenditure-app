@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Image,
   RefreshControl,
   Platform,
+  Animated,
 } from 'react-native';
 import { Calendar, X, Trash2, DollarSign, Plus, Wallet, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import {
@@ -101,6 +102,29 @@ export default function SubscriptionsScreen({
   const [isColorModalVisible, setIsColorModalVisible] = useState(false);
   const [currentSubscription, setCurrentSubscription] = useState<any>(null);
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // FAB animation state (same pattern as Accounts)
+  const [fabExpanded, setFabExpanded] = useState(false);
+  const fabAnimation = useRef(new Animated.Value(0)).current;
+
+  const expandFab = () => {
+    fabAnimation.setValue(1);
+    setFabExpanded(true);
+  };
+
+  const collapseFab = () => {
+    fabAnimation.setValue(0);
+    setFabExpanded(false);
+  };
+
+  const handleFabPress = () => {
+    if (fabExpanded) {
+      openAddModal();
+      collapseFab();
+    } else {
+      expandFab();
+    }
+  };
 
   // Form state
   const [formData, setFormData] = useState({
@@ -947,39 +971,73 @@ export default function SubscriptionsScreen({
         </View>
       </ScrollView>
 
-      {/* Add Subscription FAB - bottom right (same position as Budget FAB) */}
-      <TouchableOpacity
+      {/* Close area when FAB expanded */}
+      {fabExpanded && (
+        <TouchableOpacity
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
+          activeOpacity={1}
+          onPress={collapseFab}
+        />
+      )}
+
+      {/* Expandable FAB - same pattern as Accounts */}
+      <Animated.View
         style={{
           position: 'absolute',
-          bottom: 18,
-          right: 20,
+          bottom: 20,
+          right: -10,
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'center',
-          paddingVertical: 14,
-          paddingHorizontal: 20,
-          borderRadius: 28,
           backgroundColor: theme.primary,
-          gap: 8,
+          borderRadius: 12,
+          overflow: 'hidden',
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
+          shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.25,
-          shadowRadius: 6,
-          elevation: 8,
+          shadowRadius: 4,
+          elevation: 4,
+          height: 50,
+          width: fabAnimation.interpolate({
+            inputRange: [0, 1],
+            outputRange: [50, 200],
+          }),
         }}
-        onPress={openAddModal}
       >
-        <Plus size={22} color={theme.primaryText} />
-        <Text
+        <TouchableOpacity
           style={{
-            color: theme.primaryText,
-            fontSize: 15,
-            fontWeight: '600',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            height: '100%',
+            width: '100%',
+            paddingLeft: 12,
+            paddingRight: 20,
           }}
+          onPress={handleFabPress}
+          activeOpacity={0.8}
         >
-          {t.addSubscription}
-        </Text>
-      </TouchableOpacity>
+          <Plus size={24} color="#FFFFFF" strokeWidth={2} />
+          {fabExpanded && (
+            <Text
+              style={{
+                color: '#FFFFFF',
+                fontSize: 13,
+                fontWeight: '600',
+                marginLeft: 10,
+                textTransform: 'uppercase',
+              }}
+            >
+              {t.addSubscription}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </Animated.View>
 
       {/* Add/Edit Subscription Modal - Simplified */}
       <Modal

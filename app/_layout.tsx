@@ -141,11 +141,11 @@ export default function RootLayout() {
               <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
                 <BottomSheetModalProvider>
                   <StatusBar style={isDarkColorScheme ? 'dark' : 'light'} />
-                  <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Screen name="index" />
-                    <Stack.Screen name="(onboarding)" />
-                    <Stack.Screen name="(auth)" />
-                    <Stack.Screen name="(main)" />
+                  <Stack screenOptions={{ headerShown: false, gestureEnabled: false }}>
+                    <Stack.Screen name="index" options={{ gestureEnabled: false }} />
+                    <Stack.Screen name="(onboarding)" options={{ gestureEnabled: false }} />
+                    <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
+                    <Stack.Screen name="(main)" options={{ gestureEnabled: false, animation: 'none' }} />
                     <Stack.Screen name="(expense)" />
                     <Stack.Screen name="(profile)" />
                   </Stack>

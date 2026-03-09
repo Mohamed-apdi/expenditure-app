@@ -4,7 +4,6 @@ import { View, ActivityIndicator, Text } from "react-native";
 import { useRouter } from "expo-router";
 import { setItemAsync } from "expo-secure-store";
 import { supabase } from "~/lib";
-import { createAccount, fetchAccounts } from "~/lib/services/accounts";
 import Toast from "react-native-toast-message";
 
 /**
@@ -82,18 +81,8 @@ export default function AuthCallbackScreen() {
 
             setStatus("Setting up your account...");
             try {
-              const accounts = await fetchAccounts(data.user.id);
-              if (accounts.length === 0) {
-                await createAccount({
-                  user_id: data.user.id,
-                  account_type: "Accounts",
-                  name: "Account 1",
-                  amount: 0,
-                  description: "Default account",
-                  is_default: true,
-                  currency: "USD",
-                });
-              }
+              const { ensureDefaultAccount } = await import("~/lib/services/accounts");
+              await ensureDefaultAccount(data.user.id);
             } catch (accountError) {
               console.error("Error creating default account:", accountError);
             }

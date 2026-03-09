@@ -251,14 +251,12 @@ export default function MonthYearScroller({
 
             const pillBg = isActive
               ? isLight
-                ? theme.primary
-                : '#ffffff'
+                ? '#00BFFF'
+                : '#FFFFFF'
               : 'transparent';
 
             const pillText = isActive
-              ? isLight
-                ? '#fff'
-                : theme.primary
+              ? '#FFFFFF'
               : isLight
                 ? theme.textSecondary
                 : 'rgba(255,255,255,0.9)';
@@ -268,9 +266,13 @@ export default function MonthYearScroller({
                 key={item}
                 onPress={() => setSelected(item)}
                 onLayout={onItemLayout(item)}
+                activeOpacity={0.8}
                 style={[
                   styles.monthPill,
-                  { backgroundColor: pillBg },
+                  { 
+                    backgroundColor: pillBg,
+                    opacity: 1,
+                  },
                 ]}
               >
                 <Text

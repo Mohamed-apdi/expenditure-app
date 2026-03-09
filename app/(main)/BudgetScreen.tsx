@@ -12,6 +12,7 @@ import {
   PanResponder,
   RefreshControl,
   Platform,
+  Animated,
 } from 'react-native';
 import { X, Edit2, Trash2, Plus, Wallet, ChevronDown } from 'lucide-react-native';
 import {
@@ -191,6 +192,29 @@ export default function BudgetScreen() {
   const [currentBudget, setCurrentBudget] = useState<Budget | null>(null);
   const [newCategory, setNewCategory] = useState('');
   const [newAllocated, setNewAllocated] = useState('');
+
+  // FAB animation state (same pattern as Accounts)
+  const [fabExpanded, setFabExpanded] = useState(false);
+  const fabAnimation = useRef(new Animated.Value(0)).current;
+
+  const expandFab = () => {
+    fabAnimation.setValue(1);
+    setFabExpanded(true);
+  };
+
+  const collapseFab = () => {
+    fabAnimation.setValue(0);
+    setFabExpanded(false);
+  };
+
+  const handleFabPress = () => {
+    if (fabExpanded) {
+      openAddModal();
+      collapseFab();
+    } else {
+      expandFab();
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -431,11 +455,10 @@ export default function BudgetScreen() {
               { key: 'Loan', label: t.loan || 'Loan' },
             ].map((tab) => {
               const isActive = activeTab === tab.key;
-              const activeBg = theme.tabActive ?? '#00BFFF';
               return (
                 <TouchableOpacity
                   key={tab.key}
-                  activeOpacity={1}
+                  activeOpacity={0.8}
                   onLayout={(e) => {
                     const { x, width } = e.nativeEvent.layout;
                     tabLayoutsRef.current[tab.key] = { x, width };
@@ -450,11 +473,10 @@ export default function BudgetScreen() {
                     paddingVertical: 10,
                     paddingHorizontal: 20,
                     borderRadius: 20,
-                    backgroundColor: isActive ? activeBg : theme.cardBackground,
+                    backgroundColor: isActive ? '#00BFFF' : theme.cardBackground,
                     borderWidth: 1,
-                    borderColor: isActive ? activeBg : theme.border,
+                    borderColor: isActive ? '#00BFFF' : theme.border,
                     marginRight: 4,
-                    opacity: 1,
                   }}
                   onPress={() => {
                     void playTabClickSound();
@@ -730,40 +752,74 @@ export default function BudgetScreen() {
           )}
         </View>
 
-        {/* Add Budget FAB - bottom right when on Budget tab (same position as Add New Account) */}
-        {activeTab === 'Budget' && (
+        {/* Close area when FAB expanded - must be before FAB */}
+        {activeTab === 'Budget' && fabExpanded && (
           <TouchableOpacity
             style={{
               position: 'absolute',
-              bottom: 18,
-              right: 20,
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+            }}
+            activeOpacity={1}
+            onPress={collapseFab}
+          />
+        )}
+
+        {/* Expandable FAB - same pattern as Accounts */}
+        {activeTab === 'Budget' && (
+          <Animated.View
+            style={{
+              position: 'absolute',
+              bottom: 20,
+              right: -10,
               flexDirection: 'row',
               alignItems: 'center',
-              justifyContent: 'center',
-              paddingVertical: 14,
-              paddingHorizontal: 20,
-              borderRadius: 28,
               backgroundColor: theme.primary,
-              gap: 8,
+              borderRadius: 12,
+              overflow: 'hidden',
               shadowColor: '#000',
-              shadowOffset: { width: 0, height: 4 },
+              shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.25,
-              shadowRadius: 6,
-              elevation: 8,
+              shadowRadius: 4,
+              elevation: 4,
+              height: 50,
+              width: fabAnimation.interpolate({
+                inputRange: [0, 1],
+                outputRange: [50, 175],
+              }),
             }}
-            onPress={openAddModal}
           >
-            <Plus size={22} color={theme.primaryText} />
-            <Text
+            <TouchableOpacity
               style={{
-                color: theme.primaryText,
-                fontSize: 15,
-                fontWeight: '600',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                height: '100%',
+                width: '100%',
+                paddingLeft: 12,
+                paddingRight: 20,
               }}
+              onPress={handleFabPress}
+              activeOpacity={0.8}
             >
-              {t.addBudgets || 'Add Budget'}
-            </Text>
-          </TouchableOpacity>
+              <Plus size={24} color="#FFFFFF" strokeWidth={2} />
+              {fabExpanded && (
+                <Text
+                  style={{
+                    color: '#FFFFFF',
+                    fontSize: 13,
+                    fontWeight: '600',
+                    marginLeft: 10,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {t.addBudgets || 'Add Budget'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
         )}
 
         {/* Add/Edit Budget Modal - Simplified */}

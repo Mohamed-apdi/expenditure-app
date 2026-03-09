@@ -1,6 +1,6 @@
 /**
  * App color palette — clean, professional look.
- * Blue primary with white/light gray (light) and slate dark (dark mode).
+ * Blue primary with white/light gray (light) and pure black (dark mode).
  */
 export const APP_COLORS = {
   /** Primary blue for headers, buttons, links. */
@@ -13,14 +13,16 @@ export const APP_COLORS = {
   inputBg: "#F8FAFC",
   /** Border color light. */
   border: "#E2E8F0",
-  /** Dark mode background. */
-  darkCard: "#1E293B",
-  /** Dark mode card/surface. */
-  darkSurface: "#334155",
+  /** Dark mode background - pure black. */
+  darkCard: "#0A0A0A",
+  /** Dark mode card/surface - near black. */
+  darkSurface: "#141414",
   /** Dark mode border. */
-  borderDark: "#475569",
+  borderDark: "#2A2A2A",
   /** Accent for auth/onboarding (same as primary for consistency). */
   yellow: "#00BFFF",
+  /** Dark UI elements on light backgrounds (buttons, tabs, cards). */
+  darkUI: "#1E293B",
 } as const;
 
 export const NAV_THEME = {
@@ -80,9 +82,9 @@ export const NAV_THEME = {
   dark: {
     icon: "#F8FAFC",
 
-    // Main backgrounds
-    background: "#0F172A",
-    Homebackground: APP_COLORS.primaryDark,
+    // Main backgrounds - pure black
+    background: "#000000",
+    Homebackground: "#000000",
     cardBackground: APP_COLORS.darkSurface,
 
     // Borders and dividers
@@ -90,11 +92,11 @@ export const NAV_THEME = {
 
     // Text colors
     text: "#F8FAFC",
-    textSecondary: "#CBD5E1",
-    textMuted: "#94A3B8",
+    textSecondary: "#A1A1A1",
+    textMuted: "#6B6B6B",
 
     // Form elements
-    placeholder: "#94A3B8",
+    placeholder: "#6B6B6B",
     inputBackground: APP_COLORS.darkSurface,
     inputBorder: APP_COLORS.borderDark,
 
@@ -124,7 +126,7 @@ export const NAV_THEME = {
     darkCard: APP_COLORS.darkCard,
     inputBg: APP_COLORS.darkSurface,
     appBorder: APP_COLORS.borderDark,
-    iconMuted: "#94A3B8",
+    iconMuted: "#6B6B6B",
 
     isDark: true,
     isDarkColorScheme: true,

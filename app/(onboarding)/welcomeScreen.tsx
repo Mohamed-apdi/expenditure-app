@@ -27,7 +27,7 @@ const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window");
 const TOP_RATIO = 2 / 3;
 const BOTTOM_RATIO = 1 / 3;
 const LIGHT_BG = APP_COLORS.inputBg;
-const DARK_BG = APP_COLORS.darkCard;
+const DARK_BG = APP_COLORS.darkUI;
 const DASH_INACTIVE = "#4A4A4A";
 const ACCENT_COLOR = "#00BFFF";
 

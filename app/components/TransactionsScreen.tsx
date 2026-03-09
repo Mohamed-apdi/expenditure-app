@@ -171,19 +171,20 @@ export default function TransactionsScreen() {
             {["all", "income", "expense"].map((filter) => (
               <TouchableOpacity
                 key={filter}
+                activeOpacity={0.8}
                 style={{
                   paddingVertical: 8,
                   paddingHorizontal: 16,
                   borderRadius: 20,
                   borderWidth: 1,
-                  borderColor: activeFilter === filter ? theme.tabActive : theme.border,
-                  backgroundColor: activeFilter === filter ? `${theme.tabActive}20` : theme.background,
+                  borderColor: activeFilter === filter ? "#00BFFF" : theme.border,
+                  backgroundColor: activeFilter === filter ? "#00BFFF" : theme.background,
                 }}
                 onPress={() => setActiveFilter(filter)}
               >
                 <Text
                   style={{
-                    color: activeFilter === filter ? theme.tabActive : theme.textSecondary,
+                    color: activeFilter === filter ? "#FFFFFF" : theme.textSecondary,
                     fontSize: 13,
                     fontWeight: activeFilter === filter ? "600" : "400",
                   }}

@@ -73,7 +73,7 @@ export default function CustomTabBar({ state, descriptors, navigation }: any) {
                   width: 56,
                   height: 56,
                   borderRadius: 28,
-                  backgroundColor: theme.tabActive,
+                  backgroundColor: "#00BFFF",
                   justifyContent: "center",
                   alignItems: "center",
                   shadowColor: "#000",

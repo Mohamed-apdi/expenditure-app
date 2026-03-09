@@ -572,7 +572,7 @@ export default function AddExpenseScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 16, flexGrow: 1 }}
+          contentContainerStyle={{ paddingBottom: 24 }}
         >
           {/* Type Tabs - Modern Pills */}
           <View
@@ -642,17 +642,18 @@ export default function AddExpenseScreen() {
                     borderRadius: 12,
                     backgroundColor:
                       inputMode === "normal"
-                        ? theme.tabActive
+                        ? "#00BFFF"
                         : theme.cardBackground,
                     borderWidth: 1,
                     borderColor:
-                      inputMode === "normal" ? theme.tabActive : theme.border,
+                      inputMode === "normal" ? "#00BFFF" : theme.border,
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "center",
                     gap: 8,
                   }}
                   onPress={() => setInputMode("normal")}
+                  activeOpacity={0.8}
                 >
                   <Text
                     style={{
@@ -660,7 +661,7 @@ export default function AddExpenseScreen() {
                       fontSize: 14,
                       color:
                         inputMode === "normal"
-                          ? theme.primaryText
+                          ? "#FFFFFF"
                           : theme.textSecondary,
                     }}
                   >
@@ -674,23 +675,24 @@ export default function AddExpenseScreen() {
                     borderRadius: 12,
                     backgroundColor:
                       inputMode === "ocr"
-                        ? theme.tabActive
+                        ? "#00BFFF"
                         : theme.cardBackground,
                     borderWidth: 1,
                     borderColor:
-                      inputMode === "ocr" ? theme.tabActive : theme.border,
+                      inputMode === "ocr" ? "#00BFFF" : theme.border,
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "center",
                     gap: 8,
                   }}
                   onPress={() => setInputMode("ocr")}
+                  activeOpacity={0.8}
                 >
                   <Scan
                     size={16}
                     color={
                       inputMode === "ocr"
-                        ? theme.primaryText
+                        ? "#FFFFFF"
                         : theme.textSecondary
                     }
                   />
@@ -700,7 +702,7 @@ export default function AddExpenseScreen() {
                       fontSize: 14,
                       color:
                         inputMode === "ocr"
-                          ? theme.primaryText
+                          ? "#FFFFFF"
                           : theme.textSecondary,
                     }}
                   >
@@ -906,48 +908,52 @@ export default function AddExpenseScreen() {
               t={t}
             />
           )}
-          {/* Save button - part of form flow */}
-          <View
-            style={{
-              paddingHorizontal: 16,
-              paddingTop: 24,
-              paddingBottom: Math.max(insets.bottom, 24),
-              alignItems: "flex-end",
-            }}
-          >
-            <TouchableOpacity
-              style={{
-                paddingVertical: 14,
-                paddingHorizontal: 28,
-                borderRadius: 14,
-                backgroundColor: theme.primary,
-                minWidth: 120,
-                alignItems: "center",
-                opacity: isFormValid() ? 1 : 0.7,
-              }}
-              onPress={
-                entryType === "Transfer" ? handleTransfer : handleSaveExpense
-              }
-              disabled={!isFormValid()}
-            >
-              <Text
-                style={{
-                  fontWeight: "600",
-                  fontSize: 16,
-                  color: theme.primaryText,
-                }}
-              >
-                {entryType === "Transfer"
-                  ? isSubmitting
-                    ? t.saving || "Saving..."
-                    : (t.completeTransfer || "Transfer")
-                  : isSubmitting
-                    ? t.saving || "Saving..."
-                    : t.save || "Save"}
-              </Text>
-            </TouchableOpacity>
-          </View>
         </ScrollView>
+
+        {/* Save button - Fixed at bottom with clear spacing */}
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingTop: 8,
+            paddingBottom: Math.max(insets.bottom, 12),
+            alignItems: "flex-end",
+            backgroundColor: theme.background,
+            borderTopWidth: 1,
+            borderTopColor: theme.border,
+          }}
+        >
+          <TouchableOpacity
+            style={{
+              paddingVertical: 14,
+              paddingHorizontal: 28,
+              borderRadius: 14,
+              backgroundColor: theme.primary,
+              minWidth: 120,
+              alignItems: "center",
+              opacity: isFormValid() ? 1 : 0.7,
+            }}
+            onPress={
+              entryType === "Transfer" ? handleTransfer : handleSaveExpense
+            }
+            disabled={!isFormValid()}
+          >
+            <Text
+              style={{
+                fontWeight: "600",
+                fontSize: 16,
+                color: theme.primaryText,
+              }}
+            >
+              {entryType === "Transfer"
+                ? isSubmitting
+                  ? t.saving || "Saving..."
+                  : (t.completeTransfer || "Transfer")
+                : isSubmitting
+                  ? t.saving || "Saving..."
+                  : t.save || "Save"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
