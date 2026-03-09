@@ -73,7 +73,6 @@ import {
 import DashboardHeader from "~/components/(Dashboard)/DashboardHeader";
 import MemoizedTransactionItem from "~/components/(Dashboard)/MemoizedTransactionItem";
 import MonthYearScroller from "~/components/(Dashboard)/MonthYearScroll";
-import NotificationPermissionRequest from "~/components/NotificationPermissionRequest";
 import { useLanguage, useTheme } from "~/lib";
 
 type Transaction = {
@@ -527,8 +526,6 @@ export default function DashboardScreen() {
             userId={userId}
           />
         </View>
-
-        <NotificationPermissionRequest />
 
         {/* Recent Transactions */}
         <View style={{ paddingHorizontal: 16, paddingTop: 24, minHeight: 320 }}>

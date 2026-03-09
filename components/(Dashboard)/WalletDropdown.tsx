@@ -1,7 +1,7 @@
 /**
  * Account selector dropdown used in the dashboard header
  */
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import {
   TouchableOpacity,
   Text,
@@ -30,39 +30,23 @@ export function WalletDropdown({ variant = "dark" }: WalletDropdownProps) {
   const isLight = variant === "light";
   const buttonColor = isLight ? theme.text : "#fff";
 
-  // Debug logging
-  // console.log(
-  //   "WalletDropdown - loading:",
-  //   loading,
-  //   "accounts:",
-  //   accounts.length,
-  //   "selectedAccount:",
-  //   selectedAccount?.name
-  // );
+  // Track if initial load has been attempted
+  const hasAttemptedLoad = useRef(false);
 
-  // Auto-refresh accounts when component mounts or when accounts are empty
+  // Auto-refresh accounts only once on mount if accounts are empty
   useEffect(() => {
-    // Always try to refresh accounts when component mounts
-    if (accounts.length === 0) {
+    if (accounts.length === 0 && !loading && !hasAttemptedLoad.current) {
+      hasAttemptedLoad.current = true;
       refreshAccounts();
     }
-  }, []); // Only run once when component mounts
+  }, [accounts.length, loading]);
 
-  // Auto-refresh accounts when accounts array is empty and not loading
+  // Reset flag when accounts are loaded (in case user logs out and back in)
   useEffect(() => {
-    if (accounts.length === 0 && !loading) {
-      refreshAccounts();
-
-      // Set up a timer to keep trying if accounts are still empty
-      const timer = setTimeout(() => {
-        if (accounts.length === 0 && !loading) {
-          refreshAccounts();
-        }
-      }, 2000); // Wait 2 seconds before retrying
-
-      return () => clearTimeout(timer);
+    if (accounts.length > 0) {
+      hasAttemptedLoad.current = false;
     }
-  }, [accounts.length, loading, refreshAccounts]);
+  }, [accounts.length]);
 
   // Remove the immediate refresh logic that was causing issues
   // Accounts are now auto-loaded by AccountContext

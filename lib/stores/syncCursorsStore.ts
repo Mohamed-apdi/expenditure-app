@@ -75,3 +75,21 @@ export function updateLastSyncAt(
   }));
 }
 
+/**
+ * Reset all sync cursors so the next sync does a full pull.
+ * Call when the authenticated user changes (login/switch account) so the new user
+ * gets all their data from the server instead of an incremental pull using the
+ * previous user's lastSyncAt (which would return no rows).
+ */
+export function clearSyncCursors(): void {
+  syncCursors$.set((state) => ({
+    ...state,
+    byTable: Object.fromEntries(
+      (Object.keys(initialState.byTable) as SyncCursorTable[]).map((table) => [
+        table,
+        defaultRow(table),
+      ])
+    ) as Record<SyncCursorTable, SyncCursorRow>,
+  }));
+}
+

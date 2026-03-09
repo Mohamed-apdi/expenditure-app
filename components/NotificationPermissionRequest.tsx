@@ -2,8 +2,8 @@
  * Banner/prompt to request notification permissions; can be dismissed and remembered
  */
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
-import { Bell, X } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, Alert, Animated } from 'react-native';
+import { Bell, X, AlertCircle, Calendar, TrendingUp } from 'lucide-react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestNotificationPermissions } from '~/lib';
@@ -25,25 +25,54 @@ interface NotificationPermissionRequestProps {
   onPermissionDenied?: () => void;
 }
 
+const FeatureItem = ({ icon: Icon, text }: { icon: any; text: string }) => (
+  <View className="flex-row items-center mb-2">
+    <View className="w-6 h-6 rounded-full bg-cyan-500/20 dark:bg-cyan-400/20 items-center justify-center mr-2">
+      <Icon size={12} color="#00BFFF" />
+    </View>
+    <Text className="text-xs text-gray-600 dark:text-gray-300 flex-1">
+      {text}
+    </Text>
+  </View>
+);
+
 export default function NotificationPermissionRequest({
   onPermissionGranted,
   onPermissionDenied,
 }: NotificationPermissionRequestProps) {
   const [showRequest, setShowRequest] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
+  const [fadeAnim] = useState(new Animated.Value(0));
+  const [scaleAnim] = useState(new Animated.Value(0.95));
 
   useEffect(() => {
     checkAndShowPermissionRequest();
   }, []);
 
+  useEffect(() => {
+    if (showRequest) {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 8,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [showRequest]);
+
   const checkAndShowPermissionRequest = async () => {
-    // Don't show in Expo Go
     if (isExpoGo) {
       return;
     }
 
     try {
-      // Check if user has already dismissed the request
       const dismissed = await AsyncStorage.getItem(
         NOTIFICATION_REQUEST_DISMISSED_KEY,
       );
@@ -51,18 +80,15 @@ export default function NotificationPermissionRequest({
         return;
       }
 
-      // Check current permission status
       const { status } = await Notifications.getPermissionsAsync();
 
       if (status === 'granted') {
         return;
       }
 
-      // Show the request if permissions not granted and not dismissed
       setShowRequest(true);
     } catch (error) {
       console.error('Error checking notification permissions:', error);
-      // Show request anyway if there's an error checking
       setShowRequest(true);
     }
   };
@@ -93,7 +119,6 @@ export default function NotificationPermissionRequest({
         setShowRequest(false);
       } else {
         onPermissionDenied?.();
-        // Keep showing the request so user can try again
       }
     } catch (error) {
       console.error('Error requesting notification permissions:', error);
@@ -108,15 +133,20 @@ export default function NotificationPermissionRequest({
   };
 
   const handleDismiss = async () => {
-    try {
-      // Store that user has dismissed the request
-      await AsyncStorage.setItem(NOTIFICATION_REQUEST_DISMISSED_KEY, 'true');
-    } catch (error) {
-      console.error('Error saving dismiss state:', error);
-    }
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start(async () => {
+      try {
+        await AsyncStorage.setItem(NOTIFICATION_REQUEST_DISMISSED_KEY, 'true');
+      } catch (error) {
+        console.error('Error saving dismiss state:', error);
+      }
 
-    setShowRequest(false);
-    onPermissionDenied?.();
+      setShowRequest(false);
+      onPermissionDenied?.();
+    });
   };
 
   if (!showRequest) {
@@ -124,43 +154,79 @@ export default function NotificationPermissionRequest({
   }
 
   return (
-    <View className="mx-4 mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-      <View className="flex-row items-start justify-between">
-        <View className="flex-row items-start flex-1">
-          <View className="w-10 h-10 bg-blue-100 dark:bg-blue-800 rounded-full items-center justify-center mr-3">
-            <Bell size={20} className="text-blue-600 dark:text-blue-400" />
-          </View>
-          <View className="flex-1">
-            <Text className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">
-              Enable Notifications
-            </Text>
-            <Text className="text-xs text-blue-700 dark:text-blue-300 mb-3">
-              Get notified about budget alerts, subscription due dates, and
-              important financial updates.
-            </Text>
-            <View className="flex-row space-x-2">
-              <TouchableOpacity
-                onPress={handleRequestPermission}
-                disabled={isRequesting}
-                className="bg-blue-600 dark:bg-blue-500 px-4 py-2 rounded-lg">
-                <Text className="text-white text-xs font-medium">
-                  {isRequesting ? 'Requesting...' : 'Enable'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleDismiss}
-                className="bg-gray-200 dark:bg-gray-700 px-4 py-2 rounded-lg">
-                <Text className="text-gray-700 dark:text-gray-300 text-xs font-medium">
-                  Not Now
-                </Text>
-              </TouchableOpacity>
+    <Animated.View
+      style={{
+        opacity: fadeAnim,
+        transform: [{ scale: scaleAnim }],
+      }}
+      className="mx-4 mb-4">
+      <View className="bg-white dark:bg-[#141414] rounded-2xl overflow-hidden border border-gray-100 dark:border-[#2A2A2A] shadow-sm">
+        {/* Header with gradient accent */}
+        <View className="bg-gradient-to-r from-cyan-500 to-cyan-400 h-1" />
+        
+        <View className="p-4">
+          {/* Close button */}
+          <TouchableOpacity
+            onPress={handleDismiss}
+            className="absolute top-3 right-3 w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-800 items-center justify-center z-10"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <X size={14} color="#9CA3AF" />
+          </TouchableOpacity>
+
+          {/* Icon and Title */}
+          <View className="flex-row items-center mb-3">
+            <View className="w-11 h-11 rounded-xl bg-cyan-500/10 dark:bg-cyan-400/10 items-center justify-center mr-3">
+              <Bell size={22} color="#00BFFF" />
+            </View>
+            <View className="flex-1 pr-6">
+              <Text className="text-base font-semibold text-gray-900 dark:text-white">
+                Stay on Top of Your Finances
+              </Text>
+              <Text className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Enable notifications to never miss important updates
+              </Text>
             </View>
           </View>
+
+          {/* Feature highlights */}
+          <View className="bg-gray-50 dark:bg-[#0A0A0A] rounded-xl p-3 mb-4">
+            <FeatureItem
+              icon={AlertCircle}
+              text="Budget alerts when you're close to limits"
+            />
+            <FeatureItem
+              icon={Calendar}
+              text="Subscription & bill payment reminders"
+            />
+            <FeatureItem
+              icon={TrendingUp}
+              text="Weekly spending insights & reports"
+            />
+          </View>
+
+          {/* Action buttons */}
+          <View className="flex-row gap-3">
+            <TouchableOpacity
+              onPress={handleRequestPermission}
+              disabled={isRequesting}
+              activeOpacity={0.8}
+              className="flex-1 bg-[#00BFFF] py-3 rounded-xl items-center justify-center"
+              style={{ opacity: isRequesting ? 0.7 : 1 }}>
+              <Text className="text-white text-sm font-semibold">
+                {isRequesting ? 'Enabling...' : 'Enable Notifications'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleDismiss}
+              activeOpacity={0.7}
+              className="py-3 px-4 rounded-xl items-center justify-center">
+              <Text className="text-gray-500 dark:text-gray-400 text-sm font-medium">
+                Later
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-        <TouchableOpacity onPress={handleDismiss} className="ml-2 p-1">
-          <X size={16} className="text-blue-600 dark:text-blue-400" />
-        </TouchableOpacity>
       </View>
-    </View>
+    </Animated.View>
   );
 }

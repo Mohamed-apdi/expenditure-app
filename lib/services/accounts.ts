@@ -258,33 +258,59 @@ export const DEFAULT_ACCOUNT_NAME = "Main Account";
  * creates one (behind the scenes). Idempotent: safe to call on every login/signup.
  * Used to satisfy "auto create default account on registration" (spec 004).
  * 
- * Checks both local store and server to prevent duplicate account creation.
+ * IMPORTANT: Always checks server FIRST to prevent duplicate creation.
+ * The server is the source of truth for account existence.
  */
 export const ensureDefaultAccount = async (userId: string): Promise<void> => {
-  // First check local store (offline-first) - import dynamically to avoid circular deps
-  const { selectAccounts } = await import("../stores/accountsStore");
+  const { selectAccounts, setAccountsFromServer } = await import("../stores/accountsStore");
+
+  console.log("ensureDefaultAccount: Checking for user:", userId);
+
+  // ALWAYS check server first (source of truth) to prevent duplicates
+  let serverReturnedEmpty = false;
+  try {
+    const serverAccounts = await fetchAccounts(userId);
+    console.log("ensureDefaultAccount: Server accounts found:", serverAccounts.length);
+
+    if (serverAccounts.length > 0) {
+      // Sync server accounts to local store
+      setAccountsFromServer(userId, serverAccounts as Array<Record<string, unknown>>);
+      console.log("ensureDefaultAccount: Synced server accounts to local store");
+      return;
+    }
+    serverReturnedEmpty = true;
+  } catch (serverError) {
+    console.error("ensureDefaultAccount: Server check failed:", serverError);
+    // Never create when server fetch fails - user may already have accounts (e.g. network/RLS)
+    return;
+  }
+
+  // Only create if server explicitly returned 0 accounts (not on fetch failure)
   const localAccounts = selectAccounts(userId);
   if (localAccounts.length > 0) {
-    console.log("ensureDefaultAccount: User has local accounts, skipping creation");
+    console.log("ensureDefaultAccount: Local already has accounts, skipping create");
     return;
   }
 
-  // Then check server
-  const serverAccounts = await fetchAccounts(userId);
-  if (serverAccounts.length > 0) {
-    console.log("ensureDefaultAccount: User has server accounts, skipping creation");
-    return;
+  console.log("ensureDefaultAccount: No accounts on server, creating default account");
+  
+  try {
+    const serverAccount = await createAccount({
+      user_id: userId,
+      account_type: "Accounts",
+      name: DEFAULT_ACCOUNT_NAME,
+      amount: 0,
+      description: "Your main account",
+      is_default: true,
+      currency: "USD",
+    });
+    
+    // Sync the newly created account to local store
+    if (serverAccount) {
+      setAccountsFromServer(userId, [serverAccount as Record<string, unknown>]);
+      console.log("ensureDefaultAccount: Created and synced default account:", serverAccount.id);
+    }
+  } catch (createError) {
+    console.error("ensureDefaultAccount: Failed to create default account:", createError);
   }
-
-  // Only create if user truly has no accounts anywhere
-  console.log("ensureDefaultAccount: No accounts found, creating default account");
-  await createAccount({
-    user_id: userId,
-    account_type: "Accounts",
-    name: DEFAULT_ACCOUNT_NAME,
-    amount: 0,
-    description: "Your main account",
-    is_default: true,
-    currency: "USD",
-  });
 };

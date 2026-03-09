@@ -22,6 +22,8 @@ import {
   updateAccountLocal,
   toAccount,
 } from "../stores/accountsStore";
+import { clearSyncCursors } from "../stores/syncCursorsStore";
+import { triggerSync } from "../sync/legendSync";
 import { fetchAccounts } from "../services/accounts";
 import type { Account } from "../types/types";
 
@@ -79,6 +81,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
           setLoading
         );
         currentUserIdRef.current = null;
+        clearSyncCursors();
         return;
       }
 
@@ -195,16 +198,22 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       // When local store is empty (e.g. after login before sync, or sync error), seed from server
       // so dashboard and WalletDropdown show accounts instead of loading/empty.
       if (list.length === 0) {
+        clearSyncCursors();
         try {
           const serverAccounts = await fetchAccounts(user.id);
           if (serverAccounts?.length > 0) {
-            setAccountsFromServer(user.id, serverAccounts as Array<Record<string, unknown>>);
+            setAccountsFromServer(user.id, serverAccounts as unknown as Array<Record<string, unknown>>);
             list = selectAccounts(user.id).map(toAccount);
           }
+          // Trigger full sync so transactions and other data load immediately
+          void triggerSync();
         } catch (seedError) {
           console.error("Error seeding accounts from server:", seedError);
+          void triggerSync();
         }
       }
+      // Re-read from store so we don't overwrite with [] if another flow (e.g. ensureDefaultAccount) populated it
+      list = selectAccounts(user.id).map(toAccount);
       if (list.length > 0) {
         setAccounts(list);
         if (!selectedAccount && !isUpdatingDefault) {
@@ -230,6 +239,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshAccounts = useCallback(async () => {
+    if (loading) return;
     try {
       setHasInitialized(false);
       setLoading(true);
@@ -240,22 +250,28 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       }
       let list = selectAccounts(user.id).map(toAccount);
       if (list.length === 0) {
+        clearSyncCursors();
         try {
           const serverAccounts = await fetchAccounts(user.id);
           if (serverAccounts?.length > 0) {
-            setAccountsFromServer(user.id, serverAccounts as Array<Record<string, unknown>>);
+            setAccountsFromServer(user.id, serverAccounts as unknown as Array<Record<string, unknown>>);
             list = selectAccounts(user.id).map(toAccount);
           }
+          void triggerSync();
         } catch (seedError) {
           console.error("Error seeding accounts from server:", seedError);
+          void triggerSync();
         }
       }
+      // Re-read from store so we don't overwrite with [] if another flow populated it
+      list = selectAccounts(user.id).map(toAccount);
       if (list.length > 0) {
         setAccounts(list);
-        if (!selectedAccount && !isUpdatingDefault) {
+        setSelectedAccountState((prev) => {
+          if (prev) return prev;
           const defaultAccount = list.find((acc) => acc.is_default === true);
-          setSelectedAccountState(defaultAccount ?? list[0]);
-        }
+          return defaultAccount ?? list[0];
+        });
       } else {
         setAccounts([]);
         setSelectedAccountState(null);
@@ -268,7 +284,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [selectedAccount?.id, isUpdatingDefault]);
+  }, [loading]);
 
   // Function to refresh balances after transaction changes (stable ref to avoid consumer effect loops)
   const refreshBalances = useCallback(async () => {

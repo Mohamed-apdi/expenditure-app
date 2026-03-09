@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,10 @@ import {
   Modal,
   Alert,
   Linking,
+  Switch,
+  Platform,
 } from "react-native";
+import * as Notifications from "expo-notifications";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import {
@@ -81,8 +84,68 @@ export default function ProfileScreen() {
     new: false,
     confirm: false,
   });
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [checkingNotifications, setCheckingNotifications] = useState(true);
+  const permissionJustGrantedRef = useRef(false);
 
   const theme = useTheme();
+
+  // Check notification permission status
+  const checkNotificationPermission = useCallback(async () => {
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+      setNotificationsEnabled(status === "granted");
+    } catch (error) {
+      console.error("Error checking notification permission:", error);
+    } finally {
+      setCheckingNotifications(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkNotificationPermission();
+  }, [checkNotificationPermission]);
+
+  // Handle notification toggle - always try system dialog first
+  const handleNotificationToggle = async (value: boolean) => {
+    if (value) {
+      // First check current permission status
+      const { status: currentStatus } = await Notifications.getPermissionsAsync();
+      
+      if (currentStatus === "granted") {
+        // Already granted
+        setNotificationsEnabled(true);
+        return;
+      }
+      
+      // Try to request permission - this will show system dialog if not permanently denied
+      const { status, canAskAgain } = await Notifications.requestPermissionsAsync();
+      
+      if (status === "granted") {
+        setNotificationsEnabled(true);
+        // Skip re-checking permission on next focus; OS can return stale value right after dialog dismisses
+        permissionJustGrantedRef.current = true;
+        setTimeout(() => {
+          permissionJustGrantedRef.current = false;
+        }, 1500);
+      } else if (!canAskAgain) {
+        // Permission permanently denied - must go to settings
+        if (Platform.OS === "ios") {
+          Linking.openURL("app-settings:");
+        } else {
+          Linking.openSettings();
+        }
+      }
+      // If canAskAgain is true but denied, do nothing - user chose "Don't allow"
+    } else {
+      // To disable, open system settings directly (can't revoke programmatically)
+      if (Platform.OS === "ios") {
+        Linking.openURL("app-settings:");
+      } else {
+        Linking.openSettings();
+      }
+    }
+  };
   useScreenStatusBar();
 
   const fetchUserProfile = useCallback(async () => {
@@ -91,7 +154,7 @@ export default function ProfileScreen() {
       if (user) {
         // Check local profile first - this is the source of truth for local changes
         const localProfile = selectProfile(user.id);
-        
+
         if (localProfile) {
           console.log("[Settings] Local profile found, full_name:", localProfile.full_name, "status:", localProfile.__local_status);
           // Use local profile data
@@ -105,12 +168,12 @@ export default function ProfileScreen() {
             joinDate: localProfile.created_at || new Date().toISOString(),
             lastSignIn: user.last_sign_in_at || new Date().toISOString(),
           });
-          
+
           // Cache profile image for offline use (only if there's actually an image)
           if (localProfile.image_url) {
             cacheImage(localProfile.image_url).catch(() => {});
           }
-          
+
           // If local profile is pending sync, don't overwrite with server data
           if (localProfile.__local_status === "pending") {
             return;
@@ -126,7 +189,7 @@ export default function ProfileScreen() {
             if (freshLocalProfile?.__local_status === "pending") {
               return; // Don't overwrite pending local changes
             }
-            
+
             setUserProfile({
               fullName: profileData.full_name || "",
               email: user.email || "",
@@ -137,7 +200,7 @@ export default function ProfileScreen() {
               joinDate: profileData.created_at || new Date().toISOString(),
               lastSignIn: user.last_sign_in_at || new Date().toISOString(),
             });
-            
+
             if (profileData.image_url) {
               cacheImage(profileData.image_url).catch(() => {});
             }
@@ -152,11 +215,15 @@ export default function ProfileScreen() {
     }
   }, [t]);
 
-  // Fetch profile when screen comes into focus
+  // Fetch profile and check notification permission when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       fetchUserProfile();
-    }, [fetchUserProfile])
+      // Skip permission check briefly after user just granted - OS may still return stale value
+      if (!permissionJustGrantedRef.current) {
+        checkNotificationPermission();
+      }
+    }, [fetchUserProfile, checkNotificationPermission])
   );
 
   // Also fetch when params change (for backward compatibility)
@@ -265,12 +332,12 @@ export default function ProfileScreen() {
     }
   };
 
-  const SettingItem = ({ 
-    icon, 
-    iconBg, 
-    title, 
-    subtitle, 
-    onPress, 
+  const SettingItem = ({
+    icon,
+    iconBg,
+    title,
+    subtitle,
+    onPress,
     showArrow = true,
     rightElement,
   }: {
@@ -540,6 +607,24 @@ export default function ProfileScreen() {
               />
               <Divider />
               <SettingItem
+                icon={<Bell size={22} color="#3b82f6" />}
+                iconBg="#3b82f615"
+                title={t.notifications || "Notifications"}
+                subtitle={notificationsEnabled ? (t.notificationsOn || "Enabled") : (t.notificationsOff || "Disabled")}
+                showArrow={false}
+                rightElement={
+                  <Switch
+                    value={notificationsEnabled}
+                    onValueChange={handleNotificationToggle}
+                    trackColor={{ false: theme.border, true: theme.primary + "60" }}
+                    thumbColor={notificationsEnabled ? theme.primary : "#f4f3f4"}
+                    ios_backgroundColor={theme.border}
+                    disabled={checkingNotifications}
+                  />
+                }
+              />
+              <Divider />
+              <SettingItem
                 icon={<HelpCircle size={22} color="#10b981" />}
                 iconBg="#10b98115"
                 title={t.help || "Help"}
@@ -576,7 +661,7 @@ export default function ProfileScreen() {
           {/* App Version */}
           <View style={{ alignItems: "center", marginTop: 32 }}>
             <Text style={{ color: theme.textMuted, fontSize: 12 }}>
-              Qoondeeye v{Constants.expoConfig?.version || "2.4.0"}
+              Qoondeeye v{Constants.expoConfig?.version || "2.4.2"}
             </Text>
           </View>
         </View>
@@ -605,7 +690,7 @@ export default function ProfileScreen() {
                 <Text style={{ color: theme.text, fontSize: 22, fontWeight: "700" }}>
                   {t.changePassword}
                 </Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => setShowChangePassword(false)}
                   style={{
                     width: 36,
@@ -757,10 +842,10 @@ export default function ProfileScreen() {
                 </Text>
                 <View style={{ gap: 8 }}>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <View style={{ 
-                      width: 20, 
-                      height: 20, 
-                      borderRadius: 10, 
+                    <View style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 10,
                       backgroundColor: passwordData.newPassword.length >= 8 ? "#10b98120" : "#ef444420",
                       justifyContent: "center",
                       alignItems: "center",
@@ -775,10 +860,10 @@ export default function ProfileScreen() {
                     </Text>
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <View style={{ 
-                      width: 20, 
-                      height: 20, 
-                      borderRadius: 10, 
+                    <View style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 10,
                       backgroundColor: /[A-Z]/.test(passwordData.newPassword) ? "#10b98120" : "#ef444420",
                       justifyContent: "center",
                       alignItems: "center",
@@ -793,10 +878,10 @@ export default function ProfileScreen() {
                     </Text>
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <View style={{ 
-                      width: 20, 
-                      height: 20, 
-                      borderRadius: 10, 
+                    <View style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 10,
                       backgroundColor: /[0-9]/.test(passwordData.newPassword) ? "#10b98120" : "#ef444420",
                       justifyContent: "center",
                       alignItems: "center",
@@ -854,7 +939,7 @@ export default function ProfileScreen() {
               <Text style={{ color: theme.text, fontSize: 22, fontWeight: "700" }}>
                 {t.languages || "Language"}
               </Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={() => setShowLanguageModal(false)}
                 style={{
                   width: 36,
@@ -887,10 +972,10 @@ export default function ProfileScreen() {
                   setShowLanguageModal(false);
                 }}
               >
-                <View style={{ 
-                  width: 44, 
-                  height: 44, 
-                  borderRadius: 22, 
+                <View style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
                   backgroundColor: "#f0f9ff",
                   justifyContent: "center",
                   alignItems: "center",
@@ -929,10 +1014,10 @@ export default function ProfileScreen() {
                   setShowLanguageModal(false);
                 }}
               >
-                <View style={{ 
-                  width: 44, 
-                  height: 44, 
-                  borderRadius: 22, 
+                <View style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
                   backgroundColor: "#f0f9ff",
                   justifyContent: "center",
                   alignItems: "center",

@@ -22,10 +22,12 @@
         "SUPABASE_KEY": "@SUPABASE_KEY",
         "POWER_SYNC_URL": "@POWER_SYNC_URL"
       },
-      "android": { "buildType": "apk" }
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      }
     },
     "production": {
-      "autoIncrement": true,
       "env": {
         "NODE_ENV": "production",
         "SUPABASE_URL": "@SUPABASE_URL",

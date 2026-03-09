@@ -1,56 +1,97 @@
 import { useColorScheme as useNativewindColorScheme } from "nativewind";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
+import { Appearance } from "react-native";
 import { saveItem, getItem } from "../storage/secureStore";
 
+export type ThemePreference = "light" | "dark" | "system";
+
+function getSystemColorScheme(): "light" | "dark" {
+  return Appearance.getColorScheme() === "dark" ? "dark" : "light";
+}
+
 export function useColorScheme() {
-  const { colorScheme, setColorScheme } = useNativewindColorScheme();
-  const mounted = useRef(true);
+  const { setColorScheme: setNativewindScheme } = useNativewindColorScheme();
+  const [preference, setPreferenceState] = useState<ThemePreference>("light");
+  const [systemScheme, setSystemScheme] = useState<"light" | "dark">(
+    getSystemColorScheme
+  );
+  const hasLoadedRef = useRef(false);
   const isTogglingRef = useRef(false);
 
-  // Load persisted theme once
+  const effectiveScheme: "light" | "dark" =
+    preference === "system" ? systemScheme : preference;
+
+  // Load persisted theme once on mount; never overwrite after so toggle isn't reverted
   useEffect(() => {
-    mounted.current = true;
+    if (hasLoadedRef.current) return;
+    hasLoadedRef.current = true;
     (async () => {
       try {
-        const savedTheme = await getItem("app_theme");
-        if (savedTheme && mounted.current) {
-          setColorScheme(savedTheme as "light" | "dark");
+        const saved = await getItem("app_theme");
+        if (saved === "light" || saved === "dark" || saved === "system") {
+          setPreferenceState(saved);
+          const resolved =
+            saved === "system" ? getSystemColorScheme() : saved;
+          setNativewindScheme(resolved);
         }
       } catch (error) {
         console.error("Error loading theme:", error);
       }
     })();
-    return () => {
-      mounted.current = false;
-    };
-  }, [setColorScheme]);
+  }, [setNativewindScheme]);
+
+  // Listen to system theme when preference is "system"
+  useEffect(() => {
+    const sub = Appearance.addChangeListener(({ colorScheme }) => {
+      const next = colorScheme === "dark" ? "dark" : "light";
+      setSystemScheme(next);
+      if (preference === "system") {
+        setNativewindScheme(next);
+      }
+    });
+    return () => sub.remove();
+  }, [preference, setNativewindScheme]);
+
+  const setPreference = useCallback(
+    async (value: ThemePreference) => {
+      setPreferenceState(value);
+      const resolved =
+        value === "system" ? getSystemColorScheme() : value;
+      setNativewindScheme(resolved);
+      try {
+        await saveItem("app_theme", value);
+      } catch (error) {
+        console.error("Error saving theme:", error);
+      }
+    },
+    [setNativewindScheme]
+  );
 
   const toggleColorScheme = useCallback(async () => {
-    // Prevent rapid toggling
     if (isTogglingRef.current) return;
     isTogglingRef.current = true;
-
     try {
-      const newTheme = colorScheme === "dark" ? "light" : "dark";
-      
-      // Set color scheme immediately (don't wait for save)
-      setColorScheme(newTheme);
-      
-      // Save to storage in background
-      await saveItem("app_theme", newTheme);
-    } catch (error) {
-      console.error("Error toggling color scheme:", error);
+      const next: ThemePreference =
+        effectiveScheme === "dark" ? "light" : "dark";
+      setPreferenceState(next);
+      setNativewindScheme(next);
+      try {
+        await saveItem("app_theme", next);
+      } catch (error) {
+        console.error("Error saving theme:", error);
+      }
     } finally {
-      // Allow toggling again after a short delay to prevent double-taps
       setTimeout(() => {
         isTogglingRef.current = false;
       }, 300);
     }
-  }, [colorScheme, setColorScheme]);
+  }, [effectiveScheme, setNativewindScheme]);
 
   return {
-    colorScheme: colorScheme ?? "light",
-    isDarkColorScheme: colorScheme === "dark",
+    colorScheme: effectiveScheme,
+    isDarkColorScheme: effectiveScheme === "dark",
+    preference,
+    setPreference,
     toggleColorScheme,
   };
 }

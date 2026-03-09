@@ -51,15 +51,27 @@ export {
   ErrorBoundary,
 } from 'expo-router';
 
-const usePlatformSpecificSetup = Platform.select({
-  web: useSetWebBackgroundClassName,
-  android: useSetAndroidNavigationBar,
-  default: noop,
-});
+const useIsomorphicLayoutEffect =
+  Platform.OS === 'web' && typeof window === 'undefined'
+    ? React.useEffect
+    : React.useLayoutEffect;
+
+function usePlatformSpecificSetup(isDarkColorScheme: boolean) {
+  useIsomorphicLayoutEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.documentElement.classList.add('bg-background');
+    }
+  }, []);
+  React.useLayoutEffect(() => {
+    if (Platform.OS === 'android') {
+      setAndroidNavigationBar(isDarkColorScheme ? 'dark' : 'light');
+    }
+  }, [isDarkColorScheme]);
+}
 
 export default function RootLayout() {
-  usePlatformSpecificSetup();
   const { isDarkColorScheme } = useColorScheme();
+  usePlatformSpecificSetup(isDarkColorScheme);
 
   // Create React Query client
   const queryClient = React.useMemo(
@@ -78,7 +90,7 @@ export default function RootLayout() {
     [],
   );
 
-  // Initialize notifications globally
+  // Initialize notifications globally and request permission on app start
   React.useEffect(() => {
     let subscription: Notifications.Subscription | undefined;
     
@@ -89,8 +101,11 @@ export default function RootLayout() {
 
         if (isExpoGo) return;
 
-        // Register background task and request permissions
+        // Register background task
         await notificationService.registerBackgroundTask();
+
+        // Request notification permission using the default system dialog
+        await Notifications.requestPermissionsAsync();
 
         // Set up notification response listener globally
         subscription = Notifications.addNotificationResponseReceivedListener(
@@ -160,23 +175,3 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
-
-const useIsomorphicLayoutEffect =
-  Platform.OS === 'web' && typeof window === 'undefined'
-    ? React.useEffect
-    : React.useLayoutEffect;
-
-function useSetWebBackgroundClassName() {
-  useIsomorphicLayoutEffect(() => {
-    // Adds the background color to the html element to prevent white background on overscroll.
-    document.documentElement.classList.add('bg-background');
-  }, []);
-}
-
-function useSetAndroidNavigationBar() {
-  React.useLayoutEffect(() => {
-    setAndroidNavigationBar(Appearance.getColorScheme() ?? 'light');
-  }, []);
-}
-
-function noop() {}

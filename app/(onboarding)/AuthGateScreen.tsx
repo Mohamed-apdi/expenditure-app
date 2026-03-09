@@ -1,28 +1,33 @@
-import { useState, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as AuthSession from "expo-auth-session";
+import { useRouter } from "expo-router";
+import { deleteItemAsync, setItemAsync } from "expo-secure-store";
+import * as WebBrowser from "expo-web-browser";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  TextInput,
-  Image,
+  ArrowRight,
+  ChevronLeft,
+  Eye,
+  EyeOff,
+  Mail,
+  User,
+} from "lucide-react-native";
+import { useEffect, useState } from "react";
+import {
   ActivityIndicator,
-  ScrollView,
+  Image,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { ChevronLeft, Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react-native";
-import { useTheme, useScreenStatusBar } from "~/lib";
-import { useLanguage } from "~/lib";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { setItemAsync, deleteItemAsync } from "expo-secure-store";
-import { supabase } from "~/lib";
-import * as WebBrowser from "expo-web-browser";
-import * as AuthSession from "expo-auth-session";
 import { toast } from "sonner-native";
-import { ensureDefaultAccount } from "~/lib/services/accounts";
+import { supabase, useLanguage, useScreenStatusBar, useTheme } from "~/lib";
 import { APP_COLORS } from "~/lib/config/theme/constants";
+import { ensureDefaultAccount } from "~/lib/services/accounts";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -33,12 +38,15 @@ export default function AuthGateScreen() {
   const theme = useTheme();
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [socialLoading, setSocialLoading] = useState<"google" | "apple" | null>(null);
+  const [socialLoading, setSocialLoading] = useState<"google" | "apple" | null>(
+    null,
+  );
 
   // Load saved "Remember me" preference on mount
   useEffect(() => {
@@ -75,6 +83,15 @@ export default function AuthGateScreen() {
       toast.error(t.error, { description: t.missingCredentials });
       return;
     }
+
+    // Validate full name for signup
+    if (activeTab === "signup" && !fullName.trim()) {
+      toast.error(t.error, {
+        description: t.pleaseEnterYourName || "Please enter your name",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       if (activeTab === "login") {
@@ -100,8 +117,28 @@ export default function AuthGateScreen() {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
+          options: {
+            data: {
+              full_name: fullName.trim(),
+            },
+          },
         });
         if (error) throw error;
+
+        // Create/update profile with the full name
+        if (data.user) {
+          try {
+            await supabase.from("profiles").upsert({
+              id: data.user.id,
+              full_name: fullName.trim(),
+              email: email.trim(),
+              updated_at: new Date().toISOString(),
+            });
+          } catch (profileError) {
+            console.error("Error creating profile:", profileError);
+          }
+        }
+
         if (data.user && !data.user.email_confirmed_at) {
           toast.success(t.accountCreated, { description: t.pleaseCheckEmail });
           router.push("/(auth)/login");
@@ -129,51 +166,54 @@ export default function AuthGateScreen() {
         scheme: "qoondeeye",
         path: "auth-callback",
       });
-      
+
       console.log("Google OAuth redirect URL:", redirectUrl);
-      
+
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { 
+        options: {
           redirectTo: redirectUrl,
           skipBrowserRedirect: true,
         },
       });
-      
+
       if (error) throw error;
       if (!data?.url) {
         toast.error(t.socialSignInFailed, {
-          description: t.socialSignInNoUrl || "Could not get authentication URL",
+          description:
+            t.socialSignInNoUrl || "Could not get authentication URL",
         });
         return;
       }
-      
+
       const result = await WebBrowser.openAuthSessionAsync(
-        data.url, 
+        data.url,
         redirectUrl,
         {
           showInRecents: true,
           preferEphemeralSession: false,
-        }
+        },
       );
-      
+
       if (result.type === "success" && result.url) {
         const url = new URL(result.url);
-        
+
         const hashParams = new URLSearchParams(url.hash.substring(1));
         let access_token = hashParams.get("access_token");
         let refresh_token = hashParams.get("refresh_token");
-        
+
         if (!access_token || !refresh_token) {
           const queryParams = new URLSearchParams(url.search);
           access_token = queryParams.get("access_token");
           refresh_token = queryParams.get("refresh_token");
         }
-        
+
         if (!access_token || !refresh_token) {
-          const code = hashParams.get("code") || new URLSearchParams(url.search).get("code");
+          const code =
+            hashParams.get("code") ||
+            new URLSearchParams(url.search).get("code");
           if (code) {
-            const { data: exchangeData, error: exchangeError } = 
+            const { data: exchangeData, error: exchangeError } =
               await supabase.auth.exchangeCodeForSession(code);
             if (exchangeError) throw exchangeError;
             if (exchangeData.session) {
@@ -182,18 +222,18 @@ export default function AuthGateScreen() {
             }
           }
         }
-        
+
         if (access_token && refresh_token) {
           const { data: sessionData, error: sessionError } =
             await supabase.auth.setSession({ access_token, refresh_token });
           if (sessionError) throw sessionError;
-          
+
           if (sessionData.session && sessionData.user?.id) {
             await setItemAsync("token", sessionData.session.access_token);
             await setItemAsync("userId", sessionData.user.id);
             await setItemAsync(
               "supabase_session",
-              JSON.stringify(sessionData.session)
+              JSON.stringify(sessionData.session),
             );
             try {
               await ensureDefaultAccount(sessionData.user.id);
@@ -205,9 +245,10 @@ export default function AuthGateScreen() {
             return;
           }
         }
-        
+
         toast.error(t.socialSignInFailed, {
-          description: t.socialSignInTokensMissing || "Authentication tokens not received",
+          description:
+            t.socialSignInTokensMissing || "Authentication tokens not received",
         });
       } else if (result.type === "cancel" || result.type === "dismiss") {
         toast.info(t.socialSignInCancelled || "Sign-in cancelled");
@@ -215,7 +256,10 @@ export default function AuthGateScreen() {
     } catch (err: any) {
       console.error("Google Sign-In error:", err);
       toast.error(t.socialSignInFailed, {
-        description: err?.message || t.socialSignInErrorOccurred || "An error occurred during sign-in",
+        description:
+          err?.message ||
+          t.socialSignInErrorOccurred ||
+          "An error occurred during sign-in",
       });
     } finally {
       setSocialLoading(null);
@@ -254,7 +298,9 @@ export default function AuthGateScreen() {
             </TouchableOpacity>
 
             {/* Title: Welcome to / AppName */}
-            <View style={{ paddingHorizontal: 24, marginTop: 16, marginBottom: 24 }}>
+            <View
+              style={{ paddingHorizontal: 24, marginTop: 16, marginBottom: 24 }}
+            >
               <Text
                 style={{
                   fontSize: 28,
@@ -294,7 +340,8 @@ export default function AuthGateScreen() {
                   flex: 1,
                   paddingVertical: 12,
                   borderRadius: 10,
-                  backgroundColor: activeTab === "login" ? APP_COLORS.primary : "transparent",
+                  backgroundColor:
+                    activeTab === "login" ? APP_COLORS.primary : "transparent",
                   alignItems: "center",
                 }}
               >
@@ -315,7 +362,8 @@ export default function AuthGateScreen() {
                   flex: 1,
                   paddingVertical: 12,
                   borderRadius: 10,
-                  backgroundColor: activeTab === "signup" ? APP_COLORS.primary : "transparent",
+                  backgroundColor:
+                    activeTab === "signup" ? APP_COLORS.primary : "transparent",
                   alignItems: "center",
                 }}
               >
@@ -330,6 +378,49 @@ export default function AuthGateScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {/* Full Name - only show for signup */}
+            {activeTab === "signup" && (
+              <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "500",
+                    color: "#4A4A4A",
+                    marginBottom: 8,
+                  }}
+                >
+                  {t.fullName || "Full Name"} *
+                </Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    backgroundColor: APP_COLORS.inputBg,
+                    borderWidth: 1,
+                    borderColor: APP_COLORS.border,
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                  }}
+                >
+                  <TextInput
+                    style={{
+                      flex: 1,
+                      paddingVertical: 14,
+                      paddingHorizontal: 12,
+                      fontSize: 16,
+                      color: "#1A1A1A",
+                    }}
+                    placeholder={t.enterYourName || "Enter your name"}
+                    placeholderTextColor="#9CA3AF"
+                    value={fullName}
+                    onChangeText={setFullName}
+                    autoCapitalize="words"
+                  />
+                  <User size={20} color="#9CA3AF" />
+                </View>
+              </View>
+            )}
 
             {/* Email */}
             <View style={{ paddingHorizontal: 24, marginBottom: 16 }}>
@@ -444,7 +535,9 @@ export default function AuthGateScreen() {
                     borderRadius: 6,
                     borderWidth: 2,
                     borderColor: APP_COLORS.border,
-                    backgroundColor: rememberMe ? APP_COLORS.primary : "transparent",
+                    backgroundColor: rememberMe
+                      ? APP_COLORS.primary
+                      : "transparent",
                     alignItems: "center",
                     justifyContent: "center",
                   }}
@@ -488,7 +581,11 @@ export default function AuthGateScreen() {
                   >
                     {t.getStarted}
                   </Text>
-                  <ArrowRight size={20} color={theme.primaryText} strokeWidth={2.5} />
+                  <ArrowRight
+                    size={20}
+                    color={theme.primaryText}
+                    strokeWidth={2.5}
+                  />
                 </>
               )}
             </TouchableOpacity>
@@ -529,7 +626,11 @@ export default function AuthGateScreen() {
                 }}
               >
                 {socialLoading === "google" ? (
-                  <ActivityIndicator size="small" color={APP_COLORS.primary} style={{ marginRight: 12 }} />
+                  <ActivityIndicator
+                    size="small"
+                    color={APP_COLORS.primary}
+                    style={{ marginRight: 12 }}
+                  />
                 ) : (
                   <Image
                     source={require("../../assets/images/google_icon.png")}
