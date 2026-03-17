@@ -1,3 +1,6 @@
+/**
+ * Main library barrel file: re-exports services, hooks, and utilities for the app.
+ */
 // Database services
 export * from "./services/accounts";
 export {
