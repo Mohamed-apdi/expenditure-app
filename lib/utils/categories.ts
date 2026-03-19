@@ -1,3 +1,7 @@
+/**
+ * Category and frequency helpers for expenses/income
+ * Provides category lists based on translations
+ */
 import {
   Zap,
   Film,
