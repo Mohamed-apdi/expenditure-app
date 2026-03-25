@@ -32,9 +32,21 @@ import {
   Smartphone,
   HelpCircle,
   Info,
+  MessageSquare,
 } from "lucide-react-native";
 import { deleteItemAsync } from "expo-secure-store";
-import { supabase, getCurrentUserOfflineFirst } from "~/lib";
+import { supabase, getCurrentUserOfflineFirst, isExpoGo } from "~/lib";
+import {
+  getEvcSmsUserEnabled,
+  setEvcSmsUserEnabled,
+  getEvcSmsConsentSeen,
+  setEvcSmsConsentSeen,
+  syncEvcSmsNativeEnabledFlag,
+} from "~/lib/services/evcSmsSettings";
+import {
+  requestSmsPermissionsForEvc,
+  syncEvcSmsNativeListening,
+} from "~/lib/services/evcSmsBridge";
 import { UserProfile } from "~/types/userTypes";
 import { useTheme, useScreenStatusBar } from "~/lib";
 import { useLanguage } from "~/lib";
@@ -87,6 +99,8 @@ export default function ProfileScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [checkingNotifications, setCheckingNotifications] = useState(true);
   const permissionJustGrantedRef = useRef(false);
+  const [evcSmsEnabled, setEvcSmsEnabled] = useState(false);
+  const [evcConsentModalVisible, setEvcConsentModalVisible] = useState(false);
 
   const theme = useTheme();
 
@@ -105,6 +119,69 @@ export default function ProfileScreen() {
   useEffect(() => {
     checkNotificationPermission();
   }, [checkNotificationPermission]);
+
+  useEffect(() => {
+    void (async () => {
+      setEvcSmsEnabled(await getEvcSmsUserEnabled());
+    })();
+  }, []);
+
+  const handleEvcSmsToggle = async (value: boolean) => {
+    if (Platform.OS !== "android") return;
+    if (!value) {
+      await setEvcSmsUserEnabled(false);
+      await syncEvcSmsNativeEnabledFlag(false);
+      setEvcSmsEnabled(false);
+      await syncEvcSmsNativeListening();
+      return;
+    }
+    if (isExpoGo) {
+      Alert.alert(t.evcSmsConsentTitle, t.evcSmsExpoGoHint);
+      return;
+    }
+    const seen = await getEvcSmsConsentSeen();
+    if (!seen) {
+      setEvcConsentModalVisible(true);
+      return;
+    }
+    const ok = await requestSmsPermissionsForEvc();
+    if (!ok) {
+      Alert.alert(
+        t.evcSmsConsentTitle,
+        "SMS permission is not granted. Please enable SMS permissions for Qoondeeye in Android Settings.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Open Settings", onPress: () => Linking.openSettings() },
+        ],
+      );
+      return;
+    }
+    await setEvcSmsUserEnabled(true);
+    await syncEvcSmsNativeEnabledFlag(true);
+    setEvcSmsEnabled(true);
+    await syncEvcSmsNativeListening();
+  };
+
+  const handleEvcConsentContinue = async () => {
+    setEvcConsentModalVisible(false);
+    await setEvcSmsConsentSeen();
+    const ok = await requestSmsPermissionsForEvc();
+    if (!ok) {
+      Alert.alert(
+        t.evcSmsConsentTitle,
+        "SMS permission is not granted. Please enable SMS permissions for Qoondeeye in Android Settings.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Open Settings", onPress: () => Linking.openSettings() },
+        ],
+      );
+      return;
+    }
+    await setEvcSmsUserEnabled(true);
+    await syncEvcSmsNativeEnabledFlag(true);
+    setEvcSmsEnabled(true);
+    await syncEvcSmsNativeListening();
+  };
 
   // Handle notification toggle - always try system dialog first
   const handleNotificationToggle = async (value: boolean) => {
@@ -624,6 +701,27 @@ export default function ProfileScreen() {
                 }
               />
               <Divider />
+              {Platform.OS === "android" && (
+                <>
+                  <SettingItem
+                    icon={<MessageSquare size={22} color="#eab308" />}
+                    iconBg="#eab30815"
+                    title={t.evcSmsAutoImport}
+                    subtitle={t.evcSmsAutoImportSubtitle}
+                    showArrow={false}
+                    rightElement={
+                      <Switch
+                        value={evcSmsEnabled}
+                        onValueChange={handleEvcSmsToggle}
+                        trackColor={{ false: theme.border, true: theme.primary + "60" }}
+                        thumbColor={evcSmsEnabled ? theme.primary : "#f4f3f4"}
+                        ios_backgroundColor={theme.border}
+                      />
+                    }
+                  />
+                  <Divider />
+                </>
+              )}
               <SettingItem
                 icon={<HelpCircle size={22} color="#10b981" />}
                 iconBg="#10b98115"
@@ -666,6 +764,61 @@ export default function ProfileScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={evcConsentModalVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setEvcConsentModalVisible(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              width: "100%",
+              maxWidth: 400,
+              backgroundColor: theme.cardBackground,
+              borderRadius: 24,
+              padding: 24,
+            }}
+          >
+            <Text style={{ color: theme.text, fontSize: 20, fontWeight: "700" }}>
+              {t.evcSmsConsentTitle}
+            </Text>
+            <Text
+              style={{
+                color: theme.textSecondary,
+                fontSize: 14,
+                marginTop: 12,
+                lineHeight: 22,
+              }}
+            >
+              {t.evcSmsConsentMessage}
+            </Text>
+            <TouchableOpacity
+              onPress={handleEvcConsentContinue}
+              style={{
+                marginTop: 20,
+                backgroundColor: theme.primary,
+                paddingVertical: 14,
+                borderRadius: 16,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: theme.primaryText, fontWeight: "600", fontSize: 15 }}>
+                {t.evcSmsConsentContinue}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Password Change Modal */}
       <Modal

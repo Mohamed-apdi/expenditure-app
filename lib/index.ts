@@ -156,7 +156,12 @@ export * from "./utils/expoGoUtils";
 export * from "./utils/utils";
 export * from "./utils/imageCache";
 
+// EVC SMS (Android native)
+export * from "./services/evcSmsSettings";
+export * from "./services/evcSmsBridge";
+
 // Hooks
 export * from "./hooks/useDashboardData";
+export { useSmsListener } from "./hooks/useSmsListener";
 export * from "./hooks/useNotifications";
 export * from "./hooks/useScreenStatusBar";

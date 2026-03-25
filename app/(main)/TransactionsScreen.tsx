@@ -6,6 +6,7 @@ import {
   View,
   Alert,
 } from "react-native";
+import { observe } from "@legendapp/state";
 import { FlatList } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Swipeable from "react-native-gesture-handler/Swipeable";
@@ -13,7 +14,7 @@ import { RectButton } from "react-native-gesture-handler";
 import { formatDistanceToNow } from "date-fns";
 import { ArrowLeft, MoreHorizontal, Pencil, Trash2, Inbox } from "lucide-react-native";
 import { useTheme, useLanguage, getCurrentUserOfflineFirst, useAccount } from "~/lib";
-import { selectTransactions, deleteTransactionLocal } from "~/lib/stores/transactionsStore";
+import { selectTransactions, deleteTransactionLocal, transactions$ } from "~/lib/stores/transactionsStore";
 import { updateAccountLocal, updateAccountBalance } from "~/lib/stores/accountsStore";
 import { isOfflineGateLocked, triggerSync } from "~/lib/sync/legendSync";
 import { deleteTransaction } from "~/lib/services/transactions";
@@ -277,6 +278,14 @@ export default function TransactionsScreen() {
       }
     };
     loadTransactions();
+
+    // Keep the screen in sync with local store changes (e.g. SMS auto-import).
+    const dispose = observe(() => transactions$.get(), () => {
+      void loadTransactions();
+    });
+    return () => {
+      dispose();
+    };
   }, [userId]);
 
   const closeOpenRow = useCallback(() => {
