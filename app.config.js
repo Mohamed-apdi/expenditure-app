@@ -41,7 +41,9 @@ export default ({ config }) => ({
       "INTERNET",
       "ACCESS_NETWORK_STATE",
       "VIBRATE",
-      "RECEIVE_BOOT_COMPLETED"
+      "RECEIVE_BOOT_COMPLETED",
+      "RECEIVE_SMS",
+      "READ_SMS"
     ]
   },
 

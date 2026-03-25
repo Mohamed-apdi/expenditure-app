@@ -361,13 +361,21 @@ export const LANGUAGES = {
 
     mobileMoney: "Mobile Money",
 
+    evcSmsAutoImport: "EVC SMS import",
+    evcSmsAutoImportSubtitle:
+      "Detect Hormuud EVC (192 / NOTICE) messages and add them to your default account. Only EVC-related SMS are processed.",
+    evcSmsConsentTitle: "SMS access for EVC",
+    evcSmsConsentMessage:
+      "Qoondeeye can read incoming SMS from senders 192 and NOTICE (and messages containing EVCPLUS) to detect mobile-money transactions. Other messages are ignored and full SMS text is not stored—only parsed amounts and notes you see in the app.",
+    evcSmsConsentContinue: "Continue",
+    evcSmsExpoGoHint: "EVC SMS import requires a development or production build (not Expo Go).",
+
     // Frequency Options
     daily: "Daily",
 
     // BudgetScreen translations
     budget: "Budget",
     goals: "Goals",
-    loan: "Loan",
     monthlyBudget: "Monthly Budget",
     addBudgets: "Add Budgets",
     budgetAlertsEnabled: "Budget alerts enabled",
@@ -1268,6 +1276,15 @@ export const LANGUAGES = {
     pension: "Mushahar hawlgab",
 
     mobileMoney: "Lacagta Mobileka",
+
+    evcSmsAutoImport: "Soo dejinta SMS-ka EVC",
+    evcSmsAutoImportSubtitle:
+      "Waxay ogaan kartaa EVC (192 / NOTICE) waxayna ku dartaa koontadaada caadiga ah. Kaliya SMS-yada EVC ayaa la shaqaynayaa.",
+    evcSmsConsentTitle: "Helitaanka SMS EVC",
+    evcSmsConsentMessage:
+      "Qoondeeye waxay akhrin kartaa SMS-yada soo gala ee 192 iyo NOTICE (iyo kuwa ku jira EVCPLUS) si loo ogaado lacagaha mobile-ka. Farriimaha kale waa la iska indha tirayaa; ma kaydinayo SMS buuxa—kaliya lacagaha la fahmay iyo qoraallada app-ka.",
+    evcSmsConsentContinue: "Sii wad",
+    evcSmsExpoGoHint: "Soo dejinta SMS-ka EVC waxay u baahan tahay build-ka horumarinta ama wax soo saarka (ma aha Expo Go).",
 
     // Frequency Options
     daily: "Maalin kasta",
