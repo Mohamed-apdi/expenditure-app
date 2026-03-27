@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, Pen, Trash2 } from "lucide-react-native";
 import {
   getCurrentUserOfflineFirst,
@@ -52,48 +52,52 @@ const AccountDetails = () => {
   const { t } = useLanguage();
   useScreenStatusBar();
 
-  useEffect(() => {
-    if (id) {
-      loadAccountData();
-    }
-  }, [id]);
+  const loadAccountData = useCallback(
+    async (isRefresh = false) => {
+      const accountId = Array.isArray(id) ? id[0] : id;
+      if (!accountId) return;
 
-  const loadAccountData = async (isRefresh = false) => {
-    const accountId = Array.isArray(id) ? id[0] : id;
-    if (!accountId) return;
+      try {
+        if (isRefresh) setRefreshing(true);
+        else setLoading(true);
 
-    try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
+        const user = await getCurrentUserOfflineFirst();
+        if (!user) return;
 
-      const user = await getCurrentUserOfflineFirst();
-      if (!user) return;
+        const acc = selectAccountById(user.id, accountId);
+        if (acc) setAccount({ name: acc.name, amount: acc.amount });
 
-      const acc = selectAccountById(user.id, accountId);
-      if (acc) setAccount({ name: acc.name, amount: acc.amount });
+        const allTx = selectTransactions(user.id);
+        const accountTx = allTx
+          .filter((t) => t.account_id === accountId)
+          .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
+          .map((t) => ({
+            id: t.id,
+            amount: t.amount,
+            category: t.category,
+            description: t.description,
+            date: t.date,
+            created_at: t.created_at,
+            type: t.type,
+            account_id: t.account_id,
+          }));
+        setTransactions(accountTx);
+      } catch (error) {
+        console.error("Failed to load account data:", error);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [id]
+  );
 
-      const allTx = selectTransactions(user.id);
-      const accountTx = allTx
-        .filter((t) => t.account_id === accountId)
-        .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
-        .map((t) => ({
-          id: t.id,
-          amount: t.amount,
-          category: t.category,
-          description: t.description,
-          date: t.date,
-          created_at: t.created_at,
-          type: t.type,
-          account_id: t.account_id,
-        }));
-      setTransactions(accountTx);
-    } catch (error) {
-      console.error("Failed to load account data:", error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  // Reload when this screen is focused (e.g. returning from edit account) — id alone does not change on back navigation.
+  useFocusEffect(
+    useCallback(() => {
+      void loadAccountData(true);
+    }, [loadAccountData])
+  );
 
   const handleDeleteAccount = () => {
     const title = t.deleteAccount || "Delete Account";
