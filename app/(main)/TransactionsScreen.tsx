@@ -293,6 +293,14 @@ export default function TransactionsScreen() {
     openRowRef.current = null;
   }, []);
 
+  const handleGoBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(main)/Dashboard");
+    }
+  }, [router]);
+
   const handleRowOpen = useCallback((close: () => void) => {
     openRowRef.current?.();
     openRowRef.current = close;
@@ -437,7 +445,7 @@ export default function TransactionsScreen() {
       >
         <View className="flex-row items-center justify-between">
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={handleGoBack}
             style={{
               padding: 8,
               borderRadius: 12,

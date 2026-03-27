@@ -1,7 +1,7 @@
 /**
  * Conflict resolution screen: list sync conflicts and resolve with "Keep mine" or "Use server".
  */
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -51,6 +51,14 @@ export default function ConflictsScreen() {
     setResolvingId(null);
   };
 
+  const handleGoBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(main)/Dashboard");
+    }
+  }, [router]);
+
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.background }}
@@ -67,7 +75,7 @@ export default function ConflictsScreen() {
         }}
       >
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={handleGoBack}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           style={{ marginRight: 12 }}
         >

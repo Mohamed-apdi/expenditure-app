@@ -15,6 +15,7 @@ import {
   getCurrentUserOfflineFirst,
   updateAccountLocal,
   selectAccountById,
+  createTransactionLocal,
   isOfflineGateLocked,
   triggerSync,
 } from "~/lib";
@@ -136,10 +137,36 @@ export default function EditAccount() {
 
       if (!account) return;
 
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      const latest = selectAccountById(user.id, account.id);
+      const previousAmount = latest?.amount ?? account.amount ?? 0;
+      const newAmount = formData.amount;
+      const delta =
+        Math.round((newAmount - previousAmount + Number.EPSILON) * 100) / 100;
+
+      if (Math.abs(delta) > 0) {
+        const dateStr = new Date().toISOString().split("T")[0];
+        createTransactionLocal({
+          user_id: user.id,
+          account_id: account.id,
+          amount: Math.abs(delta),
+          description: t.balanceAdjustmentDescription ?? "Account balance adjustment",
+          date: dateStr,
+          category: "Balance Adjustment",
+          is_recurring: false,
+          type: delta > 0 ? "income" : "expense",
+        });
+      }
+
       updateAccountLocal(account.id, {
         account_type: formData.account_type,
         name: formData.name,
-        amount: formData.amount,
+        amount: newAmount,
         description: formData.description,
       });
 

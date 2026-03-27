@@ -348,6 +348,7 @@ export default function ReportsScreen() {
       Repairs: t.repairs,
       Taxes: t.taxes,
       'Initial Balance': t.InitialBalance,
+      'Balance Adjustment': t.BalanceAdjustment,
       Bonus: t.bonus,
       'Part-time Work': t.partTimeWork,
       Business: t.business,

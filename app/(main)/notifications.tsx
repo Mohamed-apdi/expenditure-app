@@ -79,6 +79,14 @@ export default function NotificationsScreen() {
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [showFilterSheet, setShowFilterSheet] = useState(false);
 
+  const handleGoBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(main)/Dashboard");
+    }
+  }, [router]);
+
   // Get filtered notifications based on filter mode
   const getFilteredNotifications = useCallback(
     (userId: string): LocalNotification[] => {
@@ -544,7 +552,7 @@ export default function NotificationsScreen() {
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={handleGoBack}>
             <ChevronLeft size={24} color={theme.icon} />
           </TouchableOpacity>
           <Text

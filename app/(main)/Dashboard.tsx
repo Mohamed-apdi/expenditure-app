@@ -58,6 +58,7 @@ import {
   Receipt,
   RefreshCw,
   Repeat,
+  Scale,
   Shield,
   ShoppingBag,
   Smartphone,
@@ -232,29 +233,11 @@ export default function DashboardScreen() {
         );
         setFilteredTransactions(sortedTransactions);
 
-        // Balance: when an account is selected, derive from ALL its transactions
-        // so it stays correct after deletes (e.g. 0 when all transactions deleted)
+        // Balance: use the stored account amount (editable on account details). Do not
+        // overwrite it from transaction sums — that would undo manual balance edits.
         let balance: number;
         if (selectedAccount) {
-          const allForAccount = selectTransactions(user.id).filter(
-            (t) => t.account_id === selectedAccount.id,
-          );
-          const totalIncome = allForAccount
-            .filter((t) => t.type === "income")
-            .reduce((s, t) => s + (t.amount ?? 0), 0);
-          const totalExpense = allForAccount
-            .filter((t) => t.type === "expense")
-            .reduce((s, t) => s + (t.amount ?? 0), 0);
-          balance = totalIncome - totalExpense;
-          // Reconcile stored account balance so context and Supabase stay in sync
-          const currentStored = selectedAccount.amount ?? 0;
-          if (currentStored !== balance) {
-            updateAccountLocal(selectedAccount.id, { amount: balance });
-            try {
-              await updateAccountBalance(selectedAccount.id, balance);
-            } catch (_) {}
-            await refreshBalances();
-          }
+          balance = selectedAccount.amount ?? 0;
         } else {
           balance = monthIncome - monthExpense;
         }
@@ -269,11 +252,7 @@ export default function DashboardScreen() {
         return { income: 0, expense: 0, balance: 0 };
       }
     },
-    [
-      selectedAccount?.id,
-      selectedAccount?.amount,
-      refreshBalances,
-    ],
+    [selectedAccount?.id, selectedAccount?.amount],
   );
 
   useEffect(() => {
@@ -401,6 +380,7 @@ export default function DashboardScreen() {
       // Special categories (hardcoded in Debt_Loan component)
       Loan: CreditCard,
       Transfer: ArrowRightLeft,
+      "Balance Adjustment": Scale,
     };
     return icons[category] || MoreHorizontal;
   };
@@ -452,6 +432,7 @@ export default function DashboardScreen() {
       // Special categories (hardcoded in Debt_Loan component)
       Loan: "#f97316",
       Transfer: "#3b82f6",
+      "Balance Adjustment": "#6366f1",
     };
     return colors[category] || "#64748b";
   };
@@ -465,6 +446,9 @@ export default function DashboardScreen() {
     }
     if (categoryKey === "Loan") {
       return t.loans;
+    }
+    if (categoryKey === "Balance Adjustment") {
+      return t.BalanceAdjustment;
     }
     return categoryKey;
   };
