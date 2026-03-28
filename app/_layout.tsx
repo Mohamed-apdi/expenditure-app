@@ -1,3 +1,6 @@
+/**
+ * Root layout: providers, navigation stack, and global app setup
+ */
 import '~/global.css';
 
 import {
