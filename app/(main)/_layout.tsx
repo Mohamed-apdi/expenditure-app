@@ -1,3 +1,6 @@
+/**
+ * Main app shell: bottom tabs and custom tab bar
+ */
 import { useEffect } from "react";
 import { Tabs } from "expo-router";
 import { BackHandler } from "react-native";
