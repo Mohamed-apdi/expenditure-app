@@ -1,0 +1,7 @@
+{
+  "filters": "!\"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n",
+  "lower": true,
+  "split": " ",
+  "numWords": null,
+  "oovToken": null
+}
