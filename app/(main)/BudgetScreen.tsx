@@ -1,4 +1,5 @@
 // screens/BudgetScreen.tsx
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -14,7 +15,7 @@ import {
   Platform,
   Animated,
 } from 'react-native';
-import { X, Edit2, Trash2, Plus, Wallet, ChevronDown } from 'lucide-react-native';
+import { X, Edit2, Trash2, Wallet, ChevronDown } from 'lucide-react-native';
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -39,6 +40,7 @@ import { useLanguage } from '~/lib';
 
 import Investments from '../components/Investments';
 import Debt_Loan from '../components/Debt_Loan';
+import { ExpandableTabFab } from '~/components/ExpandableTabFab';
 import { playTabClickSound, preloadTabClickSound } from '~/lib/utils/playTabSound';
 
 // Use the exact same expense categories as AddExpense
@@ -60,6 +62,7 @@ export default function BudgetScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null); // For add/edit modal picker
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
 
   // Preload tab click feedback (same as Add Expense)
   useEffect(() => {
@@ -423,7 +426,9 @@ export default function BudgetScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, paddingTop: 0, backgroundColor: theme.background }}>
+    <SafeAreaView
+      style={{ flex: 1, paddingTop: 0, backgroundColor: theme.background }}
+      edges={['top', 'left', 'right']}>
       <View className="flex-1" style={{ backgroundColor: theme.background }}>
         {/* Improved Tabs - Scrollable Pills */}
         <View
@@ -501,6 +506,7 @@ export default function BudgetScreen() {
           {activeTab === 'Budget' && (
             <ScrollView
               className="flex-1"
+              contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
               }>
@@ -767,59 +773,17 @@ export default function BudgetScreen() {
           />
         )}
 
-        {/* Expandable FAB - same pattern as Accounts */}
         {activeTab === 'Budget' && (
-          <Animated.View
-            style={{
-              position: 'absolute',
-              bottom: 20,
-              right: -10,
-              flexDirection: 'row',
-              alignItems: 'center',
-              backgroundColor: theme.primary,
-              borderRadius: 12,
-              overflow: 'hidden',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.25,
-              shadowRadius: 4,
-              elevation: 4,
-              height: 50,
-              width: fabAnimation.interpolate({
-                inputRange: [0, 1],
-                outputRange: [50, 175],
-              }),
-            }}
-          >
-            <TouchableOpacity
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                height: '100%',
-                width: '100%',
-                paddingLeft: 12,
-                paddingRight: 20,
-              }}
-              onPress={handleFabPress}
-              activeOpacity={0.8}
-            >
-              <Plus size={24} color="#FFFFFF" strokeWidth={2} />
-              {fabExpanded && (
-                <Text
-                  style={{
-                    color: '#FFFFFF',
-                    fontSize: 13,
-                    fontWeight: '600',
-                    marginLeft: 10,
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {t.addBudgets || 'Add Budget'}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </Animated.View>
+          <ExpandableTabFab
+            bottom={tabBarHeight + 20}
+            fabAnimation={fabAnimation}
+            fabExpanded={fabExpanded}
+            expandedWidth={175}
+            onPress={handleFabPress}
+            label={t.addBudgets || 'Add Budget'}
+            surfaceKey={theme.background}
+            backgroundColor={theme.primary}
+          />
         )}
 
         {/* Add/Edit Budget Modal - Simplified */}

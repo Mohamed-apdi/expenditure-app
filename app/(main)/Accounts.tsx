@@ -1,6 +1,7 @@
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { X, Plus } from "lucide-react-native";
+import { X } from "lucide-react-native";
 import React, { useCallback, useState, useRef, useEffect } from "react";
 import { ScrollView, Text, TouchableOpacity, View, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -20,6 +21,7 @@ import {
   triggerSync,
 } from "~/lib";
 import AddAccount from "../account-details/add-account";
+import { ExpandableTabFab } from "~/components/ExpandableTabFab";
 
 interface AccountGroup {
   id: string;
@@ -50,6 +52,7 @@ const Accounts = () => {
   const [fabExpanded, setFabExpanded] = useState(false);
   const theme = useTheme();
   const { t } = useLanguage();
+  const tabBarHeight = useBottomTabBarHeight();
 
   // Animation for FAB
   const fabAnimation = useRef(new Animated.Value(0)).current;
@@ -160,10 +163,13 @@ const Accounts = () => {
     <SafeAreaView
       className="flex-1"
       style={{ backgroundColor: theme.background }}
-      edges={["left", "right", "top", "bottom"]}
+      edges={["left", "right", "top"]}
     >
       <View style={{ flex: 1 }}>
-      <ScrollView className="flex-1">
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
+      >
         <View
           style={{
             paddingHorizontal: 16,
@@ -433,58 +439,16 @@ const Accounts = () => {
         />
       )}
 
-      {/* Expandable FAB - rounded square at right edge, expands but stays at edge */}
-      <Animated.View
-        style={{
-          position: "absolute",
-          bottom: 20,
-          right: -10,
-          flexDirection: "row",
-          alignItems: "center",
-          backgroundColor: theme.primary,
-          borderRadius: 12,
-          overflow: "hidden",
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.25,
-          shadowRadius: 4,
-          elevation: 4,
-          height: 50,
-          width: fabAnimation.interpolate({
-            inputRange: [0, 1],
-            outputRange: [50, 175],
-          }),
-        }}
-      >
-        <TouchableOpacity
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "flex-start",
-            height: "100%",
-            width: "100%",
-            paddingLeft: 12,
-            paddingRight: 20,
-          }}
-          onPress={handleFabPress}
-          activeOpacity={0.8}
-        >
-          <Plus size={24} color="#FFFFFF" strokeWidth={2} />
-          {fabExpanded && (
-            <Text
-              style={{
-                color: "#FFFFFF",
-                fontSize: 13,
-                fontWeight: "600",
-                marginLeft: 10,
-                textTransform: "uppercase",
-              }}
-            >
-              Add Account
-            </Text>
-          )}
-        </TouchableOpacity>
-      </Animated.View>
+      <ExpandableTabFab
+        bottom={tabBarHeight + 20}
+        fabAnimation={fabAnimation}
+        fabExpanded={fabExpanded}
+        expandedWidth={175}
+        onPress={handleFabPress}
+        label="Add Account"
+        surfaceKey={theme.background}
+        backgroundColor={theme.primary}
+      />
 
       {/* Add Account Modal */}
       <AddAccount

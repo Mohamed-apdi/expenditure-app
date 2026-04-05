@@ -1,5 +1,14 @@
 import { useColorScheme as useNativewindColorScheme } from "nativewind";
-import { useEffect, useRef, useCallback, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Appearance } from "react-native";
 import { saveItem, getItem } from "../storage/secureStore";
 
@@ -9,11 +18,23 @@ function getSystemColorScheme(): "light" | "dark" {
   return Appearance.getColorScheme() === "dark" ? "dark" : "light";
 }
 
-export function useColorScheme() {
+export type AppColorSchemeContextValue = {
+  colorScheme: "light" | "dark";
+  isDarkColorScheme: boolean;
+  preference: ThemePreference;
+  setPreference: (value: ThemePreference) => Promise<void>;
+  toggleColorScheme: () => Promise<void>;
+};
+
+const AppColorSchemeContext = createContext<AppColorSchemeContextValue | null>(
+  null,
+);
+
+export function ColorSchemeProvider({ children }: { children: ReactNode }) {
   const { setColorScheme: setNativewindScheme } = useNativewindColorScheme();
   const [preference, setPreferenceState] = useState<ThemePreference>("light");
   const [systemScheme, setSystemScheme] = useState<"light" | "dark">(
-    getSystemColorScheme
+    getSystemColorScheme,
   );
   const hasLoadedRef = useRef(false);
   const isTogglingRef = useRef(false);
@@ -21,7 +42,6 @@ export function useColorScheme() {
   const effectiveScheme: "light" | "dark" =
     preference === "system" ? systemScheme : preference;
 
-  // Load persisted theme once on mount; never overwrite after so toggle isn't reverted
   useEffect(() => {
     if (hasLoadedRef.current) return;
     hasLoadedRef.current = true;
@@ -40,7 +60,6 @@ export function useColorScheme() {
     })();
   }, [setNativewindScheme]);
 
-  // Listen to system theme when preference is "system"
   useEffect(() => {
     const sub = Appearance.addChangeListener(({ colorScheme }) => {
       const next = colorScheme === "dark" ? "dark" : "light";
@@ -55,8 +74,7 @@ export function useColorScheme() {
   const setPreference = useCallback(
     async (value: ThemePreference) => {
       setPreferenceState(value);
-      const resolved =
-        value === "system" ? getSystemColorScheme() : value;
+      const resolved = value === "system" ? getSystemColorScheme() : value;
       setNativewindScheme(resolved);
       try {
         await saveItem("app_theme", value);
@@ -64,7 +82,7 @@ export function useColorScheme() {
         console.error("Error saving theme:", error);
       }
     },
-    [setNativewindScheme]
+    [setNativewindScheme],
   );
 
   const toggleColorScheme = useCallback(async () => {
@@ -87,11 +105,30 @@ export function useColorScheme() {
     }
   }, [effectiveScheme, setNativewindScheme]);
 
-  return {
-    colorScheme: effectiveScheme,
-    isDarkColorScheme: effectiveScheme === "dark",
-    preference,
-    setPreference,
-    toggleColorScheme,
-  };
+  const value = useMemo<AppColorSchemeContextValue>(
+    () => ({
+      colorScheme: effectiveScheme,
+      isDarkColorScheme: effectiveScheme === "dark",
+      preference,
+      setPreference,
+      toggleColorScheme,
+    }),
+    [effectiveScheme, preference, setPreference, toggleColorScheme],
+  );
+
+  return (
+    <AppColorSchemeContext.Provider value={value}>
+      {children}
+    </AppColorSchemeContext.Provider>
+  );
+}
+
+export function useColorScheme(): AppColorSchemeContextValue {
+  const ctx = useContext(AppColorSchemeContext);
+  if (ctx == null) {
+    throw new Error(
+      "useColorScheme must be used within ColorSchemeProvider (wrap app root in _layout).",
+    );
+  }
+  return ctx;
 }

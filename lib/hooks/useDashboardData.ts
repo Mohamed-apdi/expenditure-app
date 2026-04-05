@@ -8,6 +8,7 @@ import {
 import { fetchTransactions } from "../services/transactions";
 import { fetchProfile } from "../services/profiles";
 import type { Transaction } from "../types/types";
+import { monthRangeLocalYmd } from "../utils/localDate";
 
 /**
  * Hook to fetch user profile data
@@ -150,8 +151,7 @@ export const useMonthData = (
     queryFn: async () => {
       const allTransactions = await fetchTransactions(userId!);
 
-      const startDate = new Date(year, month, 1).toISOString().split("T")[0];
-      const endDate = new Date(year, month + 1, 0).toISOString().split("T")[0];
+      const { startDate, endDate } = monthRangeLocalYmd(year, month);
 
       let monthTransactions = allTransactions.filter(
         (t: Transaction) => t.date >= startDate && t.date <= endDate

@@ -1,3 +1,4 @@
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -14,11 +15,8 @@ import {
   Platform,
   Animated,
 } from 'react-native';
-import { Calendar, X, Trash2, DollarSign, Plus, Wallet, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import { Calendar, X, Trash2, DollarSign, Wallet, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, {
   useDefaultStyles,
   type CalendarComponents,
@@ -39,6 +37,7 @@ import {
 import { useAccount, type Account } from '~/lib';
 import { notificationService, isExpoGo } from '~/lib';
 import ExpoGoWarning from '~/components/ExpoGoWarning';
+import { ExpandableTabFab } from '~/components/ExpandableTabFab';
 import { useTheme } from '~/lib';
 import { useLanguage } from '~/lib';
 
@@ -91,7 +90,7 @@ export default function SubscriptionsScreen({
   const [userId, setUserId] = useState<string | null>(propUserId || null);
   const [accounts, setAccounts] = useState<Account[]>(propAccounts ?? contextAccounts);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-  const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -584,10 +583,11 @@ export default function SubscriptionsScreen({
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.background }}
-      edges={['left', 'right', 'bottom']}
+      edges={['left', 'right']}
     >
       <ScrollView
         className="flex-1"
+        contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }>
@@ -986,58 +986,16 @@ export default function SubscriptionsScreen({
         />
       )}
 
-      {/* Expandable FAB - same pattern as Accounts */}
-      <Animated.View
-        style={{
-          position: 'absolute',
-          bottom: 20,
-          right: -10,
-          flexDirection: 'row',
-          alignItems: 'center',
-          backgroundColor: theme.primary,
-          borderRadius: 12,
-          overflow: 'hidden',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.25,
-          shadowRadius: 4,
-          elevation: 4,
-          height: 50,
-          width: fabAnimation.interpolate({
-            inputRange: [0, 1],
-            outputRange: [50, 200],
-          }),
-        }}
-      >
-        <TouchableOpacity
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            height: '100%',
-            width: '100%',
-            paddingLeft: 12,
-            paddingRight: 20,
-          }}
-          onPress={handleFabPress}
-          activeOpacity={0.8}
-        >
-          <Plus size={24} color="#FFFFFF" strokeWidth={2} />
-          {fabExpanded && (
-            <Text
-              style={{
-                color: '#FFFFFF',
-                fontSize: 13,
-                fontWeight: '600',
-                marginLeft: 10,
-                textTransform: 'uppercase',
-              }}
-            >
-              {t.addSubscription}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </Animated.View>
+      <ExpandableTabFab
+        bottom={tabBarHeight + 20}
+        fabAnimation={fabAnimation}
+        fabExpanded={fabExpanded}
+        expandedWidth={200}
+        onPress={handleFabPress}
+        label={t.addSubscription}
+        surfaceKey={theme.background}
+        backgroundColor={theme.primary}
+      />
 
       {/* Add/Edit Subscription Modal - Simplified */}
       <Modal

@@ -1,7 +1,7 @@
 {
-  "inputMode": "hash",
+  "inputMode": "tokens",
   "inputName": "x",
   "outputName": "logits",
-  "inputDtype": "float32",
+  "inputDtype": "int32",
   "seqLen": 128
 }

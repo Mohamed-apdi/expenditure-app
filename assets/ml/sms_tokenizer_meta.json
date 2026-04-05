@@ -2,6 +2,6 @@
   "filters": "!\"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n",
   "lower": true,
   "split": " ",
-  "numWords": null,
-  "oovToken": null
+  "numWords": 5000,
+  "oovToken": "<OOV>"
 }

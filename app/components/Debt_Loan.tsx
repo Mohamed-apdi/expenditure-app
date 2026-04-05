@@ -1,3 +1,4 @@
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
@@ -20,12 +21,13 @@ import { PersonalLoan, LoanRepayment, Account } from '~/lib';
 import { createTransactionLocal, getCurrentUserOfflineFirst, isOfflineGateLocked, triggerSync } from '~/lib';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAccount } from '~/lib';
-import { X, TrendingUp, TrendingDown, Plus, Wallet, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { X, TrendingUp, TrendingDown, Wallet, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import DateTimePicker, {
   useDefaultStyles,
   type CalendarComponents,
 } from 'react-native-ui-datepicker';
 import { useTheme } from '~/lib';
+import { ExpandableTabFab } from '~/components/ExpandableTabFab';
 import { useLanguage } from '~/lib';
 import {
   selectPersonalLoans,
@@ -98,6 +100,7 @@ const Debt_Loan = ({
   });
 
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
 
   // FAB animation state (same pattern as Accounts)
   const [fabExpanded, setFabExpanded] = useState(false);
@@ -568,10 +571,11 @@ const Debt_Loan = ({
     <SafeAreaView
       className="flex-1"
       style={{ backgroundColor: theme.background }}
-      edges={['left', 'right', 'bottom']}
+      edges={['left', 'right']}
     >
       <ScrollView
         className="flex-1"
+        contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }>
@@ -1901,58 +1905,16 @@ const Debt_Loan = ({
         />
       )}
 
-      {/* Expandable FAB - same pattern as Accounts */}
-      <Animated.View
-        style={{
-          position: 'absolute',
-          bottom: 20,
-          right: -10,
-          flexDirection: 'row',
-          alignItems: 'center',
-          backgroundColor: theme.primary,
-          borderRadius: 12,
-          overflow: 'hidden',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.25,
-          shadowRadius: 4,
-          elevation: 4,
-          height: 50,
-          width: fabAnimation.interpolate({
-            inputRange: [0, 1],
-            outputRange: [50, 155],
-          }),
-        }}
-      >
-        <TouchableOpacity
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            height: '100%',
-            width: '100%',
-            paddingLeft: 12,
-            paddingRight: 20,
-          }}
-          onPress={handleFabPress}
-          activeOpacity={0.8}
-        >
-          <Plus size={24} color="#FFFFFF" strokeWidth={2} />
-          {fabExpanded && (
-            <Text
-              style={{
-                color: '#FFFFFF',
-                fontSize: 13,
-                fontWeight: '600',
-                marginLeft: 10,
-                textTransform: 'uppercase',
-              }}
-            >
-              {t.addLoan}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </Animated.View>
+      <ExpandableTabFab
+        bottom={tabBarHeight + 20}
+        fabAnimation={fabAnimation}
+        fabExpanded={fabExpanded}
+        expandedWidth={155}
+        onPress={handleFabPress}
+        label={t.addLoan}
+        surfaceKey={theme.background}
+        backgroundColor={theme.primary}
+      />
     </SafeAreaView>
   );
 };

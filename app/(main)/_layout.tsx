@@ -21,6 +21,15 @@ export default function MainLayout() {
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
+        tabBarStyle: {
+          backgroundColor: "transparent",
+          borderTopWidth: 0,
+          borderTopColor: "transparent",
+          elevation: 0,
+          shadowOpacity: 0,
+          shadowOffset: { width: 0, height: 0 },
+          shadowRadius: 0,
+        },
       }}
       backBehavior="none"
     >
