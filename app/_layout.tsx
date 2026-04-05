@@ -23,8 +23,7 @@ LogBox.ignoreLogs([
   'Push notifications are limited in Expo Go',
 ]);
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { NAV_THEME } from '~/lib';
-import { useColorScheme } from '~/lib';
+import { ColorSchemeProvider, NAV_THEME, useColorScheme } from '~/lib';
 import { PortalHost } from '@rn-primitives/portal';
 import { setAndroidNavigationBar } from '~/lib';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
@@ -74,6 +73,16 @@ function usePlatformSpecificSetup(isDarkColorScheme: boolean) {
 }
 
 export default function RootLayout() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ColorSchemeProvider>
+        <RootLayoutInner />
+      </ColorSchemeProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+function RootLayoutInner() {
   const { isDarkColorScheme } = useColorScheme();
   usePlatformSpecificSetup(isDarkColorScheme);
 
@@ -152,31 +161,29 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <QueryClientProvider client={queryClient}>
-        <LanguageProvider>
-          <AccountProvider>
-            <SyncProvider>
-              <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
-                <BottomSheetModalProvider>
-                  <StatusBar style={isDarkColorScheme ? 'dark' : 'light'} />
-                  <Stack screenOptions={{ headerShown: false, gestureEnabled: false }}>
-                    <Stack.Screen name="index" options={{ gestureEnabled: false }} />
-                    <Stack.Screen name="(onboarding)" options={{ gestureEnabled: false }} />
-                    <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
-                    <Stack.Screen name="(main)" options={{ gestureEnabled: false, animation: 'none' }} />
-                    <Stack.Screen name="(expense)" />
-                    <Stack.Screen name="(profile)" />
-                  </Stack>
-                  <Toaster />
-                  <EvcSmsInboundHost />
-                  <PortalHost />
-                </BottomSheetModalProvider>
-              </ThemeProvider>
-            </SyncProvider>
-          </AccountProvider>
-        </LanguageProvider>
-      </QueryClientProvider>
-    </GestureHandlerRootView>
+    <QueryClientProvider client={queryClient}>
+      <LanguageProvider>
+        <AccountProvider>
+          <SyncProvider>
+            <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
+              <BottomSheetModalProvider>
+                <StatusBar style={isDarkColorScheme ? 'dark' : 'light'} />
+                <Stack screenOptions={{ headerShown: false, gestureEnabled: false }}>
+                  <Stack.Screen name="index" options={{ gestureEnabled: false }} />
+                  <Stack.Screen name="(onboarding)" options={{ gestureEnabled: false }} />
+                  <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
+                  <Stack.Screen name="(main)" options={{ gestureEnabled: false, animation: 'none' }} />
+                  <Stack.Screen name="(expense)" />
+                  <Stack.Screen name="(profile)" />
+                </Stack>
+                <Toaster />
+                <EvcSmsInboundHost />
+                <PortalHost />
+              </BottomSheetModalProvider>
+            </ThemeProvider>
+          </SyncProvider>
+        </AccountProvider>
+      </LanguageProvider>
+    </QueryClientProvider>
   );
 }

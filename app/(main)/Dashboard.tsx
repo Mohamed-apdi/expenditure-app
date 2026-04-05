@@ -1,11 +1,14 @@
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { format } from "date-fns";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Platform,
   RefreshControl,
   ScrollView,
   StatusBar,
+  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -28,6 +31,7 @@ import {
   type FinancialSummary,
 } from "~/lib";
 import { cacheImage } from "~/lib/utils/imageCache";
+import { monthRangeLocalYmd } from "~/lib/utils/localDate";
 import { transactions$ } from "~/lib/stores/transactionsStore";
 
 import {
@@ -87,6 +91,45 @@ type Transaction = {
   type: "expense" | "income" | "transfer";
   account_id: string;
 };
+
+type DayTransactionGroup = {
+  dateKey: string;
+  label: string;
+  expenseTotal: number;
+  incomeTotal: number;
+  items: Transaction[];
+};
+
+function groupTransactionsByDay(transactions: Transaction[]): DayTransactionGroup[] {
+  const byDay = new Map<string, Transaction[]>();
+  for (const t of transactions) {
+    const key = (t.date && t.date.length >= 10 ? t.date.slice(0, 10) : null) ?? t.created_at?.slice(0, 10);
+    if (!key) continue;
+    const arr = byDay.get(key);
+    if (arr) arr.push(t);
+    else byDay.set(key, [t]);
+  }
+  const sortedKeys = [...byDay.keys()].sort((a, b) => b.localeCompare(a));
+  return sortedKeys.map((dateKey) => {
+    const items = [...(byDay.get(dateKey) ?? [])];
+    items.sort((a, b) => {
+      const aTime = (a.updated_at || a.created_at) ?? "";
+      const bTime = (b.updated_at || b.created_at) ?? "";
+      return new Date(bTime).getTime() - new Date(aTime).getTime();
+    });
+    let expenseTotal = 0;
+    let incomeTotal = 0;
+    for (const tx of items) {
+      if (tx.type === "expense") expenseTotal += tx.amount || 0;
+      else if (tx.type === "income") incomeTotal += tx.amount || 0;
+    }
+    const [y, m, d] = dateKey.split("-").map(Number);
+    const localDay = new Date(y, m - 1, d);
+    // Compact header: "Sun, 5 Apr" — avoids oversized full weekday lines
+    const label = format(localDay, "EEE, d MMM");
+    return { dateKey, label, expenseTotal, incomeTotal, items };
+  });
+}
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -186,10 +229,7 @@ export default function DashboardScreen() {
         const user = await getCurrentUserOfflineFirst();
         if (!user) return { income: 0, expense: 0, balance: 0 };
 
-        const startDate = new Date(year, month, 1).toISOString().split("T")[0];
-        const endDate = new Date(year, month + 1, 0)
-          .toISOString()
-          .split("T")[0];
+        const { startDate, endDate } = monthRangeLocalYmd(year, month);
 
         // Read from Legend-State store only (no Supabase)
         let monthTransactions = selectTransactionsByDateRange(
@@ -454,6 +494,12 @@ export default function DashboardScreen() {
   };
 
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
+
+  const transactionsByDay = useMemo(
+    () => groupTransactionsByDay(filteredTransactions),
+    [filteredTransactions],
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
@@ -463,7 +509,7 @@ export default function DashboardScreen() {
       />
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+        contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -513,13 +559,14 @@ export default function DashboardScreen() {
 
         {/* Recent Transactions */}
         <View style={{ paddingHorizontal: 16, paddingTop: 24, minHeight: 320 }}>
-          <View className="flex-row justify-between items-center mb-4">
+          <View className="flex-row justify-between items-center mb-5">
             <View>
               <Text
                 style={{
                   color: theme.text,
-                  fontSize: 20,
-                  fontWeight: "bold",
+                  fontSize: 18,
+                  fontWeight: "600",
+                  letterSpacing: -0.3,
                 }}
               >
                 {t.recentTransactions || "Recent Transactions"}
@@ -528,10 +575,10 @@ export default function DashboardScreen() {
             <TouchableOpacity
               style={{
                 backgroundColor: theme.cardBackground,
-                paddingVertical: 8,
-                paddingHorizontal: 16,
-                borderRadius: 12,
-                borderWidth: 1,
+                paddingVertical: 7,
+                paddingHorizontal: 14,
+                borderRadius: 20,
+                borderWidth: StyleSheet.hairlineWidth,
                 borderColor: theme.border,
               }}
               onPress={() => router.push("/components/TransactionsScreen")}
@@ -540,7 +587,7 @@ export default function DashboardScreen() {
                 style={{
                   color: theme.primary,
                   fontWeight: "600",
-                  fontSize: 13,
+                  fontSize: 12,
                 }}
               >
                 {t.seeMore || "See All"}
@@ -549,83 +596,152 @@ export default function DashboardScreen() {
           </View>
 
           {filteredTransactions.length > 0 ? (
-            <View style={{ gap: 10 }}>
-              {filteredTransactions.slice(0, 6).map((transaction) => (
-                <MemoizedTransactionItem
-                  key={transaction.id}
-                  transaction={transaction}
-                  getCategoryIcon={getCategoryIcon}
-                  getCategoryColor={getCategoryColor}
-                  getCategoryLabel={getCategoryLabel}
-                  onPress={() =>
-                    router.push(
-                      `/(transactions)/transaction-detail/${transaction.id}`,
-                    )
-                  }
-                  onSwipeOpen={handleRowOpen}
-                  onSwipeStart={closeOpenRow}
-                  onSwipeClose={clearOpenRow}
-                  onEdit={(transactionId, type) => {
-                    closeOpenRow();
-                    if (type === "expense") {
-                      router.push(`/(expense)/edit-expense/${transactionId}` as any);
-                    } else {
-                      router.push(`/(transactions)/transaction-detail/${transactionId}` as any);
-                    }
-                  }}
-                  onDelete={(transactionId) => {
-                    closeOpenRow();
-                    const tx = filteredTransactions.find(
-                      (t) => t.id === transactionId,
-                    );
-                    if (!tx) return;
-                    Alert.alert(
-                      t.deleteTransaction || "Delete transaction",
-                      t.deleteTransactionConfirmation ||
-                        "Are you sure you want to delete this transaction?",
-                      [
-                        { text: t.cancel || "Cancel", style: "cancel" },
-                        {
-                          text: t.delete || "Delete",
-                          style: "destructive",
-                          onPress: async () => {
-                            // Reverse balance: expense added back, income taken back
-                            const acc = accounts.find(
-                              (a) => a.id === tx.account_id,
-                            );
-                            if (acc) {
-                              const delta =
-                                tx.type === "expense"
-                                  ? tx.amount
-                                  : tx.type === "income"
-                                    ? -tx.amount
-                                    : 0;
-                              if (delta !== 0) {
-                                const newBalance = acc.amount + delta;
-                                updateAccountLocal(tx.account_id, {
-                                  amount: newBalance,
-                                });
-                                try {
-                                  await updateAccountBalance(
-                                    tx.account_id,
-                                    newBalance,
-                                  );
-                                } catch (_) {}
-                              }
-                            }
-                            deleteTransactionLocal(tx.id);
-                            try {
-                              await deleteTransaction(tx.id);
-                            } catch (_) {}
-                            if (!(await isOfflineGateLocked()))
-                              void triggerSync();
-                            setRefreshTrigger((prev) => prev + 1);
-                          },
+            <View style={{ gap: 16 }}>
+              {transactionsByDay.map((group) => (
+                <View key={group.dateKey}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: 8,
+                      paddingHorizontal: 2,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: theme.textSecondary,
+                        fontSize: 13,
+                        fontWeight: "600",
+                        letterSpacing: 0.2,
+                      }}
+                    >
+                      {group.label}
+                    </Text>
+                    <Text
+                      style={{
+                        color: theme.textMuted,
+                        fontSize: 11,
+                        fontWeight: "500",
+                        letterSpacing: 0.15,
+                        flexShrink: 1,
+                        textAlign: "right",
+                        marginLeft: 12,
+                      }}
+                      numberOfLines={1}
+                    >
+                      {t.expenses} {group.expenseTotal.toFixed(2)}
+                      <Text style={{ color: theme.textMuted }}> · </Text>
+                      {t.income} {group.incomeTotal.toFixed(2)}
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      borderRadius: 14,
+                      borderWidth: StyleSheet.hairlineWidth,
+                      borderColor: theme.border,
+                      backgroundColor: theme.cardBackground,
+                      overflow: "hidden",
+                      ...Platform.select({
+                        ios: {
+                          shadowColor: theme.isDark ? "#000" : "#0f172a",
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: theme.isDark ? 0.25 : 0.05,
+                          shadowRadius: 10,
                         },
-                      ],
-                    );
-                  }}
-                />
+                        android: { elevation: 2 },
+                        default: {},
+                      }),
+                    }}
+                  >
+                    {group.items.map((transaction, idx) => (
+                      <View key={transaction.id}>
+                        {idx > 0 ? (
+                          <View
+                            style={{
+                              height: 1,
+                              backgroundColor: theme.border,
+                              marginLeft: 16,
+                            }}
+                          />
+                        ) : null}
+                        <MemoizedTransactionItem
+                          transaction={transaction}
+                          getCategoryIcon={getCategoryIcon}
+                          getCategoryColor={getCategoryColor}
+                          getCategoryLabel={getCategoryLabel}
+                          onPress={() =>
+                            router.push(
+                              `/(transactions)/transaction-detail/${transaction.id}`,
+                            )
+                          }
+                          onSwipeOpen={handleRowOpen}
+                          onSwipeStart={closeOpenRow}
+                          onSwipeClose={clearOpenRow}
+                          onEdit={(transactionId, type) => {
+                            closeOpenRow();
+                            if (type === "expense") {
+                              router.push(`/(expense)/edit-expense/${transactionId}` as any);
+                            } else {
+                              router.push(`/(transactions)/transaction-detail/${transactionId}` as any);
+                            }
+                          }}
+                          onDelete={(transactionId) => {
+                            closeOpenRow();
+                            const tx = filteredTransactions.find(
+                              (x) => x.id === transactionId,
+                            );
+                            if (!tx) return;
+                            Alert.alert(
+                              t.deleteTransaction || "Delete transaction",
+                              t.deleteTransactionConfirmation ||
+                                "Are you sure you want to delete this transaction?",
+                              [
+                                { text: t.cancel || "Cancel", style: "cancel" },
+                                {
+                                  text: t.delete || "Delete",
+                                  style: "destructive",
+                                  onPress: async () => {
+                                    const acc = accounts.find(
+                                      (a) => a.id === tx.account_id,
+                                    );
+                                    if (acc) {
+                                      const delta =
+                                        tx.type === "expense"
+                                          ? tx.amount
+                                          : tx.type === "income"
+                                            ? -tx.amount
+                                            : 0;
+                                      if (delta !== 0) {
+                                        const newBalance = acc.amount + delta;
+                                        updateAccountLocal(tx.account_id, {
+                                          amount: newBalance,
+                                        });
+                                        try {
+                                          await updateAccountBalance(
+                                            tx.account_id,
+                                            newBalance,
+                                          );
+                                        } catch (_) {}
+                                      }
+                                    }
+                                    deleteTransactionLocal(tx.id);
+                                    try {
+                                      await deleteTransaction(tx.id);
+                                    } catch (_) {}
+                                    if (!(await isOfflineGateLocked()))
+                                      void triggerSync();
+                                    setRefreshTrigger((prev) => prev + 1);
+                                  },
+                                },
+                              ],
+                            );
+                          }}
+                        />
+                      </View>
+                    ))}
+                  </View>
+                </View>
               ))}
             </View>
           ) : (

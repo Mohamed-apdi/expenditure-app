@@ -1,3 +1,4 @@
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -39,6 +40,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
+import { ExpandableTabFab } from '~/components/ExpandableTabFab';
 import DateTimePicker, {
   useDefaultStyles,
   type CalendarComponents,
@@ -125,6 +127,7 @@ export default function SavingsScreen({
   const [accounts, setAccounts] = useState<Account[]>(propAccounts ?? contextAccounts);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const [totalSavings, setTotalSavings] = useState(0);
 
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -521,10 +524,11 @@ export default function SavingsScreen({
   return (
     <SafeAreaView
       style={{ flex: 1, backgroundColor: theme.background }}
-      edges={['left', 'right', 'bottom']}
+      edges={['left', 'right']}
     >
       <ScrollView
         className="flex-1"
+        contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }>
@@ -989,58 +993,16 @@ export default function SavingsScreen({
         />
       )}
 
-      {/* Expandable FAB - same pattern as Accounts */}
-      <Animated.View
-        style={{
-          position: 'absolute',
-          bottom: 20,
-          right: -10,
-          flexDirection: 'row',
-          alignItems: 'center',
-          backgroundColor: theme.primary,
-          borderRadius: 12,
-          overflow: 'hidden',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.25,
-          shadowRadius: 4,
-          elevation: 4,
-          height: 50,
-          width: fabAnimation.interpolate({
-            inputRange: [0, 1],
-            outputRange: [50, 160],
-          }),
-        }}
-      >
-        <TouchableOpacity
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
-            height: '100%',
-            width: '100%',
-            paddingLeft: 12,
-            paddingRight: 20,
-          }}
-          onPress={handleFabPress}
-          activeOpacity={0.8}
-        >
-          <Plus size={24} color="#FFFFFF" strokeWidth={2} />
-          {fabExpanded && (
-            <Text
-              style={{
-                color: '#FFFFFF',
-                fontSize: 13,
-                fontWeight: '600',
-                marginLeft: 10,
-                textTransform: 'uppercase',
-              }}
-            >
-              {t.addGoal}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </Animated.View>
+      <ExpandableTabFab
+        bottom={tabBarHeight + 20}
+        fabAnimation={fabAnimation}
+        fabExpanded={fabExpanded}
+        expandedWidth={160}
+        onPress={handleFabPress}
+        label={t.addGoal}
+        surfaceKey={theme.background}
+        backgroundColor={theme.primary}
+      />
 
       {/* Add/Edit Goal Modal - Simplified */}
       <Modal

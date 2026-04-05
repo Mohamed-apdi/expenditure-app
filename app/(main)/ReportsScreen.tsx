@@ -51,6 +51,7 @@ import DateTimePicker, {
   type CalendarComponents,
 } from 'react-native-ui-datepicker';
 import { BarChart as GiftedBarChart, PieChart as GiftedPieChart, LineChart as GiftedLineChart } from 'react-native-gifted-charts';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAccount, getCurrentUserOfflineFirst, triggerSync } from '~/lib';
 import {
@@ -85,6 +86,7 @@ const { width: screenWidth } = Dimensions.get('window');
 export default function ReportsScreen() {
   const theme = useTheme();
   const { t } = useLanguage();
+  const tabBarHeight = useBottomTabBarHeight();
   useScreenStatusBar();
   const { selectedAccount, accounts } = useAccount();
   const defaultDatePickerStyles = useDefaultStyles(
@@ -2172,8 +2174,8 @@ export default function ReportsScreen() {
           </View>
         </View>
 
-        {/* Bottom Spacing */}
-        <View style={{ height: 20 }} />
+        {/* Bottom spacing — floating tab bar */}
+        <View style={{ height: tabBarHeight + 16 }} />
       </ScrollView>
     );
   };
@@ -2575,8 +2577,8 @@ export default function ReportsScreen() {
           })}
         </View>
 
-        {/* Bottom Spacing */}
-        <View style={{ height: 20 }} />
+        {/* Bottom spacing — floating tab bar */}
+        <View style={{ height: tabBarHeight + 16 }} />
       </ScrollView>
     );
   };
@@ -3017,8 +3019,8 @@ export default function ReportsScreen() {
           </View>
         )}
 
-        {/* Bottom Spacing */}
-        <View style={{ height: 20 }} />
+        {/* Bottom spacing — floating tab bar */}
+        <View style={{ height: tabBarHeight + 16 }} />
       </ScrollView>
     );
   };
@@ -3476,8 +3478,8 @@ export default function ReportsScreen() {
           })}
         </View>
 
-        {/* Bottom Spacing */}
-        <View style={{ height: 20 }} />
+        {/* Bottom spacing — floating tab bar */}
+        <View style={{ height: tabBarHeight + 16 }} />
       </ScrollView>
     );
   };
@@ -3916,8 +3918,8 @@ export default function ReportsScreen() {
           })}
         </View>
 
-        {/* Bottom Spacing */}
-        <View style={{ height: 20 }} />
+        {/* Bottom spacing — floating tab bar */}
+        <View style={{ height: tabBarHeight + 16 }} />
       </ScrollView>
     );
   };
@@ -4254,8 +4256,8 @@ export default function ReportsScreen() {
           })}
         </View>
 
-        {/* Bottom Spacing */}
-        <View style={{ height: 20 }} />
+        {/* Bottom spacing — floating tab bar */}
+        <View style={{ height: tabBarHeight + 16 }} />
       </ScrollView>
     );
   };
@@ -4663,8 +4665,8 @@ export default function ReportsScreen() {
           </View>
         )}
 
-        {/* Bottom Spacing */}
-        <View style={{ height: 20 }} />
+        {/* Bottom spacing — floating tab bar */}
+        <View style={{ height: tabBarHeight + 16 }} />
       </ScrollView>
     );
   };

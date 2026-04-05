@@ -1,3 +1,4 @@
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
@@ -103,6 +104,7 @@ export default function ProfileScreen() {
   const [evcConsentModalVisible, setEvcConsentModalVisible] = useState(false);
 
   const theme = useTheme();
+  const tabBarHeight = useBottomTabBarHeight();
 
   // Check notification permission status
   const checkNotificationPermission = useCallback(async () => {
@@ -474,8 +476,12 @@ export default function ProfileScreen() {
       style={{ flex: 1, backgroundColor: theme.background }}
       edges={["top"]}
     >
-      <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
-        <View style={{ paddingBottom: 32 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: tabBarHeight + 24 }}
+      >
+        <View>
           {/* Header with gradient background */}
           <View
             style={{
