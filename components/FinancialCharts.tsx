@@ -1,4 +1,6 @@
-// components/FinancialCharts.tsx
+/**
+ * Financial charts: category breakdown and spending charts for reports/dashboard
+ */
 import { View, Text } from 'react-native';
 import { BarChart, PieChart } from 'react-native-chart-kit';
 import { Dimensions } from 'react-native';

@@ -1,53 +1,139 @@
-import { useState, useEffect, useCallback } from "react";
+/**
+ * Hook for notification state: unread count and refresh
+ * Subscribes to auth and refetches when user changes
+ * Includes offline caching to persist count across sessions
+ * Uses local store for offline-first support
+ * Subscribes to local store changes for real-time updates
+ * Supports filtering by account ID
+ */
+import { useState, useEffect, useCallback, useRef } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getCurrentUserOfflineFirst } from "../auth";
 import { supabase } from "../database/supabase";
-import { getUnreadNotificationCount } from "../services/notifications";
+import { getUnreadNotificationCount, getUserNotifications } from "../services/notifications";
+import { isOfflineGateLocked } from "../sync/legendSync";
+import {
+  selectUnreadCount,
+  selectUnreadCountByAccount,
+  syncNotificationsFromServer,
+  notifications$,
+} from "../stores/notificationsStore";
 
-export function useNotifications() {
+const NOTIFICATION_COUNT_KEY = "notification_unread_count";
+const NOTIFICATION_LAST_FETCH_KEY = "notification_last_fetch";
+
+interface UseNotificationsOptions {
+  accountId?: string | null;
+}
+
+export function useNotifications(options?: UseNotificationsOptions) {
+  const accountId = options?.accountId;
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
+  const fetchingRef = useRef(false);
+  const userIdRef = useRef<string | null>(null);
 
-  // Fetch unread count
-  const fetchUnreadCount = useCallback(async () => {
+  const saveCountToStorage = useCallback(async (count: number) => {
     try {
-      const { data, error } = await supabase.auth.getUser();
-      if (error) {
-        console.error("Auth error:", error);
-        setUnreadCount(0);
-        return;
-      }
-
-      if (!data?.user) {
-        setUnreadCount(0);
-        return;
-      }
-
-      const count = await getUnreadNotificationCount(data.user.id);
-      setUnreadCount(count);
+      await AsyncStorage.setItem(NOTIFICATION_COUNT_KEY, count.toString());
+      await AsyncStorage.setItem(NOTIFICATION_LAST_FETCH_KEY, Date.now().toString());
     } catch (error) {
-      console.error("Error fetching unread notification count:", error);
-      setUnreadCount(0);
-    } finally {
-      setLoading(false);
+      console.error("Error saving notification count to storage:", error);
     }
   }, []);
 
-  // Set up real-time subscription for notification changes
-  useEffect(() => {
-    fetchUnreadCount();
+  const loadCountFromStorage = useCallback(async (): Promise<number> => {
+    try {
+      const storedCount = await AsyncStorage.getItem(NOTIFICATION_COUNT_KEY);
+      if (storedCount !== null) {
+        return parseInt(storedCount, 10) || 0;
+      }
+    } catch (error) {
+      console.error("Error loading notification count from storage:", error);
+    }
+    return 0;
+  }, []);
 
-    let subscription: any = null;
+  const fetchUnreadCount = useCallback(async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+
+    try {
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) {
+        setUnreadCount(0);
+        await saveCountToStorage(0);
+        userIdRef.current = null;
+        return;
+      }
+
+      userIdRef.current = user.id;
+      const offline = await isOfflineGateLocked();
+      setIsOffline(offline);
+      
+      // Always get local count first (instant display)
+      // If accountId is provided, filter by account; otherwise show all
+      const localCount = accountId 
+        ? selectUnreadCountByAccount(user.id, accountId)
+        : selectUnreadCount(user.id);
+      setUnreadCount(localCount);
+      
+      if (offline) {
+        // If offline, also check AsyncStorage as fallback
+        if (localCount === 0) {
+          const cachedCount = await loadCountFromStorage();
+          setUnreadCount(cachedCount);
+        }
+      } else {
+        // If online, fetch from server and sync
+        try {
+          const [serverNotifications, serverCount] = await Promise.all([
+            getUserNotifications(user.id, 50, 0),
+            getUnreadNotificationCount(user.id),
+          ]);
+          
+          // Sync server notifications to local store
+          syncNotificationsFromServer(serverNotifications, user.id);
+          
+          // Use synced local count
+          const updatedLocalCount = accountId
+            ? selectUnreadCountByAccount(user.id, accountId)
+            : selectUnreadCount(user.id);
+          setUnreadCount(updatedLocalCount);
+          await saveCountToStorage(updatedLocalCount);
+        } catch (fetchError) {
+          console.error("Error fetching from server, using local:", fetchError);
+          // Local count is already set
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching unread notification count:", error);
+      const cachedCount = await loadCountFromStorage();
+      setUnreadCount(cachedCount);
+    } finally {
+      setLoading(false);
+      fetchingRef.current = false;
+    }
+  }, [loadCountFromStorage, saveCountToStorage, accountId]);
+
+  useEffect(() => {
+    const initializeCount = async () => {
+      const cachedCount = await loadCountFromStorage();
+      setUnreadCount(cachedCount);
+      setLoading(false);
+      fetchUnreadCount();
+    };
+    
+    initializeCount();
+
+    let subscription: ReturnType<typeof supabase.channel> | null = null;
 
     const setupSubscription = async () => {
       try {
-        const {
-          data: { user },
-          error,
-        } = await supabase.auth.getUser();
-        if (error || !user) {
-          return;
-        }
+        const user = await getCurrentUserOfflineFirst();
+        if (!user) return;
 
-        // Subscribe to notification changes
         subscription = supabase
           .channel("notifications_changes")
           .on(
@@ -58,8 +144,7 @@ export function useNotifications() {
               table: "notifications",
               filter: `user_id=eq.${user.id}`,
             },
-            (payload) => {
-              // Refetch count when notifications change
+            () => {
               fetchUnreadCount();
             }
           )
@@ -71,32 +156,47 @@ export function useNotifications() {
 
     setupSubscription();
 
-    // Cleanup function
+    // Subscribe to local store changes for real-time updates
+    // This ensures the badge updates immediately when notifications are marked as read
+    const unsubscribeStore = notifications$.onChange(() => {
+      if (userIdRef.current) {
+        const newCount = accountId
+          ? selectUnreadCountByAccount(userIdRef.current, accountId)
+          : selectUnreadCount(userIdRef.current);
+        setUnreadCount(newCount);
+        saveCountToStorage(newCount);
+      }
+    });
+
     return () => {
       if (subscription) {
         supabase.removeChannel(subscription);
       }
+      unsubscribeStore();
     };
-  }, [fetchUnreadCount]);
+  }, [fetchUnreadCount, loadCountFromStorage, saveCountToStorage, accountId]);
 
-  // Manually refresh count (useful after marking notifications as read)
   const refreshCount = useCallback(() => {
     fetchUnreadCount();
   }, [fetchUnreadCount]);
 
-  // Decrease count manually (for optimistic updates)
   const decreaseCount = useCallback((amount = 1) => {
-    setUnreadCount((prev) => Math.max(0, prev - amount));
-  }, []);
+    setUnreadCount((prev) => {
+      const newCount = Math.max(0, prev - amount);
+      saveCountToStorage(newCount);
+      return newCount;
+    });
+  }, [saveCountToStorage]);
 
-  // Reset count (when marking all as read)
   const resetCount = useCallback(() => {
     setUnreadCount(0);
-  }, []);
+    saveCountToStorage(0);
+  }, [saveCountToStorage]);
 
   return {
     unreadCount,
     loading,
+    isOffline,
     refreshCount,
     decreaseCount,
     resetCount,

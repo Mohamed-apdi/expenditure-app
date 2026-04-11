@@ -1,3 +1,8 @@
+/**
+ * PDF report generator using Expo Print
+ * Builds and shares PDF reports from structured report data
+ */
+import { Platform } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
@@ -12,57 +17,103 @@ export interface PDFReportData {
 }
 
 export const generatePDFReport = async (data: PDFReportData): Promise<string> => {
+  if (!data || !data.title) {
+    throw new Error('Invalid report data: title is required');
+  }
+
   const htmlContent = generateHTMLContent(data);
 
   try {
-    // Generate PDF using expo-print
     const { uri } = await Print.printToFileAsync({
       html: htmlContent,
       base64: false
     });
 
-    // Move PDF to Documents directory for consistency
-    const documentsDir = FileSystem.documentDirectory;
+    if (!uri) {
+      throw new Error('PDF generation returned empty URI');
+    }
+
+    const documentsDir = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
     if (!documentsDir) {
       throw new Error('Documents directory not available');
     }
 
-    // Generate unique filename
+    const sanitizedTitle = data.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
-    const filename = `${data.title.toLowerCase().replace(/\s+/g, '_')}_${timestamp}.pdf`;
+    const filename = `${sanitizedTitle}_${timestamp}.pdf`;
     const documentsPath = `${documentsDir}${filename}`;
 
-    // Copy from temp location to Documents directory
     await FileSystem.copyAsync({
       from: uri,
       to: documentsPath
     });
 
+    try {
+      await FileSystem.deleteAsync(uri, { idempotent: true });
+    } catch {
+      // Ignore cleanup errors
+    }
+
     return documentsPath;
   } catch (error) {
     console.error('Error generating PDF:', error);
+    if (error instanceof Error) {
+      throw error;
+    }
     throw new Error('Failed to generate PDF report');
   }
 };
 
-// Function to share the generated PDF
-export const sharePDF = async (fileUri: string) => {
-  try {
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(fileUri, {
-        mimeType: 'application/pdf',
-        dialogTitle: 'Share PDF Report'
-      });
-    }
-  } catch (error) {
-    console.error('Error sharing PDF:', error);
+export const sharePDF = async (fileUri: string): Promise<void> => {
+  if (!fileUri) {
+    throw new Error('No file to share');
   }
+
+  const fileInfo = await FileSystem.getInfoAsync(fileUri);
+  if (!fileInfo.exists) {
+    throw new Error('PDF file not found');
+  }
+
+  const isAvailable = await Sharing.isAvailableAsync();
+  if (!isAvailable) {
+    throw new Error('Sharing is not available on this device');
+  }
+
+  let shareUri = fileUri;
+  if (Platform.OS === 'ios') {
+    const cacheDir = FileSystem.cacheDirectory;
+    if (cacheDir) {
+      const filename = fileUri.split('/').pop() || 'report.pdf';
+      const cachePath = `${cacheDir}${filename}`;
+      try {
+        await FileSystem.copyAsync({ from: fileUri, to: cachePath });
+        shareUri = cachePath;
+      } catch (copyError) {
+        console.warn('Could not copy to cache, using original path:', copyError);
+      }
+    }
+  }
+
+  if (Platform.OS === 'android' && !shareUri.startsWith('file://')) {
+    shareUri = `file://${shareUri}`;
+  }
+
+  await new Promise((r) => setTimeout(r, 300));
+
+  await Sharing.shareAsync(shareUri, {
+    mimeType: 'application/pdf',
+    dialogTitle: 'Save PDF Report',
+    UTI: Platform.OS === 'ios' ? 'com.adobe.pdf' : undefined,
+  });
 };
 
 // Function to save PDF to documents directory
 export const savePDFToDocuments = async (fileUri: string, fileName: string): Promise<string> => {
   try {
-    const documentsDir = FileSystem.documentDirectory;
+    const documentsDir = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
     if (!documentsDir) {
       throw new Error('Documents directory not available');
     }

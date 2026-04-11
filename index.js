@@ -1,5 +1,7 @@
+import "react-native-gesture-handler"; // Must be first per RNGH docs
+import "react-native-get-random-values"; // Must be early so uuid v4 works (crypto.getRandomValues polyfill)
+import "react-native-reanimated"; // Must load before @gorhom/bottom-sheet (useWorkletCallback)
 import "react-native-url-polyfill/auto";
-import "react-native-gesture-handler";
 
 // Hermes engine polyfills to fix "property is not configurable" error
 if (global.HermesInternal) {

@@ -1,5 +1,8 @@
+/**
+ * Dashboard header: greeting, account selector, and action buttons (profile, settings, theme, etc.)
+ */
 import React from "react";
-import { View, Text, TouchableOpacity, Image } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import {
   User,
   Settings,
@@ -20,8 +23,11 @@ import { useAccount } from "~/lib";
 import { useNotifications } from "~/lib";
 import { useRouter } from "expo-router";
 import { useLanguage } from "~/lib";
+import { playTabClickSound } from "~/lib/utils/playTabSound";
+import { CachedImage } from "~/components/CachedImage";
 
 interface DashboardHeaderProps {
+  variant?: "light" | "dark";
   userName: string;
   userEmail?: string;
   userImageUrl?: string;
@@ -34,6 +40,7 @@ interface DashboardHeaderProps {
 }
 
 export default function DashboardHeader({
+  variant = "dark",
   userName,
   userEmail,
   userImageUrl,
@@ -52,25 +59,30 @@ export default function DashboardHeader({
   const theme = useTheme();
   const { t, language, setLanguage } = useLanguage();
 
-  const firstName = userName?.split(" ")[0] || "User";
+  const isLight = variant === "light";
+  const iconColor = isLight ? theme.text : "#fff";
+  const avatarBorder = isLight ? theme.border : "#fff";
 
   return (
     <View className="relative z-50">
       <View
-        className="flex-row justify-between items-center px-6 py-5"
-        style={{ zIndex: 50 }}
+        className="flex-row justify-between items-center py-3"
+        style={{ zIndex: 50, paddingHorizontal: isLight ? 0 : 24 }}
       >
         {/* Left Section - Profile and Actions */}
         <View className="flex-row items-center gap-4">
           {/* Profile Image */}
           <View className="relative">
-            <Image
-              source={{
-                uri:
-                  userImageUrl ||
-                  `https://ui-avatars.com/api/?name=${encodeURIComponent(userName || "User")}`,
+            <CachedImage
+              uri={userImageUrl}
+              fallbackName={userName || "User"}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                borderWidth: 2,
+                borderColor: avatarBorder,
               }}
-              className="w-10 h-10 rounded-full border-2 border-white"
             />
           </View>
 
@@ -81,7 +93,7 @@ export default function DashboardHeader({
             activeOpacity={0.7}
           >
             <View style={{ position: "relative" }}>
-              <Bell size={24} color="#fff" />
+              <Bell size={24} color={iconColor} />
               {unreadCount > 0 && (
                 <View
                   style={{
@@ -115,25 +127,34 @@ export default function DashboardHeader({
 
         {/* Center Section - Wallet Dropdown */}
         <View className="flex-1 items-center">
-          <WalletDropdown />
+          <WalletDropdown variant={variant} />
         </View>
 
-        {/* Right Section - Calendar and Search */}
+        {/* Right Section */}
         <View className="flex-row items-center gap-5">
-          {/*Dark mode toggle*/}
-          <TouchableOpacity onPress={toggleColorScheme}>
+          <TouchableOpacity
+            onPress={() => {
+              void playTabClickSound();
+              void toggleColorScheme();
+            }}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             {isDarkColorScheme ? (
-              <Sun size={24} color="#fff" />
+              <Sun size={24} color={iconColor} />
             ) : (
-              <Moon size={24} color="#fff" />
+              <Moon size={24} color={iconColor} />
             )}
           </TouchableOpacity>
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => router.push("/(main)/SettingScreen")}
+            onPress={() => {
+              void playTabClickSound();
+              router.push("/(main)/SettingScreen");
+            }}
           >
             <View style={{ position: "relative" }}>
-              <Settings size={24} color="#fff" />
+              <Settings size={24} color={iconColor} />
             </View>
           </TouchableOpacity>
         </View>

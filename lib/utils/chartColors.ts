@@ -1,123 +1,201 @@
 // lib/chartColors.ts
 // Shared color utility for consistent chart colors across the application
 
+import { LANGUAGES } from "../config/language/languages";
+import {
+  categoryColorFromStored,
+  resolveCategoryIdFromStored,
+} from "./categories";
+import { REPORTS_UNCATEGORIZED_EXPENSE_KEY } from "../reports/constants";
+
+/**
+ * Gets a consistent color for a stored category (expense/income id, legacy English label, or legacy chart key).
+ * Prefers palette from {@link getExpenseCategories} / income when the value resolves to a known id.
+ */
 export const getCategoryColor = (category: string): string => {
+  /** Bright gold — far from Health (violet), Investments (blue), and typical reds/oranges */
+  if (category === REPORTS_UNCATEGORIZED_EXPENSE_KEY) {
+    return "#eab308";
+  }
+  const id = resolveCategoryIdFromStored(category);
+  if (id) {
+    return categoryColorFromStored(LANGUAGES.en, id);
+  }
+
   const colors: Record<string, string> = {
-    // Essential Categories - Warm Colors
-    Food: "#FF6B6B",              // Vibrant Red
-    Dining: "#FF8E53",            // Orange Red
-    Groceries: "#FF6B9D",         // Pink Red
-    
-    // Transportation - Cool Blues/Teals
-    Transport: "#4ECDC4",         // Teal
-    Gas: "#45B7D1",              // Sky Blue
-    PublicTransport: "#96CEB4",   // Mint Green
-    
+    // Essential Categories - Warm Colors (darker)
+    Food: "#DC2626",
+    Dining: "#EA580C",
+    Groceries: "#BE185D",
+
+    // Transportation — match expense `transport` (golden), not another blue block
+    Transport: "#CA8A04",
+    Gas: "#D97706",
+    PublicTransport: "#A16207",
+
     // Entertainment - Purple/Magenta Spectrum
-    Entertainment: "#A8E6CF",     // Light Green
-    Movies: "#DDA0DD",           // Plum
-    Games: "#B19CD9",            // Light Purple
-    
+    Entertainment: "#16A34A",
+    Movies: "#7C3AED",
+    Games: "#6D28D9",
+
     // Utilities - Earth Tones
-    Utilities: "#FFD93D",         // Golden Yellow
-    Electric: "#6BCF7F",          // Green
-    Water: "#4FC3F7",            // Light Blue
-    Internet: "#FFB74D",         // Amber
-    
+    Utilities: "#CA8A04",
+    Electric: "#15803D",
+    Water: "#0891B2",
+    Internet: "#D97706",
+
     // Income - Green Spectrum
-    Income: "#52C41A",           // Success Green
-    Salary: "#7CB342",           // Olive Green
-    Bonus: "#66BB6A",            // Medium Green
-    
+    Income: "#16A34A",
+    Salary: "#15803D",
+    Bonus: "#059669",
+
     // Shopping - Orange/Yellow Spectrum
-    Shopping: "#FFA726",         // Orange
-    Clothing: "#FF7043",         // Deep Orange
-    Electronics: "#AB47BC",      // Purple
-    
-    // Health & Personal - Pink/Purple
-    Healthcare: "#EC407A",       // Pink
-    PersonalCare: "#BA68C8",     // Light Purple
-    Pharmacy: "#F48FB1",         // Light Pink
-    
-    // Education - Blue Spectrum
-    Education: "#42A5F5",        // Blue
-    Books: "#5C6BC0",           // Indigo
-    Courses: "#7986CB",         // Light Indigo
-    
-    // Travel - Vibrant Colors
-    Travel: "#FF5722",           // Deep Orange
-    Hotel: "#FF9800",           // Orange
-    Flight: "#03DAC6",          // Cyan
-    
+    Shopping: "#EA580C",
+    Clothing: "#C2410C",
+    Electronics: "#2563EB",
+
+    // Health & Personal — align with expense `healthcare` id (#6d28d9), not red
+    Healthcare: "#6D28D9",
+    PersonalCare: "#A21CAF",
+    Pharmacy: "#7C3AED",
+
+    // Education — match expense `education` (lime/olive), not more blues
+    Education: "#65A30D",
+    Books: "#84CC16",
+    Courses: "#4D7C0F",
+
+    // Travel — warm tones (expense `travel` peach / vacation)
+    Travel: "#FB923C",
+    Hotel: "#EA580C",
+    Flight: "#F59E0B",
+
     // Housing - Brown/Neutral Tones
-    Housing: "#8D6E63",          // Brown
-    Rent: "#A1887F",            // Light Brown
-    Mortgage: "#BCAAA4",        // Very Light Brown
-    
-    // Financial - Professional Colors
-    Investment: "#607D8B",       // Blue Grey
-    Savings: "#009688",          // Teal
-    Insurance: "#795548",        // Brown
-    
+    Housing: "#78716C",
+    Rent: "#57534E",
+    Mortgage: "#44403C",
+
+    // Financial — align with income `investments` id (#1d4ed8)
+    Investment: "#1D4ED8",
+    Savings: "#0D9488",
+    Insurance: "#0F766E",
+
     // Miscellaneous - Bright Accent Colors
-    Gifts: "#E91E63",           // Pink
-    Charity: "#9C27B0",         // Purple
-    Pets: "#FF9E80",            // Light Orange
-    
+    Gifts: "#C026D3",
+    Charity: "#22C55E",
+    Pets: "#EA580C",
+    Family: "#4F46E5",
+    Others: "#64748B",
+
     // Account Types
-    Checking: "#00BCD4",         // Cyan
-    Credit: "#F44336",          // Red
-    
+    Checking: "#0891B2",
+    Credit: "#DC2626",
+
     // Status Colors
-    active: "#4CAF50",          // Green
-    completed: "#2196F3",       // Blue
-    paused: "#FF9800",          // Orange
-    
+    active: "#15803D",
+    completed: "#2563EB",
+    paused: "#D97706",
+
     // Catch-all
-    Other: "#9E9E9E",           // Grey
+    Other: "#64748B",
   };
-  
+
   // If no specific color found, generate a color based on category name hash
   if (!colors[category]) {
     const fallbackColors = [
-      "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FECA57", 
-      "#FF9FF3", "#54A0FF", "#5F27CD", "#00D2D3", "#FF9F43",
-      "#10AC84", "#EE5A24", "#0652DD", "#9C88FF", "#FFC312",
-      "#C4E538", "#12CBC4", "#FDA7DF", "#ED4C67", "#F79F1F",
-      "#A3CB38", "#1289A7", "#D63031", "#74B9FF", "#0984E3",
-      "#6C5CE7", "#A29BFE", "#FD79A8", "#FDCB6E", "#E17055"
+      "#DC2626",
+      "#059669",
+      "#2563EB",
+      "#7C3AED",
+      "#EA580C",
+      "#0891B2",
+      "#BE185D",
+      "#CA8A04",
+      "#1D4ED8",
+      "#16A34A",
+      "#C026D3",
+      "#0D9488",
+      "#B45309",
+      "#4F46E5",
+      "#15803D",
+      "#A21CAF",
+      "#0369A1",
+      "#C2410C",
+      "#1E40AF",
+      "#047857",
+      "#7E22CE",
+      "#0F766E",
+      "#B91C1C",
+      "#A16207",
+      "#BE123C",
+      "#0E7490",
+      "#6D28D9",
+      "#166534",
+      "#9A3412",
     ];
-    
+
     // Simple hash function to consistently assign colors
     let hash = 0;
     for (let i = 0; i < category.length; i++) {
       const char = category.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
+      hash = (hash << 5) - hash + char;
       hash = hash & hash; // Convert to 32bit integer
     }
-    
+
     return fallbackColors[Math.abs(hash) % fallbackColors.length];
   }
-  
+
   return colors[category];
 };
 
-// Function to get colors for multiple categories, ensuring distinct colors
+/**
+ * Gets colors for multiple categories
+ * @param categories - Array of category names
+ * @returns Array of hex color strings corresponding to each category
+ */
 export const getCategoryColors = (categories: string[]): string[] => {
-  return categories.map(category => getCategoryColor(category));
+  return categories.map((category) => getCategoryColor(category));
 };
 
-// Function to get color by index (for when you need sequential distinct colors)
+/**
+ * Gets a color by index from a predefined palette of distinct, darker colors
+ * Useful for sequential color assignment when category names are not available
+ * @param index - The index position (will wrap around if index exceeds palette size)
+ * @returns Hex color string from the distinct colors palette
+ */
 export const getColorByIndex = (index: number): string => {
   const distinctColors = [
-    "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FECA57", 
-    "#FF9FF3", "#54A0FF", "#5F27CD", "#00D2D3", "#FF9F43",
-    "#10AC84", "#EE5A24", "#0652DD", "#9C88FF", "#FFC312",
-    "#C4E538", "#12CBC4", "#FDA7DF", "#ED4C67", "#F79F1F",
-    "#A3CB38", "#1289A7", "#D63031", "#74B9FF", "#0984E3",
-    "#6C5CE7", "#A29BFE", "#FD79A8", "#FDCB6E", "#E17055"
+    "#DC2626", // red
+    "#059669", // emerald
+    "#2563EB", // blue
+    "#7C3AED", // violet
+    "#EA580C", // orange
+    "#0891B2", // cyan
+    "#BE185D", // pink
+    "#CA8A04", // yellow
+    "#1D4ED8", // dark blue
+    "#16A34A", // green
+    "#C026D3", // fuchsia
+    "#0D9488", // teal
+    "#B45309", // amber
+    "#4F46E5", // indigo
+    "#15803D", // green
+    "#A21CAF", // purple
+    "#0369A1", // sky
+    "#C2410C", // orange
+    "#1E40AF", // blue
+    "#047857", // emerald
+    "#7E22CE", // purple
+    "#0F766E", // teal
+    "#B91C1C", // red
+    "#1D4ED8", // blue
+    "#A16207", // yellow
+    "#BE123C", // rose
+    "#0E7490", // cyan
+    "#6D28D9", // violet
+    "#166534", // green
+    "#9A3412", // orange
   ];
-  
+
   return distinctColors[index % distinctColors.length];
 };
 

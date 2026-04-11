@@ -1,3 +1,7 @@
+/**
+ * Accounts service functions for managing financial accounts
+ * Handles CRUD operations for accounts, groups, and types
+ */
 import { supabase } from "../database/supabase";
 import type {
   Account,
@@ -83,6 +87,14 @@ export const updateAccount = async (
     currency: string;
   }>
 ): Promise<Account> => {
+  if (!accountId || accountId.trim() === "") {
+    throw new Error("Account ID is required");
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new Error("No updates provided");
+  }
+
   try {
     const { data, error } = await supabase
       .from("accounts")
@@ -92,6 +104,9 @@ export const updateAccount = async (
       .single();
 
     if (error) throw error;
+    if (!data) {
+      throw new Error("Account not found");
+    }
     return data;
   } catch (error) {
     console.error("Error updating account:", error);
@@ -100,6 +115,10 @@ export const updateAccount = async (
 };
 
 export const deleteAccount = async (accountId: string): Promise<void> => {
+  if (!accountId || accountId.trim() === "") {
+    throw new Error("Account ID is required");
+  }
+
   const { error } = await supabase
     .from("accounts")
     .delete()
@@ -193,6 +212,14 @@ export const updateAccountBalance = async (
   accountId: string,
   newBalance: number
 ): Promise<void> => {
+  if (!accountId || accountId.trim() === "") {
+    throw new Error("Account ID is required");
+  }
+
+  if (typeof newBalance !== "number" || isNaN(newBalance)) {
+    throw new Error("Invalid balance value");
+  }
+
   const { error } = await supabase
     .from("accounts")
     .update({ amount: newBalance })
@@ -221,4 +248,69 @@ export const getDefaultAccount = async (
   }
 
   return data;
+};
+
+/** Default account name used when auto-creating for new users (spec: FR-005). */
+export const DEFAULT_ACCOUNT_NAME = "Main Account";
+
+/**
+ * Ensures the user has exactly one default account. If they have no accounts,
+ * creates one (behind the scenes). Idempotent: safe to call on every login/signup.
+ * Used to satisfy "auto create default account on registration" (spec 004).
+ * 
+ * IMPORTANT: Always checks server FIRST to prevent duplicate creation.
+ * The server is the source of truth for account existence.
+ */
+export const ensureDefaultAccount = async (userId: string): Promise<void> => {
+  const { selectAccounts, setAccountsFromServer } = await import("../stores/accountsStore");
+
+  console.log("ensureDefaultAccount: Checking for user:", userId);
+
+  // ALWAYS check server first (source of truth) to prevent duplicates
+  let serverReturnedEmpty = false;
+  try {
+    const serverAccounts = await fetchAccounts(userId);
+    console.log("ensureDefaultAccount: Server accounts found:", serverAccounts.length);
+
+    if (serverAccounts.length > 0) {
+      // Sync server accounts to local store
+      setAccountsFromServer(userId, serverAccounts as Array<Record<string, unknown>>);
+      console.log("ensureDefaultAccount: Synced server accounts to local store");
+      return;
+    }
+    serverReturnedEmpty = true;
+  } catch (serverError) {
+    console.error("ensureDefaultAccount: Server check failed:", serverError);
+    // Never create when server fetch fails - user may already have accounts (e.g. network/RLS)
+    return;
+  }
+
+  // Only create if server explicitly returned 0 accounts (not on fetch failure)
+  const localAccounts = selectAccounts(userId);
+  if (localAccounts.length > 0) {
+    console.log("ensureDefaultAccount: Local already has accounts, skipping create");
+    return;
+  }
+
+  console.log("ensureDefaultAccount: No accounts on server, creating default account");
+  
+  try {
+    const serverAccount = await createAccount({
+      user_id: userId,
+      account_type: "Accounts",
+      name: DEFAULT_ACCOUNT_NAME,
+      amount: 0,
+      description: "Your main account",
+      is_default: true,
+      currency: "USD",
+    });
+    
+    // Sync the newly created account to local store
+    if (serverAccount) {
+      setAccountsFromServer(userId, [serverAccount as Record<string, unknown>]);
+      console.log("ensureDefaultAccount: Created and synced default account:", serverAccount.id);
+    }
+  } catch (createError) {
+    console.error("ensureDefaultAccount: Failed to create default account:", createError);
+  }
 };

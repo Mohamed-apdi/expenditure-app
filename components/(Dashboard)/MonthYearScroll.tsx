@@ -1,13 +1,18 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+/**
+ * Horizontal month/year picker and income/expense summary for dashboard
+ */
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import {
-  FlatList,
+  ScrollView,
   Text,
   TouchableOpacity,
   View,
   StyleSheet,
+  LayoutChangeEvent,
+  InteractionManager,
 } from 'react-native';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react-native';
-import { useLanguage, useAccount } from '~/lib';
+import { useLanguage, useAccount, useTheme } from '~/lib';
 
 const months = [
   'JAN',
@@ -24,7 +29,13 @@ const months = [
   'DEC',
 ];
 
+// Fixed pill width (minWidth: 88 + marginHorizontal: 4*2 + paddingHorizontal: 14*2 approximated)
+const PILL_WIDTH = 96;
+const PILL_MARGIN = 8;
+const CONTENT_PADDING = 12;
+
 type MonthYearScrollerProps = {
+  variant?: 'light' | 'dark';
   onMonthChange: (month: number, year: number) => void;
   fetchMonthData: (
     month: number,
@@ -35,34 +46,40 @@ type MonthYearScrollerProps = {
     balance: number;
   }>;
   refreshTrigger?: number;
+  /** When provided, month data is only fetched after userId is set (avoids showing 0s before auth is ready). */
+  userId?: string | null;
 };
 
+type ItemLayout = { x: number; width: number };
+
 export default function MonthYearScroller({
+  variant = 'dark',
   onMonthChange,
   fetchMonthData,
   refreshTrigger = 0,
+  userId,
 }: MonthYearScrollerProps) {
   const current = new Date();
   const currentYear = current.getFullYear();
   const currentMonth = current.getMonth();
+  const currentLabel = `${months[currentMonth]} ${currentYear}`;
+
   const { t } = useLanguage();
-  const { selectedAccount, accounts } = useAccount();
+  const theme = useTheme();
+  const { selectedAccount } = useAccount();
+  const isLight = variant === 'light';
+
   const [monthData, setMonthData] = useState<{
     income: number;
     expense: number;
     balance: number;
   }>({ income: 0, expense: 0, balance: 0 });
 
-  // Calculate current balance from selected account only
   const currentBalance = useMemo(() => {
-    // Only show selected account balance, not sum of all accounts
     return selectedAccount?.amount || 0;
   }, [selectedAccount]);
 
-  // Add ref for FlatList to enable programmatic scrolling
-  const flatListRef = useRef<FlatList>(null);
-
-  // Generate month/year list from 2024 → current year
+  // Generate list from 2025 → current month/year
   const data = useMemo(() => {
     const arr: string[] = [];
     for (let y = 2025; y <= currentYear; y++) {
@@ -74,134 +91,305 @@ export default function MonthYearScroller({
     return arr;
   }, [currentYear, currentMonth]);
 
-  // Default selected = current month/year
-  const [selected, setSelected] = useState(
-    `${months[currentMonth]} ${currentYear}`,
-  );
+  // Get index of current month in the data array
+  const currentMonthIndex = useMemo(() => {
+    return data.indexOf(currentLabel);
+  }, [data, currentLabel]);
 
-  // Estimate item width for getItemLayout
-  // Each item has px-4 (16px padding) + mx-1 (4px margin) + text width (~80px average)
-  const estimatedItemWidth = 100; // Approximate width per item
+  const [selected, setSelected] = useState<string>(currentLabel);
 
-  // Scroll to selected month when component mounts or data changes
-  useEffect(() => {
-    if (flatListRef.current && data.length > 0) {
-      const selectedIndex = data.findIndex((item) => item === selected);
-      if (selectedIndex >= 0) {
-        // Add a small delay to ensure the FlatList is fully rendered
-        setTimeout(() => {
-          flatListRef.current?.scrollToIndex({
-            index: selectedIndex,
-            animated: false, // Always instant scroll
-            viewPosition: 0.5, // Center the selected item
-          });
-        }, 100);
-      }
+  // ---- Scroll refs and state ----
+  const scrollRef = useRef<ScrollView>(null);
+  const containerWidthRef = useRef<number>(0);
+  const itemLayoutsRef = useRef<Record<string, ItemLayout>>({});
+  const hasInitiallyCenteredRef = useRef(false);
+  const prevRefreshTriggerRef = useRef(refreshTrigger);
+
+  // Calculate estimated initial offset based on index (for immediate positioning)
+  const estimatedInitialOffset = useMemo(() => {
+    const itemTotalWidth = PILL_WIDTH + PILL_MARGIN;
+    return Math.max(0, CONTENT_PADDING + currentMonthIndex * itemTotalWidth - 150);
+  }, [currentMonthIndex]);
+
+  // Helper to scroll to any item by label using measured layouts
+  const scrollToItem = useCallback((label: string, animated = true) => {
+    const containerWidth = containerWidthRef.current;
+    const layout = itemLayoutsRef.current[label];
+    if (!scrollRef.current || !containerWidth || !layout) return;
+    const targetX = Math.max(0, layout.x + layout.width / 2 - containerWidth / 2);
+    scrollRef.current.scrollTo({ x: targetX, animated });
+  }, []);
+
+  // Attempt to center selected item using accurate measurements
+  const attemptInitialCenter = useCallback(() => {
+    if (hasInitiallyCenteredRef.current) return;
+    const containerWidth = containerWidthRef.current;
+    const layout = itemLayoutsRef.current[selected];
+    if (containerWidth > 0 && layout) {
+      hasInitiallyCenteredRef.current = true;
+      scrollToItem(selected, false);
     }
-  }, [data, selected]);
+  }, [selected, scrollToItem]);
 
+  const onContainerLayout = (e: LayoutChangeEvent) => {
+    containerWidthRef.current = e.nativeEvent.layout.width;
+    attemptInitialCenter();
+  };
+
+  const onItemLayout = (item: string) => (e: LayoutChangeEvent) => {
+    const { x, width } = e.nativeEvent.layout;
+    itemLayoutsRef.current[item] = { x, width };
+
+    // When selected item is measured, try to center with accurate position
+    if (item === selected) {
+      attemptInitialCenter();
+    }
+  };
+
+  // On mount: use InteractionManager to scroll after animations complete
   useEffect(() => {
-    // Parse the selected month/year
+    const task = InteractionManager.runAfterInteractions(() => {
+      if (!hasInitiallyCenteredRef.current) {
+        attemptInitialCenter();
+      }
+    });
+
+    // Also set up fallback timeouts
+    const timeouts = [100, 250, 500].map((delay) =>
+      setTimeout(() => {
+        if (!hasInitiallyCenteredRef.current) {
+          attemptInitialCenter();
+        }
+      }, delay)
+    );
+
+    return () => {
+      task.cancel();
+      timeouts.forEach(clearTimeout);
+    };
+  }, [attemptInitialCenter]);
+
+  // When user taps a different month, center it with animation
+  const prevSelectedRef = useRef(selected);
+  useEffect(() => {
+    // Only animate if selected actually changed (not on mount)
+    if (prevSelectedRef.current !== selected && hasInitiallyCenteredRef.current) {
+      scrollToItem(selected, true);
+    }
+    prevSelectedRef.current = selected;
+  }, [selected, scrollToItem]);
+
+  // Reset to current month on refreshTrigger change (skip initial mount)
+  useEffect(() => {
+    // Skip initial mount
+    if (prevRefreshTriggerRef.current === refreshTrigger) return;
+    prevRefreshTriggerRef.current = refreshTrigger;
+
+    setSelected(currentLabel);
+    hasInitiallyCenteredRef.current = false;
+    
+    // Use InteractionManager + fallback timeouts
+    const task = InteractionManager.runAfterInteractions(() => {
+      scrollToItem(currentLabel, false);
+      hasInitiallyCenteredRef.current = true;
+    });
+
+    const timeouts = [50, 150].map((delay) =>
+      setTimeout(() => {
+        if (!hasInitiallyCenteredRef.current) {
+          scrollToItem(currentLabel, false);
+          if (containerWidthRef.current > 0 && itemLayoutsRef.current[currentLabel]) {
+            hasInitiallyCenteredRef.current = true;
+          }
+        }
+      }, delay)
+    );
+
+    return () => {
+      task.cancel();
+      timeouts.forEach(clearTimeout);
+    };
+  }, [refreshTrigger, currentLabel, scrollToItem]);
+
+  // ---- Fetch month data when selected changes (and when userId is ready so we don't show 0s) ----
+  useEffect(() => {
     const [monthStr, yearStr] = selected.split(' ');
     const monthIndex = months.indexOf(monthStr);
-    const year = parseInt(yearStr);
+    const year = parseInt(yearStr, 10);
 
-    // Fetch data for the selected month
     const loadMonthData = async () => {
       try {
-        const data = await fetchMonthData(monthIndex, year);
-        setMonthData(data);
+        const res = await fetchMonthData(monthIndex, year);
+        setMonthData(res);
         onMonthChange(monthIndex, year);
       } catch (error) {
         console.error('Error loading month data:', error);
       }
     };
 
-    // Only load data if we have valid month/year values
-    if (monthIndex >= 0 && year > 0) {
+    // If userId is passed, wait until it's set so we don't show 0s before auth/store is ready
+    const canFetch = monthIndex >= 0 && year > 0 && (userId === undefined || userId !== null);
+    if (canFetch) {
       loadMonthData();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, refreshTrigger]);
+  }, [selected, refreshTrigger, selectedAccount?.id, fetchMonthData, onMonthChange, userId]);
 
   return (
     <View className="py-4">
       {/* Month scroller */}
-      <FlatList
-        ref={flatListRef}
-        data={data}
-        horizontal
-        keyExtractor={(item) => item}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 12 }}
-        getItemLayout={(data, index) => ({
-          length: estimatedItemWidth,
-          offset: estimatedItemWidth * index,
-          index,
-        })}
-        onScrollToIndexFailed={(info) => {
-          // Fallback: scroll to offset if index-based scroll fails
-          const wait = new Promise((resolve) => setTimeout(resolve, 500));
-          wait.then(() => {
-            if (flatListRef.current && data.length > info.index) {
-              flatListRef.current.scrollToIndex({
-                index: info.index,
-                animated: false,
-              });
-            }
-          });
-        }}
-        renderItem={({ item }) => {
-          const isActive = item === selected;
-          return (
-            <TouchableOpacity
-              onPress={() => setSelected(item)}
-              className={`px-4 py-2 mx-1 rounded-full ${
-                isActive ? 'bg-[#ffffff]' : 'bg-transparent'
-              }`}>
-              <Text
-                className={`text-sm ${
-                  isActive ? 'text-[#3b82f6] font-bold' : 'text-white'
-                }`}>
-                {item}
-              </Text>
-            </TouchableOpacity>
-          );
-        }}
-      />
+      <View style={styles.monthScrollerWrap} onLayout={onContainerLayout}>
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.monthScrollerContent}
+          style={styles.monthScrollerList}
+          contentOffset={{ x: estimatedInitialOffset, y: 0 }}
+        >
+          {data.map((item) => {
+            const isActive = item === selected;
+
+            const pillBg = isActive
+              ? isLight
+                ? '#00BFFF'
+                : '#FFFFFF'
+              : 'transparent';
+
+            const pillText = isActive
+              ? '#FFFFFF'
+              : isLight
+                ? theme.textSecondary
+                : 'rgba(255,255,255,0.9)';
+
+            return (
+              <TouchableOpacity
+                key={item}
+                onPress={() => setSelected(item)}
+                onLayout={onItemLayout(item)}
+                activeOpacity={0.8}
+                style={[
+                  styles.monthPill,
+                  { 
+                    backgroundColor: pillBg,
+                    opacity: 1,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.monthPillText,
+                    {
+                      fontWeight: isActive ? '700' : '500',
+                      color: pillText,
+                    },
+                  ]}
+                >
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       {/* Balance Card */}
-      <View style={styles.balanceCard}>
+      <View
+        style={[
+          styles.balanceCard,
+          isLight && {
+            backgroundColor: theme.cardBackground,
+            borderColor: theme.border,
+            borderWidth: 1,
+            marginHorizontal: 0,
+          },
+        ]}
+      >
         <View style={styles.balanceHeader}>
-          <Text style={styles.balanceLabel}>{t.currentBalance}</Text>
-          <Text style={styles.balanceAmount}>
+          <Text
+            style={[
+              styles.balanceLabel,
+              isLight && { color: theme.textSecondary },
+            ]}
+          >
+            {t.currentBalance}
+          </Text>
+
+          <Text
+            style={[
+              styles.balanceAmount,
+              isLight && { color: theme.primary },
+            ]}
+          >
             ${currentBalance.toLocaleString()}
           </Text>
         </View>
 
-        {/* Income and Expense Cards */}
         <View style={styles.statsContainer}>
-          {/* Income Card */}
-          <View style={[styles.statCard, styles.incomeCard]}>
-            <View style={styles.statIconContainer}>
+          {/* Income */}
+          <View
+            style={[
+              styles.statCard,
+              styles.incomeCard,
+              isLight && {
+                backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                borderColor: 'rgba(16, 185, 129, 0.35)',
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.statIconContainer,
+                isLight && { backgroundColor: 'rgba(16, 185, 129, 0.2)' },
+              ]}
+            >
               <ArrowUpRight size={20} color="#10b981" strokeWidth={2.5} />
             </View>
+
             <View style={[styles.statContent, { marginLeft: 12 }]}>
-              <Text style={styles.statLabel}>{t.income}</Text>
-              <Text style={styles.statValue}>
+              <Text
+                style={[
+                  styles.statLabel,
+                  isLight && { color: theme.textSecondary },
+                ]}
+              >
+                {t.income}
+              </Text>
+              <Text style={[styles.statValue, isLight && { color: theme.text }]}>
                 ${monthData.income.toLocaleString()}
               </Text>
             </View>
           </View>
 
-          {/* Expense Card */}
-          <View style={[styles.statCard, styles.expenseCard]}>
-            <View style={styles.statIconContainer}>
+          {/* Expense */}
+          <View
+            style={[
+              styles.statCard,
+              styles.expenseCard,
+              isLight && {
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                borderColor: 'rgba(239, 68, 68, 0.35)',
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.statIconContainer,
+                isLight && { backgroundColor: 'rgba(239, 68, 68, 0.15)' },
+              ]}
+            >
               <ArrowDownRight size={20} color="#ef4444" strokeWidth={2.5} />
             </View>
+
             <View style={[styles.statContent, { marginLeft: 12 }]}>
-              <Text style={styles.statLabel}>{t.expense}</Text>
-              <Text style={styles.statValue}>
+              <Text
+                style={[
+                  styles.statLabel,
+                  isLight && { color: theme.textSecondary },
+                ]}
+              >
+                {t.expense}
+              </Text>
+              <Text style={[styles.statValue, isLight && { color: theme.text }]}>
                 ${monthData.expense.toLocaleString()}
               </Text>
             </View>
@@ -213,13 +401,36 @@ export default function MonthYearScroller({
 }
 
 const styles = StyleSheet.create({
+  monthScrollerWrap: {
+    minHeight: 44,
+  },
+  monthScrollerList: {
+    minHeight: 44,
+  },
+  monthScrollerContent: {
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  monthPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginHorizontal: 4,
+    borderRadius: 20,
+    minWidth: 88,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthPillText: {
+    fontSize: 13,
+  },
+
   balanceCard: {
     marginHorizontal: 16,
     marginTop: 20,
     padding: 20,
     borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    backdropFilter: 'blur(10px)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
   },

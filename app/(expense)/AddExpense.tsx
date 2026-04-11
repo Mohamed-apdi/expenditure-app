@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
+import { Camera, Image as ImageIcon, Scan, X } from "lucide-react-native";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   StatusBar,
@@ -29,26 +29,36 @@ import * as ImagePicker from "expo-image-picker";
 import { scanReceiptWithOCR } from "~/lib/services/ocr";
 
 // Import the separated form components
+import {
+  getExpenseCategories,
+  getIncomeCategories,
+  type Category,
+  type Frequency,
+} from "~/lib/utils/categories";
 import ExpenseForm from "./components/ExpenseForm";
 import IncomeForm from "./components/IncomeForm";
 import TransferForm from "./components/TransferForm";
-import { getExpenseCategories, getIncomeCategories, type Category, type Frequency } from "./utils/categories";
 
 export default function AddExpenseScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { t } = useLanguage();
+  useScreenStatusBar();
 
   // States
   const [entryType, setEntryType] = useState("Expense");
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
+    null,
+  );
   const [date, setDate] = useState(new Date());
   const [isRecurring, setIsRecurring] = useState(false);
-  const [recurringFrequency, setRecurringFrequency] = useState<Frequency>("monthly");
+  const [recurringFrequency, setRecurringFrequency] =
+    useState<Frequency>("monthly");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const { accounts } = useAccount();
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
 
   // OCR states
@@ -72,37 +82,19 @@ export default function AddExpenseScreen() {
   ];
 
   useEffect(() => {
-    const loadAccounts = async () => {
-      try {
-        const {
-          data: { user },
-          error: authError,
-        } = await supabase.auth.getUser();
+    if (accounts.length > 0 && !selectedAccount) {
+      const defaultAcc = accounts.find((a) => a.is_default) ?? accounts[0];
+      setSelectedAccount(defaultAcc);
+    }
+  }, [accounts, selectedAccount]);
 
-        if (authError || !user) {
-          console.error("User not authenticated");
-          return;
-        }
-
-        const accountsData = await fetchAccounts(user.id);
-        setAccounts(accountsData);
-        if (accountsData.length > 0) {
-          setSelectedAccount(accountsData[0]);
-        }
-      } catch (error) {
-        console.error("Error loading accounts:", error);
-        Toast.show({
-          type: "error",
-          text1: t.error || "Error",
-          text2: t.failedToLoadAccounts || "Failed to load accounts",
-        });
-      }
-    };
-
-    loadAccounts();
+  // Preload tab click sound so first tap plays immediately (dev build only; Expo Go uses haptics)
+  useEffect(() => {
+    void preloadTabClickSound();
   }, []);
 
   const handleEntryTypeChange = (type: string) => {
+    void playTabClickSound();
     setEntryType(type);
     setSelectedCategory(null);
     // Reset to normal mode when changing entry type
@@ -253,41 +245,41 @@ export default function AddExpenseScreen() {
   };
 
   const handleSaveExpense = async () => {
-    // Basic validation
-    if (!amount || !description.trim()) {
-      Toast.show({
-        type: "error",
-        text1: t.missingInfo || "Missing Information",
-        text2: t.pleaseFillRequiredFields || "Please fill all required fields",
+    // Basic validation (note/description is optional)
+    if (!amount) {
+      toast.error(t.missingInfo || "Missing Information", {
+        description:
+          t.pleaseFillRequiredFields || "Please fill all required fields",
       });
       return;
     }
 
     if (!selectedAccount) {
-      Toast.show({
-        type: "error",
-        text1: t.selectAccount || "Select Account",
-        text2: t.pleaseSelectAccount || "Please select an account",
+      toast.error(t.selectAccount || "Select Account", {
+        description: t.pleaseSelectAccount || "Please select an account",
       });
       return;
     }
 
     // Type-specific validation
-    if (entryType === "Income" && (!selectedCategory || !selectedCategory.name)) {
-      Toast.show({
-        type: "error",
-        text1: t.chooseCategory || "Choose Category",
-        text2: t.pleaseSelectCategoryForIncome || "Please select a category for income",
+    if (
+      entryType === "Income" &&
+      (!selectedCategory || !selectedCategory.name)
+    ) {
+      toast.error(t.chooseCategory || "Choose Category", {
+        description:
+          t.pleaseSelectCategoryForIncome ||
+          "Please select a category for income",
       });
       return;
     }
 
     if (entryType === "Expense") {
       if (!selectedCategory || !selectedCategory.name) {
-        Toast.show({
-          type: "error",
-          text1: t.chooseCategory || "Choose Category",
-          text2: t.pleaseSelectCategoryForExpense || "Please select a category for expense",
+        toast.error(t.chooseCategory || "Choose Category", {
+          description:
+            t.pleaseSelectCategoryForExpense ||
+            "Please select a category for expense",
         });
         return;
       }
@@ -296,60 +288,46 @@ export default function AddExpenseScreen() {
     setIsSubmitting(true);
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getCurrentUserOfflineFirst();
       if (!user) throw new Error("Please log in first");
 
       const amountNum = Number.parseFloat(amount);
+      const dateStr = date.toISOString().split("T")[0];
 
-      // For expenses, check account balance
-      if (entryType === "Expense") {
-        if (amountNum > selectedAccount.amount) {
-          Toast.show({
-            type: "error",
-            text1: t.insufficientFunds || "Insufficient Funds",
-            text2: `${t.yourAccountDoesntHaveEnoughBalance || "Your account doesn't have enough balance"} ${selectedAccount.name} ${t.forThisExpense || "for this expense"}.`,
-          });
-          setIsSubmitting(false);
-          return;
-        }
-      }
-
-      // Add expense using the service
-      await addExpense({
+      // Create local expense row (offline-first; sync engine will push to Supabase)
+      createExpenseLocal({
         user_id: user.id,
         entry_type: entryType as "Income" | "Expense",
         amount: amountNum,
         category: selectedCategory!.name,
-        description: description.trim(),
+        description: description.trim() || undefined,
         is_recurring: isRecurring,
         recurrence_interval: isRecurring ? recurringFrequency : undefined,
-        date: date.toISOString().split("T")[0],
+        date: dateStr,
         account_id: selectedAccount.id,
         is_essential: true,
       });
 
-      // Add transaction using the service
-      await addTransaction({
+      // Create transaction in local store so it shows on dashboard immediately (including recurring)
+      createTransactionLocal({
         user_id: user.id,
         account_id: selectedAccount.id,
         amount: amountNum,
-        description: description.trim(),
-        date: date.toISOString().split("T")[0],
+        description: description.trim() || "",
+        date: dateStr,
         category: selectedCategory?.name || "",
         is_recurring: isRecurring,
         recurrence_interval: isRecurring ? recurringFrequency : undefined,
         type: entryType === "Income" ? "income" : "expense",
       });
 
-      // Update account balance
+      // Update account balance in local store for instant Dashboard update;
+      // sync engine will persist this to Supabase when online.
       const newBalance =
         entryType === "Expense"
           ? selectedAccount.amount - amountNum
           : selectedAccount.amount + amountNum;
-
-      await updateAccountBalance(selectedAccount.id, newBalance);
+      updateAccountLocal(selectedAccount.id, { amount: newBalance });
 
       // Auto-create subscription if this is a recurring expense
       if (entryType === "Expense" && isRecurring && selectedCategory) {
@@ -376,7 +354,8 @@ export default function AddExpenseScreen() {
                 ? "yearly"
                 : "monthly";
 
-          await addSubscription({
+          // Local recurring subscription; sync engine will push it.
+          createSubscriptionLocal({
             user_id: user.id,
             account_id: selectedAccount.id,
             name: description.trim() || selectedCategory.name,
@@ -394,19 +373,22 @@ export default function AddExpenseScreen() {
         }
       }
 
-      // Check budget thresholds
+      // Kick sync if we're online so pending changes are pushed promptly.
+      if (!(await isOfflineGateLocked())) {
+        void triggerSync();
+      }
+
+      // Check budget thresholds only for the expense category (notify only if this category has a budget)
       if (entryType === "Expense" && selectedCategory?.name) {
         try {
-          await notificationService.checkBudgetsAndNotify();
+          await notificationService.checkBudgetsAndNotify(selectedCategory.name);
         } catch (error) {
           console.error("Error checking budget notifications:", error);
         }
       }
 
-      Toast.show({
-        type: "success",
-        text1: "Success!",
-        text2: `Your ${entryType.toLowerCase()} has been saved!`,
+      toast.success("Success!", {
+        description: `Your ${entryType.toLowerCase()} has been saved!`,
       });
 
       setTimeout(() => {
@@ -414,10 +396,10 @@ export default function AddExpenseScreen() {
       }, 500);
     } catch (error) {
       console.error(error);
-      Toast.show({
-        type: "error",
-        text1: t.error || "Error",
-        text2: t.somethingWentWrongPleaseTryAgain || "Something went wrong. Please try again.",
+      toast.error(t.error || "Error", {
+        description:
+          t.somethingWentWrongPleaseTryAgain ||
+          "Something went wrong. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -426,94 +408,82 @@ export default function AddExpenseScreen() {
 
   const handleTransfer = async () => {
     if (!transferAmount || Number.parseFloat(transferAmount) <= 0) {
-      Toast.show({
-        type: "error",
-        text1: t.error || "Error",
-        text2: t.pleaseEnterValidTransferAmount || "Please enter a valid transfer amount",
+      toast.error(t.error || "Error", {
+        description:
+          t.pleaseEnterValidTransferAmount ||
+          "Please enter a valid transfer amount",
       });
       return;
     }
 
     if (!fromAccount || !toAccount) {
-      Toast.show({
-        type: "error",
-        text1: "Select Accounts",
-        text2: "Please select both from and to accounts",
+      toast.error("Select Accounts", {
+        description: "Please select both from and to accounts",
       });
       return;
     }
 
     if (fromAccount.id === toAccount.id) {
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Cannot transfer to the same account",
+      toast.error("Error", {
+        description: "Cannot transfer to the same account",
       });
       return;
     }
 
     const amountNum = Number.parseFloat(transferAmount);
-    if (amountNum > fromAccount.amount) {
-      Toast.show({
-        type: "error",
-        text1: "Insufficient Funds",
-        text2: "Insufficient balance in the from account",
-      });
-      return;
-    }
 
     setIsSubmitting(true);
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getCurrentUserOfflineFirst();
       if (!user) throw new Error("Please log in first");
 
-      // Add transfer record
-      await addTransfer({
-        user_id: user.id,
-        from_account_id: fromAccount.id,
-        to_account_id: toAccount.id,
-        amount: amountNum,
-        description: `Transfer from ${fromAccount.name} to ${toAccount.name}`,
-        date: date.toISOString().split("T")[0],
-      });
+      const dateStr = date.toISOString().split("T")[0];
 
-      // Add EXPENSE transaction for FROM account
-      await addTransaction({
+      // Create both transactions in local store first so they show on dashboard immediately
+      createTransactionLocal({
         user_id: user.id,
         account_id: fromAccount.id,
         amount: amountNum,
         description: `Transfer to ${toAccount.name}`,
-        date: date.toISOString().split("T")[0],
+        date: dateStr,
         category: "Transfer",
         is_recurring: false,
         type: "expense",
       });
-
-      // Add INCOME transaction for TO account
-      await addTransaction({
+      createTransactionLocal({
         user_id: user.id,
         account_id: toAccount.id,
         amount: amountNum,
         description: `Transfer from ${fromAccount.name}`,
-        date: date.toISOString().split("T")[0],
+        date: dateStr,
         category: "Transfer",
         is_recurring: false,
         type: "income",
       });
 
-      // Update account balances
-      await Promise.all([
-        updateAccountBalance(fromAccount.id, fromAccount.amount - amountNum),
-        updateAccountBalance(toAccount.id, toAccount.amount + amountNum),
-      ]);
+      // Create transfer record locally; sync engine will push to Supabase.
+      createTransferLocal({
+        user_id: user.id,
+        from_account_id: fromAccount.id,
+        to_account_id: toAccount.id,
+        amount: amountNum,
+        description: `Transfer from ${fromAccount.name} to ${toAccount.name}`,
+        date: dateStr,
+      });
 
-      Toast.show({
-        type: "success",
-        text1: "Transfer Successful!",
-        text2: `$${amountNum.toFixed(2)} transferred from ${fromAccount.name} to ${toAccount.name}`,
+      // Update account balances in local store (instant); sync engine will persist remotely.
+      const fromNew = fromAccount.amount - amountNum;
+      const toNew = toAccount.amount + amountNum;
+      updateAccountLocal(fromAccount.id, { amount: fromNew });
+      updateAccountLocal(toAccount.id, { amount: toNew });
+
+      if (!(await isOfflineGateLocked())) {
+        void triggerSync();
+      }
+
+      toast.success("Transfer Successful!", {
+        description: `$${amountNum.toFixed(2)} transferred from ${fromAccount.name} to ${toAccount.name}`,
       });
 
       setTimeout(() => {
@@ -521,10 +491,8 @@ export default function AddExpenseScreen() {
       }, 500);
     } catch (error) {
       console.error(error);
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Transfer failed. Please try again.",
+      toast.error("Error", {
+        description: "Transfer failed. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -543,17 +511,15 @@ export default function AddExpenseScreen() {
       );
     }
 
-    // For Income and Expense
+    // For Income and Expense (note/description is optional)
     return (
       !!amount &&
-      !!description.trim() &&
       !!selectedAccount &&
       !!selectedCategory &&
       !isSubmitting
     );
   }, [
     amount,
-    description,
     selectedAccount,
     selectedCategory,
     entryType,
@@ -565,10 +531,6 @@ export default function AddExpenseScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-      <StatusBar
-        barStyle={theme.isDark ? "light-content" : "dark-content"}
-        backgroundColor={theme.background}
-      />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -598,59 +560,289 @@ export default function AddExpenseScreen() {
           <Text style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}>
             {t.add_transaction || "Add Transaction"}
           </Text>
-          <TouchableOpacity
-            style={{
-              paddingVertical: 10,
-              paddingHorizontal: 20,
-              borderRadius: 12,
-              backgroundColor: isFormValid() ? theme.primary : theme.cardBackground,
-            }}
-            onPress={entryType === "Transfer" ? handleTransfer : handleSaveExpense}
-            disabled={!isFormValid()}
-          >
-            <Text
-              style={{
-                fontWeight: "600",
-                fontSize: 14,
-                color: isFormValid() ? theme.primaryText : theme.textMuted,
-              }}
-            >
-              {isSubmitting ? t.saving || "Saving..." : t.save || "Save"}
-            </Text>
-          </TouchableOpacity>
+          <View style={{ width: 76 }} />
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 24 }}
+        >
           {/* Type Tabs - Modern Pills */}
-          <View style={{ paddingHorizontal: 16, paddingVertical: 16, backgroundColor: theme.background }}>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              {ENTRY_TABS.map((tab) => (
+          <View
+            style={{
+              paddingHorizontal: 16,
+              paddingVertical: 16,
+              backgroundColor: theme.background,
+            }}
+          >
+            <View
+              style={{
+                flexDirection: "row",
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: theme.border,
+                overflow: "hidden",
+              }}
+            >
+              {ENTRY_TABS.map((tab, index) => {
+                const isActive = entryType === tab.id;
+                const activeBg = "#00BFFF";
+                return (
+                  <TouchableOpacity
+                    key={tab.id}
+                    activeOpacity={1}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 12,
+                      backgroundColor: isActive
+                        ? activeBg
+                        : theme.cardBackground,
+                      borderRightWidth: index < ENTRY_TABS.length - 1 ? 1 : 0,
+                      borderRightColor: theme.border,
+                    }}
+                    onPress={() => handleEntryTypeChange(tab.id)}
+                  >
+                    <Text
+                      style={{
+                        textAlign: "center",
+                        fontWeight: isActive ? "600" : "400",
+                        fontSize: 14,
+                        color: isActive ? "#FFFFFF" : theme.text,
+                      }}
+                    >
+                      {tab.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Input Mode Selector - Only show for Expense */}
+          {entryType === "Expense" && (
+            <View
+              style={{
+                paddingHorizontal: 16,
+                paddingBottom: 16,
+                backgroundColor: theme.background,
+              }}
+            >
+              <View style={{ flexDirection: "row", gap: 8 }}>
                 <TouchableOpacity
-                  key={tab.id}
                   style={{
                     flex: 1,
                     paddingVertical: 12,
-                    borderRadius: 20,
-                    backgroundColor: entryType === tab.id ? theme.primary : theme.cardBackground,
+                    borderRadius: 12,
+                    backgroundColor:
+                      inputMode === "normal"
+                        ? "#00BFFF"
+                        : theme.cardBackground,
                     borderWidth: 1,
-                    borderColor: entryType === tab.id ? theme.primary : theme.border,
+                    borderColor:
+                      inputMode === "normal" ? "#00BFFF" : theme.border,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
                   }}
-                  onPress={() => handleEntryTypeChange(tab.id)}
+                  onPress={() => setInputMode("normal")}
+                  activeOpacity={0.8}
                 >
                   <Text
                     style={{
-                      textAlign: "center",
-                      fontWeight: entryType === tab.id ? "600" : "400",
+                      fontWeight: inputMode === "normal" ? "600" : "400",
                       fontSize: 14,
-                      color: entryType === tab.id ? theme.primaryText : theme.textSecondary,
+                      color:
+                        inputMode === "normal"
+                          ? "#FFFFFF"
+                          : theme.textSecondary,
                     }}
                   >
-                    {tab.label}
+                    Manual Entry
                   </Text>
                 </TouchableOpacity>
-              ))}
+                <TouchableOpacity
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    backgroundColor:
+                      inputMode === "ocr"
+                        ? "#00BFFF"
+                        : theme.cardBackground,
+                    borderWidth: 1,
+                    borderColor:
+                      inputMode === "ocr" ? "#00BFFF" : theme.border,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                  }}
+                  onPress={() => setInputMode("ocr")}
+                  activeOpacity={0.8}
+                >
+                  <Scan
+                    size={16}
+                    color={
+                      inputMode === "ocr"
+                        ? "#FFFFFF"
+                        : theme.textSecondary
+                    }
+                  />
+                  <Text
+                    style={{
+                      fontWeight: inputMode === "ocr" ? "600" : "400",
+                      fontSize: 14,
+                      color:
+                        inputMode === "ocr"
+                          ? "#FFFFFF"
+                          : theme.textSecondary,
+                    }}
+                  >
+                    Scan Receipt
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          )}
+
+          {/* OCR Mode UI */}
+          {entryType === "Expense" && inputMode === "ocr" && (
+            <View style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
+              {isProcessingOCR ? (
+                <View
+                  style={{
+                    padding: 32,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: theme.cardBackground,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                  }}
+                >
+                  <ActivityIndicator size="large" color={theme.primary} />
+                  <Text
+                    style={{
+                      marginTop: 16,
+                      color: theme.text,
+                      fontSize: 16,
+                      fontWeight: "500",
+                    }}
+                  >
+                    Processing receipt...
+                  </Text>
+                  <Text
+                    style={{
+                      marginTop: 8,
+                      color: theme.textSecondary,
+                      fontSize: 14,
+                      textAlign: "center",
+                    }}
+                  >
+                    Please wait while we extract information from your receipt
+                  </Text>
+                </View>
+              ) : (
+                <View
+                  style={{
+                    padding: 24,
+                    backgroundColor: theme.cardBackground,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                  }}
+                >
+                  <View style={{ alignItems: "center", marginBottom: 24 }}>
+                    <View
+                      style={{
+                        width: 64,
+                        height: 64,
+                        borderRadius: 32,
+                        backgroundColor: `${theme.primary}20`,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        marginBottom: 16,
+                      }}
+                    >
+                      <Scan size={32} color={theme.primary} />
+                    </View>
+                    <Text
+                      style={{
+                        fontSize: 18,
+                        fontWeight: "600",
+                        color: theme.text,
+                        marginBottom: 8,
+                      }}
+                    >
+                      Scan Receipt
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        color: theme.textSecondary,
+                        textAlign: "center",
+                      }}
+                    >
+                      Take a photo or choose from gallery to automatically
+                      extract expense details
+                    </Text>
+                  </View>
+                  <View style={{ gap: 12 }}>
+                    <TouchableOpacity
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        paddingVertical: 16,
+                        borderRadius: 12,
+                        backgroundColor: theme.primary,
+                        gap: 8,
+                      }}
+                      onPress={handleTakePhoto}
+                    >
+                      <Camera size={20} color={theme.primaryText} />
+                      <Text
+                        style={{
+                          color: theme.primaryText,
+                          fontSize: 16,
+                          fontWeight: "600",
+                        }}
+                      >
+                        Take Photo
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        paddingVertical: 16,
+                        borderRadius: 12,
+                        backgroundColor: theme.cardBackground,
+                        borderWidth: 1,
+                        borderColor: theme.border,
+                        gap: 8,
+                      }}
+                      onPress={handlePickImage}
+                    >
+                      <ImageIcon size={20} color={theme.text} />
+                      <Text
+                        style={{
+                          color: theme.text,
+                          fontSize: 16,
+                          fontWeight: "600",
+                        }}
+                      >
+                        Choose from Gallery
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Input Mode Selector - Only show for Expense */}
           {entryType === "Expense" && (
@@ -906,6 +1098,51 @@ export default function AddExpenseScreen() {
             />
           )}
         </ScrollView>
+
+        {/* Save button - Fixed at bottom with clear spacing */}
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingTop: 8,
+            paddingBottom: Math.max(insets.bottom, 12),
+            alignItems: "flex-end",
+            backgroundColor: theme.background,
+            borderTopWidth: 1,
+            borderTopColor: theme.border,
+          }}
+        >
+          <TouchableOpacity
+            style={{
+              paddingVertical: 14,
+              paddingHorizontal: 28,
+              borderRadius: 14,
+              backgroundColor: theme.primary,
+              minWidth: 120,
+              alignItems: "center",
+              opacity: isFormValid() ? 1 : 0.7,
+            }}
+            onPress={
+              entryType === "Transfer" ? handleTransfer : handleSaveExpense
+            }
+            disabled={!isFormValid()}
+          >
+            <Text
+              style={{
+                fontWeight: "600",
+                fontSize: 16,
+                color: theme.primaryText,
+              }}
+            >
+              {entryType === "Transfer"
+                ? isSubmitting
+                  ? t.saving || "Saving..."
+                  : (t.completeTransfer || "Transfer")
+                : isSubmitting
+                  ? t.saving || "Saving..."
+                  : t.save || "Save"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

@@ -1,0 +1,133 @@
+import { observable } from "@legendapp/state";
+import { v4 as uuidv4 } from "uuid";
+
+import type { Profile } from "../types/types";
+import { legendPersist } from "./legendPersist";
+import {
+  LocalProfile,
+  ensureId,
+  markPending,
+  nowIso,
+  safeMerge,
+  softDelete,
+} from "./storeUtils";
+
+export interface ProfilesState {
+  byId: Record<string, LocalProfile>;
+  allIds: string[];
+}
+
+const initialState: ProfilesState = {
+  byId: {},
+  allIds: [],
+};
+
+export const profiles$ = observable<ProfilesState>(initialState);
+
+legendPersist(profiles$, "profiles");
+
+export function selectProfile(userId: string): LocalProfile | undefined {
+  const state = profiles$.get();
+  const row = state.byId[userId];
+  if (!row || row.deleted_at != null) return undefined;
+  return row;
+}
+
+export function createProfileLocal(
+  userId: string,
+  data: Omit<Profile, "id" | "created_at"> & { id?: string }
+): LocalProfile {
+  const now = nowIso();
+  const id = data.id ?? userId ?? uuidv4();
+
+  const base: LocalProfile = {
+    id,
+    full_name: data.full_name,
+    phone: data.phone,
+    user_type: data.user_type,
+    created_at: now,
+    image_url: data.image_url,
+    email: data.email,
+    deleted_at: null,
+    __local_status: "pending",
+    __local_updated_at: now,
+    __last_error: null,
+    __remote_updated_at: null,
+  };
+
+  const row = markPending(base);
+
+  profiles$.set((state) => {
+    const nextById = { ...state.byId, [id]: row };
+    const nextAllIds = ensureId(state.allIds, id);
+    return { ...state, byId: nextById, allIds: nextAllIds };
+  });
+
+  return row;
+}
+
+export function updateProfileLocal(
+  userId: string,
+  patch: Partial<Omit<Profile, "id" | "created_at">>
+): LocalProfile | undefined {
+  let updated: LocalProfile | undefined;
+
+  console.log("[profileStore] updateProfileLocal called with patch:", JSON.stringify(patch));
+
+  profiles$.set((state) => {
+    const existing = state.byId[userId];
+    const now = nowIso();
+    
+    if (!existing) {
+      console.log("[profileStore] No existing profile found for userId:", userId, "- creating new one");
+      // Create a new profile if one doesn't exist (upsert behavior)
+      const newProfile: LocalProfile = {
+        id: userId,
+        full_name: patch.full_name ?? null,
+        phone: patch.phone ?? null,
+        user_type: patch.user_type ?? null,
+        created_at: now,
+        image_url: patch.image_url ?? null,
+        email: patch.email ?? null,
+        deleted_at: null,
+        __local_status: "pending",
+        __local_updated_at: now,
+        __last_error: null,
+        __remote_updated_at: null,
+      };
+      
+      const row = markPending(newProfile);
+      updated = row;
+      console.log("[profileStore] Created new profile for userId:", userId);
+      
+      const nextById = { ...state.byId, [userId]: row };
+      const nextAllIds = ensureId(state.allIds, userId);
+      return { ...state, byId: nextById, allIds: nextAllIds };
+    }
+
+    const merged = safeMerge<LocalProfile>(existing, {
+      ...patch,
+    } as Partial<LocalProfile>);
+
+    const row = markPending(merged);
+    updated = row;
+    console.log("[profileStore] Updated profile image_url:", row.image_url, "status:", row.__local_status);
+
+    const nextById = { ...state.byId, [userId]: row };
+    return { ...state, byId: nextById, allIds: state.allIds };
+  });
+
+  return updated;
+}
+
+export function deleteProfileLocal(userId: string): void {
+  profiles$.set((state) => {
+    const existing = state.byId[userId];
+    if (!existing) return state;
+
+    const row = softDelete(existing);
+    const nextById = { ...state.byId, [userId]: row };
+    return { ...state, byId: nextById, allIds: state.allIds };
+  });
+}
+

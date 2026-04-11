@@ -2,12 +2,14 @@ import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   RefreshControl,
   Alert,
   ActivityIndicator,
-  StatusBar,
+  FlatList,
+  ScrollView,
+  Modal,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -27,10 +29,13 @@ import {
   Wallet,
   Settings,
   Zap,
+  WifiOff,
+  ChevronDown,
+  Filter,
 } from "lucide-react-native";
 import { format, formatDistanceToNow } from "date-fns";
-import { supabase } from "~/lib";
-import { useTheme } from "~/lib";
+import { getCurrentUserOfflineFirst } from "~/lib";
+import { useTheme, useScreenStatusBar, useAccount } from "~/lib";
 import {
   getUserNotifications,
   markNotificationAsRead,
@@ -41,50 +46,130 @@ import {
   type NotificationType,
   type NotificationPriority,
 } from "~/lib/services/notifications";
+import {
+  selectNotifications,
+  selectNotificationsByAccount,
+  selectUnreadCount,
+  selectUnreadCountByAccount,
+  markNotificationAsReadLocal,
+  markAllNotificationsAsReadLocal,
+  deleteNotificationLocal,
+  syncNotificationsFromServer,
+  type LocalNotification,
+} from "~/lib/stores/notificationsStore";
+import { isOfflineGateLocked, triggerSync } from "~/lib/sync/legendSync";
 
-import Toast from "react-native-toast-message";
+import { toast } from "sonner-native";
+
+type FilterMode = "all" | "selected";
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  useScreenStatusBar();
+  const { selectedAccount, accounts } = useAccount();
+  const [notifications, setNotifications] = useState<LocalNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [filterMode, setFilterMode] = useState<FilterMode>("all");
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
 
-  // Fetch notifications
+  const handleGoBack = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(main)/Dashboard");
+    }
+  }, [router]);
+
+  // Get filtered notifications based on filter mode
+  const getFilteredNotifications = useCallback(
+    (userId: string): LocalNotification[] => {
+      if (filterMode === "selected" && selectedAccount) {
+        return selectNotificationsByAccount(userId, selectedAccount.id);
+      }
+      return selectNotifications(userId);
+    },
+    [filterMode, selectedAccount]
+  );
+
+  // Get filtered unread count based on filter mode
+  const getFilteredUnreadCount = useCallback(
+    (userId: string): number => {
+      if (filterMode === "selected" && selectedAccount) {
+        return selectUnreadCountByAccount(userId, selectedAccount.id);
+      }
+      return selectUnreadCount(userId);
+    },
+    [filterMode, selectedAccount]
+  );
+
+  // Fetch notifications with offline support
   const fetchNotifications = useCallback(async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getCurrentUserOfflineFirst();
       if (!user) return;
+      
+      setCurrentUserId(user.id);
+      const offline = await isOfflineGateLocked();
+      setIsOffline(offline);
 
-      const [notificationsData, unreadCountData] = await Promise.all([
-        getUserNotifications(user.id),
-        getUnreadNotificationCount(user.id),
-      ]);
+      // Always load from local store first (immediate display)
+      const localNotifications = getFilteredNotifications(user.id);
+      const localUnreadCount = getFilteredUnreadCount(user.id);
+      
+      setNotifications(localNotifications);
+      setUnreadCount(localUnreadCount);
 
-      setNotifications(notificationsData);
-      setUnreadCount(unreadCountData);
+      // If online, fetch from server and sync to local store
+      if (!offline) {
+        try {
+          const [serverNotifications, serverUnreadCount] = await Promise.all([
+            getUserNotifications(user.id),
+            getUnreadNotificationCount(user.id),
+          ]);
+
+          // Sync server data to local store
+          syncNotificationsFromServer(serverNotifications, user.id);
+          
+          // Refresh from local store after sync (with filtering)
+          const updatedNotifications = getFilteredNotifications(user.id);
+          const updatedUnreadCount = getFilteredUnreadCount(user.id);
+          
+          setNotifications(updatedNotifications);
+          setUnreadCount(updatedUnreadCount);
+        } catch (serverError) {
+          console.error("Error fetching from server, using local data:", serverError);
+          // Local data is already set, no action needed
+        }
+      }
     } catch (error) {
       console.error("Error fetching notifications:", error);
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Failed to load notifications",
-      });
+      toast.error("Error", { description: "Failed to load notifications" });
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [getFilteredNotifications, getFilteredUnreadCount]);
 
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
+
+  // Refetch when filter mode or selected account changes
+  useEffect(() => {
+    if (currentUserId) {
+      const updatedNotifications = getFilteredNotifications(currentUserId);
+      const updatedUnreadCount = getFilteredUnreadCount(currentUserId);
+      setNotifications(updatedNotifications);
+      setUnreadCount(updatedUnreadCount);
+    }
+  }, [filterMode, selectedAccount?.id, currentUserId, getFilteredNotifications, getFilteredUnreadCount]);
 
   // Handle refresh
   const onRefresh = useCallback(() => {
@@ -93,11 +178,13 @@ export default function NotificationsScreen() {
   }, [fetchNotifications]);
 
   // Handle notification press
-  const handleNotificationPress = async (notification: Notification) => {
+  const handleNotificationPress = async (notification: LocalNotification) => {
     try {
       // Mark as read if not already read
       if (!notification.is_read) {
-        await markNotificationAsRead(notification.id);
+        // Update local store first (offline-first)
+        markNotificationAsReadLocal(notification.id);
+        
         setNotifications((prev) =>
           prev.map((n) =>
             n.id === notification.id
@@ -107,36 +194,36 @@ export default function NotificationsScreen() {
         );
         setUnreadCount((prev) => Math.max(0, prev - 1));
 
-        // Show feedback for marking as read
-        Toast.show({
-          type: "info",
-          text1: "Marked as Read",
-          text2: "Notification marked as read",
-          visibilityTime: 2000,
+        // Sync to server if online
+        if (!isOffline) {
+          try {
+            await markNotificationAsRead(notification.id);
+          } catch (serverError) {
+            console.error("Failed to sync read status to server:", serverError);
+          }
+        }
+
+        toast.info("Marked as Read", {
+          description: "Notification marked as read",
+          duration: 2000,
         });
       }
 
       // Navigate to action URL if available
       if (notification.action_url) {
-        // Small delay to allow the read state to update visually
         setTimeout(() => {
           router.push(notification.action_url as any);
         }, 100);
       } else {
-        // If no action URL, show a message
-        Toast.show({
-          type: "info",
-          text1: notification.title,
-          text2: "Notification details viewed",
-          visibilityTime: 2000,
+        toast.info(notification.title, {
+          description: "Notification details viewed",
+          duration: 2000,
         });
       }
     } catch (error) {
       console.error("Error handling notification press:", error);
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Failed to mark notification as read",
+      toast.error("Error", {
+        description: "Failed to mark notification as read",
       });
     }
   };
@@ -144,12 +231,11 @@ export default function NotificationsScreen() {
   // Mark all as read
   const handleMarkAllAsRead = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!currentUserId) return;
 
-      await markAllNotificationsAsRead(user.id);
+      // Update local store first (offline-first)
+      markAllNotificationsAsReadLocal(currentUserId);
+      
       setNotifications((prev) =>
         prev.map((n) => ({
           ...n,
@@ -159,17 +245,22 @@ export default function NotificationsScreen() {
       );
       setUnreadCount(0);
 
-      Toast.show({
-        type: "success",
-        text1: "Success",
-        text2: "All notifications marked as read",
+      // Sync to server if online
+      if (!isOffline) {
+        try {
+          await markAllNotificationsAsRead(currentUserId);
+        } catch (serverError) {
+          console.error("Failed to sync mark all read to server:", serverError);
+        }
+      }
+
+      toast.success("Success", {
+        description: "All notifications marked as read",
       });
     } catch (error) {
       console.error("Error marking all as read:", error);
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Failed to mark notifications as read",
+      toast.error("Error", {
+        description: "Failed to mark notifications as read",
       });
     }
   };
@@ -177,20 +268,26 @@ export default function NotificationsScreen() {
   // Delete notification
   const handleDeleteNotification = async (notificationId: string) => {
     try {
-      await deleteNotification(notificationId);
+      // Delete from local store first (offline-first)
+      deleteNotificationLocal(notificationId);
       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
 
-      Toast.show({
-        type: "success",
-        text1: "Deleted",
-        text2: "Notification deleted successfully",
+      // Sync to server if online
+      if (!isOffline) {
+        try {
+          await deleteNotification(notificationId);
+        } catch (serverError) {
+          console.error("Failed to sync delete to server:", serverError);
+        }
+      }
+
+      toast.success("Deleted", {
+        description: "Notification deleted successfully",
       });
     } catch (error) {
       console.error("Error deleting notification:", error);
-      Toast.show({
-        type: "error",
-        text1: "Error",
-        text2: "Failed to delete notification",
+      toast.error("Error", {
+        description: "Failed to delete notification",
       });
     }
   };
@@ -224,26 +321,33 @@ export default function NotificationsScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              await Promise.all(
-                Array.from(selectedIds).map((id) => deleteNotification(id))
-              );
+              // Delete from local store first (offline-first)
+              Array.from(selectedIds).forEach((id) => deleteNotificationLocal(id));
+              
               setNotifications((prev) =>
                 prev.filter((n) => !selectedIds.has(n.id))
               );
               setSelectedIds(new Set());
               setIsSelectionMode(false);
 
-              Toast.show({
-                type: "success",
-                text1: "Deleted",
-                text2: `${selectedIds.size} notification(s) deleted`,
+              // Sync to server if online
+              if (!isOffline) {
+                try {
+                  await Promise.all(
+                    Array.from(selectedIds).map((id) => deleteNotification(id))
+                  );
+                } catch (serverError) {
+                  console.error("Failed to sync deletes to server:", serverError);
+                }
+              }
+
+              toast.success("Deleted", {
+                description: `${selectedIds.size} notification(s) deleted`,
               });
             } catch (error) {
               console.error("Error deleting notifications:", error);
-              Toast.show({
-                type: "error",
-                text1: "Error",
-                text2: "Failed to delete notifications",
+              toast.error("Error", {
+                description: "Failed to delete notifications",
               });
             }
           },
@@ -253,7 +357,7 @@ export default function NotificationsScreen() {
   };
 
   // Get notification icon
-  const getNotificationIcon = (
+  const getNotificationIcon = useCallback((
     type: NotificationType,
     priority: NotificationPriority
   ) => {
@@ -281,10 +385,10 @@ export default function NotificationsScreen() {
       default:
         return <Bell {...iconProps} color={theme.textSecondary} />;
     }
-  };
+  }, [theme.textSecondary]);
 
   // Render notification item
-  const renderNotificationItem = ({ item }: { item: Notification }) => {
+  const renderNotificationItem = ({ item }: { item: LocalNotification }) => {
     const isSelected = selectedIds.has(item.id);
 
     return (
@@ -296,7 +400,7 @@ export default function NotificationsScreen() {
           marginHorizontal: 16,
           marginVertical: 4,
           borderWidth: 1,
-          borderColor: isSelected ? theme.primary : theme.border,
+          borderColor: isSelected ? "#00BFFF" : theme.border,
         }}
         onPress={() =>
           isSelectionMode
@@ -320,8 +424,8 @@ export default function NotificationsScreen() {
                 height: 20,
                 borderRadius: 10,
                 borderWidth: 2,
-                borderColor: isSelected ? theme.primary : theme.border,
-                backgroundColor: isSelected ? theme.primary : "transparent",
+                borderColor: isSelected ? "#00BFFF" : theme.border,
+                backgroundColor: isSelected ? "#00BFFF" : "transparent",
                 alignItems: "center",
                 justifyContent: "center",
                 marginRight: 12,
@@ -410,7 +514,7 @@ export default function NotificationsScreen() {
               }}
               style={{ padding: 4, marginLeft: 8 }}
             >
-              <Trash2 size={16} color={theme.textSecondary} />
+              <Trash2 size={18} color={theme.danger} />
             </TouchableOpacity>
           )}
         </View>
@@ -421,10 +525,6 @@ export default function NotificationsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-        <StatusBar
-          barStyle={theme.isDark ? "light-content" : "dark-content"}
-          backgroundColor={theme.background}
-        />
         <View
           style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
         >
@@ -439,10 +539,6 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-      <StatusBar
-        barStyle={theme.isDark ? "light-content" : "dark-content"}
-        backgroundColor={theme.background}
-      />
       {/* Header */}
       <View
         style={{
@@ -456,7 +552,7 @@ export default function NotificationsScreen() {
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={handleGoBack}>
             <ChevronLeft size={24} color={theme.icon} />
           </TouchableOpacity>
           <Text
@@ -511,6 +607,33 @@ export default function NotificationsScreen() {
             </>
           ) : (
             <>
+              <TouchableOpacity
+                onPress={() => setShowFilterSheet(true)}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: filterMode === "selected" ? `${theme.primary}15` : "transparent",
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: filterMode === "selected" ? theme.primary : theme.border,
+                }}
+              >
+                <Filter size={16} color={filterMode === "selected" ? theme.primary : theme.textSecondary} />
+                <Text
+                  style={{
+                    color: filterMode === "selected" ? theme.primary : theme.textSecondary,
+                    fontSize: 13,
+                    fontWeight: "500",
+                    marginLeft: 4,
+                  }}
+                  numberOfLines={1}
+                >
+                  {filterMode === "all" ? "All" : selectedAccount?.name ?? "Selected"}
+                </Text>
+                <ChevronDown size={14} color={filterMode === "selected" ? theme.primary : theme.textSecondary} style={{ marginLeft: 2 }} />
+              </TouchableOpacity>
               {unreadCount > 0 && (
                 <TouchableOpacity onPress={handleMarkAllAsRead}>
                   <CheckCheck size={20} color={theme.primary} />
@@ -520,6 +643,25 @@ export default function NotificationsScreen() {
           )}
         </View>
       </View>
+
+      {/* Offline Banner */}
+      {isOffline && (
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: theme.warning + "20",
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            gap: 8,
+          }}
+        >
+          <WifiOff size={16} color={theme.warning} />
+          <Text style={{ color: theme.warning, fontSize: 13, flex: 1 }}>
+            You're offline. Showing cached notifications.
+          </Text>
+        </View>
+      )}
 
       {/* Notifications List */}
       {notifications.length === 0 ? (
@@ -570,6 +712,194 @@ export default function NotificationsScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Filter Sheet Modal */}
+      <Modal
+        visible={showFilterSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowFilterSheet(false)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            justifyContent: "flex-end",
+            backgroundColor: "rgba(0,0,0,0.4)",
+          }}
+          onPress={() => setShowFilterSheet(false)}
+        >
+          <Pressable
+            style={{
+              maxHeight: "60%",
+              backgroundColor: theme.cardBackground,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              overflow: "hidden",
+            }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View
+              style={{
+                paddingTop: 12,
+                paddingBottom: 8,
+                alignItems: "center",
+              }}
+            >
+              <View
+                style={{
+                  width: 36,
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: theme.border,
+                }}
+              />
+            </View>
+            <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: "700",
+                  color: theme.text,
+                  marginBottom: 16,
+                }}
+              >
+                Filter Notifications
+              </Text>
+
+              {/* All Accounts Option */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => {
+                  setFilterMode("all");
+                  setShowFilterSheet(false);
+                }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingVertical: 14,
+                  paddingHorizontal: 12,
+                  borderRadius: 12,
+                  backgroundColor: filterMode === "all" ? `${theme.primary}15` : theme.background,
+                  marginBottom: 8,
+                  borderWidth: 1,
+                  borderColor: filterMode === "all" ? theme.primary : theme.border,
+                }}
+              >
+                <View
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 10,
+                    backgroundColor: `${theme.primary}18`,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginRight: 12,
+                  }}
+                >
+                  <Bell size={20} color={theme.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "600",
+                      color: theme.text,
+                    }}
+                  >
+                    All Accounts
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: theme.textSecondary,
+                      marginTop: 2,
+                    }}
+                  >
+                    Show notifications from all accounts
+                  </Text>
+                </View>
+                {filterMode === "all" && (
+                  <Check size={20} color={theme.primary} />
+                )}
+              </TouchableOpacity>
+
+              {/* Selected Account Option */}
+              {selectedAccount && (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    setFilterMode("selected");
+                    setShowFilterSheet(false);
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    paddingVertical: 14,
+                    paddingHorizontal: 12,
+                    borderRadius: 12,
+                    backgroundColor: filterMode === "selected" ? `${theme.primary}15` : theme.background,
+                    marginBottom: 8,
+                    borderWidth: 1,
+                    borderColor: filterMode === "selected" ? theme.primary : theme.border,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 10,
+                      backgroundColor: `${theme.primary}18`,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 12,
+                    }}
+                  >
+                    <Wallet size={20} color={theme.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 16,
+                        fontWeight: "600",
+                        color: theme.text,
+                      }}
+                    >
+                      {selectedAccount.name}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: theme.textSecondary,
+                        marginTop: 2,
+                      }}
+                    >
+                      Current selected account
+                    </Text>
+                  </View>
+                  {filterMode === "selected" && (
+                    <Check size={20} color={theme.primary} />
+                  )}
+                </TouchableOpacity>
+              )}
+
+              {/* Info text */}
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: theme.textSecondary,
+                  textAlign: "center",
+                  marginTop: 12,
+                  paddingHorizontal: 16,
+                }}
+              >
+                {filterMode === "selected"
+                  ? `Showing notifications for "${selectedAccount?.name}"`
+                  : "Showing notifications from all accounts"}
+              </Text>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }

@@ -1,15 +1,18 @@
-﻿# Qoondeeye Development Guidelines
+# Qoondeeye Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2025-11-09
+Auto-generated from all feature plans. Last updated: 2025-02-14
 
 ## Active Technologies
 
 - TypeScript 5.8.3, JavaScript (ES2020+) + React Native 0.79.6, Expo SDK 53, React 19.0.0, Supabase JS 2.50.2 (001-fix-launch-crash)
+- TypeScript 5.8 + PowerSync, local SQLite (002-offline-online-support)
 
 ## Project Structure
 
 ```text
-src/
+app/
+lib/
+components/
 tests/
 ```
 
@@ -23,6 +26,8 @@ TypeScript 5.8.3, JavaScript (ES2020+): Follow standard conventions
 
 ## Recent Changes
 
+- 002-offline-online-support: Added PowerSync + local SQLite for offline-first sync
+- 003-negative-values-support: Allow negative account balances; remove insufficient-funds validation in expenses, transfers, loans
 - 001-fix-launch-crash: Added TypeScript 5.8.3, JavaScript (ES2020+) + React Native 0.79.6, Expo SDK 53, React 19.0.0, Supabase JS 2.50.2
 
 <!-- MANUAL ADDITIONS START -->

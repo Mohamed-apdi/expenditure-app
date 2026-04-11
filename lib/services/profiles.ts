@@ -1,3 +1,7 @@
+/**
+ * Profile service functions for managing user profiles
+ * Handles CRUD operations for user profile data
+ */
 import { supabase } from "../database/supabase";
 import type { Profile } from "../types/types";
 

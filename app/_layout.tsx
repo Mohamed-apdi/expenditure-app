@@ -1,3 +1,6 @@
+/**
+ * Root layout: providers, navigation stack, and global app setup
+ */
 import '~/global.css';
 
 import {
@@ -9,18 +12,33 @@ import {
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as React from 'react';
-import { Appearance, Platform, View } from 'react-native';
-import { NAV_THEME } from '~/lib';
-import { useColorScheme } from '~/lib';
+import { Appearance, LogBox, Platform, View } from 'react-native';
+
+// Suppress known third-party/expected warnings in development
+LogBox.ignoreLogs([
+  'SafeAreaView has been deprecated',
+  'expo-notifications: obtaining a push token',
+  'expo-notifications: Android Push notifications',
+  'expo-notifications` functionality is not fully supported',
+  'Push notifications are limited in Expo Go',
+]);
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ColorSchemeProvider, NAV_THEME, useColorScheme } from '~/lib';
 import { PortalHost } from '@rn-primitives/portal';
 import { setAndroidNavigationBar } from '~/lib';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import Toast from 'react-native-toast-message';
-import { AccountProvider } from '~/lib';
+import { Toaster } from 'sonner-native';
+import { AccountProvider, SyncProvider } from '~/lib';
 import * as Notifications from 'expo-notifications';
 import { notificationService } from '~/lib';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LanguageProvider } from '~/lib';
+import { EvcSmsInboundHost } from '~/components/EvcSmsInboundHost';
+
+// Ensure index is the initial route on app load/reload to avoid 404 when restoring state
+export const unstable_settings = {
+  initialRouteName: 'index',
+};
 
 const LIGHT_THEME: Theme = {
   ...DefaultTheme,
@@ -36,15 +54,37 @@ export {
   ErrorBoundary,
 } from 'expo-router';
 
-const usePlatformSpecificSetup = Platform.select({
-  web: useSetWebBackgroundClassName,
-  android: useSetAndroidNavigationBar,
-  default: noop,
-});
+const useIsomorphicLayoutEffect =
+  Platform.OS === 'web' && typeof window === 'undefined'
+    ? React.useEffect
+    : React.useLayoutEffect;
+
+function usePlatformSpecificSetup(isDarkColorScheme: boolean) {
+  useIsomorphicLayoutEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.documentElement.classList.add('bg-background');
+    }
+  }, []);
+  React.useLayoutEffect(() => {
+    if (Platform.OS === 'android') {
+      setAndroidNavigationBar(isDarkColorScheme ? 'dark' : 'light');
+    }
+  }, [isDarkColorScheme]);
+}
 
 export default function RootLayout() {
-  usePlatformSpecificSetup();
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ColorSchemeProvider>
+        <RootLayoutInner />
+      </ColorSchemeProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+function RootLayoutInner() {
   const { isDarkColorScheme } = useColorScheme();
+  usePlatformSpecificSetup(isDarkColorScheme);
 
   // Create React Query client
   const queryClient = React.useMemo(
@@ -63,27 +103,27 @@ export default function RootLayout() {
     [],
   );
 
-  // Initialize notifications globally
+  // Initialize notifications globally and request permission on app start
   React.useEffect(() => {
+    let subscription: Notifications.Subscription | undefined;
+    
     const initializeNotifications = async () => {
       try {
         // Check if we're in Expo Go (where notifications are limited)
         const { isExpoGo } = await import('~/lib');
 
-        if (isExpoGo) {
-          console.warn(
-            'Push notifications are limited in Expo Go with SDK 53. Use development build for full functionality.',
-          );
-          return;
-        }
+        if (isExpoGo) return;
+
+        // Register background task
+        await notificationService.registerBackgroundTask();
+
+        // Request notification permission using the default system dialog
+        await Notifications.requestPermissionsAsync();
 
         // Set up notification response listener globally
-        const subscription =
-          Notifications.addNotificationResponseReceivedListener(
-            notificationService.handleNotificationResponse,
-          );
-
-        return () => subscription.remove();
+        subscription = Notifications.addNotificationResponseReceivedListener(
+          notificationService.handleNotificationResponse,
+        );
       } catch (error) {
         console.error('Failed to initialize global notifications:', error);
         // Don't crash the app if notifications fail to initialize
@@ -91,6 +131,12 @@ export default function RootLayout() {
     };
 
     initializeNotifications();
+    
+    return () => {
+      if (subscription) {
+        subscription.remove();
+      }
+    };
   }, []);
 
   // Error boundary for catching initialization errors
@@ -118,43 +164,26 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <AccountProvider>
-          <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
-            <BottomSheetModalProvider>
-              <StatusBar style={isDarkColorScheme ? 'dark' : 'light'} />
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="(onboarding)" />
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(main)" />
-                <Stack.Screen name="(expense)" />
-                <Stack.Screen name="(profile)" />
-              </Stack>
-              <Toast />
-              <PortalHost />
-            </BottomSheetModalProvider>
-          </ThemeProvider>
+          <SyncProvider>
+            <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
+              <BottomSheetModalProvider>
+                <StatusBar style={isDarkColorScheme ? 'dark' : 'light'} />
+                <Stack screenOptions={{ headerShown: false, gestureEnabled: false }}>
+                  <Stack.Screen name="index" options={{ gestureEnabled: false }} />
+                  <Stack.Screen name="(onboarding)" options={{ gestureEnabled: false }} />
+                  <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
+                  <Stack.Screen name="(main)" options={{ gestureEnabled: false, animation: 'none' }} />
+                  <Stack.Screen name="(expense)" />
+                  <Stack.Screen name="(profile)" />
+                </Stack>
+                <Toaster />
+                <EvcSmsInboundHost />
+                <PortalHost />
+              </BottomSheetModalProvider>
+            </ThemeProvider>
+          </SyncProvider>
         </AccountProvider>
       </LanguageProvider>
     </QueryClientProvider>
   );
 }
-
-const useIsomorphicLayoutEffect =
-  Platform.OS === 'web' && typeof window === 'undefined'
-    ? React.useEffect
-    : React.useLayoutEffect;
-
-function useSetWebBackgroundClassName() {
-  useIsomorphicLayoutEffect(() => {
-    // Adds the background color to the html element to prevent white background on overscroll.
-    document.documentElement.classList.add('bg-background');
-  }, []);
-}
-
-function useSetAndroidNavigationBar() {
-  React.useLayoutEffect(() => {
-    setAndroidNavigationBar(Appearance.getColorScheme() ?? 'light');
-  }, []);
-}
-
-function noop() {}

@@ -6,14 +6,20 @@ import {
   ScrollView,
   TextInput,
   Modal,
-  SafeAreaView,
   FlatList,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { X, ChevronDown, Check, DollarSign } from "lucide-react-native";
-import { supabase } from "~/lib";
-import { updateAccount, fetchAccounts } from "~/lib";
-import { useTheme } from "~/lib";
+import {
+  getCurrentUserOfflineFirst,
+  updateAccountLocal,
+  selectAccountById,
+  createTransactionLocal,
+  isOfflineGateLocked,
+  triggerSync,
+} from "~/lib";
+import { useTheme, useScreenStatusBar } from "~/lib";
 import { useLanguage } from "~/lib";
 
 type AccountGroup = {
@@ -60,6 +66,7 @@ export default function EditAccount() {
   const [error, setError] = useState<string | null>(null);
   const theme = useTheme();
   const { t } = useLanguage();
+  useScreenStatusBar();
 
   const [formData, setFormData] = useState({
     account_type: "",
@@ -73,33 +80,41 @@ export default function EditAccount() {
   }, [id]);
 
   const loadAccount = async () => {
+    const accountId = Array.isArray(id) ? id[0] : id;
+    if (!accountId) return;
+
     try {
       setLoading(true);
 
-      // Get current user
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = await getCurrentUserOfflineFirst();
       if (!user) {
         router.replace("/login");
         return;
       }
 
-      // Fetch account data
-      const { data: accountData, error: accountError } = await supabase
-        .from("accounts")
-        .select("*")
-        .eq("id", id)
-        .eq("user_id", user.id)
-        .single();
+      const accountData = selectAccountById(user.id, accountId);
+      if (!accountData) {
+        setError(t.failedToLoadAccount);
+        return;
+      }
 
-      if (accountError) throw accountError;
-
-      setAccount(accountData);
+      setAccount({
+        id: accountData.id,
+        user_id: accountData.user_id,
+        account_type: accountData.account_type,
+        name: accountData.name,
+        amount: accountData.amount,
+        description: accountData.description,
+        created_at: accountData.created_at,
+        updated_at: accountData.updated_at,
+        group_id: accountData.group_id,
+        is_default: accountData.is_default,
+        currency: accountData.currency,
+      });
       setFormData({
         account_type: accountData.account_type || "",
         name: accountData.name || "",
-        amount: accountData.amount || 0,
+        amount: accountData.amount ?? 0,
         description: accountData.description || "",
       });
     } catch (error) {
@@ -122,14 +137,41 @@ export default function EditAccount() {
 
       if (!account) return;
 
-      const updatedAccount = await updateAccount(account.id, {
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      const latest = selectAccountById(user.id, account.id);
+      const previousAmount = latest?.amount ?? account.amount ?? 0;
+      const newAmount = formData.amount;
+      const delta =
+        Math.round((newAmount - previousAmount + Number.EPSILON) * 100) / 100;
+
+      if (Math.abs(delta) > 0) {
+        const dateStr = new Date().toISOString().split("T")[0];
+        createTransactionLocal({
+          user_id: user.id,
+          account_id: account.id,
+          amount: Math.abs(delta),
+          description: t.balanceAdjustmentDescription ?? "Account balance adjustment",
+          date: dateStr,
+          category: "Balance Adjustment",
+          is_recurring: false,
+          type: delta > 0 ? "income" : "expense",
+        });
+      }
+
+      updateAccountLocal(account.id, {
         account_type: formData.account_type,
         name: formData.name,
-        amount: formData.amount,
+        amount: newAmount,
         description: formData.description,
       });
 
-      // Navigate back to account details
+      if (!(await isOfflineGateLocked())) void triggerSync();
+
       router.back();
     } catch (error) {
       console.error("Error updating account:", error);
@@ -163,11 +205,11 @@ export default function EditAccount() {
 
   return (
     <SafeAreaView
-      className="flex-1 pt-safe"
+      className="flex-1"
       style={{ backgroundColor: theme.background }}
     >
       <View
-        className="flex-row justify-between items-center p-6 border-b"
+        className="flex-row justify-between items-center px-6 pt-4 pb-4 border-b"
         style={{ borderColor: theme.border }}
       >
         <Text className="text-xl font-bold" style={{ color: theme.text }}>

@@ -10,28 +10,30 @@ export default ({ config }) => ({
   userInterfaceStyle: "automatic",
 
   splash: {
-    image: "./assets/images/splash-icon-dark.png",
+    image: "./assets/images/splash-icon-light.png",
     resizeMode: "contain",
-    backgroundColor: "#ffffff"
+    backgroundColor: "#00BFFF"
   },
 
   assetBundlePatterns: ["**/*"],
 
   ios: {
+    bundleIdentifier: "com.mohamed-99.qoondeeye",
     supportsTablet: true,
     jsEngine: "hermes",
-    // iOS only accepts ONE app icon
+    buildNumber: "30",
     icon: {
-      dark:"./assets/images/ios-dark.png",
-      light:"./assets/images/ios-light.png",
-      tinted:"./assets/images/ios-tinted.png"
+      dark: "./assets/images/ios-light.png",
+      light: "./assets/images/ios-light.png",
+      tinted: "./assets/images/ios-light.png"
     }
   },
 
   android: {
+    versionCode: 30,
     adaptiveIcon: {
       foregroundImage: "./assets/images/adaptive-icon.png",
-      backgroundColor: "#ffffff"
+      backgroundColor: "#00BFFF"
     },
     jsEngine: "hermes",
     package: "com.mohamed_99.qoondeeye",
@@ -39,14 +41,15 @@ export default ({ config }) => ({
       "INTERNET",
       "ACCESS_NETWORK_STATE",
       "VIBRATE",
-      "RECEIVE_BOOT_COMPLETED"
+      "RECEIVE_BOOT_COMPLETED",
+      "RECEIVE_SMS"
     ]
   },
 
   web: {
     bundler: "metro",
     output: "static",
-    favicon: "./assets/images/favicon.png"
+    favicon: "./assets/images/adaptive-icon.png"
   },
 
   plugins: [
@@ -58,8 +61,8 @@ export default ({ config }) => ({
       "expo-notifications",
       {
         color: "#ffffff",
-        icon: "./assets/qoondeeye-notification.png",
-        sounds: ["./assets/sounds/notification.wav"]
+        icon: "./assets/images/notification-icon.png",
+        sounds: ["./assets/sounds/notification_alert.wav"]
       }
     ],
 
@@ -67,18 +70,19 @@ export default ({ config }) => ({
     [
       "expo-splash-screen",
       {
-        image: "./assets/images/splash-icon-dark.png",
+        image: "./assets/images/splash-icon-light.png",
         imageWidth: 200,
         resizeMode: "contain",
-        backgroundColor: "#ffffff",
+        backgroundColor: "#00BFFF",
         dark: {
           image: "./assets/images/splash-icon-light.png",
-          backgroundColor: "#000000"
+          backgroundColor: "#00BFFF"
         }
       }
     ],
 
-    "expo-font"
+    "expo-font",
+    ["@journeyapps/react-native-quick-sqlite", { staticLibrary: true }]
   ],
 
   experiments: {
@@ -90,7 +94,7 @@ export default ({ config }) => ({
     eas: {
       projectId: "731ac4ba-e439-4651-87c7-1739515acf33"
     },
-    // ✅ Add Supabase env vars for EAS builds
+    // Supabase env vars for EAS builds
     SUPABASE_URL: process.env.SUPABASE_URL,
     SUPABASE_KEY: process.env.SUPABASE_KEY
   }

@@ -1,3 +1,6 @@
+/**
+ * Language context: app language state and translations (t), persisted to secure storage
+ */
 import React, {
   createContext,
   useContext,

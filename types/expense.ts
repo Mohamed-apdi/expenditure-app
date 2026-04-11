@@ -6,5 +6,5 @@ export type Expense = {
   date: string;
 
   is_recurring?: boolean;
-  entry_type?: "Income" | "Expense" | "Lent" | "Debt/Loan" | "Saving"; // ⬅️ add
+  entry_type?: "Income" | "Expense" | "Lent" | "Loan" | "Saving"; // ⬅️ add
 };

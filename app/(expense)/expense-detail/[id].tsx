@@ -21,9 +21,20 @@ import {
   ArrowUpRight,
   Receipt,
 } from "lucide-react-native";
-import { supabase } from "~/lib";
+import {
+  getCurrentUserOfflineFirst,
+  selectExpenseById,
+  deleteExpenseLocal,
+  isOfflineGateLocked,
+  supabase,
+  triggerSync,
+} from "~/lib";
 import { format } from "date-fns";
-import { useTheme } from "~/lib";
+import { useTheme, useScreenStatusBar, useLanguage } from "~/lib";
+import {
+  categoryColorFromStored,
+  categoryLabelFromStored,
+} from "~/lib/utils/categories";
 
 type Expense = {
   id: string;
@@ -47,53 +58,41 @@ export default function ExpenseDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const theme = useTheme();
-  // Fetch expense data
-  const fetchExpense = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("expenses")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      if (error) throw error;
-      setExpense(data);
-    } catch (error) {
-      console.error("Error fetching expense:", error);
-      Alert.alert("Error", "Failed to load expense details");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Set up realtime subscription
+  const { t } = useLanguage();
+  useScreenStatusBar();
   useEffect(() => {
-    if (!id) return;
+    if (!id || typeof id !== "string") return;
 
-    // Initial fetch
-    fetchExpense();
-
-    // Subscribe to changes
-    const subscription = supabase
-      .channel("expense_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "expenses",
-          filter: `id=eq.${id}`,
-        },
-        (payload) => {
-          setExpense(payload.new as Expense);
+    const loadExpense = async () => {
+      try {
+        setLoading(true);
+        const user = await getCurrentUserOfflineFirst();
+        if (!user) return;
+        const data = selectExpenseById(user.id, id);
+        if (data) {
+          setExpense({
+            id: data.id,
+            amount: data.amount,
+            category: data.category,
+            description: data.description ?? "",
+            date: data.date,
+            is_recurring: data.is_recurring ?? false,
+            recurrence_interval: data.recurrence_interval,
+            is_essential: data.is_essential ?? false,
+            tags: data.tags,
+            created_at: data.created_at,
+            receipt_url: data.receipt_url,
+          });
         }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(subscription);
+      } catch (error) {
+        console.error("Error loading expense:", error);
+        Alert.alert("Error", "Failed to load expense details");
+      } finally {
+        setLoading(false);
+      }
     };
+
+    loadExpense();
   }, [id]);
 
   const handleDelete = async () => {
@@ -108,12 +107,10 @@ export default function ExpenseDetailScreen() {
           onPress: async () => {
             try {
               setDeleting(true);
-              const { error } = await supabase
-                .from("expenses")
-                .delete()
-                .eq("id", id);
-
-              if (error) throw error;
+              if (id && typeof id === "string") {
+                deleteExpenseLocal(id);
+                if (!(await isOfflineGateLocked())) void triggerSync();
+              }
               router.back();
             } catch (error) {
               console.error("Error deleting expense:", error);
@@ -127,27 +124,19 @@ export default function ExpenseDetailScreen() {
     );
   };
 
-  const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      Food: "#10b981",
-      Transport: "#3b82f6",
-      Utilities: "#f59e0b",
-      Entertainment: "#8b5cf6",
-      Healthcare: "#ef4444",
-      Shopping: "#06b6d4",
-      Education: "#84cc16",
-      Other: "#64748b",
-    };
-    return colors[category] || "#64748b";
-  };
-
   const handleViewReceipt = async () => {
     if (!expense?.receipt_url) return;
+
+    const offline = await isOfflineGateLocked();
+    if (offline) {
+      Alert.alert("Offline", "Receipt is available when you're back online.");
+      return;
+    }
 
     try {
       const { data } = await supabase.storage
         .from("receipts")
-        .createSignedUrl(expense.receipt_url, 60); // 60 second URL expiry
+        .createSignedUrl(expense.receipt_url, 60);
 
       if (data?.signedUrl) {
         await Linking.openURL(data.signedUrl);
@@ -256,7 +245,7 @@ export default function ExpenseDetailScreen() {
                   width: 24,
                   height: 24,
                   borderRadius: 12,
-                  backgroundColor: `${getCategoryColor(expense.category)}20`,
+                  backgroundColor: `${categoryColorFromStored(t, expense.category)}20`,
                   justifyContent: "center",
                   alignItems: "center",
                   marginRight: 12,
@@ -267,12 +256,12 @@ export default function ExpenseDetailScreen() {
                     width: 12,
                     height: 12,
                     borderRadius: 6,
-                    backgroundColor: getCategoryColor(expense.category),
+                    backgroundColor: categoryColorFromStored(t, expense.category),
                   }}
                 />
               </View>
               <Text style={{ color: theme.text, fontSize: 18 }}>
-                {expense.category}
+                {categoryLabelFromStored(t, expense.category)}
               </Text>
             </View>
           </View>

@@ -1,3 +1,7 @@
+/**
+ * Expenses service functions for managing expense records
+ * Handles CRUD operations for user expense data
+ */
 import { supabase } from "../database/supabase";
 import type { Expense, ExpenseWithAccount } from "../types/types";
 
@@ -9,6 +13,10 @@ interface ExpenseFilters {
 }
 
 export const fetchExpenses = async (userId: string, filters: ExpenseFilters = {}) => {
+  if (!userId || userId.trim() === "") {
+    throw new Error("User ID is required");
+  }
+
   let query = supabase
     .from("expenses")
     .select("*")
@@ -83,6 +91,14 @@ export const updateExpense = async (
   expenseId: string,
   updates: Partial<Omit<Expense, "id" | "created_at" | "updated_at">>
 ): Promise<Expense> => {
+  if (!expenseId || expenseId.trim() === "") {
+    throw new Error("Expense ID is required");
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new Error("No updates provided");
+  }
+
   const { data, error } = await supabase
     .from("expenses")
     .update(updates)
@@ -95,10 +111,18 @@ export const updateExpense = async (
     throw error;
   }
 
+  if (!data) {
+    throw new Error("Expense not found");
+  }
+
   return data;
 };
 
 export const deleteExpense = async (id: string): Promise<void> => {
+  if (!id || id.trim() === "") {
+    throw new Error("Expense ID is required");
+  }
+
   const { error } = await supabase.from("expenses").delete().eq("id", id);
 
   if (error) {
@@ -110,6 +134,10 @@ export const deleteExpense = async (id: string): Promise<void> => {
 export const getExpenseById = async (
   expenseId: string
 ): Promise<Expense | null> => {
+  if (!expenseId || expenseId.trim() === "") {
+    throw new Error("Expense ID is required");
+  }
+
   const { data, error } = await supabase
     .from("expenses")
     .select("*")

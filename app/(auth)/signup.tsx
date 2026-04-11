@@ -34,6 +34,10 @@ import { createAccount, fetchAccounts } from "~/lib/services/accounts";
 // Required for Expo OAuth
 WebBrowser.maybeCompleteAuthSession();
 
+/**
+ * Sign up is hidden; all auth goes through the login screen
+ * (email/password + Sign in with Google for both new and existing users).
+ */
 export default function SignupScreen() {
   const theme = useTheme();
   const { t } = useLanguage();

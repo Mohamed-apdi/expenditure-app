@@ -1,18 +1,30 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { ChevronLeft, Pen, Trash2 } from "lucide-react-native";
-import { supabase } from "~/lib";
+import {
+  getCurrentUserOfflineFirst,
+  selectAccountById,
+  selectTransactions,
+  selectBudgets,
+  selectTransfers,
+  deleteAccountLocal,
+  deleteBudgetLocal,
+  deleteTransactionLocal,
+  deleteTransferLocal,
+  isOfflineGateLocked,
+  triggerSync,
+} from "~/lib";
 import { format } from "date-fns";
-import { useTheme } from "~/lib";
+import { useTheme, useScreenStatusBar } from "~/lib";
 import { useLanguage } from "~/lib";
 
 type Transaction = {
@@ -38,139 +50,102 @@ const AccountDetails = () => {
   const [refreshing, setRefreshing] = useState(false);
   const theme = useTheme();
   const { t } = useLanguage();
+  useScreenStatusBar();
 
-  useEffect(() => {
-    if (id) {
-      loadAccountData();
-    }
-  }, [id]);
+  const loadAccountData = useCallback(
+    async (isRefresh = false) => {
+      const accountId = Array.isArray(id) ? id[0] : id;
+      if (!accountId) return;
 
-  const loadAccountData = async (isRefresh = false) => {
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
+      try {
+        if (isRefresh) setRefreshing(true);
+        else setLoading(true);
+
+        const user = await getCurrentUserOfflineFirst();
+        if (!user) return;
+
+        const acc = selectAccountById(user.id, accountId);
+        if (acc) setAccount({ name: acc.name, amount: acc.amount });
+
+        const allTx = selectTransactions(user.id);
+        const accountTx = allTx
+          .filter((t) => t.account_id === accountId)
+          .sort((a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""))
+          .map((t) => ({
+            id: t.id,
+            amount: t.amount,
+            category: t.category,
+            description: t.description,
+            date: t.date,
+            created_at: t.created_at,
+            type: t.type,
+            account_id: t.account_id,
+          }));
+        setTransactions(accountTx);
+      } catch (error) {
+        console.error("Failed to load account data:", error);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
+    },
+    [id]
+  );
 
-      // Fetch account details
-      const { data: accountData, error: accountError } = await supabase
-        .from("accounts")
-        .select("name, amount")
-        .eq("id", id)
-        .single();
-
-      if (accountError) throw accountError;
-      setAccount(accountData);
-
-      // Fetch transactions for this specific account
-      const { data: transactionsData, error: transactionsError } =
-        await supabase
-          .from("transactions")
-          .select("*")
-          .eq("account_id", id)
-          .order("created_at", { ascending: false });
-
-      if (transactionsError) throw transactionsError;
-      setTransactions(transactionsData || []);
-    } catch (error) {
-      console.error("Failed to load account data:", error);
-      console.error("Error details:", JSON.stringify(error, null, 2));
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+  // Reload when this screen is focused (e.g. returning from edit account) — id alone does not change on back navigation.
+  useFocusEffect(
+    useCallback(() => {
+      void loadAccountData(true);
+    }, [loadAccountData])
+  );
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      t.deleteAccount,
-      `${t.deleteAccountConfirm} "${account?.name}"? ${t.deleteAccountWarning}`,
-      [
-        {
-          text: t.cancel,
-          style: "cancel",
-        },
-        {
-          text: t.delete,
-          style: "destructive",
-          onPress: async () => {
+    const title = t.deleteAccount || "Delete Account";
+    const message =
+      (t.deleteAccountConfirm || "Are you sure you want to delete") +
+      ` "${account?.name}"?\n\n` +
+      (t.deleteAccountWarning ||
+        "This action cannot be undone and will also delete all associated transactions, transfers, and budgets.");
+    Alert.alert(title, message, [
+      {
+        text: t.cancel || "Cancel",
+        style: "cancel",
+      },
+      {
+        text: t.delete || "Delete",
+        style: "destructive",
+        onPress: async () => {
+            const accountId = Array.isArray(id) ? id[0] : id;
+            if (!accountId) return;
+
             try {
               setLoading(true);
 
-              // First, delete all budgets associated with this account
-              const { error: budgetsError } = await supabase
-                .from("budgets")
-                .delete()
-                .eq("account_id", id);
+              const user = await getCurrentUserOfflineFirst();
+              if (!user) return;
 
-              if (budgetsError) {
-                console.error("Error deleting budgets:", budgetsError);
-                Alert.alert(t.error, t.failedToDeleteBudgets);
-                return;
-              }
+              selectBudgets(user.id)
+                .filter((b) => b.account_id === accountId)
+                .forEach((b) => deleteBudgetLocal(b.id));
 
-              // Second, delete all transfers where this account is the from_account or to_account
-              const { error: transfersFromError } = await supabase
-                .from("transfers")
-                .delete()
-                .eq("from_account_id", id);
+              selectTransfers(user.id)
+                .filter(
+                  (tr) =>
+                    tr.from_account_id === accountId ||
+                    tr.to_account_id === accountId
+                )
+                .forEach((tr) => deleteTransferLocal(tr.id));
 
-              if (transfersFromError) {
-                console.error(
-                  "Error deleting transfers from account:",
-                  transfersFromError
-                );
-                Alert.alert(t.error, t.failedToDeleteTransfersFrom);
-                return;
-              }
+              selectTransactions(user.id)
+                .filter((t) => t.account_id === accountId)
+                .forEach((t) => deleteTransactionLocal(t.id));
 
-              const { error: transfersToError } = await supabase
-                .from("transfers")
-                .delete()
-                .eq("to_account_id", id);
+              deleteAccountLocal(accountId);
 
-              if (transfersToError) {
-                console.error(
-                  "Error deleting transfers to account:",
-                  transfersToError
-                );
-                Alert.alert(t.error, t.failedToDeleteTransfersTo);
-                return;
-              }
-
-              // Third, delete all transactions associated with this account
-              const { error: transactionsError } = await supabase
-                .from("transactions")
-                .delete()
-                .eq("account_id", id);
-
-              if (transactionsError) {
-                console.error(
-                  "Error deleting transactions:",
-                  transactionsError
-                );
-                Alert.alert(t.error, t.failedToDeleteTransactions);
-                return;
-              }
-
-              // Finally, delete the account
-              const { error: accountError } = await supabase
-                .from("accounts")
-                .delete()
-                .eq("id", id);
-
-              if (accountError) {
-                console.error("Error deleting account:", accountError);
-                Alert.alert(t.error, t.failedToDeleteAccount);
-                return;
-              }
+              if (!(await isOfflineGateLocked())) void triggerSync();
 
               Alert.alert(t.success, t.accountDeletedSuccessfully, [
-                {
-                  text: t.ok,
-                  onPress: () => router.back(),
-                },
+                { text: t.ok, onPress: () => router.back() },
               ]);
             } catch (error) {
               console.error("Error deleting account:", error);
@@ -178,10 +153,9 @@ const AccountDetails = () => {
             } finally {
               setLoading(false);
             }
-          },
+          }
         },
-      ]
-    );
+    ]);
   };
 
   if (loading || !account) {
@@ -208,12 +182,14 @@ const AccountDetails = () => {
 
   return (
     <SafeAreaView
-      className="flex-1 p-safe"
+      className="flex-1"
       style={{ backgroundColor: theme.background }}
+      edges={["left", "right", "top", "bottom"]}
     >
-      {/* Header */}
+      <View style={{ flex: 1 }}>
+      {/* Header - reduced top padding for tighter top space */}
       <View
-        className="flex-row items-center justify-between p-6 border-b"
+        className="flex-row items-center justify-between px-4 py-3 border-b"
         style={{ borderColor: theme.border }}
       >
         <TouchableOpacity onPress={() => router.back()} className="p-2">
@@ -223,12 +199,6 @@ const AccountDetails = () => {
           {account.name}
         </Text>
         <View className="flex-row gap-2">
-          <TouchableOpacity
-            className="bg-blue-500 rounded-lg py-3 px-3 items-center"
-            onPress={() => router.push(`/account-details/edit/${id}`)}
-          >
-            <Text className="text-white">{t.editAccount}</Text>
-          </TouchableOpacity>
           <TouchableOpacity
             className="bg-red-500 rounded-lg py-3 px-3 items-center"
             onPress={handleDeleteAccount}
@@ -400,6 +370,41 @@ const AccountDetails = () => {
           ))
         )}
       </ScrollView>
+
+      {/* Edit Account FAB - bottom right (same position as other screens) */}
+      <TouchableOpacity
+        style={{
+          position: "absolute",
+          bottom: 18,
+          right: 20,
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "center",
+          paddingVertical: 14,
+          paddingHorizontal: 20,
+          borderRadius: 28,
+          backgroundColor: theme.primary,
+          gap: 8,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.25,
+          shadowRadius: 6,
+          elevation: 8,
+        }}
+        onPress={() => router.push(`/account-details/edit/${id}`)}
+      >
+        <Pen size={22} color={theme.primaryText} />
+        <Text
+          style={{
+            color: theme.primaryText,
+            fontSize: 15,
+            fontWeight: "600",
+          }}
+        >
+          {t.editAccount}
+        </Text>
+      </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };

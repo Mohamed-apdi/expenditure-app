@@ -1,4 +1,11 @@
+/**
+ * Notifications service functions for managing user notifications
+ * Handles CRUD operations and notification preferences
+ * Supports offline-first with local store fallback
+ */
 import { supabase } from "../database/supabase";
+import { isOfflineGateLocked } from "../sync/legendSync";
+import { createNotificationLocal } from "../stores/notificationsStore";
 
 export type NotificationType =
   | "budget"
@@ -19,15 +26,16 @@ export interface Notification {
   type: NotificationType;
   priority: NotificationPriority;
   is_read: boolean;
-  metadata?: Record<string, any>; // Additional data like transaction_id, budget_id, etc.
-  action_url?: string; // URL to navigate when notification is clicked
+  metadata?: Record<string, any>;
+  action_url?: string;
   created_at: string;
   read_at?: string;
   expires_at?: string;
 }
 
 /**
- * Create a new notification
+ * Create a new notification (offline-first)
+ * Creates locally first, then syncs to server when online
  */
 export async function createNotification({
   user_id,
@@ -49,24 +57,50 @@ export async function createNotification({
   expires_at?: string;
 }): Promise<Notification | null> {
   try {
-    const { data, error } = await supabase
-      .from("notifications")
-      .insert({
-        user_id,
-        title,
-        message,
-        type,
-        priority,
-        is_read: false,
-        metadata,
-        action_url,
-        expires_at,
-      })
-      .select()
-      .single();
+    // Always create locally first for offline support
+    const localNotification = createNotificationLocal({
+      user_id,
+      title,
+      message,
+      type,
+      priority,
+      is_read: false,
+      metadata,
+      action_url,
+      expires_at,
+    });
 
-    if (error) throw error;
-    return data;
+    // Check if we're offline
+    const offline = await isOfflineGateLocked();
+    if (offline) {
+      return localNotification;
+    }
+
+    // If online, also save to server
+    try {
+      const { data, error } = await supabase
+        .from("notifications")
+        .insert({
+          id: localNotification.id,
+          user_id,
+          title,
+          message,
+          type,
+          priority,
+          is_read: false,
+          metadata,
+          action_url,
+          expires_at,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (serverError) {
+      console.error("Error saving notification to server:", serverError);
+      return localNotification;
+    }
   } catch (error) {
     console.error("Error creating notification:", error);
     return null;
@@ -266,6 +300,43 @@ export async function createSystemNotification({
   }
 }
 
+/** Cooldown in hours before sending another budget notification for the same category/type */
+const BUDGET_EXCEEDED_COOLDOWN_HOURS = 24;
+const BUDGET_WARNING_COOLDOWN_HOURS = 6;
+
+/**
+ * Check if we already sent a budget notification for this category/type recently
+ * to avoid duplicate notifications.
+ */
+export async function hasRecentBudgetNotification(
+  userId: string,
+  budgetId: string,
+  type: "exceeded" | "warning",
+  withinHours = type === "exceeded" ? BUDGET_EXCEEDED_COOLDOWN_HOURS : BUDGET_WARNING_COOLDOWN_HOURS
+): Promise<boolean> {
+  try {
+    const since = new Date();
+    since.setHours(since.getHours() - withinHours);
+    const sinceIso = since.toISOString();
+
+    const { data, error } = await supabase
+      .from("notifications")
+      .select("metadata")
+      .eq("user_id", userId)
+      .eq("type", "budget")
+      .gte("created_at", sinceIso);
+
+    if (error) throw error;
+    const hasMatch = (data || []).some(
+      (n) => n?.metadata?.budget_id === budgetId
+    );
+    return hasMatch;
+  } catch (error) {
+    console.error("Error checking recent budget notification:", error);
+    return false; // Allow send on error to avoid silent failure
+  }
+}
+
 /**
  * Helper function to create budget-related notifications
  */
@@ -276,6 +347,7 @@ export async function createBudgetNotification({
   currentAmount,
   budgetLimit,
   budgetId,
+  accountId,
 }: {
   userId: string;
   budgetName: string;
@@ -283,13 +355,14 @@ export async function createBudgetNotification({
   currentAmount: number;
   budgetLimit: number;
   budgetId: string;
+  accountId?: string;
 }): Promise<Notification | null> {
   const isWarning = percentage >= 80 && percentage < 100;
   const isExceeded = percentage >= 100;
 
   const title = isExceeded
-    ? `🚨 Budget Exceeded: ${budgetName}`
-    : `⚠️ Budget Warning: ${budgetName}`;
+    ? `Budget Exceeded: ${budgetName}`
+    : `Budget Warning: ${budgetName}`;
 
   const message = isExceeded
     ? `You've exceeded your ${budgetName} budget by $${(currentAmount - budgetLimit).toFixed(2)}. Current: $${currentAmount.toFixed(2)} / $${budgetLimit.toFixed(2)}`
@@ -306,6 +379,7 @@ export async function createBudgetNotification({
       percentage,
       current_amount: currentAmount,
       budget_limit: budgetLimit,
+      account_id: accountId,
     },
     action_url: "/(main)/BudgetScreen",
   });
@@ -320,6 +394,7 @@ export async function createSubscriptionNotification({
   amount,
   dueDate,
   subscriptionId,
+  accountId,
   isOverdue = false,
 }: {
   userId: string;
@@ -327,11 +402,12 @@ export async function createSubscriptionNotification({
   amount: number;
   dueDate: string;
   subscriptionId: string;
+  accountId?: string;
   isOverdue?: boolean;
 }): Promise<Notification | null> {
   const title = isOverdue
-    ? `🔴 Overdue: ${subscriptionName}`
-    : `💳 Payment Due: ${subscriptionName}`;
+    ? `Overdue: ${subscriptionName}`
+    : `Payment Due: ${subscriptionName}`;
 
   const message = isOverdue
     ? `Your ${subscriptionName} subscription payment of $${amount.toFixed(2)} is overdue.`
@@ -348,6 +424,7 @@ export async function createSubscriptionNotification({
       amount,
       due_date: dueDate,
       is_overdue: isOverdue,
+      account_id: accountId,
     },
     action_url: "/components/SubscriptionsScreen",
   });

@@ -1,7 +1,15 @@
+/**
+ * Budgets service functions for managing spending budgets
+ * Handles CRUD operations and queries by account, category, or period
+ */
 import { supabase } from "../database/supabase";
 import type { Budget, BudgetWithAccount } from "../types/types";
 
 export const fetchBudgets = async (userId: string): Promise<Budget[]> => {
+  if (!userId || userId.trim() === "") {
+    throw new Error("User ID is required");
+  }
+
   const { data, error } = await supabase
     .from("budgets")
     .select("*")
@@ -61,6 +69,14 @@ export const updateBudget = async (
   budgetId: string,
   updates: Partial<Omit<Budget, "id" | "created_at" | "updated_at">>
 ): Promise<Budget> => {
+  if (!budgetId || budgetId.trim() === "") {
+    throw new Error("Budget ID is required");
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new Error("No updates provided");
+  }
+
   const { data, error } = await supabase
     .from("budgets")
     .update(updates)
@@ -73,10 +89,18 @@ export const updateBudget = async (
     throw error;
   }
 
+  if (!data) {
+    throw new Error("Budget not found");
+  }
+
   return data;
 };
 
 export const deleteBudget = async (budgetId: string): Promise<void> => {
+  if (!budgetId || budgetId.trim() === "") {
+    throw new Error("Budget ID is required");
+  }
+
   const { error } = await supabase.from("budgets").delete().eq("id", budgetId);
 
   if (error) {
@@ -88,6 +112,10 @@ export const deleteBudget = async (budgetId: string): Promise<void> => {
 export const getBudgetById = async (
   budgetId: string
 ): Promise<Budget | null> => {
+  if (!budgetId || budgetId.trim() === "") {
+    throw new Error("Budget ID is required");
+  }
+
   const { data, error } = await supabase
     .from("budgets")
     .select("*")
@@ -106,6 +134,14 @@ export const getBudgetsByAccount = async (
   userId: string,
   accountId: string
 ): Promise<Budget[]> => {
+  if (!userId || userId.trim() === "") {
+    throw new Error("User ID is required");
+  }
+
+  if (!accountId || accountId.trim() === "") {
+    throw new Error("Account ID is required");
+  }
+
   const { data, error } = await supabase
     .from("budgets")
     .select("*")
@@ -163,6 +199,10 @@ export const getBudgetsByPeriod = async (
 };
 
 export const deactivateBudget = async (budgetId: string): Promise<void> => {
+  if (!budgetId || budgetId.trim() === "") {
+    throw new Error("Budget ID is required");
+  }
+
   const { error } = await supabase
     .from("budgets")
     .update({ is_active: false })

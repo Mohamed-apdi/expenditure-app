@@ -1,7 +1,15 @@
+/**
+ * Transfers service functions for managing fund transfers between accounts
+ * Handles CRUD operations and queries by account or date range
+ */
 import { supabase } from "../database/supabase";
 import type { Transfer, TransferWithAccounts } from "../types/types";
 
 export const fetchTransfers = async (userId: string): Promise<Transfer[]> => {
+  if (!userId || userId.trim() === "") {
+    throw new Error("User ID is required");
+  }
+
   const { data, error } = await supabase
     .from("transfers")
     .select("*")
@@ -60,6 +68,14 @@ export const updateTransfer = async (
   transferId: string,
   updates: Partial<Omit<Transfer, "id" | "created_at" | "updated_at">>
 ): Promise<Transfer> => {
+  if (!transferId || transferId.trim() === "") {
+    throw new Error("Transfer ID is required");
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new Error("No updates provided");
+  }
+
   const { data, error } = await supabase
     .from("transfers")
     .update(updates)
@@ -72,10 +88,18 @@ export const updateTransfer = async (
     throw error;
   }
 
+  if (!data) {
+    throw new Error("Transfer not found");
+  }
+
   return data;
 };
 
 export const deleteTransfer = async (transferId: string): Promise<void> => {
+  if (!transferId || transferId.trim() === "") {
+    throw new Error("Transfer ID is required");
+  }
+
   const { error } = await supabase
     .from("transfers")
     .delete()
@@ -90,6 +114,10 @@ export const deleteTransfer = async (transferId: string): Promise<void> => {
 export const getTransferById = async (
   transferId: string
 ): Promise<Transfer | null> => {
+  if (!transferId || transferId.trim() === "") {
+    throw new Error("Transfer ID is required");
+  }
+
   const { data, error } = await supabase
     .from("transfers")
     .select("*")
@@ -108,6 +136,14 @@ export const getTransfersByAccount = async (
   userId: string,
   accountId: string
 ): Promise<Transfer[]> => {
+  if (!userId || userId.trim() === "") {
+    throw new Error("User ID is required");
+  }
+
+  if (!accountId || accountId.trim() === "") {
+    throw new Error("Account ID is required");
+  }
+
   const { data, error } = await supabase
     .from("transfers")
     .select("*")

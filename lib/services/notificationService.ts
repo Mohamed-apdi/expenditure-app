@@ -1,8 +1,14 @@
+/**
+ * Notification service: scheduling and handling budget, subscription, and reminder notifications
+ * Uses Expo Notifications and TaskManager; no-op in Expo Go
+ */
 import * as Notifications from "expo-notifications";
 import { SchedulableTriggerInputTypes } from "expo-notifications";
 import * as TaskManager from "expo-task-manager";
+import * as BackgroundFetch from "expo-background-fetch";
 import { Platform } from "react-native";
 import { isExpoGo } from "../utils/expoGoUtils";
+import { getCurrentUserOfflineFirst } from "../auth";
 import { supabase } from "../database/supabase";
 import { addTransaction } from "./transactions";
 import {
@@ -15,6 +21,7 @@ import {
   createBudgetNotification,
   createSubscriptionNotification,
   createTransactionNotification,
+  hasRecentBudgetNotification,
 } from "./notifications";
 
 // Define the background task name
@@ -35,6 +42,17 @@ if (!isExpoGo) {
       shouldSetBadge: false,
     }),
   });
+
+  // Create Android notification channel
+  if (Platform.OS === "android") {
+    Notifications.setNotificationChannelAsync("default", {
+      name: "Default",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: "#00BFFF",
+      sound: "notification_alert.wav",
+    });
+  }
 }
 
 // Define interactive notification actions
@@ -201,7 +219,7 @@ export const scheduleSubscriptionNotification = async (
   };
 
   const content = {
-    title: "💳 Subscription Payment Due",
+    title: "Subscription Payment Due",
     body: `${subscription.name} - $${subscription.amount.toFixed(2)} is due today`,
     categoryIdentifier: SUBSCRIPTION_NOTIFICATION_CATEGORY,
     data: {
@@ -211,7 +229,7 @@ export const scheduleSubscriptionNotification = async (
       accountId: subscription.account_id,
       billingCycle: subscription.billing_cycle,
     },
-    sound: "notification.wav",
+    sound: "notification_alert.wav",
   };
 
   await Notifications.scheduleNotificationAsync({
@@ -230,10 +248,7 @@ export const handleNotificationResponse = async (
   const notificationData = notification.request.content.data as any;
 
   try {
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUserOfflineFirst();
     if (!user) {
       console.error("User not authenticated");
       return;
@@ -261,9 +276,9 @@ export const handleNotificationResponse = async (
         // Show success notification
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: "✅ Payment Processed",
+            title: "Payment Processed",
             body: `Successfully paid $${amount.toFixed(2)} for ${subscriptionName}`,
-            sound: "notification.wav",
+            sound: "notification_alert.wav",
           },
           trigger: null, // Show immediately
         });
@@ -274,9 +289,9 @@ export const handleNotificationResponse = async (
         // Show confirmation notification
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: "⏸️ Subscription Paused",
+            title: "Subscription Paused",
             body: `${subscriptionName} has been paused and won't charge automatically`,
-            sound: "notification.wav",
+            sound: "notification_alert.wav",
           },
           trigger: null, // Show immediately
         });
@@ -292,9 +307,9 @@ export const handleNotificationResponse = async (
         // For now, show a helpful message
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: "📊 Budget View",
+            title: "Budget View",
             body: `Open the app to view your ${category} budget details`,
-            sound: "notification.wav",
+            sound: "notification_alert.wav",
           },
           trigger: null,
         });
@@ -304,7 +319,7 @@ export const handleNotificationResponse = async (
 
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: "⚠️ Budget Reminder",
+            title: "Budget Reminder",
             body: `Don't forget to check your ${category} budget`,
             data: notificationData,
           },
@@ -314,9 +329,9 @@ export const handleNotificationResponse = async (
         // Show guidance for adjusting budget
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: "💡 Budget Adjustment",
+            title: "Budget Adjustment",
             body: `Open the app to adjust your ${category} budget or review your spending`,
-            sound: "notification.wav",
+            sound: "notification_alert.wav",
           },
           trigger: null,
         });
@@ -328,9 +343,9 @@ export const handleNotificationResponse = async (
     // Show error notification
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: "❌ Action Failed",
+        title: "Action Failed",
         body: "Failed to process your request. Please try again in the app.",
-        sound: "notification.wav",
+        sound: "notification_alert.wav",
       },
       trigger: null,
     });
@@ -403,23 +418,68 @@ const pauseSubscription = async (subscriptionId: string) => {
 
 };
 
-// Send budget warning notification
+// Local deduplication cache for offline support
+const recentNotificationCache = new Map<string, number>();
+const CACHE_EXPIRY_MS = 6 * 60 * 60 * 1000; // 6 hours for warnings, 24 hours handled separately
+
+function hasRecentLocalNotification(key: string, expiryMs: number): boolean {
+  const lastSent = recentNotificationCache.get(key);
+  if (lastSent && Date.now() - lastSent < expiryMs) {
+    return true;
+  }
+  return false;
+}
+
+function markNotificationSent(key: string): void {
+  recentNotificationCache.set(key, Date.now());
+}
+
+// Send budget warning notification (with deduplication to avoid repeats)
+// Works offline using local cache for deduplication
 export const sendBudgetNotification = async (
   budgetProgress: BudgetProgress,
   type: "warning" | "exceeded"
 ) => {
   try {
+    const user = await getCurrentUserOfflineFirst();
+    if (!user) return;
+
+    const budgetId = `${budgetProgress.category}-${budgetProgress.account_id}`;
+    const cacheKey = `${user.id}-${budgetId}-${type}`;
+    const expiryMs = type === "exceeded" ? 24 * 60 * 60 * 1000 : 6 * 60 * 60 * 1000;
+
+    // Check local cache first (works offline)
+    if (hasRecentLocalNotification(cacheKey, expiryMs)) {
+      return;
+    }
+
+    // Also check server if online (for cross-device deduplication)
+    try {
+      const alreadyNotified = await hasRecentBudgetNotification(
+        user.id,
+        budgetId,
+        type
+      );
+      if (alreadyNotified) {
+        markNotificationSent(cacheKey);
+        return;
+      }
+    } catch {
+      // If server check fails, proceed with local cache check only
+    }
+
     const isExceeded = type === "exceeded";
     const category = isExceeded
       ? BUDGET_EXCEEDED_CATEGORY
       : BUDGET_WARNING_CATEGORY;
 
-    const title = isExceeded ? "🚨 Budget Exceeded!" : "⚠️ Budget Alert!";
+    const title = isExceeded ? "Budget Exceeded!" : "Budget Alert!";
 
     const body = isExceeded
       ? `You've spent $${budgetProgress.spent.toFixed(2)} out of $${budgetProgress.budgeted.toFixed(2)} for ${budgetProgress.category} (${budgetProgress.percentage.toFixed(0)}%)`
       : `You've used ${budgetProgress.percentage.toFixed(0)}% of your ${budgetProgress.category} budget ($${budgetProgress.spent.toFixed(2)}/$${budgetProgress.budgeted.toFixed(2)})`;
 
+    // Schedule local push notification (works offline)
     await Notifications.scheduleNotificationAsync({
       content: {
         title,
@@ -433,76 +493,71 @@ export const sendBudgetNotification = async (
           remaining: budgetProgress.remaining,
           notificationType: type,
         },
-        sound: "notification.wav",
+        sound: "notification_alert.wav",
       },
       trigger: null, // Show immediately
     });
 
-    // Save to database notifications table
-    const { data, error: authError } = await supabase.auth.getUser();
-    if (!authError && data?.user) {
-      await createBudgetNotification({
-        userId: data.user.id,
-        budgetName: budgetProgress.category,
-        percentage: budgetProgress.percentage,
-        currentAmount: budgetProgress.spent,
-        budgetLimit: budgetProgress.budgeted,
-        budgetId: budgetProgress.category, // Using category as ID for now
-      });
-    }
+    // Mark as sent in local cache
+    markNotificationSent(cacheKey);
+
+    // Save to database notifications table (will use local store if offline)
+    await createBudgetNotification({
+      userId: user.id,
+      budgetName: budgetProgress.category,
+      percentage: budgetProgress.percentage,
+      currentAmount: budgetProgress.spent,
+      budgetLimit: budgetProgress.budgeted,
+      budgetId: budgetId,
+      accountId: budgetProgress.account_id,
+    });
 
   } catch (error) {
     console.error("Error sending budget notification:", error);
   }
 };
 
-// Check all budgets and send appropriate notifications
-export const checkBudgetsAndNotify = async () => {
+// Check budgets and send notifications. When expenseCategory is provided (e.g. after
+// creating an expense), only send for that category; otherwise check all budgets.
+export const checkBudgetsAndNotify = async (expenseCategory?: string) => {
   try {
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUserOfflineFirst();
     if (!user) {
       console.error("User not authenticated");
       return;
     }
 
-    // Get current budget progress
-    const budgetProgress = await getBudgetProgress(user.id);
+    let budgetProgress = await getBudgetProgress(user.id);
+    if (expenseCategory != null && expenseCategory !== "") {
+      budgetProgress = budgetProgress.filter(
+        (b) => b.category === expenseCategory
+      );
+    }
 
     for (const budget of budgetProgress) {
       const percentage = budget.percentage;
-
-      // Send notifications based on budget usage
       if (percentage >= 100) {
-        // Budget exceeded (100% or more)
         await sendBudgetNotification(budget, "exceeded");
       } else if (percentage >= 80) {
-        // Budget warning (80% or more but less than 100%)
         await sendBudgetNotification(budget, "warning");
       }
-      // You can add more thresholds here if needed (e.g., 90%)
     }
-
   } catch (error) {
     console.error("Error checking budget notifications:", error);
   }
 };
 
 // Check subscriptions due today and send notifications instead of auto-charging
+// Works offline using local subscription data and local notification scheduling
 export const checkDueSubscriptionsAndNotify = async () => {
   try {
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUserOfflineFirst();
     if (!user) {
       console.error("User not authenticated");
       return;
     }
 
-    // Fetch active subscriptions
+    // Fetch active subscriptions (uses local store if offline)
     const subscriptions = await fetchSubscriptionsWithAccounts(user.id);
     const activeSubscriptions = subscriptions.filter((sub) => sub.is_active);
 
@@ -515,10 +570,17 @@ export const checkDueSubscriptionsAndNotify = async () => {
 
       // Check if payment is due today
       if (nextPaymentString === todayString) {
-        // Send notification with interactive buttons
+        const cacheKey = `${user.id}-subscription-${subscription.id}-${todayString}`;
+        
+        // Check local cache to avoid duplicate notifications
+        if (hasRecentLocalNotification(cacheKey, 24 * 60 * 60 * 1000)) {
+          continue;
+        }
+
+        // Schedule local push notification (works offline)
         await Notifications.scheduleNotificationAsync({
           content: {
-            title: "💳 Subscription Payment Due",
+            title: "Subscription Payment Due",
             body: `${subscription.name} - $${subscription.amount.toFixed(2)} is due today`,
             categoryIdentifier: SUBSCRIPTION_NOTIFICATION_CATEGORY,
             data: {
@@ -528,21 +590,24 @@ export const checkDueSubscriptionsAndNotify = async () => {
               accountId: subscription.account_id,
               billingCycle: subscription.billing_cycle,
             },
-            sound: "notification.wav",
+            sound: "notification_alert.wav",
           },
           trigger: null, // Show immediately
         });
 
-        // Save to database notifications table
+        // Mark as sent in local cache
+        markNotificationSent(cacheKey);
+
+        // Save to database notifications table (uses local store if offline)
         await createSubscriptionNotification({
           userId: user.id,
           subscriptionName: subscription.name,
           amount: subscription.amount,
           dueDate: subscription.next_payment_date,
           subscriptionId: subscription.id,
+          accountId: subscription.account_id,
           isOverdue: false,
         });
-
       }
     }
   } catch (error) {
@@ -585,15 +650,11 @@ export const registerBackgroundTask = async () => {
     // Register background fetch (for iOS)
     if (Platform.OS === "ios") {
       try {
-        const BackgroundFetch = await import("expo-background-fetch");
-        await BackgroundFetch.default.registerTaskAsync(
-          SUBSCRIPTION_CHECK_TASK,
-          {
-            minimumInterval: 12 * 60 * 60 * 1000, // 12 hours (more frequent)
-            stopOnTerminate: false,
-            startOnBoot: true,
-          }
-        );
+        await BackgroundFetch.registerTaskAsync(SUBSCRIPTION_CHECK_TASK, {
+          minimumInterval: 12 * 60 * 60 * 1000, // 12 hours (more frequent)
+          stopOnTerminate: false,
+          startOnBoot: true,
+        });
       } catch (error) {
       }
     }
@@ -674,9 +735,7 @@ export const cancelAllSubscriptionNotifications = async () => {
 // Schedule budget check notifications for the next 7 days
 export const scheduleBudgetCheckNotifications = async () => {
   try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUserOfflineFirst();
     if (!user) return;
 
     // Cancel existing budget check notifications
@@ -706,7 +765,7 @@ export const scheduleBudgetCheckNotifications = async () => {
             userId: user.id,
             scheduledDate: checkDate.toISOString(),
           },
-          sound: "notification.wav",
+          sound: "notification_alert.wav",
         },
         trigger: {
           type: SchedulableTriggerInputTypes.DATE,
@@ -723,10 +782,7 @@ export const scheduleBudgetCheckNotifications = async () => {
 // Schedule notifications for all upcoming subscriptions
 export const scheduleAllUpcomingNotifications = async () => {
   try {
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await getCurrentUserOfflineFirst();
     if (!user) return;
 
     // Cancel existing subscription notifications
@@ -750,6 +806,29 @@ export const scheduleAllUpcomingNotifications = async () => {
   }
 };
 
+// Send a test notification (for debugging)
+export const sendTestNotification = async () => {
+  if (isExpoGo) {
+    console.warn("Test notifications not available in Expo Go");
+    return false;
+  }
+
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Test Notification",
+        body: "This is a test notification from Qoondeeye!",
+        sound: "notification_alert.wav",
+      },
+      trigger: null, // Show immediately
+    });
+    return true;
+  } catch (error) {
+    console.error("Failed to send test notification:", error);
+    return false;
+  }
+};
+
 export default {
   setupNotificationCategories,
   requestNotificationPermissions,
@@ -765,4 +844,5 @@ export default {
   cancelAllSubscriptionNotifications,
   scheduleAllUpcomingNotifications,
   scheduleBudgetCheckNotifications,
+  sendTestNotification,
 };

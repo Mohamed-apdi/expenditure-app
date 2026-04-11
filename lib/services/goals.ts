@@ -1,3 +1,7 @@
+/**
+ * Goals service functions for managing savings goals
+ * Handles CRUD operations for user financial goals
+ */
 import { supabase } from "../database/supabase";
 import type { Goal } from "../types/types";
 

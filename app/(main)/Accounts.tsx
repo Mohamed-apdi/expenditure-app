@@ -1,20 +1,27 @@
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  SafeAreaView,
-} from "react-native";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { X } from "lucide-react-native";
-import { fetchAccounts, createAccount, Account } from "~/lib";
-import { supabase } from "~/lib";
+import React, { useCallback, useState, useRef, useEffect } from "react";
+import { ScrollView, Text, TouchableOpacity, View, Animated } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  Account,
+  createAccountLocal,
+  createTransactionLocal,
+  getCurrentUserOfflineFirst,
+  selectAccounts,
+  toAccount,
+  formatCurrency,
+  useAccount,
+  useLanguage,
+  useScreenStatusBar,
+  useTheme,
+  isOfflineGateLocked,
+  triggerSync,
+} from "~/lib";
 import AddAccount from "../account-details/add-account";
-import { useAccount } from "~/lib";
-import { useFocusEffect } from "@react-navigation/native";
-import { useTheme } from "~/lib";
-import { useLanguage } from "~/lib";
+import { ExpandableTabFab } from "~/components/ExpandableTabFab";
 
 interface AccountGroup {
   id: string;
@@ -42,38 +49,53 @@ const Accounts = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fabExpanded, setFabExpanded] = useState(false);
   const theme = useTheme();
   const { t } = useLanguage();
+  const tabBarHeight = useBottomTabBarHeight();
+
+  // Animation for FAB
+  const fabAnimation = useRef(new Animated.Value(0)).current;
+
+  const expandFab = () => {
+    fabAnimation.setValue(1);
+    setFabExpanded(true);
+  };
+
+  const collapseFab = () => {
+    fabAnimation.setValue(0);
+    setFabExpanded(false);
+  };
+
+  const handleFabPress = () => {
+    if (fabExpanded) {
+      setShowAddAccount(true);
+      collapseFab();
+    } else {
+      expandFab();
+    }
+  };
 
   const loadAccounts = async () => {
     try {
       setError(null);
-
-      // Get the current user first
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
-        throw new Error("You must be logged in to view accounts");
-      }
-
-      const data = await fetchAccounts(user.id);
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) throw new Error("You must be logged in to view accounts");
+      const data = selectAccounts(user.id).map(toAccount);
       setAccounts(data);
     } catch (error) {
       console.error("Failed to load accounts:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to load accounts"
-      );
+      setError(error instanceof Error ? error.message : "Failed to load accounts");
     }
   };
 
   useFocusEffect(
     useCallback(() => {
       loadAccounts();
-    }, [])
+    }, []),
   );
+
+  useScreenStatusBar();
 
   // Calculate totals - now just sum all account amounts since we don't have type field
   const total = accounts.reduce((sum, a) => sum + (a.amount || 0), 0);
@@ -87,12 +109,8 @@ const Accounts = () => {
     try {
       setError(null);
 
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
-
-      if (authError || !user) {
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) {
         throw new Error("You must be logged in to add an account");
       }
 
@@ -103,42 +121,33 @@ const Accounts = () => {
         currency: "USD", // Default currency
       };
 
-      const createdAccount = await createAccount(accountWithUser);
-      setAccounts((prev) => [...prev, createdAccount]);
+      const createdAccount = createAccountLocal(accountWithUser);
+      setAccounts((prev) => [...prev, toAccount(createdAccount)]);
 
-      // If account has an initial amount, create a transaction as income
       if (newAccount.amount && newAccount.amount > 0) {
         try {
-          const { addTransaction } = await import("~/lib");
-
-          await addTransaction({
+          createTransactionLocal({
             user_id: user.id,
             account_id: createdAccount.id,
             amount: newAccount.amount,
             description: `Initial balance for ${newAccount.name}`,
             date: new Date().toISOString().split("T")[0],
-            category: "Initial Balance", // Use existing income category
+            category: "Initial Balance",
             type: "income",
             is_recurring: false,
           });
-
         } catch (transactionError) {
-          console.error(
-            "Failed to create initial balance transaction:",
-            transactionError
-          );
-          // Don't fail the account creation if transaction creation fails
+          console.error("Failed to create initial balance transaction:", transactionError);
         }
       }
-
-      // Refresh accounts in context to update MonthYearScroller
+      if (!(await isOfflineGateLocked())) void triggerSync();
       await refreshContextAccounts();
 
       setShowAddAccount(false);
     } catch (error) {
       console.error("Failed to add account:", error);
       setError(
-        error instanceof Error ? error.message : "Failed to add account"
+        error instanceof Error ? error.message : "Failed to add account",
       );
     }
   };
@@ -152,55 +161,60 @@ const Accounts = () => {
 
   return (
     <SafeAreaView
-      className="flex-1 pt-safe"
+      className="flex-1"
       style={{ backgroundColor: theme.background }}
+      edges={["left", "right", "top"]}
     >
-      <ScrollView className="flex-1">
-        <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
+      <View style={{ flex: 1 }}>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
+      >
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingTop: 12,
+            paddingBottom: 16,
+          }}
+        >
           {/* Header */}
           <View className="flex-row justify-between items-center mb-6">
             <View>
-              <Text style={{ color: theme.text, fontSize: 24, fontWeight: "bold" }}>
+              <Text
+                style={{ color: theme.text, fontSize: 24, fontWeight: "bold" }}
+              >
                 {t.accounts}
               </Text>
-              <Text style={{ color: theme.textSecondary, fontSize: 14, marginTop: 4 }}>
-                {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'} • ${total.toFixed(2)} total
+              <Text
+                style={{
+                  color: theme.textSecondary,
+                  fontSize: 14,
+                  marginTop: 4,
+                }}
+              >
+                {accounts.length}{" "}
+                {accounts.length === 1 ? "account" : "accounts"} • $
+                {total.toFixed(2)} total
               </Text>
             </View>
-            <TouchableOpacity
-              style={{
-                backgroundColor: theme.primary,
-                borderRadius: 12,
-                paddingVertical: 12,
-                paddingHorizontal: 20,
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-                elevation: 3,
-              }}
-              onPress={() => setShowAddAccount(true)}
-            >
-              <Text style={{ color: theme.primaryText, fontWeight: "600" }}>
-                {t.addAccount}
-              </Text>
-            </TouchableOpacity>
           </View>
 
           {/* Error Message */}
           {error && (
             <View
               style={{
-                backgroundColor: '#fee2e2',
+                backgroundColor: "#fee2e2",
                 padding: 12,
                 borderRadius: 12,
                 marginBottom: 16,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
               }}
             >
-              <Text style={{ color: '#dc2626', flex: 1, fontSize: 14 }}>{error}</Text>
+              <Text style={{ color: "#dc2626", flex: 1, fontSize: 14 }}>
+                {error}
+              </Text>
               <TouchableOpacity onPress={() => setError(null)}>
                 <X size={18} color="#dc2626" />
               </TouchableOpacity>
@@ -216,10 +230,24 @@ const Accounts = () => {
               marginBottom: 24,
             }}
           >
-            <Text style={{ color: theme.primaryText, fontSize: 14, fontWeight: "500", opacity: 0.9, marginBottom: 8 }}>
+            <Text
+              style={{
+                color: theme.primaryText,
+                fontSize: 14,
+                fontWeight: "500",
+                opacity: 0.9,
+                marginBottom: 8,
+              }}
+            >
               {t.total || "Total Balance"}
             </Text>
-            <Text style={{ color: theme.primaryText, fontSize: 36, fontWeight: "bold" }}>
+            <Text
+              style={{
+                color: theme.primaryText,
+                fontSize: 36,
+                fontWeight: "bold",
+              }}
+            >
               ${total.toFixed(2)}
             </Text>
           </View>
@@ -234,10 +262,18 @@ const Accounts = () => {
                 borderRadius: 16,
               }}
             >
-              <Text style={{ color: theme.textSecondary, fontSize: 16, fontWeight: "500" }}>
+              <Text
+                style={{
+                  color: theme.textSecondary,
+                  fontSize: 16,
+                  fontWeight: "500",
+                }}
+              >
                 No accounts yet
               </Text>
-              <Text style={{ color: theme.textMuted, fontSize: 14, marginTop: 8 }}>
+              <Text
+                style={{ color: theme.textMuted, fontSize: 14, marginTop: 8 }}
+              >
                 Create your first account
               </Text>
             </View>
@@ -245,7 +281,9 @@ const Accounts = () => {
             <View style={{ gap: 20 }}>
               {accountGroups
                 .filter((group) =>
-                  accounts.some((account) => account.account_type === group.name)
+                  accounts.some(
+                    (account) => account.account_type === group.name,
+                  ),
                 )
                 .map((group) => (
                   <View key={group.id}>
@@ -254,7 +292,7 @@ const Accounts = () => {
                         color: theme.text,
                         fontSize: 16,
                         fontWeight: "bold",
-                        marginBottom: 12
+                        marginBottom: 12,
                       }}
                     >
                       {group.name === "Cash"
@@ -283,7 +321,9 @@ const Accounts = () => {
                     </Text>
                     <View style={{ gap: 12 }}>
                       {accounts
-                        .filter((account) => account.account_type === group.name)
+                        .filter(
+                          (account) => account.account_type === group.name,
+                        )
                         .map((account) => (
                           <TouchableOpacity
                             key={account.id}
@@ -307,19 +347,25 @@ const Accounts = () => {
                                 </Text>
                                 <View
                                   style={{
-                                    backgroundColor: account.amount >= 0 ? '#dcfce7' : '#fee2e2',
+                                    backgroundColor:
+                                      account.amount >= 0
+                                        ? "#dcfce7"
+                                        : "#fee2e2",
                                     paddingHorizontal: 8,
                                     paddingVertical: 4,
                                     borderRadius: 12,
-                                    alignSelf: 'flex-start',
+                                    alignSelf: "flex-start",
                                     marginTop: 6,
                                   }}
                                 >
                                   <Text
                                     style={{
-                                      color: account.amount >= 0 ? '#16a34a' : '#dc2626',
+                                      color:
+                                        account.amount >= 0
+                                          ? "#16a34a"
+                                          : "#dc2626",
                                       fontSize: 11,
-                                      fontWeight: "600"
+                                      fontWeight: "600",
                                     }}
                                   >
                                     {group.name}
@@ -331,21 +377,38 @@ const Accounts = () => {
                                   style={{
                                     fontSize: 24,
                                     fontWeight: "bold",
-                                    color: account.amount >= 0 ? "#10b981" : "#ef4444",
+                                    color:
+                                      account.amount >= 0
+                                        ? "#10b981"
+                                        : "#ef4444",
                                   }}
                                 >
-                                  ${Math.abs(account.amount || 0).toFixed(2)}
+                                  {formatCurrency(account.amount ?? 0)}
                                 </Text>
                                 {account.amount < 0 && (
-                                  <Text style={{ color: "#ef4444", fontSize: 11, marginTop: 2 }}>
+                                  <Text
+                                    style={{
+                                      color: "#ef4444",
+                                      fontSize: 11,
+                                      marginTop: 2,
+                                    }}
+                                  >
                                     Overdraft
                                   </Text>
                                 )}
                               </View>
                             </View>
                             {account.description && (
-                              <View className="pt-3 border-t" style={{ borderColor: theme.border }}>
-                                <Text style={{ color: theme.textMuted, fontSize: 12 }}>
+                              <View
+                                className="pt-3 border-t"
+                                style={{ borderColor: theme.border }}
+                              >
+                                <Text
+                                  style={{
+                                    color: theme.textMuted,
+                                    fontSize: 12,
+                                  }}
+                                >
                                   {account.description}
                                 </Text>
                               </View>
@@ -359,7 +422,33 @@ const Accounts = () => {
           )}
         </View>
       </ScrollView>
+      </View>
 
+      {/* Close area when expanded - must be before FAB */}
+      {fabExpanded && (
+        <TouchableOpacity
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
+          activeOpacity={1}
+          onPress={collapseFab}
+        />
+      )}
+
+      <ExpandableTabFab
+        bottom={tabBarHeight + 20}
+        fabAnimation={fabAnimation}
+        fabExpanded={fabExpanded}
+        expandedWidth={175}
+        onPress={handleFabPress}
+        label="Add Account"
+        surfaceKey={theme.background}
+        backgroundColor={theme.primary}
+      />
 
       {/* Add Account Modal */}
       <AddAccount

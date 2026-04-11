@@ -1,4 +1,10 @@
+/**
+ * Analytics service functions for financial data analysis
+ * Provides functions for calculating summaries, breakdowns, and insights
+ */
 import { supabase } from "../database/supabase";
+import { selectBudgets } from "../stores/budgetsStore";
+import { selectTransactions } from "../stores/transactionsStore";
 import type { Account, Expense, Transaction, Budget } from "../types/types";
 
 export interface FinancialSummary {
@@ -26,6 +32,7 @@ export interface MonthlySummary {
 
 export interface BudgetProgress {
   category: string;
+  account_id: string;
   budgeted: number;
   spent: number;
   remaining: number;
@@ -186,13 +193,46 @@ export const getMonthlySummary = async (
   }
 };
 
+/** Offline-first: compute budget progress from local Legend-State stores. */
+export function getBudgetProgressFromLocal(
+  userId: string
+): BudgetProgress[] {
+  const budgets = selectBudgets(userId).filter((b) => b.is_active);
+  const transactions = selectTransactions(userId);
+  const result: BudgetProgress[] = [];
+
+  for (const budget of budgets) {
+    const spent = transactions
+      .filter(
+        (t) =>
+          t.account_id === budget.account_id &&
+          t.category === budget.category &&
+          t.type === "expense"
+      )
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+    const budgeted = Number(budget.amount);
+    const remaining = budgeted - spent;
+    const percentage = budgeted > 0 ? (spent / budgeted) * 100 : 0;
+    result.push({
+      category: budget.category,
+      account_id: budget.account_id,
+      budgeted,
+      spent,
+      remaining,
+      percentage,
+    });
+  }
+
+  return result.sort((a, b) => b.percentage - a.percentage);
+}
+
 export const getBudgetProgress = async (
   userId: string
 ): Promise<BudgetProgress[]> => {
   try {
     const { data: budgets } = await supabase
       .from("budgets")
-      .select("category, amount")
+      .select("category, amount, account_id")
       .eq("user_id", userId)
       .eq("is_active", true);
 
@@ -201,12 +241,14 @@ export const getBudgetProgress = async (
     const budgetProgress: BudgetProgress[] = [];
 
     for (const budget of budgets) {
+      // Scope spent to the budget's account - only count expenses from that account
       const { data: transactions } = await supabase
         .from("transactions")
         .select("amount")
         .eq("user_id", userId)
+        .eq("account_id", budget.account_id)
         .eq("category", budget.category)
-        .eq("type", "expense"); // Use transactions table with type = 'expense'
+        .eq("type", "expense");
 
       const spent =
         transactions?.reduce(
@@ -219,6 +261,7 @@ export const getBudgetProgress = async (
 
       budgetProgress.push({
         category: budget.category,
+        account_id: budget.account_id,
         budgeted,
         spent,
         remaining,

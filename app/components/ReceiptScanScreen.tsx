@@ -18,6 +18,12 @@ export default function ReceiptScanScreen() {
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
 
   const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      alert('Photo library permission is required to choose images.');
+      return;
+    }
+
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,

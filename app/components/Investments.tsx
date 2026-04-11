@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   Modal,
+  Pressable,
   TextInput,
   Alert,
   RefreshControl,
   Platform,
+  Animated,
 } from 'react-native';
 import {
   X,
@@ -16,18 +19,30 @@ import {
   TrendingDown,
   DollarSign,
   BarChart3,
+  Wallet,
+  ChevronDown,
 } from 'lucide-react-native';
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
-import RNPickerSelect from 'react-native-picker-select';
-import { supabase } from '~/lib';
+import { getCurrentUserOfflineFirst } from '~/lib';
 import { fetchAccounts, type Account } from '~/lib';
 import { useTheme } from '~/lib';
+import { ExpandableTabFab } from '~/components/ExpandableTabFab';
 import { useLanguage } from '~/lib';
+import { triggerSync } from '~/lib/sync/legendSync';
+import {
+  selectInvestments,
+  createInvestmentLocal,
+  updateInvestmentLocal,
+  deleteInvestmentLocal,
+} from '~/lib/stores/investmentsStore';
+import { selectAccounts, toAccount, updateAccountLocal } from '~/lib/stores/accountsStore';
+import { createTransactionLocal } from '~/lib/stores/transactionsStore';
+import type { LocalInvestment } from '~/lib/stores/storeUtils';
 
-// Investment interface based on your Supabase table
+// Investment interface based on local store
 interface Investment {
   id: string;
   user_id: string;
@@ -42,16 +57,37 @@ interface Investment {
   account?: Account;
 }
 
+function toDisplayInvestment(inv: LocalInvestment, accounts: Account[]): Investment {
+  const profitLoss = inv.current_value - inv.invested_amount;
+  const account = accounts.find((a) => a.id === inv.account_id);
+  return {
+    id: inv.id,
+    user_id: inv.user_id,
+    account_id: inv.account_id,
+    type: inv.type,
+    name: inv.name,
+    invested_amount: inv.invested_amount,
+    current_value: inv.current_value,
+    profit_loss: profitLoss,
+    created_at: inv.created_at,
+    updated_at: inv.updated_at,
+    account,
+  };
+}
+
 interface InvestmentsProps {
   accounts?: Account[];
   userId?: string | null;
   onRefresh?: () => Promise<void>;
+  /** When set (e.g. from Budget screen), show only investments for this account (same as Dashboard). */
+  selectedAccountId?: string | null;
 }
 
 const Investments = ({
   accounts: propAccounts,
   userId: propUserId,
   onRefresh: propOnRefresh,
+  selectedAccountId: propSelectedAccountId,
 }: InvestmentsProps = {}) => {
   const theme = useTheme();
   const { t } = useLanguage();
@@ -62,10 +98,36 @@ const Investments = ({
 
   // Modal states
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [accountSheetOpen, setAccountSheetOpen] = useState(false);
+  const [typeSheetOpen, setTypeSheetOpen] = useState(false);
   const [currentInvestment, setCurrentInvestment] = useState<Investment | null>(
     null,
   );
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
+
+  // FAB animation state (same pattern as Accounts)
+  const [fabExpanded, setFabExpanded] = useState(false);
+  const fabAnimation = useRef(new Animated.Value(0)).current;
+
+  const expandFab = () => {
+    fabAnimation.setValue(1);
+    setFabExpanded(true);
+  };
+
+  const collapseFab = () => {
+    fabAnimation.setValue(0);
+    setFabExpanded(false);
+  };
+
+  const handleFabPress = () => {
+    if (fabExpanded) {
+      openAddModal();
+      collapseFab();
+    } else {
+      expandFab();
+    }
+  };
 
   // Form states
   const [newType, setNewType] = useState('');
@@ -73,75 +135,55 @@ const Investments = ({
   const [newInvestedAmount, setNewInvestedAmount] = useState('');
   const [newCurrentValue, setNewCurrentValue] = useState('');
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-  // Investment types
+  // Investment types (ensure labels are always strings for RN Text requirement)
   const investmentTypes = [
-    { key: 'Stock', label: t.stock },
-    { key: 'Crypto', label: t.crypto },
-    { key: 'Real Estate', label: t.realEstate },
-    { key: 'Bonds', label: t.bonds },
-    { key: 'Mutual Funds', label: t.mutualFunds },
-    { key: 'ETF', label: t.etf },
-    { key: 'Commodities', label: t.commodities },
-    { key: 'Other', label: t.other },
+    { key: 'Stock', label: t.stock ?? 'Stock' },
+    { key: 'Crypto', label: t.crypto ?? 'Crypto' },
+    { key: 'Real Estate', label: t.realEstate ?? 'Real Estate' },
+    { key: 'Bonds', label: t.bonds ?? 'Bonds' },
+    { key: 'Mutual Funds', label: t.mutualFunds ?? 'Mutual Funds' },
+    { key: 'ETF', label: t.etf ?? 'ETF' },
+    { key: 'Commodities', label: t.commodities ?? 'Commodities' },
+    { key: 'Other', label: t.other ?? 'Other' },
   ];
 
-  // Get translated investment type label
+  // Get translated investment type label (ensure string for RN Text)
   const getInvestmentTypeLabel = (typeKey: string) => {
     const typeObj = investmentTypes.find((type) => type.key === typeKey);
-    return typeObj ? typeObj.label : typeKey;
+    const label = typeObj?.label ?? typeKey;
+    return typeof label === 'string' ? label : String(typeKey);
   };
 
-  // Fetch investments and accounts
   const fetchData = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) return;
 
       setUserId(user.id);
 
-      // Fetch investments with accounts and accounts in parallel
-      const [investmentsData, accountsData] = await Promise.all([
-        fetchInvestmentsWithAccounts(user.id),
-        fetchAccounts(user.id),
-      ]);
+      // Load from local stores (offline-first)
+      const localInvestments = selectInvestments(user.id);
+      const localAccounts = selectAccounts(user.id);
+      const accountsForDisplay = localAccounts.map(toAccount);
 
-      setInvestments(investmentsData);
-      setAccounts(accountsData);
+      // Convert to display format
+      const displayInvestments = localInvestments.map((inv) =>
+        toDisplayInvestment(inv, accountsForDisplay)
+      );
+
+      setInvestments(displayInvestments);
+      setAccounts(accountsForDisplay);
 
       // Set default selected account if available
-      if (accountsData.length > 0) {
-        setSelectedAccount(accountsData[0]);
+      if (accountsForDisplay.length > 0 && !selectedAccount) {
+        setSelectedAccount(accountsForDisplay[0]);
       }
+
+      // Trigger background sync to get latest data from server
+      triggerSync().catch(console.error);
     } catch (error) {
       console.error('Error fetching data:', error);
       Alert.alert(t.error, t.failedToFetchData);
-    }
-  };
-
-  // Fetch investments with account details
-  const fetchInvestmentsWithAccounts = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('investments')
-        .select(
-          `
-          *,
-          account:accounts(*)
-        `,
-        )
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    } catch (error) {
-      console.error('Error fetching investments:', error);
-      return [];
     }
   };
 
@@ -152,23 +194,25 @@ const Investments = ({
     setRefreshing(false);
   };
 
+  // Always fetch investments on mount; parent may pass accounts/userId for display sync but investments are never passed as props
   useEffect(() => {
-    // Only fetch data if not provided by parent
-    if (!propAccounts && !propUserId) {
-      fetchData();
-    }
+    fetchData();
   }, []);
 
-  // Sync with parent props when they change
+  // Sync with parent props when they change; respect selectedAccountId from app (e.g. Budget/Dashboard)
   useEffect(() => {
     if (propAccounts !== undefined) {
       setAccounts(propAccounts);
-      // Set default selected account if not already set and accounts are available
-      if (propAccounts.length > 0 && !selectedAccount) {
-        setSelectedAccount(propAccounts[0]);
+      if (propAccounts.length > 0) {
+        if (propSelectedAccountId) {
+          const match = propAccounts.find((a) => a.id === propSelectedAccountId);
+          setSelectedAccount(match ?? propAccounts[0]);
+        } else if (!selectedAccount) {
+          setSelectedAccount(propAccounts[0]);
+        }
       }
     }
-  }, [propAccounts]);
+  }, [propAccounts, propSelectedAccountId]);
 
   useEffect(() => {
     if (propUserId !== undefined && propUserId !== null) {
@@ -227,50 +271,90 @@ const Investments = ({
     }
 
     try {
+      const investedAmount = parseFloat(newInvestedAmount);
+      const currentValue = parseFloat(newCurrentValue);
+      const today = new Date().toISOString().split('T')[0];
+
       if (currentInvestment) {
-        // Update existing investment
-        const { data, error } = await supabase
-          .from('investments')
-          .update({
-            type: newType,
-            name: newName,
-            invested_amount: parseFloat(newInvestedAmount),
-            current_value: parseFloat(newCurrentValue),
-            account_id: selectedAccount.id,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', currentInvestment.id)
-          .select()
-          .single();
+        const previousInvestedAmount = currentInvestment.invested_amount;
+        const amountDifference = investedAmount - previousInvestedAmount;
 
-        if (error) throw error;
+        const updated = updateInvestmentLocal(currentInvestment.id, {
+          type: newType,
+          name: newName,
+          invested_amount: investedAmount,
+          current_value: currentValue,
+          account_id: selectedAccount.id,
+        });
 
-        setInvestments((prev) =>
-          prev.map((inv) => (inv.id === currentInvestment.id ? data : inv)),
-        );
+        if (updated) {
+          const displayInv = toDisplayInvestment(updated, accounts);
+          setInvestments((prev) =>
+            prev.map((inv) => (inv.id === currentInvestment.id ? displayInv : inv)),
+          );
+
+          if (amountDifference !== 0) {
+            if (amountDifference > 0) {
+              createTransactionLocal({
+                user_id: userId,
+                account_id: selectedAccount.id,
+                amount: amountDifference,
+                description: `${newName} - ${t.additionalInvestment || 'Additional investment'}`,
+                date: today,
+                category: 'Investment',
+                type: 'expense',
+                is_recurring: false,
+              });
+              const newBalance = selectedAccount.amount - amountDifference;
+              updateAccountLocal(selectedAccount.id, { amount: newBalance });
+            } else {
+              const returnAmount = Math.abs(amountDifference);
+              createTransactionLocal({
+                user_id: userId,
+                account_id: selectedAccount.id,
+                amount: returnAmount,
+                description: `${newName} - ${t.investmentReduction || 'Investment reduction'}`,
+                date: today,
+                category: 'Investment',
+                type: 'income',
+                is_recurring: false,
+              });
+              const newBalance = selectedAccount.amount + returnAmount;
+              updateAccountLocal(selectedAccount.id, { amount: newBalance });
+            }
+          }
+        }
         Alert.alert(t.success, t.investmentUpdated);
       } else {
-        // Add new investment
-        const { data, error } = await supabase
-          .from('investments')
-          .insert({
-            user_id: userId,
-            account_id: selectedAccount.id,
-            type: newType,
-            name: newName,
-            invested_amount: parseFloat(newInvestedAmount),
-            current_value: parseFloat(newCurrentValue),
-          })
-          .select()
-          .single();
+        const created = createInvestmentLocal({
+          user_id: userId,
+          account_id: selectedAccount.id,
+          type: newType,
+          name: newName,
+          invested_amount: investedAmount,
+          current_value: currentValue,
+        });
 
-        if (error) throw error;
+        createTransactionLocal({
+          user_id: userId,
+          account_id: selectedAccount.id,
+          amount: investedAmount,
+          description: `${newName} - ${t.newInvestment || 'New investment'}`,
+          date: today,
+          category: 'Investment',
+          type: 'expense',
+          is_recurring: false,
+        });
 
-        setInvestments((prev) => [data, ...prev]);
+        const newBalance = selectedAccount.amount - investedAmount;
+        updateAccountLocal(selectedAccount.id, { amount: newBalance });
+
+        const displayInv = toDisplayInvestment(created, accounts);
+        setInvestments((prev) => [displayInv, ...prev]);
         Alert.alert(t.success, t.investmentAdded);
       }
       setIsModalVisible(false);
-      fetchData(); // Refresh to get updated data
+      triggerSync().catch(console.error);
     } catch (error) {
       console.error('Error saving investment:', error);
       Alert.alert(t.error, t.investmentSaveError);
@@ -285,17 +369,15 @@ const Investments = ({
         style: 'destructive',
         onPress: async () => {
           try {
-            const { error } = await supabase
-              .from('investments')
-              .delete()
-              .eq('id', investmentId);
-
-            if (error) throw error;
+            // Delete locally (soft delete)
+            deleteInvestmentLocal(investmentId);
 
             setInvestments((prev) =>
               prev.filter((inv) => inv.id !== investmentId),
             );
             Alert.alert(t.success, t.investmentDeleted);
+            // Trigger sync to push deletion to server
+            triggerSync().catch(console.error);
           } catch (error) {
             console.error('Error deleting investment:', error);
             Alert.alert(t.error, t.investmentDeleteError);
@@ -317,12 +399,17 @@ const Investments = ({
     return <BarChart3 size={16} color={theme.textSecondary} />;
   };
 
-  // Calculate total portfolio value
-  const totalInvested = investments.reduce(
+  // Filter by selected account when provided (same as Dashboard)
+  const investmentsForAccount = propSelectedAccountId
+    ? investments.filter((inv) => inv.account_id === propSelectedAccountId)
+    : investments;
+
+  // Calculate total portfolio value (for displayed account when filtered)
+  const totalInvested = investmentsForAccount.reduce(
     (sum, inv) => sum + inv.invested_amount,
     0,
   );
-  const totalCurrentValue = investments.reduce(
+  const totalCurrentValue = investmentsForAccount.reduce(
     (sum, inv) => sum + inv.current_value,
     0,
   );
@@ -331,14 +418,18 @@ const Investments = ({
     totalInvested > 0 ? (totalProfitLoss / totalInvested) * 100 : 0;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: theme.background }}
+      edges={['left', 'right']}
+    >
       <ScrollView
         className="flex-1"
+        contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }>
         {/* Header */}
-        <View style={{ paddingHorizontal: 16, paddingVertical: 16 }}>
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 16 }}>
           <View className="flex-row justify-between items-center mb-6">
             <View>
               <Text
@@ -355,31 +446,10 @@ const Investments = ({
                   fontSize: 14,
                   marginTop: 4,
                 }}>
-                {investments.length}{' '}
-                {investments.length === 1 ? 'investment' : 'investments'}
+                {investmentsForAccount.length}{' '}
+                {investmentsForAccount.length === 1 ? 'investment' : 'investments'}
               </Text>
             </View>
-            <TouchableOpacity
-              style={{
-                backgroundColor: theme.primary,
-                borderRadius: 12,
-                paddingVertical: 12,
-                paddingHorizontal: 20,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-                elevation: 3,
-              }}
-              onPress={openAddModal}>
-              <Text
-                style={{
-                  color: theme.primaryText,
-                  fontWeight: '600',
-                }}>
-                {t.addInvestment}
-              </Text>
-            </TouchableOpacity>
           </View>
 
           {/* Portfolio Summary - Simplified */}
@@ -525,7 +595,7 @@ const Investments = ({
               {t.myInvestments}
             </Text>
 
-            {investments.length === 0 ? (
+            {investmentsForAccount.length === 0 ? (
               <View
                 style={{
                   paddingVertical: 48,
@@ -552,7 +622,7 @@ const Investments = ({
               </View>
             ) : (
               <View style={{ gap: 12 }}>
-                {investments.map((investment) => {
+                {investmentsForAccount.map((investment) => {
                   const profitLossPercentage =
                     investment.invested_amount > 0
                       ? (investment.profit_loss / investment.invested_amount) *
@@ -774,78 +844,54 @@ const Investments = ({
                   </TouchableOpacity>
                 </View>
 
+                {/* Investment type - Card opens bottom sheet */}
                 <View className="mb-4">
-                  <Text style={{ color: theme.text, marginBottom: 4 }}>
-                    {t.investmentType}
-                  </Text>
-                  <RNPickerSelect
-                    onValueChange={(value) => {
-                      setNewType(value);
-                    }}
-                    items={investmentTypes
-                      .filter(
-                        (type) => type.label && type.label !== 'undefined',
-                      )
-                      .map((type) => ({
-                        label: type.label,
-                        value: type.key,
-                      }))}
-                    value={newType}
-                    placeholder={{
-                      label: t.selectInvestmentType || 'Select investment type',
-                      value: null,
-                    }}
+                  <Text style={{ color: theme.text, marginBottom: 4 }}>{t.investmentType}</Text>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => setTypeSheetOpen(true)}
                     style={{
-                      inputIOS: {
-                        fontSize: 14,
-                        paddingVertical: 12,
-                        paddingHorizontal: 12,
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        backgroundColor: theme.background,
-                        color: newType ? theme.text : theme.textMuted,
-                        minHeight: 50,
-                      },
-                      inputAndroid: {
-                        fontSize: 14,
-                        paddingVertical: 12,
-                        paddingHorizontal: 12,
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        backgroundColor: theme.background,
-                        color: newType ? theme.text : theme.textMuted,
-                        minHeight: 50,
-                      },
-                      placeholder: {
-                        color: theme.textMuted,
-                      },
-                      iconContainer: {
-                        top: 18,
-                        right: 12,
-                      },
-                    }}
-                    Icon={() => {
-                      return (
-                        <View
-                          style={{
-                            backgroundColor: 'transparent',
-                            borderTopWidth: 6,
-                            borderTopColor: theme.textMuted,
-                            borderRightWidth: 6,
-                            borderRightColor: 'transparent',
-                            borderLeftWidth: 6,
-                            borderLeftColor: 'transparent',
-                            width: 0,
-                            height: 0,
-                          }}
-                        />
-                      );
-                    }}
-                    useNativeAndroidPickerStyle={false}
-                  />
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 14,
+                      paddingHorizontal: 14,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: newType ? theme.primary : theme.border,
+                      backgroundColor: theme.background,
+                      minHeight: 50,
+                    }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: newType ? theme.text : theme.textMuted }} numberOfLines={1}>
+                      {newType ? getInvestmentTypeLabel(newType) : (t.selectInvestmentType || 'Select investment type')}
+                    </Text>
+                    <ChevronDown size={20} color={theme.textMuted} />
+                  </TouchableOpacity>
                 </View>
+
+                {/* Type bottom sheet */}
+                <Modal visible={typeSheetOpen} transparent animationType="slide" onRequestClose={() => setTypeSheetOpen(false)}>
+                  <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }} onPress={() => setTypeSheetOpen(false)}>
+                    <Pressable style={{ maxHeight: '75%', backgroundColor: theme.cardBackground, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' }} onPress={(e) => e.stopPropagation()}>
+                      <View style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}><View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: theme.border }} /></View>
+                      <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+                        <Text style={{ fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 16 }}>{t.selectInvestmentType || 'Select investment type'}</Text>
+                        <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
+                          {investmentTypes.map((type) => (
+                            <TouchableOpacity
+                              key={type.key}
+                              activeOpacity={0.7}
+                              onPress={() => { setNewType(type.key); setTypeSheetOpen(false); }}
+                              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.background, marginBottom: 8, borderWidth: 1, borderColor: theme.border }}>
+                              <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text, flex: 1 }}>{String(type.label ?? type.key)}</Text>
+                              <ChevronDown size={18} color={theme.textMuted} style={{ transform: [{ rotate: '-90deg' }] }} />
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    </Pressable>
+                  </Pressable>
+                </Modal>
 
                 <View className="mb-4">
                   <Text style={{ color: theme.text, marginBottom: 4 }}>
@@ -867,75 +913,72 @@ const Investments = ({
                   />
                 </View>
 
+                {/* Account - Card opens bottom sheet */}
                 <View className="mb-4">
-                  <Text style={{ color: theme.text, marginBottom: 4 }}>
-                    {t.account}
-                  </Text>
-                  <RNPickerSelect
-                    onValueChange={(value) => {
-                      const account = accounts.find((acc) => acc.id === value);
-                      setSelectedAccount(account || null);
-                    }}
-                    items={accounts.map((account) => ({
-                      label: `${account.name}`,
-                      value: account.id,
-                    }))}
-                    value={selectedAccount?.id}
-                    placeholder={{
-                      label: t.selectAccount || 'Select account',
-                      value: null,
-                    }}
+                  <Text style={{ color: theme.text, marginBottom: 4 }}>{t.account}</Text>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => setAccountSheetOpen(true)}
                     style={{
-                      inputIOS: {
-                        fontSize: 14,
-                        paddingVertical: 12,
-                        paddingHorizontal: 12,
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        backgroundColor: theme.background,
-                        color: selectedAccount ? theme.text : theme.textMuted,
-                        minHeight: 50,
-                      },
-                      inputAndroid: {
-                        fontSize: 14,
-                        paddingVertical: 12,
-                        paddingHorizontal: 12,
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        backgroundColor: theme.background,
-                        color: selectedAccount ? theme.text : theme.textMuted,
-                        minHeight: 50,
-                      },
-                      placeholder: {
-                        color: theme.textMuted,
-                      },
-                      iconContainer: {
-                        top: 18,
-                        right: 12,
-                      },
-                    }}
-                    Icon={() => {
-                      return (
-                        <View
-                          style={{
-                            backgroundColor: 'transparent',
-                            borderTopWidth: 6,
-                            borderTopColor: theme.textMuted,
-                            borderRightWidth: 6,
-                            borderRightColor: 'transparent',
-                            borderLeftWidth: 6,
-                            borderLeftColor: 'transparent',
-                            width: 0,
-                            height: 0,
-                          }}
-                        />
-                      );
-                    }}
-                    useNativeAndroidPickerStyle={false}
-                  />
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 14,
+                      paddingHorizontal: 14,
+                      borderRadius: 12,
+                      borderWidth: 1,
+                      borderColor: selectedAccount ? theme.primary : theme.border,
+                      backgroundColor: theme.background,
+                      minHeight: 50,
+                    }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                      <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: selectedAccount ? `${theme.primary}18` : `${theme.border}40`, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                        <Wallet size={20} color={selectedAccount ? theme.primary : theme.textMuted} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '600', color: selectedAccount ? theme.text : theme.textMuted }} numberOfLines={1}>
+                          {selectedAccount?.name ?? (t.selectAccount || 'Select account')}
+                        </Text>
+                        {selectedAccount && <Text style={{ fontSize: 13, color: theme.textSecondary, marginTop: 2 }}>{t.balance || 'Balance'}: ${selectedAccount.amount.toFixed(2)}</Text>}
+                      </View>
+                    </View>
+                    <ChevronDown size={20} color={theme.textMuted} />
+                  </TouchableOpacity>
                 </View>
+
+                {/* Account bottom sheet */}
+                <Modal visible={accountSheetOpen} transparent animationType="slide" onRequestClose={() => setAccountSheetOpen(false)}>
+                  <Pressable style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }} onPress={() => setAccountSheetOpen(false)}>
+                    <Pressable style={{ maxHeight: '75%', backgroundColor: theme.cardBackground, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' }} onPress={(e) => e.stopPropagation()}>
+                      <View style={{ paddingTop: 12, paddingBottom: 8, alignItems: 'center' }}><View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: theme.border }} /></View>
+                      <View style={{ paddingHorizontal: 20, paddingBottom: 24 }}>
+                        <Text style={{ fontSize: 18, fontWeight: '700', color: theme.text, marginBottom: 16 }}>{t.selectAccount || 'Select account'}</Text>
+                        <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
+                          {accounts.length === 0 ? (
+                            <Text style={{ fontSize: 15, color: theme.textSecondary, textAlign: 'center', paddingVertical: 24 }}>{t.noAccountsAvailable || 'No accounts available'}</Text>
+                          ) : (
+                            accounts.map((account) => (
+                              <TouchableOpacity
+                                key={account.id}
+                                activeOpacity={0.7}
+                                onPress={() => { setSelectedAccount(account); setAccountSheetOpen(false); }}
+                                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12, borderRadius: 12, backgroundColor: theme.background, marginBottom: 8, borderWidth: 1, borderColor: theme.border }}>
+                                <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: `${theme.primary}18`, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                                  <Wallet size={20} color={theme.primary} />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={{ fontSize: 16, fontWeight: '600', color: theme.text }}>{account.name}</Text>
+                                  <Text style={{ fontSize: 13, color: theme.textSecondary, marginTop: 2 }}>{t.balance || 'Balance'}: ${account.amount.toFixed(2)}</Text>
+                                </View>
+                                <ChevronDown size={18} color={theme.textMuted} style={{ transform: [{ rotate: '-90deg' }] }} />
+                              </TouchableOpacity>
+                            ))
+                          )}
+                        </ScrollView>
+                      </View>
+                    </Pressable>
+                  </Pressable>
+                </Modal>
 
                 <View className="mb-4">
                   <Text style={{ color: theme.text, marginBottom: 4 }}>
@@ -996,6 +1039,32 @@ const Investments = ({
           </View>
         </Modal>
       </ScrollView>
+
+      {/* Close area when FAB expanded */}
+      {fabExpanded && (
+        <TouchableOpacity
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
+          activeOpacity={1}
+          onPress={collapseFab}
+        />
+      )}
+
+      <ExpandableTabFab
+        bottom={tabBarHeight + 20}
+        fabAnimation={fabAnimation}
+        fabExpanded={fabExpanded}
+        expandedWidth={195}
+        onPress={handleFabPress}
+        label={t.addInvestment}
+        surfaceKey={theme.background}
+        backgroundColor={theme.primary}
+      />
     </SafeAreaView>
   );
 };

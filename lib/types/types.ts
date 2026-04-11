@@ -57,7 +57,8 @@ export type Expense = {
   id: string;
   user_id?: string;
   amount: number;
-  category: string;
+  /** Omitted or empty when uncategorized (e.g. EVC P2P pending user label) */
+  category?: string;
   description?: string;
   date: string;
   is_recurring: boolean;
@@ -68,6 +69,8 @@ export type Expense = {
   receipt_url?: string;
   entry_type: "Income" | "Expense";
   account_id?: string;
+  evc_kind?: "merchant" | "transfer" | null;
+  evc_counterparty_phone?: string | null;
 };
 
 export type Profile = {
@@ -76,7 +79,7 @@ export type Profile = {
   phone?: string;
   user_type: string;
   created_at: string;
-  image_url?: string;
+  image_url?: string | null;
   email?: string;
 };
 
@@ -93,6 +96,13 @@ export type Transaction = {
   type: "expense" | "income" | "transfer";
   created_at: string;
   updated_at: string;
+  /** EVC payee class; does not replace ledger `type` */
+  evc_kind?: "merchant" | "transfer" | null;
+  evc_counterparty_phone?: string | null;
+  /** Expense row created with this transaction from the same SMS */
+  source_expense_id?: string | null;
+  /** Payment rail (local / client-only until DB column exists); use with `getTransactionSource` */
+  source?: "evc";
 };
 
 export type Transfer = {
@@ -194,4 +204,20 @@ export type PersonalLoan = {
   status: "active" | "partial" | "settled";
   created_at: string;
   updated_at: string;
+};
+
+export type Investment = {
+  id: string;
+  user_id: string;
+  account_id: string;
+  type: string;
+  name: string;
+  invested_amount: number;
+  current_value: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InvestmentWithAccount = Investment & {
+  account?: Account;
 };

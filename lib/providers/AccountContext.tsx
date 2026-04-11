@@ -1,15 +1,44 @@
+/**
+ * Account context: selected account, list of accounts, balance/refresh helpers.
+ * Offline-first: accounts from Legend-State store (SQLite); no Supabase fetch for list.
+ */
 import React, {
   createContext,
   useContext,
   useState,
   useEffect,
+  useRef,
   ReactNode,
   useCallback,
+  useMemo,
 } from "react";
+import { getCurrentUserOfflineFirst } from "../auth";
 import { supabase } from "../database/supabase";
-import { fetchAccounts, updateAccount } from "../services/accounts";
+import {
+  accounts$,
+  selectAccounts,
+  selectAccountById,
+  setAccountsFromServer,
+  updateAccountLocal,
+  toAccount,
+} from "../stores/accountsStore";
+import { clearSyncCursors } from "../stores/syncCursorsStore";
+import { triggerSync } from "../sync/legendSync";
+import { fetchAccounts } from "../services/accounts";
 import type { Account } from "../types/types";
-import { fetchTransactions } from "../services/transactions";
+
+/** Clear account state so we never show a previous user's data (spec 005). */
+function clearUserScopedState(
+  setAccounts: React.Dispatch<React.SetStateAction<Account[]>>,
+  setSelectedAccountState: React.Dispatch<React.SetStateAction<Account | null>>,
+  setHasInitialized: React.Dispatch<React.SetStateAction<boolean>>,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>
+) {
+  setAccounts([]);
+  setSelectedAccountState(null);
+  setHasInitialized(false);
+  setLoading(false);
+}
 
 interface AccountContextType {
   selectedAccount: Account | null;
@@ -19,7 +48,7 @@ interface AccountContextType {
   refreshAccounts: () => Promise<void>;
   calculateAccountBalance: (accountId: string) => Promise<number>;
   refreshBalances: () => Promise<void>;
-  initializeAccounts: () => Promise<void>; // Add this missing function
+  initializeAccounts: () => Promise<void>;
 }
 
 const AccountContext = createContext<AccountContextType | undefined>(undefined);
@@ -29,155 +58,172 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     null
   );
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [loading, setLoading] = useState(false); // Start with false since we'll load on mount
+  const [loading, setLoading] = useState(false);
   const [isUpdatingDefault, setIsUpdatingDefault] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
 
-  // Auto-load accounts when the provider mounts
+  // Track current user id so we clear state when user changes (spec 005: fix new user seeing other user data)
+  const currentUserIdRef = useRef<string | null>(null);
+
+  // Clear state when authenticated user changes so we never show another user's data
   useEffect(() => {
-    const autoLoadAccounts = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
-          await loadAccounts();
-        }
-      } catch (error) {
-        console.error("AccountContext - Error auto-loading accounts:", error);
+    const handleAuthChange = async (
+      _event: string,
+      session: { user?: { id: string } } | null
+    ) => {
+      const userId = session?.user?.id ?? null;
+
+      if (userId === null) {
+        clearUserScopedState(
+          setAccounts,
+          setSelectedAccountState,
+          setHasInitialized,
+          setLoading
+        );
+        currentUserIdRef.current = null;
+        clearSyncCursors();
+        return;
+      }
+
+      if (userId !== currentUserIdRef.current) {
+        clearUserScopedState(
+          setAccounts,
+          setSelectedAccountState,
+          setHasInitialized,
+          setLoading
+        );
+        currentUserIdRef.current = userId;
+        await loadAccounts();
       }
     };
 
-    autoLoadAccounts();
-  }, []); // Only run once when provider mounts
+    // Sync with current session on mount (works offline from cached session)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      handleAuthChange("INITIAL_SESSION", session);
+    }).catch(() => {
+      handleAuthChange("INITIAL_SESSION", null);
+    });
 
-  // Function to calculate real-time account balance based on transactions
-  const calculateAccountBalance = async (
-    accountId: string
-  ): Promise<number> => {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      handleAuthChange(event, session);
+    });
 
-      if (!user) return 0;
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []); // loadAccounts is stable enough for initial mount + auth listener
 
-      // Get the account directly from the database to avoid circular dependency
-      const fetchedAccounts = await fetchAccounts(user.id);
-      const account = fetchedAccounts.find((acc) => acc.id === accountId);
-      if (!account) return 0;
+  const applyAccountsFromStore = useCallback((userId: string) => {
+    const list = selectAccounts(userId).map(toAccount);
+    setAccounts(list);
+    setSelectedAccountState((prev) => {
+      if (!prev || list.length === 0) return prev;
+      const updated = list.find((acc) => acc.id === prev.id);
+      return updated ?? prev;
+    });
+  }, []);
 
-      // Always return the current amount from the accounts table
-      // Transfers now create expense/income transactions that properly update account balances
-      const currentBalance = account.amount || 0;
+  useEffect(() => {
+    const unsub = accounts$.onChange(() => {
+      const userId = currentUserIdRef.current;
+      if (userId) applyAccountsFromStore(userId);
+    });
+    return unsub;
+  }, [applyAccountsFromStore]);
 
+  const calculateAccountBalance = useCallback(
+    async (accountId: string): Promise<number> => {
+      try {
+        const user = await getCurrentUserOfflineFirst();
+        if (!user) return 0;
+        const account = selectAccountById(user.id, accountId);
+        return account?.amount ?? 0;
+      } catch (error) {
+        console.error("Error calculating account balance:", accountId, error);
+        return 0;
+      }
+    },
+    []
+  );
 
-      return currentBalance;
-    } catch (error) {
-      console.error("Error calculating account balance:", error);
-      return 0;
-    }
-  };
-
-  // Function to update account balances with real-time calculations
   const updateAccountBalances = async () => {
     try {
-      // Simply refresh accounts from database since balances are now stored directly
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const fetchedAccounts = await fetchAccounts(user.id);
-      setAccounts(fetchedAccounts);
-
-      // Update selected account if it exists
-      if (selectedAccount) {
-        const updatedSelectedAccount = fetchedAccounts.find(
-          (acc) => acc.id === selectedAccount.id
-        );
-        if (updatedSelectedAccount) {
-          setSelectedAccountState(updatedSelectedAccount);
-        }
-      }
-
+      const userId = currentUserIdRef.current;
+      if (userId) applyAccountsFromStore(userId);
     } catch (error) {
       console.error("Error updating account balances:", error);
     }
   };
 
-  // Function to handle account selection and update is_default
-  const setSelectedAccount = async (account: Account | null) => {
-    try {
-      if (account && !isUpdatingDefault) {
-        setIsUpdatingDefault(true);
-
-        // First, set all accounts to is_default: false
-        const updatePromises = accounts.map((acc) =>
-          updateAccount(acc.id, { is_default: false })
-        );
-
-        // Wait for all updates to complete
-        await Promise.all(updatePromises);
-
-        // Then set the selected account to is_default: true
-        await updateAccount(account.id, { is_default: true });
-
-        // Update local state
+  const setSelectedAccount = useCallback(
+    async (account: Account | null) => {
+      try {
+        if (account && !isUpdatingDefault) {
+          setIsUpdatingDefault(true);
+          accounts.forEach((acc) => {
+            updateAccountLocal(acc.id, { is_default: acc.id === account.id });
+          });
+          setSelectedAccountState(account);
+          setAccounts((prev) =>
+            prev.map((acc) => ({
+              ...acc,
+              is_default: acc.id === account.id,
+            }))
+          );
+        } else if (!account) {
+          setSelectedAccountState(null);
+        }
+      } catch (error) {
+        console.error("Error updating account selection:", error);
         setSelectedAccountState(account);
-
-        // Update local accounts array to reflect the changes
-        const updatedAccounts = accounts.map((acc) => ({
-          ...acc,
-          is_default: acc.id === account.id,
-        }));
-        setAccounts(updatedAccounts);
-
-      } else if (!account) {
-        setSelectedAccountState(null);
+      } finally {
+        setIsUpdatingDefault(false);
       }
-    } catch (error) {
-      console.error("Error updating account selection:", error);
-      // Fallback: just update local state without database changes
-      setSelectedAccountState(account);
-    } finally {
-      setIsUpdatingDefault(false);
-    }
-  };
+    },
+    [accounts, isUpdatingDefault]
+  );
 
-  // Function to load accounts - only called when explicitly requested
   const loadAccounts = async () => {
-    if (loading) return; // Only prevent multiple simultaneous calls
-
+    if (loading) return;
     try {
       setLoading(true);
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
+      const user = await getCurrentUserOfflineFirst();
       if (!user) {
         setLoading(false);
         return;
       }
-
-      const fetchedAccounts = await fetchAccounts(user.id);
-
-      if (fetchedAccounts && fetchedAccounts.length > 0) {
-        setAccounts(fetchedAccounts);
-
-        // Only set default selected account if no account is currently selected
+      let list = selectAccounts(user.id).map(toAccount);
+      // When local store is empty (e.g. after login before sync, or sync error), seed from server
+      // so dashboard and WalletDropdown show accounts instead of loading/empty.
+      if (list.length === 0) {
+        clearSyncCursors();
+        try {
+          const serverAccounts = await fetchAccounts(user.id);
+          if (serverAccounts?.length > 0) {
+            setAccountsFromServer(user.id, serverAccounts as unknown as Array<Record<string, unknown>>);
+            list = selectAccounts(user.id).map(toAccount);
+          }
+          // Trigger full sync so transactions and other data load immediately
+          void triggerSync();
+        } catch (seedError) {
+          console.error("Error seeding accounts from server:", seedError);
+          void triggerSync();
+        }
+      }
+      // Re-read from store so we don't overwrite with [] if another flow (e.g. ensureDefaultAccount) populated it
+      list = selectAccounts(user.id).map(toAccount);
+      if (list.length > 0) {
+        setAccounts(list);
         if (!selectedAccount && !isUpdatingDefault) {
-          const defaultAccount = fetchedAccounts.find(
-            (acc) => acc.is_default === true
-          );
-          const accountToSelect = defaultAccount || fetchedAccounts[0];
-          setSelectedAccountState(accountToSelect);
+          const defaultAccount = list.find((acc) => acc.is_default === true);
+          setSelectedAccountState(defaultAccount ?? list[0]);
         }
       } else {
         setAccounts([]);
         setSelectedAccountState(null);
       }
-
       setHasInitialized(true);
     } catch (error) {
       console.error("Error loading accounts:", error);
@@ -188,46 +234,48 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Function to manually trigger account loading (called from Dashboard)
   const initializeAccounts = useCallback(async () => {
-    // Always try to load accounts when explicitly requested
-    // This handles the case where accounts were created during signup
     await loadAccounts();
   }, []);
 
-  // Function to refresh accounts (called when needed)
   const refreshAccounts = useCallback(async () => {
+    if (loading) return;
     try {
       setHasInitialized(false);
       setLoading(true);
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
+      const user = await getCurrentUserOfflineFirst();
       if (!user) {
         setLoading(false);
         return;
       }
-
-      const fetchedAccounts = await fetchAccounts(user.id);
-
-      if (fetchedAccounts && fetchedAccounts.length > 0) {
-        setAccounts(fetchedAccounts);
-
-        // Only set default selected account if no account is currently selected
-        if (!selectedAccount && !isUpdatingDefault) {
-          const defaultAccount = fetchedAccounts.find(
-            (acc) => acc.is_default === true
-          );
-          const accountToSelect = defaultAccount || fetchedAccounts[0];
-          setSelectedAccountState(accountToSelect);
+      let list = selectAccounts(user.id).map(toAccount);
+      if (list.length === 0) {
+        clearSyncCursors();
+        try {
+          const serverAccounts = await fetchAccounts(user.id);
+          if (serverAccounts?.length > 0) {
+            setAccountsFromServer(user.id, serverAccounts as unknown as Array<Record<string, unknown>>);
+            list = selectAccounts(user.id).map(toAccount);
+          }
+          void triggerSync();
+        } catch (seedError) {
+          console.error("Error seeding accounts from server:", seedError);
+          void triggerSync();
         }
+      }
+      // Re-read from store so we don't overwrite with [] if another flow populated it
+      list = selectAccounts(user.id).map(toAccount);
+      if (list.length > 0) {
+        setAccounts(list);
+        setSelectedAccountState((prev) => {
+          if (prev) return prev;
+          const defaultAccount = list.find((acc) => acc.is_default === true);
+          return defaultAccount ?? list[0];
+        });
       } else {
         setAccounts([]);
         setSelectedAccountState(null);
       }
-
       setHasInitialized(true);
     } catch (error) {
       console.error("Error refreshing accounts:", error);
@@ -236,31 +284,37 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [selectedAccount, isUpdatingDefault]);
+  }, [loading]);
 
-  // Function to refresh balances after transaction changes
-  const refreshBalances = async () => {
+  // Function to refresh balances after transaction changes (stable ref to avoid consumer effect loops)
+  const refreshBalances = useCallback(async () => {
     if (!isUpdatingDefault) {
       await updateAccountBalances();
     }
-  };
+  }, [isUpdatingDefault]);
 
-  // Remove all automatic loading logic that causes infinite loops
-  // Only load accounts when explicitly requested
-
-  const value = {
-    selectedAccount,
-    setSelectedAccount,
-    accounts,
-    loading,
-    refreshAccounts,
-    calculateAccountBalance,
-    refreshBalances,
-    loadAccounts: initializeAccounts, // Expose the manual trigger
-    isUpdatingDefault,
-    hasInitialized,
-    initializeAccounts,
-  };
+  const value = useMemo(
+    () => ({
+      selectedAccount,
+      setSelectedAccount,
+      accounts,
+      loading,
+      refreshAccounts,
+      calculateAccountBalance,
+      refreshBalances,
+      initializeAccounts,
+    }),
+    [
+      selectedAccount,
+      setSelectedAccount,
+      accounts,
+      loading,
+      refreshAccounts,
+      calculateAccountBalance,
+      refreshBalances,
+      initializeAccounts,
+    ]
+  );
 
   return (
     <AccountContext.Provider value={value}>{children}</AccountContext.Provider>

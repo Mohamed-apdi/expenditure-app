@@ -1,0 +1,10 @@
+{
+  "name": "expo-evc-sms",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "license": "MIT",
+  "peerDependencies": {
+    "expo": "*",
+    "expo-modules-core": "*"
+  }
+}
