@@ -15,8 +15,9 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
 
   override fun onReceive(context: Context?, intent: Intent?) {
     if (context == null) return
+    val appCtx = context.applicationContext
     if (Telephony.Sms.Intents.SMS_RECEIVED_ACTION != intent?.action) return
-    if (!EvcSmsPrefs.isEnabled(context)) return
+    if (!EvcSmsPrefs.isEnabled(appCtx)) return
 
     val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
     if (messages.isEmpty()) return
@@ -35,7 +36,8 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
     val deliveredLive = EvcSmsBridge.notifySmsReceived(sender, body, forwarded)
     if (!deliveredLive) {
       // Privacy: persist only parsed fields (never full SMS).
-      EvcSmsDb(context).insert(parsed)
+      // applicationContext: same DB path as JS peek/delete; survives receiver Context quirks.
+      EvcSmsDb(appCtx).insert(parsed)
     }
   }
 

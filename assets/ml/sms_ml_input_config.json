@@ -1,7 +1,0 @@
-{
-  "inputMode": "tokens",
-  "inputName": "x",
-  "outputName": "logits",
-  "inputDtype": "int32",
-  "seqLen": 128
-}

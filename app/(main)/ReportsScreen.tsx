@@ -84,6 +84,7 @@ import {
   categoryLabelFromStored,
   resolveCategoryIdFromStored,
 } from '~/lib/utils/categories';
+import { REPORTS_UNCATEGORIZED_EXPENSE_KEY } from '~/lib/reports/constants';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -329,6 +330,9 @@ export default function ReportsScreen() {
   }, [transactionData, dateRange, t]);
 
   const translateCategory = useCallback((category: string) => {
+    if (category === REPORTS_UNCATEGORIZED_EXPENSE_KEY) {
+      return t.transactionUncategorized;
+    }
     const id = resolveCategoryIdFromStored(category);
     if (id) {
       return categoryLabelFromStored(t, category);
@@ -399,15 +403,15 @@ export default function ReportsScreen() {
   const pieChartData = useMemo(() => {
     if (!transactionData) return [];
 
-    return Object.entries(transactionData.category_breakdown).map(
-      ([category, data]) => ({
+    return Object.entries(transactionData.category_breakdown)
+      .filter(([, data]) => data.amount > 0)
+      .map(([category, data]) => ({
         name: translateCategory(category),
         population: Math.abs(data.amount),
         color: getCategoryColor(category),
         legendFontColor: '#64748b',
         legendFontSize: 12,
-      }),
-    );
+      }));
   }, [transactionData, translateCategory]);
 
   // Gifted Charts pie data: { value, color, text? }
@@ -1313,7 +1317,7 @@ export default function ReportsScreen() {
               ],
               rows: Object.entries(transactionData.category_breakdown).map(
                 ([category, data]) => [
-                  category,
+                  translateCategory(category),
                   formatCurrency(data.amount),
                   formatPercentage(data.percentage),
                   data.count.toString(),
@@ -1383,7 +1387,7 @@ export default function ReportsScreen() {
               ],
               rows: Object.entries(transactionData.category_breakdown).map(
                 ([category, data]) => [
-                  category,
+                  translateCategory(category),
                   data.amount.toString(),
                   data.percentage.toString(),
                   data.count.toString(),
@@ -1823,10 +1827,14 @@ export default function ReportsScreen() {
                   )}
                 />
               </View>
-              <View style={{ flex: 1, paddingLeft: 8 }}>
-                {giftedPieData.slice(0, 5).map((slice, index) => (
+              <ScrollView
+                style={{ flex: 1, maxHeight: 200, paddingLeft: 8 }}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
+                keyboardShouldPersistTaps="handled">
+                {giftedPieData.map((slice, index) => (
                   <View
-                    key={index}
+                    key={`${slice.text}-${index}`}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -1861,12 +1869,7 @@ export default function ReportsScreen() {
                     </View>
                   </View>
                 ))}
-                {giftedPieData.length > 5 && (
-                  <Text style={{ color: theme.textSecondary, fontSize: 11, marginTop: 4 }}>
-                    +{giftedPieData.length - 5} {t.more || 'more'}
-                  </Text>
-                )}
-              </View>
+              </ScrollView>
             </View>
           ) : (
             <Text
@@ -2486,10 +2489,14 @@ export default function ReportsScreen() {
                   )}
                 />
               </View>
-              <View style={{ flex: 1, paddingLeft: 12 }}>
-                {pieData.slice(0, 4).map((item, index) => (
+              <ScrollView
+                style={{ flex: 1, maxHeight: 180, paddingLeft: 12 }}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
+                keyboardShouldPersistTaps="handled">
+                {pieData.map((item, index) => (
                   <View
-                    key={index}
+                    key={`${item.text}-${index}`}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -2512,12 +2519,7 @@ export default function ReportsScreen() {
                     </Text>
                   </View>
                 ))}
-                {pieData.length > 4 && (
-                  <Text style={{ color: theme.textSecondary, fontSize: 11, marginTop: 4 }}>
-                    +{pieData.length - 4} {t.more || 'more'}
-                  </Text>
-                )}
-              </View>
+              </ScrollView>
             </View>
           </View>
         )}
@@ -3797,10 +3799,14 @@ export default function ReportsScreen() {
                   )}
                 />
               </View>
-              <View style={{ flex: 1, paddingLeft: 12 }}>
-                {pieData.slice(0, 4).map((item, index) => (
+              <ScrollView
+                style={{ flex: 1, maxHeight: 180, paddingLeft: 12 }}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
+                keyboardShouldPersistTaps="handled">
+                {pieData.map((item, index) => (
                   <View
-                    key={index}
+                    key={`${item.text}-${index}`}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -3823,12 +3829,7 @@ export default function ReportsScreen() {
                     </Text>
                   </View>
                 ))}
-                {pieData.length > 4 && (
-                  <Text style={{ color: theme.textSecondary, fontSize: 11, marginTop: 4 }}>
-                    +{pieData.length - 4} {t.more || 'more'}
-                  </Text>
-                )}
-              </View>
+              </ScrollView>
             </View>
           </View>
         )}

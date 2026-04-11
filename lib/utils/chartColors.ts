@@ -6,12 +6,17 @@ import {
   categoryColorFromStored,
   resolveCategoryIdFromStored,
 } from "./categories";
+import { REPORTS_UNCATEGORIZED_EXPENSE_KEY } from "../reports/constants";
 
 /**
  * Gets a consistent color for a stored category (expense/income id, legacy English label, or legacy chart key).
  * Prefers palette from {@link getExpenseCategories} / income when the value resolves to a known id.
  */
 export const getCategoryColor = (category: string): string => {
+  /** Bright gold — far from Health (violet), Investments (blue), and typical reds/oranges */
+  if (category === REPORTS_UNCATEGORIZED_EXPENSE_KEY) {
+    return "#eab308";
+  }
   const id = resolveCategoryIdFromStored(category);
   if (id) {
     return categoryColorFromStored(LANGUAGES.en, id);
@@ -23,10 +28,10 @@ export const getCategoryColor = (category: string): string => {
     Dining: "#EA580C",
     Groceries: "#BE185D",
 
-    // Transportation - Cool Blues/Teals
-    Transport: "#0D9488",
-    Gas: "#0284C7",
-    PublicTransport: "#059669",
+    // Transportation — match expense `transport` (golden), not another blue block
+    Transport: "#CA8A04",
+    Gas: "#D97706",
+    PublicTransport: "#A16207",
 
     // Entertainment - Purple/Magenta Spectrum
     Entertainment: "#16A34A",
@@ -47,38 +52,38 @@ export const getCategoryColor = (category: string): string => {
     // Shopping - Orange/Yellow Spectrum
     Shopping: "#EA580C",
     Clothing: "#C2410C",
-    Electronics: "#7C3AED",
+    Electronics: "#2563EB",
 
-    // Health & Personal - Pink/Purple
-    Healthcare: "#BE185D",
+    // Health & Personal — align with expense `healthcare` id (#6d28d9), not red
+    Healthcare: "#6D28D9",
     PersonalCare: "#A21CAF",
-    Pharmacy: "#DB2777",
+    Pharmacy: "#7C3AED",
 
-    // Education - Blue Spectrum
-    Education: "#2563EB",
-    Books: "#4F46E5",
-    Courses: "#6366F1",
+    // Education — match expense `education` (lime/olive), not more blues
+    Education: "#65A30D",
+    Books: "#84CC16",
+    Courses: "#4D7C0F",
 
-    // Travel - Vibrant Colors
-    Travel: "#EA580C",
-    Hotel: "#D97706",
-    Flight: "#0891B2",
+    // Travel — warm tones (expense `travel` peach / vacation)
+    Travel: "#FB923C",
+    Hotel: "#EA580C",
+    Flight: "#F59E0B",
 
     // Housing - Brown/Neutral Tones
     Housing: "#78716C",
     Rent: "#57534E",
     Mortgage: "#44403C",
 
-    // Financial - Professional Colors
-    Investment: "#475569",
+    // Financial — align with income `investments` id (#1d4ed8)
+    Investment: "#1D4ED8",
     Savings: "#0D9488",
-    Insurance: "#78350F",
+    Insurance: "#0F766E",
 
     // Miscellaneous - Bright Accent Colors
-    Gifts: "#BE185D",
-    Charity: "#7C3AED",
+    Gifts: "#C026D3",
+    Charity: "#22C55E",
     Pets: "#EA580C",
-    Family: "#6366F1",
+    Family: "#4F46E5",
     Others: "#64748B",
 
     // Account Types

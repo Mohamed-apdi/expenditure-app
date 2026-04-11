@@ -11,6 +11,8 @@ import { selectInvestments } from "../stores/investmentsStore";
 import { selectPersonalLoans } from "../stores/personalLoansStore";
 import { selectLoanRepayments } from "../stores/loanRepaymentsStore";
 import type { Transaction } from "../types/types";
+import { REPORTS_UNCATEGORIZED_EXPENSE_KEY } from "../reports/constants";
+import { resolveCategoryIdFromStored } from "../utils/categories";
 
 // Local transaction report interface (matching API structure)
 export interface TransactionReport {
@@ -221,31 +223,41 @@ export const getLocalTransactionReports = async (
 
   let uncategorizedCount = 0;
   let uncategorizedExpenseTotal = 0;
+  let uncategorizedExpenseCount = 0;
   let uncategorizedIncomeTotal = 0;
   transactionList.forEach((t) => {
     if (hasCategory(t)) return;
     uncategorizedCount += 1;
     if (t.type === "expense") {
       uncategorizedExpenseTotal += Math.abs(t.amount);
+      uncategorizedExpenseCount += 1;
     } else if (t.type === "income") {
       uncategorizedIncomeTotal += Math.abs(t.amount);
     }
   });
 
-  // Spending by category: only categorized expenses (excludes uncategorized EVC P2P, etc.)
+  // Category breakdown: `amount` / pie % = spending (expenses only). `count` = every categorized
+  // tx (income + expense + transfer). Keys use canonical category ids so "entertainment", "Fun",
+  // and legacy English labels merge into one row (same as {@link categoryLabelFromStored}).
   const categoryBreakdown: Record<
     string,
     { amount: number; percentage: number; count: number }
   > = {};
 
   transactionList.forEach((t) => {
-    if (t.type !== "expense" || !hasCategory(t)) return;
-    const cat = t.category as string;
-    if (!categoryBreakdown[cat]) {
-      categoryBreakdown[cat] = { amount: 0, percentage: 0, count: 0 };
+    if (!hasCategory(t)) return;
+    if (t.type !== "expense" && t.type !== "income" && t.type !== "transfer") {
+      return;
     }
-    categoryBreakdown[cat].amount += Math.abs(t.amount);
-    categoryBreakdown[cat].count += 1;
+    const raw = String(t.category).trim();
+    const catKey = resolveCategoryIdFromStored(raw) ?? raw;
+    if (!categoryBreakdown[catKey]) {
+      categoryBreakdown[catKey] = { amount: 0, percentage: 0, count: 0 };
+    }
+    categoryBreakdown[catKey].count += 1;
+    if (t.type === "expense") {
+      categoryBreakdown[catKey].amount += Math.abs(t.amount);
+    }
   });
 
   const categorizedExpenseTotal = Object.values(categoryBreakdown).reduce(
@@ -253,10 +265,21 @@ export const getLocalTransactionReports = async (
     0,
   );
 
+  if (uncategorizedExpenseTotal > 0) {
+    categoryBreakdown[REPORTS_UNCATEGORIZED_EXPENSE_KEY] = {
+      amount: uncategorizedExpenseTotal,
+      count: uncategorizedExpenseCount,
+      percentage: 0,
+    };
+  }
+
+  const pieExpenseTotal =
+    categorizedExpenseTotal + uncategorizedExpenseTotal;
+
   Object.keys(categoryBreakdown).forEach((category) => {
     const amount = categoryBreakdown[category].amount;
     categoryBreakdown[category].percentage =
-      categorizedExpenseTotal > 0 ? (amount / categorizedExpenseTotal) * 100 : 0;
+      pieExpenseTotal > 0 ? (amount / pieExpenseTotal) * 100 : 0;
   });
 
   // Calculate daily trends

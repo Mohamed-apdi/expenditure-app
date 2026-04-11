@@ -73,6 +73,7 @@ export function EvcCategorizeBottomSheet({
               transactionId={transactionId}
               normalizedPhone={normalizedPhone}
               compact={false}
+              enableOptionalNote
               onApplied={() => {
                 onApplied?.();
                 onClose();
