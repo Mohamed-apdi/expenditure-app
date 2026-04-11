@@ -2,6 +2,7 @@ import { observable } from "@legendapp/state";
 import { v4 as uuidv4 } from "uuid";
 
 import type { Transaction } from "../types/types";
+import { syncEvcCategoryMemoryFromRow } from "../evc/evcCategoryMemorySync";
 import { legendPersist } from "./legendPersist";
 import {
   LocalTransaction,
@@ -91,6 +92,10 @@ export function createTransactionLocal(
     is_recurring: data.is_recurring,
     recurrence_interval: data.recurrence_interval,
     type: data.type,
+    evc_kind: data.evc_kind,
+    evc_counterparty_phone: data.evc_counterparty_phone,
+    source_expense_id: data.source_expense_id,
+    source: data.source,
     created_at: now,
     updated_at: now,
     deleted_at: null,
@@ -122,13 +127,27 @@ export function updateTransactionLocal(
     if (!existing) return state;
 
     const now = nowIso();
+    const { date: patchDate, ...restPatch } = patch;
     const merged = safeMerge<LocalTransaction>(existing, {
-      ...patch,
+      ...restPatch,
+      ...(patchDate !== undefined ? { date: patchDate } : {}),
       updated_at: now,
     } as Partial<LocalTransaction>);
 
     const row = markPending(merged);
     updated = row;
+
+    if (
+      patch.category !== undefined &&
+      String(existing.category ?? "").trim() !==
+        String(merged.category ?? "").trim()
+    ) {
+      syncEvcCategoryMemoryFromRow({
+        userId: existing.user_id,
+        evcCounterpartyPhone: existing.evc_counterparty_phone,
+        newCategoryStored: merged.category,
+      });
+    }
 
     const nextById = { ...state.byId, [id]: row };
     const nextAllIds = sortIds(state.allIds, nextById);

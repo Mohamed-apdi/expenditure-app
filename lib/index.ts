@@ -159,6 +159,16 @@ export * from "./utils/imageCache";
 // EVC SMS (Android native)
 export * from "./services/evcSmsSettings";
 export * from "./services/evcSmsBridge";
+export {
+  categoryMemory$,
+  getMemoryCategoryByNormalizedPhone,
+  getMemoryNoteByNormalizedPhone,
+  setCategoryMemoryForUser,
+} from "./stores/categoryMemoryStore";
+export {
+  applyUserEvcCategory,
+  applyUserEvcCategoryForCurrentUser,
+} from "./evc/applyUserEvcCategory";
 
 // Hooks
 export * from "./hooks/useDashboardData";

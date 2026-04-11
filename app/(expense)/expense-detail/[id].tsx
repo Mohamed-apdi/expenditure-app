@@ -30,7 +30,11 @@ import {
   triggerSync,
 } from "~/lib";
 import { format } from "date-fns";
-import { useTheme, useScreenStatusBar } from "~/lib";
+import { useTheme, useScreenStatusBar, useLanguage } from "~/lib";
+import {
+  categoryColorFromStored,
+  categoryLabelFromStored,
+} from "~/lib/utils/categories";
 
 type Expense = {
   id: string;
@@ -54,6 +58,7 @@ export default function ExpenseDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const theme = useTheme();
+  const { t } = useLanguage();
   useScreenStatusBar();
   useEffect(() => {
     if (!id || typeof id !== "string") return;
@@ -117,20 +122,6 @@ export default function ExpenseDetailScreen() {
         },
       ]
     );
-  };
-
-  const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      Food: "#10b981",
-      Transport: "#3b82f6",
-      Utilities: "#f59e0b",
-      Entertainment: "#8b5cf6",
-      Healthcare: "#ef4444",
-      Shopping: "#06b6d4",
-      Education: "#84cc16",
-      Other: "#64748b",
-    };
-    return colors[category] || "#64748b";
   };
 
   const handleViewReceipt = async () => {
@@ -254,7 +245,7 @@ export default function ExpenseDetailScreen() {
                   width: 24,
                   height: 24,
                   borderRadius: 12,
-                  backgroundColor: `${getCategoryColor(expense.category)}20`,
+                  backgroundColor: `${categoryColorFromStored(t, expense.category)}20`,
                   justifyContent: "center",
                   alignItems: "center",
                   marginRight: 12,
@@ -265,12 +256,12 @@ export default function ExpenseDetailScreen() {
                     width: 12,
                     height: 12,
                     borderRadius: 6,
-                    backgroundColor: getCategoryColor(expense.category),
+                    backgroundColor: categoryColorFromStored(t, expense.category),
                   }}
                 />
               </View>
               <Text style={{ color: theme.text, fontSize: 18 }}>
-                {expense.category}
+                {categoryLabelFromStored(t, expense.category)}
               </Text>
             </View>
           </View>

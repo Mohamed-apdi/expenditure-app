@@ -82,9 +82,10 @@ function parseP2PName(body: string): string | undefined {
 }
 
 function parseReceivePhone(body: string): string | undefined {
-  const re = /ka\s+heshay\s+(\+?\d[\d\s]+)/i;
-  const m = body.match(re);
-  if (m?.[1]) return m[1].replace(/\s/g, "");
+  const ka = body.match(/ka\s+heshay\s+(\+?\d[\d\s]+)/i);
+  if (ka?.[1]) return ka[1].replace(/\s/g, "");
+  const laguu = body.match(/laguu\s+soo\s+diray\s+(\+?\d[\d\s]+)/i);
+  if (laguu?.[1]) return laguu[1].replace(/\s/g, "");
   return undefined;
 }
 

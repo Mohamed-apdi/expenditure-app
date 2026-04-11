@@ -3,9 +3,7 @@
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { LANGUAGES } from "../config/language/languages";
 import { getCurrentUserOfflineFirst } from "../auth";
-import { getExpenseCategories, getIncomeCategories } from "../utils/categories";
 import {
   selectAccounts,
   updateAccountLocal,
@@ -25,18 +23,16 @@ import { isOfflineGateLocked, triggerSync } from "../sync/legendSync";
 import type { EvcMessageKind } from "./evcMessageClassifier";
 import { parseEvcFields } from "./evcSmsParser";
 import { buildDedupeKey, checkAndMarkDedupe } from "./evcDedupe";
-
-const EN = LANGUAGES.en;
-const EXPENSE_CAT = getExpenseCategories(EN);
-const INCOME_CAT = getIncomeCategories(EN);
-
-function categoryNameForExpense(id: string): string {
-  return EXPENSE_CAT.find((c) => c.id === id)?.name ?? "Shopping";
-}
-
-function categoryNameForIncome(id: string): string {
-  return INCOME_CAT.find((c) => c.id === id)?.name ?? "Refunds";
-}
+import { resolveEvcCategory } from "./resolveEvcCategory";
+import {
+  getMemoryCategoryByNormalizedPhone,
+  getMemoryNoteByNormalizedPhone,
+} from "../stores/categoryMemoryStore";
+import {
+  buildEvcTransactionDescription,
+  isLikelyEvcTopupLedgerMatch,
+} from "./evcTransactionDescription";
+import { isEvcNoteUserEdited } from "./evcNoteUserEdited";
 
 function getDefaultAccountForUser(userId: string) {
   const accounts = selectAccounts(userId);
@@ -96,24 +92,78 @@ async function popLatestPending(): Promise<PendingBundle | null> {
   return last;
 }
 
-function buildDescription(
-  kind: EvcMessageKind,
-  parsed: ReturnType<typeof parseEvcFields>,
-): string {
-  switch (kind) {
-    case "send_p2p": {
-      const n = parsed.counterpartyName || parsed.phone || "Transfer";
-      return `EVC send → ${n}`;
+function memoryLookupForUser(userId: string) {
+  return (normalizedPhone: string) =>
+    getMemoryCategoryByNormalizedPhone(userId, normalizedPhone) ?? null;
+}
+
+function memoryNoteLookupForUser(userId: string) {
+  return (normalizedPhone: string) =>
+    getMemoryNoteByNormalizedPhone(userId, normalizedPhone) ?? null;
+}
+
+async function mergeBundleNoticeForUser(
+  userId: string,
+  summary: string,
+): Promise<boolean> {
+  const pending = await popLatestPending();
+  if (pending) {
+    if (
+      (await isEvcNoteUserEdited(pending.transactionId)) ||
+      (await isEvcNoteUserEdited(pending.expenseId))
+    ) {
+      return true;
     }
-    case "send_merchant":
-      return `EVC merchant ${parsed.merchantName || parsed.phone || ""}`.trim();
-    case "receive":
-      return `EVC receive ${parsed.phone || ""}`.trim();
-    case "topup":
-      return `EVC top-up ${parsed.phone || ""}`.trim();
-    default:
-      return "EVC";
+    const curTx = selectTransactionById(userId, pending.transactionId);
+    const curEx = selectExpenseById(userId, pending.expenseId);
+    const extra = ` · ${summary}`;
+    const baseTx = (curTx?.description ?? "").trim();
+    const baseEx = (curEx?.description ?? "").trim();
+    updateTransactionLocal(pending.transactionId, {
+      description: `${baseTx}${extra}`.trim().slice(0, 500),
+    });
+    updateExpenseLocal(pending.expenseId, {
+      description: `${baseEx}${extra}`.trim().slice(0, 500),
+    });
+    if (!(await isOfflineGateLocked())) void triggerSync();
+    return true;
   }
+
+  const txs = selectTransactions(userId)
+    .filter(
+      (t) =>
+        isLikelyEvcTopupLedgerMatch(t) &&
+        Date.now() - new Date(t.created_at).getTime() < MATCH_WINDOW_MS,
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  const t0 = txs[0];
+  if (!t0) return false;
+
+  if (await isEvcNoteUserEdited(t0.id)) return true;
+
+  const extra = ` · ${summary}`;
+  const baseTx = (t0.description ?? "").trim();
+  updateTransactionLocal(t0.id, {
+    description: `${baseTx}${extra}`.trim().slice(0, 500),
+  });
+
+  const expenseId = t0.source_expense_id;
+  if (
+    expenseId &&
+    !(await isEvcNoteUserEdited(expenseId))
+  ) {
+    const curEx = selectExpenseById(userId, expenseId);
+    const baseEx = (curEx?.description ?? "").trim();
+    updateExpenseLocal(expenseId, {
+      description: `${baseEx}${extra}`.trim().slice(0, 500),
+    });
+  }
+
+  if (!(await isOfflineGateLocked())) void triggerSync();
+  return true;
 }
 
 /**
@@ -150,42 +200,7 @@ export async function applyEvcSmsToLedger(input: {
   if (kind === "bundle_notice") {
     const summary = parsed.noticeSummary;
     if (!summary) return false;
-
-    const pending = await popLatestPending();
-    if (pending) {
-      const curTx = selectTransactionById(user.id, pending.transactionId);
-      const curEx = selectExpenseById(user.id, pending.expenseId);
-      const extra = ` · ${summary}`;
-      updateTransactionLocal(pending.transactionId, {
-        description: `${curTx?.description ?? "EVC"}${extra}`.slice(0, 500),
-      });
-      updateExpenseLocal(pending.expenseId, {
-        description: `${curEx?.description ?? "EVC"}${extra}`.slice(0, 500),
-      });
-      if (!(await isOfflineGateLocked())) void triggerSync();
-      return true;
-    }
-
-    const txs = selectTransactions(user.id)
-      .filter(
-        (t) =>
-          (t.description?.includes("EVC top-up") ?? false) &&
-          Date.now() - new Date(t.created_at).getTime() < MATCH_WINDOW_MS,
-      )
-      .sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      );
-    const t0 = txs[0];
-    if (t0) {
-      updateTransactionLocal(t0.id, {
-        description: `${t0.description ?? "EVC"} · ${summary}`.slice(0, 500),
-      });
-      if (!(await isOfflineGateLocked())) void triggerSync();
-      return true;
-    }
-
-    return false;
+    return mergeBundleNoticeForUser(user.id, summary);
   }
 
   const amount = parsed.amount;
@@ -208,20 +223,33 @@ export async function applyEvcSmsToLedger(input: {
   }
 
   const dateStr = toDateStr(parsed.dateIso);
-  const description = buildDescription(kind, parsed);
 
   if (kind === "receive") {
-    const categoryIncome = categoryNameForIncome("sales");
-    createExpenseLocal({
+    const evc = resolveEvcCategory({
+      kind: "receive",
+      phoneRaw: parsed.phone,
+      lookupMemory: memoryLookupForUser(user.id),
+      lookupNote: memoryNoteLookupForUser(user.id),
+    });
+    const description =
+      evc.description ??
+      buildEvcTransactionDescription(kind, {
+        phone: parsed.phone,
+        counterpartyName: parsed.counterpartyName,
+        merchantName: parsed.merchantName,
+      });
+    const exp = createExpenseLocal({
       user_id: user.id,
       account_id: account.id,
       amount,
-      category: categoryIncome,
+      category: evc.category,
       description,
       date: dateStr,
       is_recurring: false,
       is_essential: false,
       entry_type: "Income",
+      evc_kind: evc.evc_kind,
+      evc_counterparty_phone: evc.evc_counterparty_phone,
     });
     createTransactionLocal({
       user_id: user.id,
@@ -229,50 +257,103 @@ export async function applyEvcSmsToLedger(input: {
       amount,
       description,
       date: dateStr,
-      category: categoryIncome,
+      category: evc.category,
       is_recurring: false,
       type: "income",
+      evc_kind: evc.evc_kind,
+      evc_counterparty_phone: evc.evc_counterparty_phone,
+      source_expense_id: exp.id,
+      source: "evc",
     });
     updateAccountLocal(account.id, { amount: account.amount + amount });
     if (!(await isOfflineGateLocked())) void triggerSync();
     return true;
   }
 
-  let categoryExpense = categoryNameForExpense("transport");
-  if (kind === "send_merchant") categoryExpense = categoryNameForExpense("shopping");
-  if (kind === "topup") categoryExpense = categoryNameForExpense("electronics");
-
-  const exp = createExpenseLocal({
-    user_id: user.id,
-    account_id: account.id,
-    amount,
-    category: categoryExpense,
-    description,
-    date: dateStr,
-    is_recurring: false,
-    is_essential: false,
-    entry_type: "Expense",
-  });
-  const tx = createTransactionLocal({
-    user_id: user.id,
-    account_id: account.id,
-    amount,
-    description,
-    date: dateStr,
-    category: categoryExpense,
-    is_recurring: false,
-    type: "expense",
-  });
-  updateAccountLocal(account.id, { amount: account.amount - amount });
-
   if (kind === "topup") {
+    const description = buildEvcTransactionDescription(kind, {
+      phone: parsed.phone,
+      counterpartyName: parsed.counterpartyName,
+      merchantName: parsed.merchantName,
+    });
+    const categoryExpense = "electronics";
+    const exp = createExpenseLocal({
+      user_id: user.id,
+      account_id: account.id,
+      amount,
+      category: categoryExpense,
+      description,
+      date: dateStr,
+      is_recurring: false,
+      is_essential: false,
+      entry_type: "Expense",
+    });
+    const tx = createTransactionLocal({
+      user_id: user.id,
+      account_id: account.id,
+      amount,
+      description,
+      date: dateStr,
+      category: categoryExpense,
+      is_recurring: false,
+      type: "expense",
+      source_expense_id: exp.id,
+      source: "evc",
+    });
+    updateAccountLocal(account.id, { amount: account.amount - amount });
     await pushPending({
       transactionId: tx.id,
       expenseId: exp.id,
       amount,
       at: Date.now(),
     });
+    if (!(await isOfflineGateLocked())) void triggerSync();
+    return true;
   }
+
+  const evc = resolveEvcCategory({
+    kind,
+    merchantName: parsed.merchantName,
+    phoneRaw: parsed.phone,
+    lookupMemory: memoryLookupForUser(user.id),
+    lookupNote: memoryNoteLookupForUser(user.id),
+  });
+  const description =
+    evc.description ??
+    buildEvcTransactionDescription(kind, {
+      phone: parsed.phone,
+      counterpartyName: parsed.counterpartyName,
+      merchantName: parsed.merchantName,
+    });
+
+  const exp = createExpenseLocal({
+    user_id: user.id,
+    account_id: account.id,
+    amount,
+    category: evc.category,
+    description,
+    date: dateStr,
+    is_recurring: false,
+    is_essential: false,
+    entry_type: "Expense",
+    evc_kind: evc.evc_kind,
+    evc_counterparty_phone: evc.evc_counterparty_phone,
+  });
+  createTransactionLocal({
+    user_id: user.id,
+    account_id: account.id,
+    amount,
+    description,
+    date: dateStr,
+    category: evc.category,
+    is_recurring: false,
+    type: "expense",
+    evc_kind: evc.evc_kind,
+    evc_counterparty_phone: evc.evc_counterparty_phone,
+    source_expense_id: exp.id,
+    source: "evc",
+  });
+  updateAccountLocal(account.id, { amount: account.amount - amount });
 
   if (!(await isOfflineGateLocked())) void triggerSync();
   return true;
@@ -309,71 +390,64 @@ export async function applyNativeEvcRowToLedger(
   if (kind === "bundle_notice") {
     const summary = row.noticeSummary?.trim();
     if (!summary) return false;
-
-    const pending = await popLatestPending();
-    if (pending) {
-      const curTx = selectTransactionById(user.id, pending.transactionId);
-      const curEx = selectExpenseById(user.id, pending.expenseId);
-      const extra = ` · ${summary}`;
-      updateTransactionLocal(pending.transactionId, {
-        description: `${curTx?.description ?? "EVC"}${extra}`.slice(0, 500),
-      });
-      updateExpenseLocal(pending.expenseId, {
-        description: `${curEx?.description ?? "EVC"}${extra}`.slice(0, 500),
-      });
-      if (!(await isOfflineGateLocked())) void triggerSync();
-      return true;
-    }
-
-    const txs = selectTransactions(user.id)
-      .filter(
-        (t) =>
-          (t.description?.includes("EVC top-up") ?? false) &&
-          Date.now() - new Date(t.created_at).getTime() < MATCH_WINDOW_MS,
-      )
-      .sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      );
-    const t0 = txs[0];
-    if (t0) {
-      updateTransactionLocal(t0.id, {
-        description: `${t0.description ?? "EVC"} · ${summary}`.slice(0, 500),
-      });
-      if (!(await isOfflineGateLocked())) void triggerSync();
-      return true;
-    }
-
-    return false;
+    return mergeBundleNoticeForUser(user.id, summary);
   }
 
   const amount = row.amount ?? undefined;
   if (amount == null || !Number.isFinite(amount) || amount <= 0) return false;
 
+  const syntheticBody = [
+    "evc_native",
+    row.sender,
+    String(kind),
+    String(amount),
+    row.dateIso ?? "",
+    row.tarRaw ?? "",
+    row.phone ?? "",
+    row.name ?? "",
+    row.merchantName ?? "",
+  ].join("|");
+  const nativeDedupeKey = buildDedupeKey({
+    sender: row.sender,
+    kind,
+    amount,
+    dateIso: row.dateIso ?? undefined,
+    tarRaw: row.tarRaw ?? undefined,
+    body: syntheticBody,
+  });
+  if (await checkAndMarkDedupe(nativeDedupeKey)) {
+    console.log("[EVC SMS] native row skip: deduped");
+    return false;
+  }
+
   const dateStr = toDateStr(row.dateIso ?? undefined);
 
-  // Build a short description without SMS body
-  const descParts: string[] = ["EVC"];
-  if (kind === "receive") descParts.push("receive");
-  if (kind === "send_p2p") descParts.push("send");
-  if (kind === "send_merchant") descParts.push("merchant");
-  if (kind === "topup") descParts.push("top-up");
-  const who =
-    row.merchantName ?? row.name ?? row.phone ?? (row.sender === "192" ? "" : row.sender);
-  const description = `${descParts.join(" ")} ${who}`.trim();
-
   if (kind === "receive") {
-    const categoryIncome = categoryNameForIncome("sales");
-    createExpenseLocal({
+    const evc = resolveEvcCategory({
+      kind: "receive",
+      phoneRaw: row.phone ?? undefined,
+      lookupMemory: memoryLookupForUser(user.id),
+      lookupNote: memoryNoteLookupForUser(user.id),
+    });
+    const description =
+      evc.description ??
+      buildEvcTransactionDescription(kind, {
+        phone: row.phone,
+        name: row.name,
+        merchantName: row.merchantName,
+      });
+    const exp = createExpenseLocal({
       user_id: user.id,
       account_id: account.id,
       amount,
-      category: categoryIncome,
+      category: evc.category,
       description,
       date: dateStr,
       is_recurring: false,
       is_essential: false,
       entry_type: "Income",
+      evc_kind: evc.evc_kind,
+      evc_counterparty_phone: evc.evc_counterparty_phone,
     });
     createTransactionLocal({
       user_id: user.id,
@@ -381,50 +455,103 @@ export async function applyNativeEvcRowToLedger(
       amount,
       description,
       date: dateStr,
-      category: categoryIncome,
+      category: evc.category,
       is_recurring: false,
       type: "income",
+      evc_kind: evc.evc_kind,
+      evc_counterparty_phone: evc.evc_counterparty_phone,
+      source_expense_id: exp.id,
+      source: "evc",
     });
     updateAccountLocal(account.id, { amount: account.amount + amount });
     if (!(await isOfflineGateLocked())) void triggerSync();
     return true;
   }
 
-  let categoryExpense = categoryNameForExpense("transport");
-  if (kind === "send_merchant") categoryExpense = categoryNameForExpense("shopping");
-  if (kind === "topup") categoryExpense = categoryNameForExpense("electronics");
-
-  const exp = createExpenseLocal({
-    user_id: user.id,
-    account_id: account.id,
-    amount,
-    category: categoryExpense,
-    description,
-    date: dateStr,
-    is_recurring: false,
-    is_essential: false,
-    entry_type: "Expense",
-  });
-  const tx = createTransactionLocal({
-    user_id: user.id,
-    account_id: account.id,
-    amount,
-    description,
-    date: dateStr,
-    category: categoryExpense,
-    is_recurring: false,
-    type: "expense",
-  });
-  updateAccountLocal(account.id, { amount: account.amount - amount });
-
   if (kind === "topup") {
+    const description = buildEvcTransactionDescription(kind, {
+      phone: row.phone,
+      name: row.name,
+      merchantName: row.merchantName,
+    });
+    const categoryExpense = "electronics";
+    const exp = createExpenseLocal({
+      user_id: user.id,
+      account_id: account.id,
+      amount,
+      category: categoryExpense,
+      description,
+      date: dateStr,
+      is_recurring: false,
+      is_essential: false,
+      entry_type: "Expense",
+    });
+    const tx = createTransactionLocal({
+      user_id: user.id,
+      account_id: account.id,
+      amount,
+      description,
+      date: dateStr,
+      category: categoryExpense,
+      is_recurring: false,
+      type: "expense",
+      source_expense_id: exp.id,
+      source: "evc",
+    });
+    updateAccountLocal(account.id, { amount: account.amount - amount });
     await pushPending({
       transactionId: tx.id,
       expenseId: exp.id,
       amount,
       at: Date.now(),
     });
+    if (!(await isOfflineGateLocked())) void triggerSync();
+    return true;
   }
+
+  const evc = resolveEvcCategory({
+    kind,
+    merchantName: row.merchantName ?? undefined,
+    phoneRaw: row.phone ?? undefined,
+    lookupMemory: memoryLookupForUser(user.id),
+    lookupNote: memoryNoteLookupForUser(user.id),
+  });
+  const description =
+    evc.description ??
+    buildEvcTransactionDescription(kind, {
+      phone: row.phone,
+      name: row.name,
+      merchantName: row.merchantName,
+    });
+
+  const exp = createExpenseLocal({
+    user_id: user.id,
+    account_id: account.id,
+    amount,
+    category: evc.category,
+    description,
+    date: dateStr,
+    is_recurring: false,
+    is_essential: false,
+    entry_type: "Expense",
+    evc_kind: evc.evc_kind,
+    evc_counterparty_phone: evc.evc_counterparty_phone,
+  });
+  createTransactionLocal({
+    user_id: user.id,
+    account_id: account.id,
+    amount,
+    description,
+    date: dateStr,
+    category: evc.category,
+    is_recurring: false,
+    type: "expense",
+    evc_kind: evc.evc_kind,
+    evc_counterparty_phone: evc.evc_counterparty_phone,
+    source_expense_id: exp.id,
+    source: "evc",
+  });
+  updateAccountLocal(account.id, { amount: account.amount - amount });
 
   if (!(await isOfflineGateLocked())) void triggerSync();
   return true;

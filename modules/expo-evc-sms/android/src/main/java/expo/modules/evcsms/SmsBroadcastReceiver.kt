@@ -31,10 +31,12 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
 
     val parsed = EvcSmsParser.parse(sender, body)
     if (parsed.kind == "ignored") return
-    // Privacy: persist only parsed fields (never full SMS).
-    EvcSmsDb(context).insert(parsed)
-    // If app runtime is alive, also stream to JS immediately.
-    EvcSmsBridge.onSms(context, sender, body, forwarded)
+    // If JS is running, it applies from the live event — do not queue the same SMS (would duplicate on resume).
+    val deliveredLive = EvcSmsBridge.notifySmsReceived(sender, body, forwarded)
+    if (!deliveredLive) {
+      // Privacy: persist only parsed fields (never full SMS).
+      EvcSmsDb(context).insert(parsed)
+    }
   }
 
   private fun shouldForward(originatingAddress: String, body: String): Boolean {

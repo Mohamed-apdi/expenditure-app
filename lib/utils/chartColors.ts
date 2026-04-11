@@ -1,13 +1,22 @@
 // lib/chartColors.ts
 // Shared color utility for consistent chart colors across the application
 
+import { LANGUAGES } from "../config/language/languages";
+import {
+  categoryColorFromStored,
+  resolveCategoryIdFromStored,
+} from "./categories";
+
 /**
- * Gets a consistent color for a given category name
- * Returns a predefined color if available, otherwise generates a color based on category name hash
- * @param category - The category name to get a color for
- * @returns Hex color string (e.g., "#FF6B6B")
+ * Gets a consistent color for a stored category (expense/income id, legacy English label, or legacy chart key).
+ * Prefers palette from {@link getExpenseCategories} / income when the value resolves to a known id.
  */
 export const getCategoryColor = (category: string): string => {
+  const id = resolveCategoryIdFromStored(category);
+  if (id) {
+    return categoryColorFromStored(LANGUAGES.en, id);
+  }
+
   const colors: Record<string, string> = {
     // Essential Categories - Warm Colors (darker)
     Food: "#DC2626",
@@ -69,6 +78,8 @@ export const getCategoryColor = (category: string): string => {
     Gifts: "#BE185D",
     Charity: "#7C3AED",
     Pets: "#EA580C",
+    Family: "#6366F1",
+    Others: "#64748B",
 
     // Account Types
     Checking: "#0891B2",

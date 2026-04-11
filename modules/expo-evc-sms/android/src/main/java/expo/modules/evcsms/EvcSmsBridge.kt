@@ -17,15 +17,18 @@ object EvcSmsBridge {
     sink = s
   }
 
-  fun onSms(context: Context, sender: String, body: String, forwarded: Boolean) {
+  /**
+   * Delivers SMS to the JS listener when the app runtime is active.
+   * @return true if a live sink consumed the event (do not also persist the same SMS to SQLite).
+   */
+  fun notifySmsReceived(sender: String, body: String, forwarded: Boolean): Boolean {
     val len = body.length
     val currentSink = sink
     if (currentSink != null) {
       currentSink(sender, body, len, forwarded)
-      return
+      return true
     }
-    // When app runtime isn't active, SMS is persisted by the manifest receiver into SQLite.
-    // We intentionally do not store raw SMS bodies here.
+    return false
   }
 
   fun flushQueued(context: Context, deliver: (sender: String, body: String) -> Unit) {

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -29,7 +29,13 @@ import {
   upsertTransaction,
   updateExpense,
   useLanguage,
+  setCategoryMemoryForUser,
 } from "~/lib";
+import { markEvcNoteUserEdited } from "~/lib/evc/evcNoteUserEdited";
+import {
+  categoryLabelFromStored,
+  resolveCategoryIdFromStored,
+} from "~/lib/utils/categories";
 import {
   X,
   ShoppingCart,
@@ -58,6 +64,22 @@ type Category = {
 };
 
 type TransactionType = "expense" | "income";
+
+/** Canonical category id for DB / EVC memory (edit UI uses short list + "other" with label). */
+function categoryIdForStorage(sel: Category): string {
+  if (sel.id === "other") {
+    return resolveCategoryIdFromStored(sel.name) ?? "others";
+  }
+  return resolveCategoryIdFromStored(sel.id) ?? sel.id;
+}
+
+/** Local calendar YYYY-MM-DD (avoid UTC shift from toISOString). */
+function toLocalYmd(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 const CARD_STYLE = {
   paddingVertical: 16,
@@ -96,6 +118,10 @@ export default function EditExpenseScreen() {
 
   const [originalAmount, setOriginalAmount] = useState<number | null>(null);
   const [accountId, setAccountId] = useState<string | null>(null);
+
+  /** Ledger `date` from loaded row; kept on save unless user picks a new date. */
+  const recordDateYmdRef = useRef<string | null>(null);
+  const userChangedDateRef = useRef(false);
 
   const expenseCategories: Category[] = [
     { id: "food", name: "Food", icon: ShoppingCart, color: "#10b981" },
@@ -142,6 +168,7 @@ export default function EditExpenseScreen() {
   const onDateChange = useCallback(
     (_event: any, selectedDate?: Date) => {
       if (selectedDate) {
+        userChangedDateRef.current = true;
         setDate(selectedDate);
         setDateSheetOpen(false);
       }
@@ -163,18 +190,27 @@ export default function EditExpenseScreen() {
         
         const expenseData = selectExpenseById(user.id, id);
         if (expenseData) {
+          userChangedDateRef.current = false;
+          const ymd =
+            expenseData.date && expenseData.date.length >= 10
+              ? expenseData.date.slice(0, 10)
+              : toLocalYmd(new Date(expenseData.date));
+          recordDateYmdRef.current = ymd;
           setAmount(expenseData.amount.toString());
           setDescription(expenseData.description ?? "");
           setDate(new Date(expenseData.date));
           setOriginalAmount(expenseData.amount);
           setAccountId(expenseData.account_id ?? null);
           setTransactionType("expense");
-          const category = expenseCategories.find((c) => c.name === expenseData.category);
-          if (category) setSelectedCategory(category);
-          else if (expenseData.category) {
+          const storedId =
+            resolveCategoryIdFromStored(expenseData.category) ??
+            String(expenseData.category ?? "").trim();
+          const byId = expenseCategories.find((c) => c.id === storedId);
+          if (byId) setSelectedCategory(byId);
+          else if (storedId || expenseData.category) {
             setSelectedCategory({
               id: "other",
-              name: expenseData.category,
+              name: categoryLabelFromStored(t, expenseData.category ?? storedId),
               icon: MoreHorizontal,
               color: "#64748b",
             });
@@ -183,20 +219,29 @@ export default function EditExpenseScreen() {
         } else {
           const tx = selectTransactionById(user.id, id);
           if (tx) {
+            userChangedDateRef.current = false;
+            const ymd =
+              tx.date && tx.date.length >= 10
+                ? tx.date.slice(0, 10)
+                : toLocalYmd(new Date(tx.date));
+            recordDateYmdRef.current = ymd;
             setAmount(tx.amount.toString());
             setDescription(tx.description ?? "");
             setDate(new Date(tx.date));
             setOriginalAmount(tx.amount);
             setAccountId(tx.account_id);
             setTransactionType(tx.type === "income" ? "income" : "expense");
-            
+
             const catList = tx.type === "income" ? incomeCategories : expenseCategories;
-            const category = catList.find((c) => c.name === (tx.category ?? ""));
-            if (category) setSelectedCategory(category);
-            else if (tx.category) {
+            const storedId =
+              resolveCategoryIdFromStored(tx.category) ??
+              String(tx.category ?? "").trim();
+            const byId = catList.find((c) => c.id === storedId);
+            if (byId) setSelectedCategory(byId);
+            else if (storedId || tx.category) {
               setSelectedCategory({
                 id: "other",
-                name: tx.category,
+                name: categoryLabelFromStored(t, tx.category ?? storedId),
                 icon: MoreHorizontal,
                 color: "#64748b",
               });
@@ -232,12 +277,74 @@ export default function EditExpenseScreen() {
     setSaving(true);
 
     try {
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) {
+        Alert.alert(t.error || "Error", t.pleaseSignIn || "Please sign in");
+        return;
+      }
+
+      let beforeCategory: string | undefined;
+      let beforeDesc = "";
+      let evcPhone: string | null | undefined;
+      let sourceExpenseId: string | null | undefined;
+
+      if (isTransactionRecord) {
+        const txBefore = selectTransactionById(user.id, id);
+        if (txBefore) {
+          beforeCategory = txBefore.category;
+          beforeDesc = (txBefore.description ?? "").trim();
+          evcPhone = txBefore.evc_counterparty_phone;
+          sourceExpenseId = txBefore.source_expense_id ?? undefined;
+          if (!String(evcPhone ?? "").trim() && sourceExpenseId) {
+            evcPhone = selectExpenseById(user.id, sourceExpenseId)?.evc_counterparty_phone;
+          }
+        }
+      } else {
+        const exBefore = selectExpenseById(user.id, id);
+        if (exBefore) {
+          beforeCategory = exBefore.category;
+          beforeDesc = (exBefore.description ?? "").trim();
+          evcPhone = exBefore.evc_counterparty_phone;
+        }
+      }
+
       const newAmountNum = parseFloat(amount);
+      const categoryStored = categoryIdForStorage(selectedCategory);
+      const nextDescTrimmed = description.trim();
+      const dateYmd = userChangedDateRef.current
+        ? toLocalYmd(date)
+        : (recordDateYmdRef.current ?? toLocalYmd(date));
       const basePatch = {
         amount: newAmountNum,
-        category: selectedCategory.name,
-        description: description.trim() || undefined,
-        date: date.toISOString().split("T")[0],
+        category: categoryStored,
+        description: nextDescTrimmed || undefined,
+        date: dateYmd,
+      };
+
+      const persistEvcMemoryIfNeeded = async () => {
+        if (!String(evcPhone ?? "").trim()) return;
+        const phone = String(evcPhone).trim();
+        const prevCat = resolveCategoryIdFromStored(beforeCategory) ?? String(beforeCategory ?? "").trim();
+        const nextCat =
+          resolveCategoryIdFromStored(categoryStored) ?? String(categoryStored).trim();
+        const catChanged = prevCat !== nextCat;
+        const descChanged = beforeDesc !== nextDescTrimmed;
+        if (catChanged && nextCat) {
+          setCategoryMemoryForUser(user.id, {
+            phoneRaw: phone,
+            categoryId: nextCat,
+          });
+        }
+        if (descChanged) {
+          await markEvcNoteUserEdited(id);
+          if (isTransactionRecord && sourceExpenseId) {
+            await markEvcNoteUserEdited(sourceExpenseId);
+          }
+          setCategoryMemoryForUser(user.id, {
+            phoneRaw: phone,
+            note: nextDescTrimmed,
+          });
+        }
       };
 
       if (isTransactionRecord) {
@@ -246,8 +353,7 @@ export default function EditExpenseScreen() {
         updateTransactionLocal(id, txPatch);
 
         try {
-          const user = await getCurrentUserOfflineFirst();
-          if (user && accountId) {
+          if (accountId) {
             await upsertTransaction(id, {
               user_id: user.id,
               account_id: accountId,
@@ -258,6 +364,8 @@ export default function EditExpenseScreen() {
         } catch (remoteError) {
           console.error("Error upserting transaction on Supabase:", remoteError);
         }
+
+        await persistEvcMemoryIfNeeded();
       } else {
         const expensePatch = { ...basePatch };
         updateExpenseLocal(id, expensePatch);
@@ -267,6 +375,8 @@ export default function EditExpenseScreen() {
         } catch (remoteError) {
           console.error("Error updating expense on Supabase:", remoteError);
         }
+
+        await persistEvcMemoryIfNeeded();
       }
 
       if (accountId && originalAmount != null) {

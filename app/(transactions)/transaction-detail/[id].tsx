@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   ScrollView,
   Alert,
@@ -11,19 +12,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   ChevronLeft,
-  Tag,
-  CreditCard,
   ArrowUpRight,
   ArrowDownLeft,
   ArrowRightLeft,
   Receipt,
-  MapPin,
-  Building,
   Wallet,
   TrendingUp,
   AlertCircle,
-  FileText,
-  Heart,
 } from "lucide-react-native";
 import { format, formatDistanceToNow } from "date-fns";
 import {
@@ -31,9 +26,27 @@ import {
   selectTransactionById,
   selectExpenseById,
   selectAccountById,
+  supabase,
+  updateTransactionLocal,
+  updateExpenseLocal,
+  isOfflineGateLocked,
+  triggerSync,
   useTheme,
   useScreenStatusBar,
+  useLanguage,
+  setCategoryMemoryForUser,
 } from "~/lib";
+import { markEvcNoteUserEdited } from "~/lib/evc/evcNoteUserEdited";
+import {
+  evcDetailViaLabel,
+  getTransactionSource,
+} from "~/lib/evc/transactionSource";
+import { EvcCategoryChips } from "~/components/evc/EvcCategoryChips";
+import {
+  categoryColorFromStored,
+  categoryIconFromStored,
+  categoryLabelFromStored,
+} from "~/lib/utils/categories";
 
 type Transaction = {
   id: string;
@@ -44,13 +57,16 @@ type Transaction = {
   created_at: string;
   type: "expense" | "income" | "transfer";
   account_id: string;
+  evc_kind?: "merchant" | "transfer" | null;
+  evc_counterparty_phone?: string | null;
+  source_expense_id?: string | null;
+  source?: "evc";
 
   is_recurring?: boolean;
   recurrence_interval?: string;
   location?: string;
   tags?: string[];
   receipt_url?: string;
-  notes?: string;
   // Account details
   account?: {
     id: string;
@@ -78,7 +94,10 @@ export default function TransactionDetailScreen() {
   const { id } = useLocalSearchParams();
   const [transaction, setTransaction] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [noteText, setNoteText] = useState("");
   const theme = useTheme();
+  const { t } = useLanguage();
   useScreenStatusBar();
 
   // Fetch transaction data
@@ -91,6 +110,7 @@ export default function TransactionDetailScreen() {
 
       const user = await getCurrentUserOfflineFirst();
       if (!user) throw new Error("Please sign in");
+      setCurrentUserId(user.id);
 
       // 1) Try local transactions store first (offline-first)
       const localTx = selectTransactionById(user.id, txId);
@@ -278,42 +298,110 @@ export default function TransactionDetailScreen() {
     fetchTransaction();
   }, [id]);
 
+  useEffect(() => {
+    if (!transaction) return;
+    setNoteText(transaction.description ?? "");
+  }, [transaction?.id, transaction?.description]);
 
+  async function saveNoteFromField() {
+    if (!transaction) return;
+    const user = await getCurrentUserOfflineFirst();
+    if (!user) return;
+
+    const trimmed = noteText.trim();
+    const prev = (transaction.description ?? "").trim();
+    if (trimmed === prev) return;
+
+    const persistEvcNoteMemory = (phoneRaw: string | null | undefined) => {
+      if (!phoneRaw?.trim()) return;
+      setCategoryMemoryForUser(user.id, {
+        phoneRaw,
+        note: trimmed,
+      });
+    };
+
+    const localTx = selectTransactionById(user.id, transaction.id);
+    if (localTx) {
+      updateTransactionLocal(transaction.id, {
+        description: trimmed.length ? trimmed : undefined,
+      });
+      await markEvcNoteUserEdited(transaction.id);
+      if (localTx.source_expense_id) {
+        updateExpenseLocal(localTx.source_expense_id, {
+          description: trimmed.length ? trimmed : undefined,
+        });
+        await markEvcNoteUserEdited(localTx.source_expense_id);
+      }
+      let evcPhone = localTx.evc_counterparty_phone;
+      if (!evcPhone?.trim() && localTx.source_expense_id) {
+        evcPhone = selectExpenseById(user.id, localTx.source_expense_id)
+          ?.evc_counterparty_phone;
+      }
+      persistEvcNoteMemory(evcPhone);
+      if (!(await isOfflineGateLocked())) void triggerSync();
+      await fetchTransaction();
+      return;
+    }
+
+    const localEx = selectExpenseById(user.id, transaction.id);
+    if (localEx) {
+      updateExpenseLocal(transaction.id, {
+        description: trimmed.length ? trimmed : undefined,
+      });
+      await markEvcNoteUserEdited(transaction.id);
+      persistEvcNoteMemory(localEx.evc_counterparty_phone);
+      if (!(await isOfflineGateLocked())) void triggerSync();
+      await fetchTransaction();
+      return;
+    }
+
+    const payload = {
+      description: trimmed.length ? trimmed : null,
+      updated_at: new Date().toISOString(),
+    };
+    const { data: txRows, error: txErr } = await supabase
+      .from("transactions")
+      .update(payload)
+      .eq("id", transaction.id)
+      .eq("user_id", user.id)
+      .select("id");
+    if (!txErr && txRows && txRows.length > 0) {
+      await markEvcNoteUserEdited(transaction.id);
+      persistEvcNoteMemory(
+        (transaction as { evc_counterparty_phone?: string | null })
+          .evc_counterparty_phone,
+      );
+      if (!(await isOfflineGateLocked())) void triggerSync();
+      await fetchTransaction();
+      return;
+    }
+    const { data: exRows, error: exErr } = await supabase
+      .from("expenses")
+      .update(payload)
+      .eq("id", transaction.id)
+      .eq("user_id", user.id)
+      .select("id");
+    if (!exErr && exRows && exRows.length > 0) {
+      await markEvcNoteUserEdited(transaction.id);
+      persistEvcNoteMemory(
+        (transaction as { evc_counterparty_phone?: string | null })
+          .evc_counterparty_phone,
+      );
+      if (!(await isOfflineGateLocked())) void triggerSync();
+      await fetchTransaction();
+    }
+  }
 
   const getCategoryIcon = (category: string, type: string) => {
     if (type === "transfer") return ArrowRightLeft;
     if (type === "income") return TrendingUp;
-
-    // Expense categories
-    const icons: Record<string, React.ElementType> = {
-      "Food & Drinks": Receipt,
-      "Home & Rent": Building,
-      Travel: MapPin,
-      Bills: CreditCard,
-      Fun: Wallet,
-      Health: Heart,
-      Shopping: Tag,
-      Learning: FileText,
-      // Add more as needed
-    };
-    return icons[category] || Receipt;
+    return categoryIconFromStored(t, category);
   };
 
   const getCategoryColor = (category: string, type: string) => {
     if (type === "income") return "#10b981";
     if (type === "transfer") return "#3b82f6";
-
-    const colors: Record<string, string> = {
-      "Food & Drinks": "#10b981",
-      "Home & Rent": "#f59e0b",
-      Travel: "#3b82f6",
-      Bills: "#f59e0b",
-      Fun: "#8b5cf6",
-      Health: "#ef4444",
-      Shopping: "#06b6d4",
-      Learning: "#84cc16",
-    };
-    return colors[category] || "#64748b";
+    return categoryColorFromStored(t, category);
   };
 
   const getTransactionIcon = (type: string) => {
@@ -381,6 +469,13 @@ export default function TransactionDetailScreen() {
 
   const TransactionIcon = getTransactionIcon(transaction.type);
   const transactionColor = getTransactionColor(transaction.type);
+  const evcViaLine =
+    getTransactionSource(transaction) === "evc"
+      ? evcDetailViaLabel(transaction, {
+          sentViaEvc: t.transactionSentViaEvc,
+          receivedViaEvc: t.transactionReceivedViaEvc,
+        })
+      : null;
   const CategoryIcon = getCategoryIcon(
     transaction.category || "",
     transaction.type
@@ -485,6 +580,18 @@ export default function TransactionDetailScreen() {
               {transaction.type}
             </Text>
           </View>
+          {evcViaLine ? (
+            <Text
+              style={{
+                color: theme.textMuted,
+                fontSize: 12,
+                marginTop: 10,
+                textAlign: "center",
+              }}
+            >
+              {evcViaLine}
+            </Text>
+          ) : null}
         </View>
 
         {/* Details Card */}
@@ -501,20 +608,33 @@ export default function TransactionDetailScreen() {
           </Text>
 
           <View style={{ gap: 12 }}>
-            {/* Description */}
-            {transaction.description && (
-              <View>
-                <Text style={{ color: theme.textMuted, fontSize: 11, marginBottom: 4 }}>
-                  Description
-                </Text>
-                <Text style={{ color: theme.text, fontSize: 15 }}>
-                  {transaction.description}
-                </Text>
-              </View>
-            )}
+            <View>
+              <Text style={{ color: theme.textMuted, fontSize: 11, marginBottom: 4 }}>
+                Note
+              </Text>
+              <TextInput
+                value={noteText}
+                onChangeText={setNoteText}
+                onBlur={() => void saveNoteFromField()}
+                placeholder={t.add_note_about_transaction}
+                placeholderTextColor={theme.textMuted}
+                multiline
+                style={{
+                  color: theme.text,
+                  fontSize: 15,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  borderRadius: 12,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  minHeight: 48,
+                  textAlignVertical: "top",
+                }}
+              />
+            </View>
 
             {/* Category */}
-            {transaction.category && (
+            {transaction.category ? (
               <View>
                 <Text style={{ color: theme.textMuted, fontSize: 11, marginBottom: 4 }}>
                   Category
@@ -529,11 +649,27 @@ export default function TransactionDetailScreen() {
                   }}
                 >
                   <Text style={{ color: categoryColor, fontSize: 13, fontWeight: "600" }}>
-                    {transaction.category}
+                    {categoryLabelFromStored(t, transaction.category)}
                   </Text>
                 </View>
               </View>
-            )}
+            ) : null}
+
+            {transaction.evc_kind === "transfer" &&
+            currentUserId &&
+            !String(transaction.category ?? "").trim() &&
+            transaction.evc_counterparty_phone ? (
+              <View style={{ marginTop: 4 }}>
+                <EvcCategoryChips
+                  userId={currentUserId}
+                  transactionId={transaction.id}
+                  normalizedPhone={transaction.evc_counterparty_phone}
+                  onApplied={() => {
+                    void fetchTransaction();
+                  }}
+                />
+              </View>
+            ) : null}
 
             {/* Date */}
             <View>
@@ -651,7 +787,7 @@ export default function TransactionDetailScreen() {
         </View>
 
         {/* Additional Info (if any) */}
-        {(transaction.is_recurring || transaction.notes) && (
+        {transaction.is_recurring && (
           <View
             style={{
               backgroundColor: theme.cardBackground,
@@ -683,16 +819,6 @@ export default function TransactionDetailScreen() {
                 </View>
               )}
 
-              {transaction.notes && (
-                <View>
-                  <Text style={{ color: theme.textMuted, fontSize: 11, marginBottom: 4 }}>
-                    Notes
-                  </Text>
-                  <Text style={{ color: theme.text, fontSize: 15 }}>
-                    {transaction.notes}
-                  </Text>
-                </View>
-              )}
             </View>
           </View>
         )}

@@ -2,6 +2,7 @@ import { observable } from "@legendapp/state";
 import { v4 as uuidv4 } from "uuid";
 
 import type { Expense } from "../types/types";
+import { syncEvcCategoryMemoryFromRow } from "../evc/evcCategoryMemorySync";
 import { legendPersist } from "./legendPersist";
 import {
   LocalExpense,
@@ -93,6 +94,8 @@ export function createExpenseLocal(
     updated_at: now,
     receipt_url: data.receipt_url,
     entry_type: data.entry_type,
+    evc_kind: data.evc_kind,
+    evc_counterparty_phone: data.evc_counterparty_phone,
     deleted_at: null,
     __local_status: "pending",
     __local_updated_at: now,
@@ -122,13 +125,28 @@ export function updateExpenseLocal(
     if (!existing) return state;
 
     const now = nowIso();
+    const { date: patchDate, ...restPatch } = patch;
     const merged = safeMerge<LocalExpense>(existing, {
-      ...patch,
+      ...restPatch,
+      ...(patchDate !== undefined ? { date: patchDate } : {}),
       updated_at: now,
     } as Partial<LocalExpense>);
 
     const row = markPending(merged);
     updated = row;
+
+    if (
+      patch.category !== undefined &&
+      existing.user_id &&
+      String(existing.category ?? "").trim() !==
+        String(merged.category ?? "").trim()
+    ) {
+      syncEvcCategoryMemoryFromRow({
+        userId: existing.user_id,
+        evcCounterpartyPhone: existing.evc_counterparty_phone,
+        newCategoryStored: merged.category,
+      });
+    }
 
     const nextById = { ...state.byId, [id]: row };
     const nextAllIds = sortIds(state.allIds, nextById);

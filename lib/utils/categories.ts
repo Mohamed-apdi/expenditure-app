@@ -2,6 +2,8 @@
  * Category and frequency helpers for expenses/income
  * Provides category lists based on translations
  */
+import type { ComponentType } from "react";
+import { LANGUAGES } from "../config/language/languages";
 import {
   Zap,
   Film,
@@ -37,6 +39,9 @@ import {
   Sofa,
   Wrench,
   Receipt,
+  Users,
+  MoreHorizontal,
+  Tag,
 } from "lucide-react-native";
 
 export type Category = {
@@ -65,12 +70,15 @@ export const getExpenseCategories = (t: any): Category[] => [
   { id: "travel", name: t.vacation, icon: Luggage, color: "#3b82f6" },
   { id: "pets", name: t.pets, icon: PawPrint, color: "#f59e0b" },
   { id: "kids", name: t.children, icon: Baby, color: "#ec4899" },
+  { id: "family", name: t.family, icon: Users, color: "#6366f1" },
   { id: "subscriptions", name: t.subscriptions, icon: Repeat, color: "#8b5cf6" },
   { id: "fitness", name: t.gymAndSports, icon: Dumbbell, color: "#059669" },
   { id: "electronics", name: t.electronics, icon: Smartphone, color: "#64748b" },
   { id: "furniture", name: t.furniture, icon: Sofa, color: "#f59e0b" },
   { id: "repairs", name: t.repairs, icon: Wrench, color: "#3b82f6" },
   { id: "taxes", name: t.taxes, icon: Receipt, color: "#ef4444" },
+  /** Tag (not MoreHorizontal) so list rows are distinct from unknown / uncategorized fallback. */
+  { id: "others", name: t.others, icon: Tag, color: "#64748b" },
 ];
 
 export const getIncomeCategories = (t: any): Category[] => [
@@ -94,3 +102,225 @@ export const getIncomeCategories = (t: any): Category[] => [
 
 // Re-export for backward compatibility
 export { getExpenseCategories as expenseCategories, getIncomeCategories as incomeCategories };
+
+const EN_LABELS = LANGUAGES.en;
+
+/** Normalize stored English labels so "Food and Drinks" matches "Food & Drinks". */
+function normalizeEnglishCategoryLabelForMatch(label: string): string {
+  return label
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/\s+and\s+/gi, " & ");
+}
+
+/**
+ * English labels that never match {@link getExpenseCategories}({@link LANGUAGES}.en)[].name /
+ * income names: old PascalCase rows, legacy chart keys, singular/plural, synonyms (e.g. "Utilities" vs "Bills",
+ * "Investment" vs "Investments").
+ */
+const LEGACY_EN_LABEL_TO_CATEGORY_ID: Readonly<Record<string, string>> = {
+  // —— Bills / utilities (label is "Bills" in EN) ——
+  Utilities: "utilities",
+  Utility: "utilities",
+  Electric: "utilities",
+  Water: "utilities",
+  Internet: "utilities",
+
+  // —— Health / healthcare ——
+  Healthcare: "healthcare",
+  Medical: "healthcare",
+  Pharmacy: "healthcare",
+  Wellness: "healthcare",
+
+  // —— Fun / entertainment ——
+  Entertainment: "entertainment",
+  Movies: "entertainment",
+  Games: "entertainment",
+
+  // —— Loans / debt ——
+  Debt: "debt",
+  Loan: "debt",
+  Credit: "debt",
+
+  // —— Donations / charity ——
+  Charity: "charity",
+  Donation: "charity",
+
+  // —— Children ——
+  Kids: "kids",
+  Child: "kids",
+
+  // —— Gym & sports ——
+  Fitness: "fitness",
+  Gym: "fitness",
+  Sports: "fitness",
+  Sport: "fitness",
+
+  // —— Personal care ——
+  PersonalCare: "personal_care",
+
+  // —— Food ——
+  Food: "food",
+  Dining: "food",
+  Groceries: "food",
+
+  // —— Rent / housing ——
+  Rent: "rent",
+  Housing: "rent",
+  Mortgage: "rent",
+
+  // —— Transport ——
+  Transport: "transport",
+  Gas: "transport",
+  PublicTransport: "transport",
+
+  // —— Shopping ——
+  Shopping: "shopping",
+  Clothing: "shopping",
+
+  // —— Education ——
+  Education: "education",
+  Books: "education",
+  Courses: "education",
+
+  // —— Other expense PascalCase / chart ——
+  Gifts: "gifts",
+  Insurance: "insurance",
+  Pets: "pets",
+  Family: "family",
+  Subscriptions: "subscriptions",
+  Subscription: "subscriptions",
+  Electronics: "electronics",
+  Furniture: "furniture",
+  Repairs: "repairs",
+  Repair: "repairs",
+  Taxes: "taxes",
+  Tax: "taxes",
+  Others: "others",
+  Other: "others",
+  Misc: "others",
+  Miscellaneous: "others",
+
+  // —— Vacation (id `travel`) vs trip labels ——
+  Vacation: "travel",
+  Holiday: "travel",
+  Hotel: "travel",
+  Flight: "travel",
+
+  // —— Income: chart / singular / informal (canonical uses "Investments", "Salary", etc.) ——
+  Investment: "investments",
+  investment: "investments",
+  investing: "investments",
+  Salary: "salary",
+  Bonus: "bonus",
+  PartTime: "part_time",
+  Business: "business",
+  Investments: "investments",
+  Interest: "interest",
+  Rental: "rental",
+  Sales: "sales",
+  Gambling: "gambling",
+  Awards: "awards",
+  Refunds: "refunds",
+  Freelance: "freelance",
+  Royalties: "royalties",
+  Grants: "grants",
+  Pension: "pension",
+
+  // Loose chart / UI keys (only when they do not match a canonical category name)
+  Income: "salary",
+};
+
+const LEGACY_LABEL_LOWER = new Map<string, string>();
+for (const [label, id] of Object.entries(LEGACY_EN_LABEL_TO_CATEGORY_ID)) {
+  LEGACY_LABEL_LOWER.set(label.toLowerCase(), id);
+}
+
+/**
+ * Resolve a stored transaction/expense `category` value to a stable category id.
+ * Accepts ids already, or legacy English display names from {@link getExpenseCategories}(EN) / income.
+ */
+export function resolveCategoryIdFromStored(
+  stored: string | undefined | null,
+): string | undefined {
+  if (stored == null || !String(stored).trim()) return undefined;
+  const s = String(stored).trim();
+  const expense = getExpenseCategories(EN_LABELS);
+  const income = getIncomeCategories(EN_LABELS);
+
+  if (expense.some((c) => c.id === s)) return s;
+  if (income.some((c) => c.id === s)) return s;
+
+  const normalizedAnd = normalizeEnglishCategoryLabelForMatch(s);
+
+  const byName = (list: Category[], label: string) =>
+    list.find((c) => c.name === label);
+
+  const ex =
+    byName(expense, s) ??
+    (normalizedAnd !== s ? byName(expense, normalizedAnd) : undefined);
+  if (ex) return ex.id;
+
+  const inc =
+    byName(income, s) ??
+    (normalizedAnd !== s ? byName(income, normalizedAnd) : undefined);
+  if (inc) return inc.id;
+
+  const sLower = s.toLowerCase();
+  const normLower = normalizedAnd.toLowerCase();
+  const exCi =
+    expense.find((c) => c.name.toLowerCase() === sLower) ??
+    expense.find((c) => c.name.toLowerCase() === normLower);
+  if (exCi) return exCi.id;
+
+  const incCi =
+    income.find((c) => c.name.toLowerCase() === sLower) ??
+    income.find((c) => c.name.toLowerCase() === normLower);
+  if (incCi) return incCi.id;
+
+  const legacyId =
+    LEGACY_EN_LABEL_TO_CATEGORY_ID[s] ?? LEGACY_LABEL_LOWER.get(s.toLowerCase());
+  if (legacyId) return legacyId;
+
+  return undefined;
+}
+
+/** Localized label for UI (id or legacy stored value). */
+export function categoryLabelFromStored(
+  t: any,
+  stored: string | undefined | null,
+): string {
+  if (stored == null || !String(stored).trim()) return "";
+  const id = resolveCategoryIdFromStored(stored) ?? String(stored).trim();
+  const ex = getExpenseCategories(t).find((c) => c.id === id);
+  if (ex) return ex.name;
+  const inc = getIncomeCategories(t).find((c) => c.id === id);
+  if (inc) return inc.name;
+  return String(stored).trim();
+}
+
+export function categoryIconFromStored(
+  t: any,
+  stored: string | undefined | null,
+): ComponentType<{ size: number; color: string }> {
+  const id = resolveCategoryIdFromStored(stored ?? "");
+  if (!id) return MoreHorizontal;
+  const ex = getExpenseCategories(t).find((c) => c.id === id);
+  if (ex) return ex.icon;
+  const inc = getIncomeCategories(t).find((c) => c.id === id);
+  if (inc) return inc.icon;
+  return MoreHorizontal;
+}
+
+export function categoryColorFromStored(
+  t: any,
+  stored: string | undefined | null,
+): string {
+  const id = resolveCategoryIdFromStored(stored ?? "");
+  if (!id) return "#64748b";
+  const ex = getExpenseCategories(t).find((c) => c.id === id);
+  if (ex) return ex.color;
+  const inc = getIncomeCategories(t).find((c) => c.id === id);
+  if (inc) return inc.color;
+  return "#64748b";
+}
