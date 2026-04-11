@@ -21,6 +21,9 @@ export interface TransactionReport {
     total_transactions: number;
     average_transaction: number;
     period: string;
+    uncategorized_count: number;
+    uncategorized_expense_total: number;
+    uncategorized_income_total: number;
   };
   category_breakdown: {
     [category: string]: {
@@ -214,25 +217,46 @@ export const getLocalTransactionReports = async (
     ? transactionList.reduce((sum, t) => sum + Math.abs(t.amount), 0) / transactionList.length
     : 0;
 
-  // Calculate category breakdown
-  const categoryBreakdown: Record<string, { amount: number; percentage: number; count: number }> = {};
+  const hasCategory = (t: Transaction) => !!String(t.category ?? "").trim();
 
-  transactionList.forEach(t => {
-    if (t.category) {
-      if (!categoryBreakdown[t.category]) {
-        categoryBreakdown[t.category] = { amount: 0, percentage: 0, count: 0 };
-      }
-      categoryBreakdown[t.category].amount += Math.abs(t.amount);
-      categoryBreakdown[t.category].count += 1;
+  let uncategorizedCount = 0;
+  let uncategorizedExpenseTotal = 0;
+  let uncategorizedIncomeTotal = 0;
+  transactionList.forEach((t) => {
+    if (hasCategory(t)) return;
+    uncategorizedCount += 1;
+    if (t.type === "expense") {
+      uncategorizedExpenseTotal += Math.abs(t.amount);
+    } else if (t.type === "income") {
+      uncategorizedIncomeTotal += Math.abs(t.amount);
     }
   });
 
-  // Calculate percentages
-  Object.keys(categoryBreakdown).forEach(category => {
+  // Spending by category: only categorized expenses (excludes uncategorized EVC P2P, etc.)
+  const categoryBreakdown: Record<
+    string,
+    { amount: number; percentage: number; count: number }
+  > = {};
+
+  transactionList.forEach((t) => {
+    if (t.type !== "expense" || !hasCategory(t)) return;
+    const cat = t.category as string;
+    if (!categoryBreakdown[cat]) {
+      categoryBreakdown[cat] = { amount: 0, percentage: 0, count: 0 };
+    }
+    categoryBreakdown[cat].amount += Math.abs(t.amount);
+    categoryBreakdown[cat].count += 1;
+  });
+
+  const categorizedExpenseTotal = Object.values(categoryBreakdown).reduce(
+    (s, v) => s + v.amount,
+    0,
+  );
+
+  Object.keys(categoryBreakdown).forEach((category) => {
     const amount = categoryBreakdown[category].amount;
-    categoryBreakdown[category].percentage = totalExpenses > 0
-      ? (amount / totalExpenses) * 100
-      : 0;
+    categoryBreakdown[category].percentage =
+      categorizedExpenseTotal > 0 ? (amount / categorizedExpenseTotal) * 100 : 0;
   });
 
   // Calculate daily trends
@@ -277,6 +301,9 @@ export const getLocalTransactionReports = async (
       total_transactions: transactionList.length,
       average_transaction: averageTransaction,
       period: startDate && endDate ? `${startDate} to ${endDate}` : "All time",
+      uncategorized_count: uncategorizedCount,
+      uncategorized_expense_total: uncategorizedExpenseTotal,
+      uncategorized_income_total: uncategorizedIncomeTotal,
     },
     category_breakdown: categoryBreakdown,
     daily_trends: dailyTrends,

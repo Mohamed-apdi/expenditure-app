@@ -80,6 +80,10 @@ import { useTheme, useScreenStatusBar } from '~/lib';
 import { useLanguage } from '~/lib';
 import { playTabClickSound, preloadTabClickSound } from '~/lib/utils/playTabSound';
 import { toast } from 'sonner-native';
+import {
+  categoryLabelFromStored,
+  resolveCategoryIdFromStored,
+} from '~/lib/utils/categories';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -324,8 +328,12 @@ export default function ReportsScreen() {
     };
   }, [transactionData, dateRange, t]);
 
-  // Function to translate category names
-  const translateCategory = (category: string) => {
+  const translateCategory = useCallback((category: string) => {
+    const id = resolveCategoryIdFromStored(category);
+    if (id) {
+      return categoryLabelFromStored(t, category);
+    }
+
     const categoryMap: { [key: string]: string } = {
       'Food & Drinks': t.foodAndDrinks,
       'Home & Rent': t.homeAndRent,
@@ -344,6 +352,7 @@ export default function ReportsScreen() {
       Vacation: t.vacation,
       Pets: t.pets,
       Children: t.children,
+      Family: t.family,
       'Gym & Sports': t.gymAndSports,
       Electronics: t.electronics,
       Furniture: t.furniture,
@@ -384,7 +393,7 @@ export default function ReportsScreen() {
     };
 
     return categoryMap[category] || category;
-  };
+  }, [t]);
 
   // Memoized pie chart data
   const pieChartData = useMemo(() => {
@@ -399,7 +408,7 @@ export default function ReportsScreen() {
         legendFontSize: 12,
       }),
     );
-  }, [transactionData, t]);
+  }, [transactionData, translateCategory]);
 
   // Gifted Charts pie data: { value, color, text? }
   const giftedPieData = useMemo(() => {
@@ -1766,6 +1775,31 @@ export default function ReportsScreen() {
             }}>
             {t.spendingByCategory}
           </Text>
+          {(transactionData.summary.uncategorized_count ?? 0) > 0 ? (
+            <View
+              style={{
+                marginBottom: 14,
+                padding: 12,
+                borderRadius: 12,
+                backgroundColor: theme.isDarkColorScheme
+                  ? "rgba(245, 158, 11, 0.12)"
+                  : "rgba(245, 158, 11, 0.15)",
+                borderWidth: 1,
+                borderColor: theme.isDarkColorScheme
+                  ? "rgba(245, 158, 11, 0.35)"
+                  : "rgba(245, 158, 11, 0.4)",
+              }}>
+              <Text style={{ color: theme.text, fontSize: 14, fontWeight: "600" }}>
+                {t.uncategorizedTransactions}: {transactionData.summary.uncategorized_count}
+              </Text>
+              <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 4 }}>
+                {formatCurrency(transactionData.summary.uncategorized_expense_total)} {t.expenses}
+                {transactionData.summary.uncategorized_income_total > 0
+                  ? ` · ${formatCurrency(transactionData.summary.uncategorized_income_total)} ${t.income}`
+                  : ""}
+              </Text>
+            </View>
+          ) : null}
           {giftedPieData.length > 0 ? (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View style={{ flex: 1, alignItems: 'center' }}>

@@ -12,6 +12,8 @@ const SEND_192 =
   "[-EVCPLUS-] $1 ayaad uwareejisay cabduqadir axmed xasan(617703215), Tar: 21/03/26 12:22:27, Haraagaagu waa $130.5.";
 const RECV_192 =
   "[-EVCPLUS-] waxaad $1 ka heshay 0617182497, Tar: 19/03/26 17:40:16 haraagagu waa $173.5.";
+const RECV_LAGUU =
+  "[-EVCPLUS-] waxaad $2 laguu soo diray 252617000000, Tar: 01/04/26 10:00:00 haraagagu waa $50.";
 const MERCH_192 =
   "[-EVCPlus-] $1.89 Ayaad uwareejisay HAYAT MARKET CASHIER 31(709540), Tel: +252610433145, Tar: 19/03/26 16:11:20, Haraagaagu waa $220.25.";
 const TOPUP_192 =
@@ -55,5 +57,10 @@ describe("parseEvcFields", () => {
 
   it("extractPrimaryAmount", () => {
     expect(extractPrimaryAmount(SEND_192)).toBe(1);
+  });
+
+  it("parses receive phone from laguu soo diray", () => {
+    const r = parseEvcFields("receive", RECV_LAGUU);
+    expect(r.phone).toBe("252617000000");
   });
 });

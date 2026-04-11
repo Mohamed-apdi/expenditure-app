@@ -33,47 +33,13 @@ import {
 import { cacheImage } from "~/lib/utils/imageCache";
 import { monthRangeLocalYmd } from "~/lib/utils/localDate";
 import { transactions$ } from "~/lib/stores/transactionsStore";
-
 import {
-  ArrowRightLeft,
-  Award,
-  Baby,
-  Book,
-  Briefcase,
-  Bus,
-  Clock,
-  CreditCard,
-  Dice5,
-  DollarSign,
-  Dumbbell,
-  Film,
-  Gift,
-  GraduationCap,
-  HandCoins,
-  HandHeart,
-  HeartPulse,
-  Home,
-  Inbox,
-  Laptop,
-  Luggage,
-  MoreHorizontal,
-  PawPrint,
-  Percent,
-  Receipt,
-  RefreshCw,
-  Repeat,
-  Scale,
-  Shield,
-  ShoppingBag,
-  Smartphone,
-  Smile,
-  Sofa,
-  TrendingUp,
-  User,
-  Utensils,
-  Wrench,
-  Zap,
-} from "lucide-react-native";
+  categoryColorFromStored,
+  categoryIconFromStored,
+  categoryLabelFromStored,
+} from "~/lib/utils/categories";
+
+import { ArrowRightLeft, CreditCard, Inbox, Scale } from "lucide-react-native";
 
 import DashboardHeader from "~/components/(Dashboard)/DashboardHeader";
 import MemoizedTransactionItem from "~/components/(Dashboard)/MemoizedTransactionItem";
@@ -90,6 +56,9 @@ type Transaction = {
   date: string;
   type: "expense" | "income" | "transfer";
   account_id: string;
+  evc_kind?: "merchant" | "transfer" | null;
+  evc_counterparty_phone?: string | null;
+  source?: "evc";
 };
 
 type DayTransactionGroup = {
@@ -113,8 +82,8 @@ function groupTransactionsByDay(transactions: Transaction[]): DayTransactionGrou
   return sortedKeys.map((dateKey) => {
     const items = [...(byDay.get(dateKey) ?? [])];
     items.sort((a, b) => {
-      const aTime = (a.updated_at || a.created_at) ?? "";
-      const bTime = (b.updated_at || b.created_at) ?? "";
+      const aTime = a.created_at ?? "";
+      const bTime = b.created_at ?? "";
       return new Date(bTime).getTime() - new Date(aTime).getTime();
     });
     let expenseTotal = 0;
@@ -260,17 +229,23 @@ export default function DashboardScreen() {
               date: t.date,
               type: t.type,
               account_id: t.account_id,
+              evc_kind: t.evc_kind,
+              evc_counterparty_phone: t.evc_counterparty_phone,
+              source: t.source,
             } as Transaction;
           },
         );
 
-        const sortedTransactions = monthTransactionsList.sort(
-          (a, b) => {
-            const aTime = (a.updated_at || a.created_at) ?? "";
-            const bTime = (b.updated_at || b.created_at) ?? "";
-            return new Date(bTime).getTime() - new Date(aTime).getTime();
-          },
-        );
+        const sortedTransactions = monthTransactionsList.sort((a, b) => {
+          const ad =
+            a.date && a.date.length >= 10 ? a.date.slice(0, 10) : "";
+          const bd =
+            b.date && b.date.length >= 10 ? b.date.slice(0, 10) : "";
+          if (ad && bd && ad !== bd) return bd.localeCompare(ad);
+          const aTime = a.created_at ?? "";
+          const bTime = b.created_at ?? "";
+          return new Date(bTime).getTime() - new Date(aTime).getTime();
+        });
         setFilteredTransactions(sortedTransactions);
 
         // Balance: use the stored account amount (editable on account details). Do not
@@ -374,123 +349,24 @@ export default function DashboardScreen() {
   }, [refreshing, refreshBalances]);
 
   const getCategoryIcon = (category: string) => {
-    const icons: Record<string, React.ElementType> = {
-      // Expense categories (matching AddExpense.tsx translated names)
-      [t.foodAndDrinks]: Utensils,
-      [t.homeAndRent]: Home,
-      [t.travel]: Bus,
-      [t.bills]: Zap,
-      [t.fun]: Film,
-      [t.health]: HeartPulse,
-      [t.shopping]: ShoppingBag,
-      [t.learning]: GraduationCap,
-      [t.personalCare]: Smile,
-      [t.insurance]: Shield,
-      [t.loans]: CreditCard,
-      [t.gifts]: Gift,
-      [t.donations]: HandHeart,
-      [t.vacation]: Luggage,
-      [t.pets]: PawPrint,
-      [t.children]: Baby,
-      [t.subscriptions]: Repeat,
-      [t.gymAndSports]: Dumbbell,
-      [t.electronics]: Smartphone,
-      [t.furniture]: Sofa,
-      [t.repairs]: Wrench,
-      [t.taxes]: Receipt,
-
-      // Income categories (matching AddExpense.tsx translated names)
-      [t.jobSalary]: DollarSign,
-      [t.bonus]: Zap,
-      [t.partTimeWork]: Clock,
-      [t.business]: Briefcase,
-      [t.investments]: TrendingUp,
-      [t.bankInterest]: Percent,
-      [t.rentIncome]: Home,
-      [t.sales]: ShoppingBag,
-      [t.gambling]: Dice5,
-      [t.awards]: Award,
-      [t.refunds]: RefreshCw,
-      [t.freelance]: Laptop,
-      [t.royalties]: Book,
-      [t.grants]: HandCoins,
-      [t.giftsReceived]: Gift,
-      [t.pension]: User,
-
-      // Special categories (hardcoded in Debt_Loan component)
-      Loan: CreditCard,
-      Transfer: ArrowRightLeft,
-      "Balance Adjustment": Scale,
-    };
-    return icons[category] || MoreHorizontal;
+    if (category === "Loan") return CreditCard;
+    if (category === "Transfer") return ArrowRightLeft;
+    if (category === "Balance Adjustment") return Scale;
+    return categoryIconFromStored(t, category);
   };
 
   const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      // Expense colors (matching AddExpense.tsx translated names and colors)
-      [t.foodAndDrinks]: "#059669",
-      [t.homeAndRent]: "#0891b2",
-      [t.travel]: "#3b82f6",
-      [t.bills]: "#f97316",
-      [t.fun]: "#8b5cf6",
-      [t.health]: "#dc2626",
-      [t.shopping]: "#06b6d4",
-      [t.learning]: "#84cc16",
-      [t.personalCare]: "#ec4899",
-      [t.insurance]: "#14b8a6",
-      [t.loans]: "#f97316",
-      [t.gifts]: "#8b5cf6",
-      [t.donations]: "#ef4444",
-      [t.vacation]: "#3b82f6",
-      [t.pets]: "#f59e0b",
-      [t.children]: "#ec4899",
-      [t.subscriptions]: "#8b5cf6",
-      [t.gymAndSports]: "#059669",
-      [t.electronics]: "#64748b",
-      [t.furniture]: "#f59e0b",
-      [t.repairs]: "#3b82f6",
-      [t.taxes]: "#ef4444",
-
-      // Income colors (matching AddExpense.tsx translated names and colors)
-      [t.jobSalary]: "#059669",
-      [t.bonus]: "#3b82f6",
-      [t.partTimeWork]: "#f97316",
-      [t.business]: "#8b5cf6",
-      [t.investments]: "#ef4444",
-      [t.bankInterest]: "#06b6d4",
-      [t.rentIncome]: "#84cc16",
-      [t.sales]: "#64748b",
-      [t.gambling]: "#f43f5e",
-      [t.awards]: "#8b5cf6",
-      [t.refunds]: "#3b82f6",
-      [t.freelance]: "#f97316",
-      [t.royalties]: "#84cc16",
-      [t.grants]: "#059669",
-      [t.giftsReceived]: "#8b5cf6",
-      [t.pension]: "#64748b",
-
-      // Special categories (hardcoded in Debt_Loan component)
-      Loan: "#f97316",
-      Transfer: "#3b82f6",
-      "Balance Adjustment": "#6366f1",
-    };
-    return colors[category] || "#64748b";
+    if (category === "Loan") return "#f97316";
+    if (category === "Transfer") return "#3b82f6";
+    if (category === "Balance Adjustment") return "#6366f1";
+    return categoryColorFromStored(t, category);
   };
 
-  // Get translated category label - now categories are already translated
   const getCategoryLabel = (categoryKey: string) => {
-    // Since categories are now stored with translated names, return as-is
-    // Only handle special cases like Transfer and Loan
-    if (categoryKey === "Transfer") {
-      return t.transfer;
-    }
-    if (categoryKey === "Loan") {
-      return t.loans;
-    }
-    if (categoryKey === "Balance Adjustment") {
-      return t.BalanceAdjustment;
-    }
-    return categoryKey;
+    if (categoryKey === "Transfer") return t.transfer;
+    if (categoryKey === "Loan") return t.loans;
+    if (categoryKey === "Balance Adjustment") return t.BalanceAdjustment;
+    return categoryLabelFromStored(t, categoryKey);
   };
 
   const insets = useSafeAreaInsets();
@@ -667,6 +543,7 @@ export default function DashboardScreen() {
                         ) : null}
                         <MemoizedTransactionItem
                           transaction={transaction}
+                          userId={userId}
                           getCategoryIcon={getCategoryIcon}
                           getCategoryColor={getCategoryColor}
                           getCategoryLabel={getCategoryLabel}
