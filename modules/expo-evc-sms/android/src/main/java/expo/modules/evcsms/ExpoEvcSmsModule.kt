@@ -1,21 +1,30 @@
 package expo.modules.evcsms
 
-import android.content.BroadcastReceiver
+import android.Manifest
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.os.Build
-import android.provider.Telephony
+import android.content.pm.PackageManager
 import android.util.Log
 import androidx.core.content.ContextCompat
-import android.Manifest
-import android.content.pm.PackageManager
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
+/**
+ * JS bridge for EVC SMS. Incoming SMS are delivered only via [SmsBroadcastReceiver]
+ * + [EvcSmsBridge] (single path) — no second dynamic SMS_RECEIVED receiver.
+ */
 class ExpoEvcSmsModule : Module() {
-  private var receiver: BroadcastReceiver? = null
+  private var bridgeActive = false
   private val tag = "ExpoEvcSms"
+
+  /**
+   * SQLite queue lives in app storage; only needs a stable [Context].
+   * Prefer [appContext.reactContext] but fall back to [appContext.currentActivity] when the bridge
+   * isn't attached yet (avoids peek returning empty on cold start).
+   */
+  private fun dbContext(): Context? {
+    return appContext.reactContext?.applicationContext
+      ?: appContext.currentActivity?.applicationContext
+  }
 
   override fun definition() = ModuleDefinition {
     Name("ExpoEvcSms")
@@ -23,11 +32,11 @@ class ExpoEvcSmsModule : Module() {
     Events("onEvcSms", "onSmsDebug")
 
     AsyncFunction("setListeningEnabled") { enabled: Boolean ->
-      setReceiverEnabled(enabled)
+      setBridgeEnabled(enabled)
     }
 
     Function("getListeningEnabled") {
-      receiver != null
+      bridgeActive
     }
 
     Function("getDebugState") {
@@ -35,33 +44,35 @@ class ExpoEvcSmsModule : Module() {
       if (ctx == null) {
         mapOf(
           "hasReactContext" to false,
-          "receiverRegistered" to (receiver != null)
+          "receiverRegistered" to bridgeActive
         )
       } else {
         val hasReceive = ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
-        val hasRead = ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED
         val enabledPref = EvcSmsPrefs.isEnabled(ctx)
         mapOf(
           "hasReactContext" to true,
-          "receiverRegistered" to (receiver != null),
+          "receiverRegistered" to bridgeActive,
           "hasReceiveSms" to hasReceive,
-          "hasReadSms" to hasRead,
           "enabledPref" to enabledPref
         )
       }
     }
 
     Function("setNativeEnabled") { enabled: Boolean ->
-      val ctx = appContext.reactContext?.applicationContext
-      if (ctx != null) {
-        EvcSmsPrefs.setEnabled(ctx, enabled)
-      }
+      dbContext()?.let { EvcSmsPrefs.setEnabled(it, enabled) }
       true
     }
 
-    Function("fetchAndClearPending") { limit: Int ->
-      val ctx = appContext.reactContext?.applicationContext ?: return@Function emptyList<Map<String, Any?>>()
-      return@Function EvcSmsDb(ctx).fetchAndClear(limit)
+    Function("peekPendingRows") { limit: Int ->
+      val ctx = dbContext() ?: return@Function emptyList<Map<String, Any?>>()
+      return@Function EvcSmsDb(ctx).peek(limit)
+    }
+
+    Function("deletePendingRowsByIds") { ids: List<Any?> ->
+      val ctx = dbContext() ?: return@Function false
+      val longs = ids.mapNotNull { (it as? Number)?.toLong() }
+      EvcSmsDb(ctx).deleteByIds(longs)
+      true
     }
 
     Function("emitTestEvent") { sender: String, body: String ->
@@ -77,17 +88,17 @@ class ExpoEvcSmsModule : Module() {
     }
 
     OnDestroy {
-      setReceiverEnabled(false)
+      setBridgeEnabled(false)
       EvcSmsBridge.setSink(null)
     }
   }
 
-  private fun setReceiverEnabled(enabled: Boolean) {
-    val appCtx = appContext.reactContext?.applicationContext ?: return
+  private fun setBridgeEnabled(enabled: Boolean) {
+    appContext.reactContext?.applicationContext ?: return
     if (enabled) {
-      if (receiver != null) return
-      Log.i(tag, "Registering SMS_RECEIVED receiver")
-      // Register sink for manifest receiver delivery while app is alive
+      if (bridgeActive) return
+      Log.i(tag, "EVC SMS bridge on (manifest receiver + sink only)")
+      bridgeActive = true
       EvcSmsBridge.setSink { sender, body, bodyLen, forwarded ->
         sendEvent(
           "onSmsDebug",
@@ -107,60 +118,11 @@ class ExpoEvcSmsModule : Module() {
           )
         }
       }
-
-      receiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-          if (Telephony.Sms.Intents.SMS_RECEIVED_ACTION != intent?.action) return
-          val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
-          if (messages.isEmpty()) return
-          val fullBody = messages.joinToString(separator = "") { it.messageBody ?: "" }
-          val originatingAddress = messages[0].originatingAddress?.trim() ?: ""
-          Log.i(tag, "onReceive(sender=$originatingAddress, bodyLen=${fullBody.length})")
-          val forwarded = shouldForward(originatingAddress, fullBody)
-          // Privacy-safe debug signal: sender + length + forwarded flag only.
-          sendEvent(
-            "onSmsDebug",
-            mapOf(
-              "sender" to originatingAddress,
-              "bodyLen" to fullBody.length,
-              "forwarded" to forwarded
-            )
-          )
-          if (!forwarded) return
-          Log.i(tag, "forwarding(sender=$originatingAddress)")
-          sendEvent(
-            "onEvcSms",
-            mapOf(
-              "sender" to originatingAddress,
-              "body" to fullBody
-            )
-          )
-        }
-      }
-      val filter = IntentFilter(Telephony.Sms.Intents.SMS_RECEIVED_ACTION)
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        appCtx.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
-      } else {
-        @Suppress("UnspecifiedRegisterReceiverFlag")
-        appCtx.registerReceiver(receiver, filter)
-      }
     } else {
-      val r = receiver ?: return
-      Log.i(tag, "Unregistering SMS_RECEIVED receiver")
-      try {
-        appCtx.unregisterReceiver(r)
-      } catch (_: Exception) {
-      }
-      receiver = null
+      if (!bridgeActive) return
+      Log.i(tag, "EVC SMS bridge off")
+      bridgeActive = false
       EvcSmsBridge.setSink(null)
     }
-  }
-
-  private fun shouldForward(originatingAddress: String, body: String): Boolean {
-    val addr = originatingAddress.uppercase()
-    val compactAddr = addr.replace(Regex("\\s+"), "")
-    if (compactAddr == "192" || compactAddr == "NOTICE") return true
-    if (body.contains("EVCPLUS", ignoreCase = true)) return true
-    return false
   }
 }

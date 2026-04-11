@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Text,
+  TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
@@ -24,6 +25,8 @@ type Props = {
   normalizedPhone?: string | null;
   onApplied?: () => void;
   compact?: boolean;
+  /** When true, show collapsible optional note below quick categories (bottom sheet flow). */
+  enableOptionalNote?: boolean;
 };
 
 function withAlpha(hex: string, alphaHex: string): string {
@@ -38,6 +41,7 @@ export function EvcCategoryChips({
   normalizedPhone,
   onApplied,
   compact,
+  enableOptionalNote = false,
 }: Props) {
   const { t } = useLanguage();
   const theme = useTheme();
@@ -45,6 +49,8 @@ export function EvcCategoryChips({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pressedId, setPressedId] = useState<string | null>(null);
   const [fullPickerOpen, setFullPickerOpen] = useState(false);
+  const [noteExpanded, setNoteExpanded] = useState(false);
+  const [draftNote, setDraftNote] = useState("");
 
   const categories = useMemo(() => getExpenseCategories(t), [t]);
   const chips = useMemo(() => {
@@ -82,6 +88,10 @@ export function EvcCategoryChips({
     (windowWidth - horizontalGutter - gap * (numCols - 1)) / numCols,
   );
 
+  const userNoteForApply = enableOptionalNote
+    ? draftNote.trim() || undefined
+    : undefined;
+
   const onPick = useCallback(
     async (chipId: string) => {
       setPressedId(chipId);
@@ -91,6 +101,7 @@ export function EvcCategoryChips({
           userId,
           transactionId,
           categoryId: chipId,
+          userNote: userNoteForApply,
         });
         if (ok) onApplied?.();
         else setPressedId(null);
@@ -98,7 +109,7 @@ export function EvcCategoryChips({
         setBusyId(null);
       }
     },
-    [userId, transactionId, onApplied],
+    [userId, transactionId, onApplied, userNoteForApply],
   );
 
   const handleFullCategorySelect = useCallback(
@@ -110,6 +121,7 @@ export function EvcCategoryChips({
           userId,
           transactionId,
           categoryId: category.id,
+          userNote: userNoteForApply,
         });
         if (ok) onApplied?.();
         else setPressedId(null);
@@ -117,7 +129,7 @@ export function EvcCategoryChips({
         setBusyId(null);
       }
     },
-    [userId, transactionId, onApplied],
+    [userId, transactionId, onApplied, userNoteForApply],
   );
 
   const titleSize = compact ? 14 : 17;
@@ -280,6 +292,64 @@ export function EvcCategoryChips({
           );
         })}
       </View>
+
+      {enableOptionalNote ? (
+        <View style={{ marginTop: compact ? 10 : 12 }}>
+          {!noteExpanded ? (
+            <TouchableOpacity
+              onPress={() => setNoteExpanded(true)}
+              disabled={!!busyId}
+              activeOpacity={0.7}
+              hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+            >
+              <Text
+                style={{
+                  fontSize: compact ? 13 : 14,
+                  fontWeight: "500",
+                  color: theme.primary,
+                }}
+              >
+                {t.evcAddNoteOptional}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View>
+              <Text
+                style={{
+                  fontSize: compact ? 12 : 13,
+                  fontWeight: "600",
+                  color: theme.textSecondary,
+                  marginBottom: 6,
+                }}
+              >
+                {t.evcNoteLabel}
+              </Text>
+              <TextInput
+                value={draftNote}
+                onChangeText={setDraftNote}
+                placeholder={t.evcNotePlaceholder}
+                placeholderTextColor={theme.textSecondary}
+                multiline
+                editable={!busyId}
+                scrollEnabled={false}
+                style={{
+                  minHeight: compact ? 40 : 44,
+                  maxHeight: 100,
+                  paddingHorizontal: 12,
+                  paddingVertical: 10,
+                  borderRadius: chipRadius,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  backgroundColor: theme.background,
+                  color: theme.text,
+                  fontSize: compact ? 14 : 15,
+                  textAlignVertical: "top",
+                }}
+              />
+            </View>
+          )}
+        </View>
+      ) : null}
 
       <TouchableOpacity
         onPress={() => setFullPickerOpen(true)}

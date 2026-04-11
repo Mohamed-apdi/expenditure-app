@@ -22,7 +22,11 @@ import {
 import { isOfflineGateLocked, triggerSync } from "../sync/legendSync";
 import type { EvcMessageKind } from "./evcMessageClassifier";
 import { parseEvcFields } from "./evcSmsParser";
-import { buildDedupeKey, checkAndMarkDedupe } from "./evcDedupe";
+import {
+  buildCanonicalEvcDedupeKey,
+  checkAndMarkDedupe,
+} from "./evcDedupe";
+import { runSerializedEvcApply } from "./evcApplySerialize";
 import { resolveEvcCategory } from "./resolveEvcCategory";
 import {
   getMemoryCategoryByNormalizedPhone,
@@ -174,6 +178,14 @@ export async function applyEvcSmsToLedger(input: {
   body: string;
   kind: EvcMessageKind;
 }): Promise<boolean> {
+  return runSerializedEvcApply(() => applyEvcSmsToLedgerInner(input));
+}
+
+async function applyEvcSmsToLedgerInner(input: {
+  sender: string;
+  body: string;
+  kind: EvcMessageKind;
+}): Promise<boolean> {
   const { sender, body, kind } = input;
   if (kind === "ignored") return false;
 
@@ -209,13 +221,15 @@ export async function applyEvcSmsToLedger(input: {
     return false;
   }
 
-  const dedupeKey = buildDedupeKey({
+  const dedupeKey = buildCanonicalEvcDedupeKey({
     sender,
     kind,
     amount,
     dateIso: parsed.dateIso,
     tarRaw: parsed.tarRaw,
-    body,
+    phone: parsed.phone,
+    merchantName: parsed.merchantName,
+    counterpartyName: parsed.counterpartyName,
   });
   if (await checkAndMarkDedupe(dedupeKey)) {
     console.log("[EVC SMS] skip: deduped");
@@ -359,6 +373,12 @@ export async function applyEvcSmsToLedger(input: {
   return true;
 }
 
+/** Whether a native-queue row may be deleted after processing. */
+export type NativeEvcQueueResult =
+  | "applied"
+  | "skipped_duplicate"
+  | "deferred";
+
 export type NativeEvcPendingRow = {
   sender: string;
   kind: EvcMessageKind;
@@ -377,47 +397,47 @@ export type NativeEvcPendingRow = {
  */
 export async function applyNativeEvcRowToLedger(
   row: NativeEvcPendingRow,
-): Promise<boolean> {
+): Promise<NativeEvcQueueResult> {
+  return runSerializedEvcApply(() => applyNativeEvcRowToLedgerInner(row));
+}
+
+async function applyNativeEvcRowToLedgerInner(
+  row: NativeEvcPendingRow,
+): Promise<NativeEvcQueueResult> {
   const kind = row.kind;
-  if (kind === "ignored") return false;
+  if (kind === "ignored") return "skipped_duplicate";
 
   const user = await getCurrentUserOfflineFirst();
-  if (!user) return false;
+  if (!user) return "deferred";
 
   const account = getDefaultAccountForUser(user.id);
-  if (!account) return false;
+  if (!account) return "deferred";
 
   if (kind === "bundle_notice") {
     const summary = row.noticeSummary?.trim();
-    if (!summary) return false;
-    return mergeBundleNoticeForUser(user.id, summary);
+    if (!summary) return "skipped_duplicate";
+    const ok = await mergeBundleNoticeForUser(user.id, summary);
+    return ok ? "applied" : "deferred";
   }
 
   const amount = row.amount ?? undefined;
-  if (amount == null || !Number.isFinite(amount) || amount <= 0) return false;
+  if (amount == null || !Number.isFinite(amount) || amount <= 0) {
+    return "skipped_duplicate";
+  }
 
-  const syntheticBody = [
-    "evc_native",
-    row.sender,
-    String(kind),
-    String(amount),
-    row.dateIso ?? "",
-    row.tarRaw ?? "",
-    row.phone ?? "",
-    row.name ?? "",
-    row.merchantName ?? "",
-  ].join("|");
-  const nativeDedupeKey = buildDedupeKey({
+  const nativeDedupeKey = buildCanonicalEvcDedupeKey({
     sender: row.sender,
     kind,
     amount,
     dateIso: row.dateIso ?? undefined,
     tarRaw: row.tarRaw ?? undefined,
-    body: syntheticBody,
+    phone: row.phone ?? undefined,
+    merchantName: row.merchantName ?? undefined,
+    counterpartyName: row.name ?? undefined,
   });
   if (await checkAndMarkDedupe(nativeDedupeKey)) {
     console.log("[EVC SMS] native row skip: deduped");
-    return false;
+    return "skipped_duplicate";
   }
 
   const dateStr = toDateStr(row.dateIso ?? undefined);
@@ -465,7 +485,7 @@ export async function applyNativeEvcRowToLedger(
     });
     updateAccountLocal(account.id, { amount: account.amount + amount });
     if (!(await isOfflineGateLocked())) void triggerSync();
-    return true;
+    return "applied";
   }
 
   if (kind === "topup") {
@@ -506,7 +526,7 @@ export async function applyNativeEvcRowToLedger(
       at: Date.now(),
     });
     if (!(await isOfflineGateLocked())) void triggerSync();
-    return true;
+    return "applied";
   }
 
   const evc = resolveEvcCategory({
@@ -554,5 +574,5 @@ export async function applyNativeEvcRowToLedger(
   updateAccountLocal(account.id, { amount: account.amount - amount });
 
   if (!(await isOfflineGateLocked())) void triggerSync();
-  return true;
+  return "applied";
 }
