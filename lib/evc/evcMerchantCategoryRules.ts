@@ -8,7 +8,7 @@ const RULES: ReadonlyArray<{
   category: string;
 }> = [
   {
-    keywords: ["MARKET", "SHOP", "STORE", "SUPERMARKET", "MART", "BAKAAR"],
+    keywords: ["MARKET", "SHOP", "STORE", "SUPERMARKET", "MART", "BAKAAR", "CARWO"],
     category: "shopping",
   },
   {
@@ -28,6 +28,8 @@ const RULES: ReadonlyArray<{
       "INTERNET",
       "HORMUUD",
       "SOMTEL",
+      "BECO",
+      "MOGADISHU",
     ],
     category: "utilities",
   },
