@@ -2,7 +2,7 @@ export default ({ config }) => ({
   ...config,
   name: "Qoondeeye",
   slug: "qoondeeye",
-  version: "2.4.2",
+  version: "1.8.1",
   orientation: "portrait",
   icon: "./assets/images/adaptive-icon.png",
   scheme: "qoondeeye",
