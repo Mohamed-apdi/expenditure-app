@@ -1,3 +1,6 @@
+/**
+ * Expense flow stack: add/edit expense, receipt scanner, detail screens
+ */
 import { Stack } from "expo-router";
 
 export default function ExpenseLayout() {
