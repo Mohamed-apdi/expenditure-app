@@ -1,5 +1,5 @@
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -134,23 +134,19 @@ export default function ProfileScreen() {
     checkNotificationPermission();
   }, [checkNotificationPermission]);
 
-  useEffect(() => {
-    void (async () => {
-      setEvcSmsEnabled(await getEvcSmsUserEnabled());
-    })();
-  }, []);
-
   const refreshEvcImportSettings = useCallback(async () => {
     try {
       const user = await getCurrentUserOfflineFirst();
       if (!user) return;
-      const [globalId, simMap] = await Promise.all([
+      const [globalId, simMap, enabled] = await Promise.all([
         getEvcImportAccountId(user.id),
         getEvcImportAccountBySim(user.id),
+        getEvcSmsUserEnabled(user.id),
       ]);
       setEvcImportAccountIdState(globalId);
       setEvcSim1AccountIdState(simMap.sim1 ?? null);
       setEvcSim2AccountIdState(simMap.sim2 ?? null);
+      setEvcSmsEnabled(enabled);
     } catch {
       // ignore
     }
@@ -164,8 +160,10 @@ export default function ProfileScreen() {
 
   const handleEvcSmsToggle = async (value: boolean) => {
     if (Platform.OS !== "android") return;
+    const user = await getCurrentUserOfflineFirst();
+    if (!user) return;
     if (!value) {
-      await setEvcSmsUserEnabled(false);
+      await setEvcSmsUserEnabled(user.id, false);
       await syncEvcSmsNativeEnabledFlag(false);
       setEvcSmsEnabled(false);
       await syncEvcSmsNativeListening();
@@ -192,7 +190,7 @@ export default function ProfileScreen() {
       );
       return;
     }
-    await setEvcSmsUserEnabled(true);
+    await setEvcSmsUserEnabled(user.id, true);
     await syncEvcSmsNativeEnabledFlag(true);
     setEvcSmsEnabled(true);
     await syncEvcSmsNativeListening();
@@ -205,6 +203,21 @@ export default function ProfileScreen() {
     },
     [accounts],
   );
+
+  const evcImportAccountsRowSubtitle = useMemo(() => {
+    const noneConfigured =
+      !evcImportAccountId && !evcSim1AccountId && !evcSim2AccountId;
+    if (noneConfigured) return t.evcImportAccountsRowSubtitleEmpty;
+    const fmt = (id: string | null) =>
+      accountNameById(id) ?? t.evcImportAccountsNotSetShort;
+    return `${t.evcImportAccountsSummaryFallback}: ${fmt(evcImportAccountId)} · ${t.evcImportAccountsSummarySim1}: ${fmt(evcSim1AccountId)} · ${t.evcImportAccountsSummarySim2}: ${fmt(evcSim2AccountId)}`;
+  }, [
+    evcImportAccountId,
+    evcSim1AccountId,
+    evcSim2AccountId,
+    accountNameById,
+    t,
+  ]);
 
   const saveEvcAccountSelection = useCallback(
     async (target: "global" | "sim1" | "sim2", accountId: string | null) => {
@@ -223,6 +236,8 @@ export default function ProfileScreen() {
   const handleEvcConsentContinue = async () => {
     setEvcConsentModalVisible(false);
     await setEvcSmsConsentSeen();
+    const user = await getCurrentUserOfflineFirst();
+    if (!user) return;
     const ok = await requestSmsPermissionsForEvc();
     if (!ok) {
       Alert.alert(
@@ -235,7 +250,7 @@ export default function ProfileScreen() {
       );
       return;
     }
-    await setEvcSmsUserEnabled(true);
+    await setEvcSmsUserEnabled(user.id, true);
     await syncEvcSmsNativeEnabledFlag(true);
     setEvcSmsEnabled(true);
     await syncEvcSmsNativeListening();
@@ -785,11 +800,8 @@ export default function ProfileScreen() {
                   <SettingItem
                     icon={<Smartphone size={22} color="#22c55e" />}
                     iconBg="#22c55e15"
-                    title={"Fallback Import Account (optional)"}
-                    subtitle={
-                      accountNameById(evcImportAccountId) ??
-                      "Not set (uses current default account)"
-                    }
+                    title={t.evcImportAccountsRowTitle}
+                    subtitle={evcImportAccountsRowSubtitle}
                     onPress={() => setEvcImportModalVisible(true)}
                   />
                   <Divider />

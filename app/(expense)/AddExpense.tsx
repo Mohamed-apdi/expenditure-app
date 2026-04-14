@@ -10,19 +10,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  ScrollView,
   StatusBar,
   Text,
   TouchableOpacity,
   View,
-  Text,
-  TouchableOpacity,
-  View,
 } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -52,13 +44,7 @@ import {
   useTheme,
 } from "~/lib";
 import type { Account } from "~/lib";
-import { notificationService } from "~/lib";
-import { useLanguage } from "~/lib";
-import { useAccount, useScreenStatusBar } from "~/lib";
-import {
-  playTabClickSound,
-  preloadTabClickSound,
-} from "~/lib/utils/playTabSound";
+import { statusBarTopInset } from "~/lib/utils/statusBarInset";
 
 // Import the separated form components
 import {

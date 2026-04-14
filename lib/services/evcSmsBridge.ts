@@ -1,5 +1,6 @@
 import { Platform, PermissionsAndroid } from "react-native";
 import { EventEmitter, requireOptionalNativeModule } from "expo-modules-core";
+import { getCurrentUserOfflineFirst } from "../auth";
 import { isExpoGo } from "../utils/expoGoUtils";
 import { getEvcSmsUserEnabled } from "./evcSmsSettings";
 
@@ -62,7 +63,8 @@ async function hasSmsPermissions(): Promise<boolean> {
 /** Keeps the native BroadcastReceiver aligned with user toggle + permissions. */
 export async function syncEvcSmsNativeListening(): Promise<void> {
   if (!isEvcSmsNativeAvailable() || !NativeMod) return;
-  const want = await getEvcSmsUserEnabled();
+  const user = await getCurrentUserOfflineFirst();
+  const want = user ? await getEvcSmsUserEnabled(user.id) : false;
   try {
     NativeMod.setNativeEnabled?.(want);
   } catch {

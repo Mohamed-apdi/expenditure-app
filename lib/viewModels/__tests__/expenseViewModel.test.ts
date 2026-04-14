@@ -15,7 +15,7 @@ describe("mapExpenseRowToViewState", () => {
 
   it("conflict wins: shows Conflict badge and CTA, edit disabled", () => {
     const row = { ...baseRow, __local_status: "conflict" as const };
-    const vm = mapExpenseRowToViewState(row, "done");
+    const vm = mapExpenseRowToViewState(row);
     expect(vm.badge).toBe("Conflict");
     expect(vm.canEdit).toBe(false);
     expect(vm.showConflictCTA).toBe(true);
