@@ -11,7 +11,6 @@ import {
   Moon,
   Bell,
   Calendar,
-  Search,
   RefreshCw,
   RefreshCcw,
   Globe,

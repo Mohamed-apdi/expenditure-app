@@ -1,5 +1,6 @@
 import { Platform, PermissionsAndroid } from "react-native";
 import { EventEmitter, requireOptionalNativeModule } from "expo-modules-core";
+import { getCurrentUserOfflineFirst } from "../auth";
 import { isExpoGo } from "../utils/expoGoUtils";
 import { getEvcSmsUserEnabled } from "./evcSmsSettings";
 
@@ -14,6 +15,8 @@ export type NativeEvcPendingRowNative = {
   name?: string | null;
   merchantName?: string | null;
   noticeSummary?: string | null;
+  subId?: number | null;
+  slot?: number | null;
   createdAt: number;
 };
 
@@ -32,7 +35,8 @@ type EvcNative = {
 };
 
 const NativeMod = requireOptionalNativeModule<EvcNative>("ExpoEvcSms");
-const emitter = NativeMod ? new EventEmitter(NativeMod as any) : null;
+// expo-modules-core EventEmitter typings require event-name generics; keep this module permissive.
+const emitter: any = NativeMod ? new EventEmitter(NativeMod as any) : null;
 
 export function isEvcSmsNativeAvailable(): boolean {
   return Platform.OS === "android" && !isExpoGo && NativeMod != null;
@@ -59,7 +63,8 @@ async function hasSmsPermissions(): Promise<boolean> {
 /** Keeps the native BroadcastReceiver aligned with user toggle + permissions. */
 export async function syncEvcSmsNativeListening(): Promise<void> {
   if (!isEvcSmsNativeAvailable() || !NativeMod) return;
-  const want = await getEvcSmsUserEnabled();
+  const user = await getCurrentUserOfflineFirst();
+  const want = user ? await getEvcSmsUserEnabled(user.id) : false;
   try {
     NativeMod.setNativeEnabled?.(want);
   } catch {
@@ -95,7 +100,12 @@ export function deleteNativeEvcPendingRowsByIds(ids: number[]): void {
 }
 
 export function subscribeEvcSms(
-  onSms: (payload: { sender: string; body: string }) => void,
+  onSms: (payload: {
+    sender: string;
+    body: string;
+    subId?: number | null;
+    slot?: number | null;
+  }) => void,
 ): { remove: () => void } | null {
   if (!emitter) return null;
   return (emitter as { addListener: (e: string, cb: typeof onSms) => { remove: () => void } }).addListener(
@@ -109,6 +119,8 @@ export function subscribeSmsDebug(
     sender: string;
     bodyLen: number;
     forwarded: boolean;
+    subId?: number | null;
+    slot?: number | null;
   }) => void,
 ): { remove: () => void } | null {
   if (!emitter) return null;

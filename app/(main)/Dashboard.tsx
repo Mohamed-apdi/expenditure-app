@@ -473,27 +473,29 @@ export default function DashboardScreen() {
                 {t.recentTransactions || "Recent Transactions"}
               </Text>
             </View>
-            <TouchableOpacity
-              style={{
-                backgroundColor: theme.cardBackground,
-                paddingVertical: 7,
-                paddingHorizontal: 14,
-                borderRadius: 20,
-                borderWidth: StyleSheet.hairlineWidth,
-                borderColor: theme.border,
-              }}
-              onPress={() => router.push("/components/TransactionsScreen")}
-            >
-              <Text
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <TouchableOpacity
                 style={{
-                  color: theme.primary,
-                  fontWeight: "600",
-                  fontSize: 12,
+                  backgroundColor: theme.cardBackground,
+                  paddingVertical: 7,
+                  paddingHorizontal: 14,
+                  borderRadius: 20,
+                  borderWidth: StyleSheet.hairlineWidth,
+                  borderColor: theme.border,
                 }}
+                onPress={() => router.push("/components/TransactionsScreen")}
               >
-                {t.seeMore || "See All"}
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={{
+                    color: theme.primary,
+                    fontWeight: "600",
+                    fontSize: 12,
+                  }}
+                >
+                  {t.seeMore || "See All"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {filteredTransactions.length > 0 ? (

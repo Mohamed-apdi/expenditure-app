@@ -7,7 +7,7 @@ import {
   SectionList,
   TextInput,
 } from "react-native";
-import { Search, ArrowLeft } from "lucide-react-native";
+import { Search, ArrowLeft, Plus, X, Layers, Search as SearchIcon } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
 import { getCurrentUserOfflineFirst, getTransactionsGroupedByDate } from "~/lib";
@@ -15,6 +15,9 @@ import { useAccount } from "~/lib";
 import { useTheme } from "~/lib";
 import { useLanguage } from "~/lib";
 import MemoizedTransactionItem from "~/components/(Dashboard)/MemoizedTransactionItem";
+import { CategoryPickerSheet } from "~/components/CategoryPickerSheet";
+import type { Category } from "~/lib/utils/categories";
+import { getExpenseCategories, getIncomeCategories } from "~/lib/utils/categories";
 
 type Transaction = {
   id: string;
@@ -39,8 +42,11 @@ export default function TransactionsScreen() {
   const { selectedAccount } = useAccount();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
+  const [category, setCategory] = useState<Category | null>(null);
+  const [isCategoryPickerOpen, setIsCategoryPickerOpen] = useState(false);
   const [transactions, setTransactions] = useState<TransactionSection[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [isLoadedAll, setIsLoadedAll] = useState(false);
 
   const openRowRef = useRef<(() => void) | null>(null);
   const closeOpenRow = useCallback(() => {
@@ -70,6 +76,7 @@ export default function TransactionsScreen() {
         accountId: selectedAccount?.id,
         type: activeFilter === "all" ? undefined : activeFilter as "expense" | "income" | "transfer",
         searchQuery: searchQuery,
+        category: category?.id,
       });
 
       setTransactions(groupedTransactions);
@@ -80,11 +87,26 @@ export default function TransactionsScreen() {
     }
   };
 
+  const hasAnyFilter =
+    searchQuery.trim().length > 0 || !!category || activeFilter !== "all";
 
   // Load transactions on component mount and when filters change
   useEffect(() => {
+    if (!selectedAccount?.id) {
+      setTransactions([]);
+      return;
+    }
+
+    // Don’t load everything by default; only fetch when user searches/filters,
+    // or explicitly taps "Load all".
+    if (!hasAnyFilter && !isLoadedAll) {
+      setTransactions([]);
+      setRefreshing(false);
+      return;
+    }
+
     fetchUserTransactions();
-  }, [selectedAccount?.id, activeFilter, searchQuery]);
+  }, [selectedAccount?.id, activeFilter, searchQuery, category?.id, isLoadedAll, hasAnyFilter]);
 
   // Close swipe when navigating away
   useFocusEffect(
@@ -93,12 +115,35 @@ export default function TransactionsScreen() {
 
   // Handle refresh
   const onRefresh = () => {
+    if (!hasAnyFilter && !isLoadedAll) return;
     setRefreshing(true);
     fetchUserTransactions();
   };
 
   // Transactions are already filtered by the service function
   const filteredTransactions = transactions;
+
+  const resultTotals = (() => {
+    let expense = 0;
+    let income = 0;
+    for (const section of filteredTransactions) {
+      for (const tx of section.data) {
+        if (tx.type === "expense") expense += tx.amount || 0;
+        else if (tx.type === "income") income += tx.amount || 0;
+      }
+    }
+    return { expense, income };
+  })();
+
+  const categories: Category[] = (() => {
+    const exp = getExpenseCategories(t);
+    const inc = getIncomeCategories(t);
+    if (activeFilter === "expense") return exp;
+    if (activeFilter === "income") return inc;
+    const map = new Map<string, Category>();
+    for (const c of [...exp, ...inc]) map.set(c.id, c);
+    return [...map.values()];
+  })();
 
   return (
     <SafeAreaView className="flex-1" style={{ backgroundColor: theme.background }}>
@@ -137,6 +182,60 @@ export default function TransactionsScreen() {
             </View>
           </View>
 
+          {!hasAnyFilter && !isLoadedAll ? (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => setIsLoadedAll(true)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                backgroundColor: theme.cardBackground,
+                paddingVertical: 14,
+                paddingHorizontal: 14,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: theme.border,
+                marginBottom: 12,
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1 }}>
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 12,
+                    backgroundColor: `${theme.primary}18`,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Layers size={18} color={theme.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.text, fontWeight: "800", fontSize: 14 }}>
+                    Load all transactions
+                  </Text>
+                  <Text style={{ color: theme.textMuted, fontSize: 12, marginTop: 2 }}>
+                    Or search to load only matching results
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 12,
+                  borderRadius: 999,
+                  backgroundColor: theme.primary,
+                }}
+              >
+                <Text style={{ color: "#fff", fontWeight: "800", fontSize: 12 }}>
+                  Load
+                </Text>
+              </View>
+            </TouchableOpacity>
+          ) : null}
+
           {/* Search Bar */}
           <View
             style={{
@@ -159,11 +258,74 @@ export default function TransactionsScreen() {
                 fontSize: 15,
                 marginLeft: 8,
               }}
-              placeholder={t.searchTransactions || "Search..."}
+              placeholder={(t.searchTransactions || "Search...") + " (notes / description)"}
               placeholderTextColor={theme.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
+          </View>
+
+          {/* Category filter */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 12,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <Text style={{ color: theme.textSecondary, fontSize: 13 }}>
+                {t.category || "Category"}
+              </Text>
+              {category ? (
+                <View
+                  style={{
+                    paddingVertical: 6,
+                    paddingHorizontal: 10,
+                    borderRadius: 999,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    backgroundColor: theme.background,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <Text style={{ color: theme.text, fontSize: 13, fontWeight: "600" }}>
+                    {category.name}
+                  </Text>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={() => setCategory(null)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <X size={14} color={theme.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <Text style={{ color: theme.textMuted, fontSize: 13 }}>
+                  {t.all || "All"}
+                </Text>
+              )}
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setIsCategoryPickerOpen(true)}
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: theme.border,
+                backgroundColor: theme.background,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Plus size={18} color={theme.text} />
+            </TouchableOpacity>
           </View>
 
           {/* Filter Chips */}
@@ -196,6 +358,46 @@ export default function TransactionsScreen() {
           </View>
         </View>
 
+        {(hasAnyFilter || isLoadedAll) && filteredTransactions.length > 0 ? (
+          <View
+            style={{
+              paddingHorizontal: 16,
+              paddingTop: 12,
+              paddingBottom: 8,
+            }}
+          >
+            <View
+              style={{
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: theme.border,
+                backgroundColor: theme.cardBackground,
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Text style={{ color: theme.textSecondary, fontSize: 13, fontWeight: "700" }}>
+                {t.summary || "Summary"}
+              </Text>
+              <Text
+                style={{
+                  color: theme.textMuted,
+                  fontSize: 11,
+                  fontWeight: "600",
+                  letterSpacing: 0.15,
+                }}
+              >
+                {t.expenses || "Expenses"} {resultTotals.expense.toFixed(2)}
+                <Text style={{ color: theme.textMuted }}> · </Text>
+                {t.income || "Income"} {resultTotals.income.toFixed(2)}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
         {/* Transactions List */}
         <SectionList
           sections={filteredTransactions}
@@ -203,7 +405,7 @@ export default function TransactionsScreen() {
           refreshing={refreshing}
           onRefresh={onRefresh}
           style={{ backgroundColor: theme.background }}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 20 }}
           onScrollBeginDrag={closeOpenRow}
           renderItem={({ item }) => (
             <View style={{ marginBottom: 10 }}>
@@ -218,37 +420,102 @@ export default function TransactionsScreen() {
               />
             </View>
           )}
-          renderSectionHeader={({ section: { title } }) => (
-            <View style={{ paddingVertical: 8, paddingHorizontal: 4 }}>
-              <Text style={{ color: theme.textSecondary, fontSize: 14, fontWeight: "600" }}>
-                {title}
-              </Text>
-            </View>
-          )}
+          renderSectionHeader={({ section }) => {
+            const expenseTotal = section.data
+              .filter((tx) => tx.type === "expense")
+              .reduce((sum, tx) => sum + (tx.amount || 0), 0);
+            const incomeTotal = section.data
+              .filter((tx) => tx.type === "income")
+              .reduce((sum, tx) => sum + (tx.amount || 0), 0);
+
+            return (
+              <View
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 4,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Text style={{ color: theme.textSecondary, fontSize: 14, fontWeight: "600" }}>
+                  {section.title}
+                </Text>
+                <Text
+                  style={{
+                    color: theme.textMuted,
+                    fontSize: 11,
+                    fontWeight: "500",
+                    letterSpacing: 0.15,
+                    flexShrink: 1,
+                    textAlign: "right",
+                    marginLeft: 12,
+                  }}
+                  numberOfLines={1}
+                >
+                  {t.expenses || "Expenses"} {expenseTotal.toFixed(2)}
+                  <Text style={{ color: theme.textMuted }}> · </Text>
+                  {t.income || "Income"} {incomeTotal.toFixed(2)}
+                </Text>
+              </View>
+            );
+          }}
           ListEmptyComponent={
             <View
               style={{
-                paddingVertical: 64,
+                marginTop: 20,
+                paddingVertical: 44,
+                paddingHorizontal: 18,
                 alignItems: "center",
                 backgroundColor: theme.cardBackground,
-                borderRadius: 16,
-                marginTop: 20,
+                borderRadius: 18,
+                borderWidth: 1,
+                borderColor: theme.border,
               }}
             >
-              <Text style={{ color: theme.textSecondary, fontSize: 16, fontWeight: "500" }}>
-                {searchQuery || activeFilter !== "all"
-                  ? "No transactions found"
-                  : "No transactions yet"}
+              <View
+                style={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 18,
+                  backgroundColor: `${theme.primary}18`,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 12,
+                }}
+              >
+                <SearchIcon size={22} color={theme.primary} />
+              </View>
+              <Text style={{ color: theme.text, fontSize: 16, fontWeight: "800" }}>
+                {!hasAnyFilter && !isLoadedAll
+                  ? "Start searching"
+                  : "No transactions found"}
               </Text>
-              <Text style={{ color: theme.textMuted, fontSize: 14, marginTop: 8 }}>
-                {searchQuery || activeFilter !== "all"
-                  ? "Try adjusting your filters"
-                  : "Start by adding your first transaction"}
+              <Text
+                style={{
+                  color: theme.textMuted,
+                  fontSize: 13,
+                  marginTop: 8,
+                  textAlign: "center",
+                  lineHeight: 18,
+                }}
+              >
+                {!hasAnyFilter && !isLoadedAll
+                  ? "Search by notes or description, or tap Load to see everything"
+                  : "Try adjusting your filters"}
               </Text>
             </View>
           }
         />
       </View>
+
+      <CategoryPickerSheet
+        visible={isCategoryPickerOpen}
+        onClose={() => setIsCategoryPickerOpen(false)}
+        categories={categories}
+        onSelect={(cat) => setCategory(cat)}
+        title={t.select_category || "Select category"}
+      />
     </SafeAreaView>
   );
 }

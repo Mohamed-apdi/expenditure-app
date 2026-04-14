@@ -1540,9 +1540,33 @@ export default function ReportsScreen() {
       : '0';
 
     const incomeExpenseComparisonData = [
-      { value: transactionData.summary.total_income, frontColor: '#10B981', label: t.income || 'Income' },
-      { value: transactionData.summary.total_expenses, frontColor: '#EF4444', label: t.expenses || 'Expenses' },
+      {
+        value: Number(transactionData.summary.total_income) || 0,
+        frontColor: '#10B981',
+        label: t.income || 'Income',
+        topLabelComponent: () => (
+          <Text style={{ color: theme.text, fontSize: 11, fontWeight: '700' }}>
+            {formatCurrency(Number(transactionData.summary.total_income) || 0)}
+          </Text>
+        ),
+      },
+      {
+        value: Number(transactionData.summary.total_expenses) || 0,
+        frontColor: '#EF4444',
+        label: t.expenses || 'Expenses',
+        topLabelComponent: () => (
+          <Text style={{ color: theme.text, fontSize: 11, fontWeight: '700' }}>
+            {formatCurrency(Number(transactionData.summary.total_expenses) || 0)}
+          </Text>
+        ),
+      },
     ];
+    const incomeExpenseMax = Math.max(
+      ...incomeExpenseComparisonData.map((d) => Number(d.value) || 0),
+      0,
+    );
+    const incomeExpenseMaxWithHeadroom =
+      incomeExpenseMax > 0 ? incomeExpenseMax * 1.15 : 1;
 
     const lineChartData = (processedChartData?.displayData || []).map((item: any) => {
       const dateLabel = item.date
@@ -1698,12 +1722,18 @@ export default function ReportsScreen() {
             }}>
             {t.incomeVsExpenses || 'Income vs Expenses'}
           </Text>
-          <View style={{ alignItems: 'center' }}>
+          <View
+            style={{
+              alignItems: 'center',
+              paddingTop: 18,
+              overflow: 'visible',
+            }}>
             <GiftedBarChart
               data={incomeExpenseComparisonData}
               barWidth={60}
               barBorderRadius={8}
               noOfSections={4}
+              maxValue={incomeExpenseMaxWithHeadroom}
               yAxisThickness={0}
               xAxisThickness={0}
               yAxisTextStyle={{ color: theme.textSecondary, fontSize: 10 }}
@@ -1711,12 +1741,12 @@ export default function ReportsScreen() {
               formatYLabel={(v) => `$${Number(v).toLocaleString()}`}
               hideRules
               width={screenWidth - 100}
-              height={160}
+              height={210}
               initialSpacing={40}
               spacing={60}
               isAnimated
-              showValuesAsTopLabel
-              topLabelTextStyle={{ color: theme.text, fontSize: 10, fontWeight: '600' }}
+              // We render our own top labels via `topLabelComponent` to avoid
+              // the Android zero-padding bug + prevent clipping at the top.
             />
           </View>
           {/* Visual comparison bar */}

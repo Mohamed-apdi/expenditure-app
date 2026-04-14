@@ -8,11 +8,28 @@ const RULES: ReadonlyArray<{
   category: string;
 }> = [
   {
-    keywords: ["MARKET", "SHOP", "STORE", "SUPERMARKET", "MART", "BAKAAR"],
+    keywords: [
+      "MARKET",
+      "SHOP",
+      "STORE",
+      "SUPERMARKET",
+      "MART",
+      "BAKAAR",
+      "CARWO",
+    ],
     category: "shopping",
   },
   {
-    keywords: ["RESTAURANT", "CAFE", "HOTEL", "FAST FOOD", "BURGER", "PIZZA"],
+    keywords: [
+      "RESTAURANT",
+      "CAFE",
+      "HOTEL",
+      "FAST FOOD",
+      "BURGER",
+      "PIZZA",
+      "COFFEE",
+      "TEA",
+    ],
     category: "food",
   },
   {
@@ -28,6 +45,8 @@ const RULES: ReadonlyArray<{
       "INTERNET",
       "HORMUUD",
       "SOMTEL",
+      "BECO",
+      "MOGADISHU",
     ],
     category: "utilities",
   },

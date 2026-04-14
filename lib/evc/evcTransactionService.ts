@@ -37,11 +37,51 @@ import {
   isLikelyEvcTopupLedgerMatch,
 } from "./evcTransactionDescription";
 import { isEvcNoteUserEdited } from "./evcNoteUserEdited";
+import {
+  getEvcImportAccountBySim,
+  getEvcImportAccountId,
+} from "../services/evcSmsSettings";
 
 function getDefaultAccountForUser(userId: string) {
   const accounts = selectAccounts(userId);
   const d = accounts.find((a) => a.is_default);
   return d ?? accounts[0];
+}
+
+function slotIndexToSim(slot: number | null | undefined): "sim1" | "sim2" | null {
+  // We only treat 0/1 as authoritative slot indices.
+  // If a device reports 1/2, Android receiver now derives 0/1 from subId via SubscriptionManager.
+  if (slot === 0) return "sim1";
+  if (slot === 1) return "sim2";
+  return null;
+}
+
+async function resolveEvcTargetAccount(input: {
+  userId: string;
+  slot?: number | null;
+}): Promise<{ id: string; amount: number } | null> {
+  const { userId, slot } = input;
+
+  // 1) Per-SIM override (SIM1/SIM2)
+  const sim = slotIndexToSim(slot ?? null);
+  if (sim) {
+    const simMap = await getEvcImportAccountBySim(userId);
+    const accountId = simMap[sim];
+    if (accountId) {
+      const a = selectAccounts(userId).find((x) => x.id === accountId);
+      if (a) return a;
+    }
+  }
+
+  // 2) Global EVC import account
+  const globalAccountId = await getEvcImportAccountId(userId);
+  if (globalAccountId) {
+    const a = selectAccounts(userId).find((x) => x.id === globalAccountId);
+    if (a) return a;
+  }
+
+  // 3) Fallback: current behavior (default account)
+  return getDefaultAccountForUser(userId) ?? null;
 }
 
 function toDateStr(dateIso?: string): string {
@@ -177,6 +217,8 @@ export async function applyEvcSmsToLedger(input: {
   sender: string;
   body: string;
   kind: EvcMessageKind;
+  slot?: number | null;
+  subId?: number | null;
 }): Promise<boolean> {
   return runSerializedEvcApply(() => applyEvcSmsToLedgerInner(input));
 }
@@ -185,8 +227,10 @@ async function applyEvcSmsToLedgerInner(input: {
   sender: string;
   body: string;
   kind: EvcMessageKind;
+  slot?: number | null;
+  subId?: number | null;
 }): Promise<boolean> {
-  const { sender, body, kind } = input;
+  const { sender, body, kind, slot } = input;
   if (kind === "ignored") return false;
 
   const user = await getCurrentUserOfflineFirst();
@@ -195,7 +239,7 @@ async function applyEvcSmsToLedgerInner(input: {
     return false;
   }
 
-  const account = getDefaultAccountForUser(user.id);
+  const account = await resolveEvcTargetAccount({ userId: user.id, slot: slot ?? null });
   if (!account) {
     console.log("[EVC SMS] skip: no account");
     return false;
@@ -389,6 +433,8 @@ export type NativeEvcPendingRow = {
   name?: string | null;
   merchantName?: string | null;
   noticeSummary?: string | null;
+  subId?: number | null;
+  slot?: number | null;
 };
 
 /**
@@ -410,7 +456,7 @@ async function applyNativeEvcRowToLedgerInner(
   const user = await getCurrentUserOfflineFirst();
   if (!user) return "deferred";
 
-  const account = getDefaultAccountForUser(user.id);
+  const account = await resolveEvcTargetAccount({ userId: user.id, slot: row.slot ?? null });
   if (!account) return "deferred";
 
   if (kind === "bundle_notice") {

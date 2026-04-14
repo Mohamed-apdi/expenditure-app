@@ -11,9 +11,9 @@ object EvcSmsBridge {
   private const val TAG = "ExpoEvcSms"
 
   @Volatile
-  private var sink: ((sender: String, body: String, bodyLen: Int, forwarded: Boolean) -> Unit)? = null
+  private var sink: ((sender: String, body: String, bodyLen: Int, forwarded: Boolean, slot: Int?, subId: Long?) -> Unit)? = null
 
-  fun setSink(s: ((String, String, Int, Boolean) -> Unit)?) {
+  fun setSink(s: ((String, String, Int, Boolean, Int?, Long?) -> Unit)?) {
     sink = s
   }
 
@@ -21,11 +21,11 @@ object EvcSmsBridge {
    * Delivers SMS to the JS listener when the app runtime is active.
    * @return true if a live sink consumed the event (do not also persist the same SMS to SQLite).
    */
-  fun notifySmsReceived(sender: String, body: String, forwarded: Boolean): Boolean {
+  fun notifySmsReceived(sender: String, body: String, forwarded: Boolean, slot: Int?, subId: Long?): Boolean {
     val len = body.length
     val currentSink = sink
     if (currentSink != null) {
-      currentSink(sender, body, len, forwarded)
+      currentSink(sender, body, len, forwarded, slot, subId)
       return true
     }
     return false

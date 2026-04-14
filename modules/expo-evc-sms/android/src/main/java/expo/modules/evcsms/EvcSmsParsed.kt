@@ -9,6 +9,8 @@ data class EvcSmsParsed(
   val phone: String?,
   val name: String?,
   val merchantName: String?,
-  val noticeSummary: String?
+  val noticeSummary: String?,
+  val slot: Int? = null,
+  val subId: Long? = null
 )
 
