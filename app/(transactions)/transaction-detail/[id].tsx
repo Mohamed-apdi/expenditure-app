@@ -238,36 +238,42 @@ export default function TransactionDetailScreen() {
         // Main account
         if (transactionData.account_id) {
           accountPromises.push(
-            supabase
-              .from("accounts")
-              .select("id, name, account_type, amount")
-              .eq("id", transactionData.account_id)
-              .single()
-              .then(({ data }) => ({ type: "account", data }))
+            Promise.resolve(
+              supabase
+                .from("accounts")
+                .select("id, name, account_type, amount")
+                .eq("id", transactionData.account_id)
+                .single()
+                .then(({ data }) => ({ type: "account" as const, data })),
+            ),
           );
         }
 
         // From account (for transfers)
         if (transactionData.from_account_id) {
           accountPromises.push(
-            supabase
-              .from("accounts")
-              .select("id, name, account_type, amount")
-              .eq("id", transactionData.from_account_id)
-              .single()
-              .then(({ data }) => ({ type: "from_account", data }))
+            Promise.resolve(
+              supabase
+                .from("accounts")
+                .select("id, name, account_type, amount")
+                .eq("id", transactionData.from_account_id)
+                .single()
+                .then(({ data }) => ({ type: "from_account" as const, data })),
+            ),
           );
         }
 
         // To account (for transfers)
         if (transactionData.to_account_id) {
           accountPromises.push(
-            supabase
-              .from("accounts")
-              .select("id, name, account_type, amount")
-              .eq("id", transactionData.to_account_id)
-              .single()
-              .then(({ data }) => ({ type: "to_account", data }))
+            Promise.resolve(
+              supabase
+                .from("accounts")
+                .select("id, name, account_type, amount")
+                .eq("id", transactionData.to_account_id)
+                .single()
+                .then(({ data }) => ({ type: "to_account" as const, data })),
+            ),
           );
         }
 

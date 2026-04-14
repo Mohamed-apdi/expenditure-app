@@ -106,7 +106,10 @@ export function subscribeEvcSms(
   }) => void,
 ): { remove: () => void } | null {
   if (!emitter) return null;
-  return emitter.addListener("onEvcSms", onSms as any);
+  return (emitter as { addListener: (e: string, cb: typeof onSms) => { remove: () => void } }).addListener(
+    "onEvcSms",
+    onSms,
+  );
 }
 
 export function subscribeSmsDebug(
@@ -119,7 +122,10 @@ export function subscribeSmsDebug(
   }) => void,
 ): { remove: () => void } | null {
   if (!emitter) return null;
-  return emitter.addListener("onSmsDebug", onDebug as any);
+  return (emitter as { addListener: (e: string, cb: typeof onDebug) => { remove: () => void } }).addListener(
+    "onSmsDebug",
+    onDebug,
+  );
 }
 
 /** Debug helper: prove JS<->native event wiring works without real SMS. */

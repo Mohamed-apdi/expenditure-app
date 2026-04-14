@@ -17,7 +17,6 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "NODE_ENV": "production",
         "SUPABASE_URL": "@SUPABASE_URL",
         "SUPABASE_KEY": "@SUPABASE_KEY",
         "POWER_SYNC_URL": "@POWER_SYNC_URL"
@@ -29,7 +28,6 @@
     },
     "production": {
       "env": {
-        "NODE_ENV": "production",
         "SUPABASE_URL": "@SUPABASE_URL",
         "SUPABASE_KEY": "@SUPABASE_KEY",
         "POWER_SYNC_URL": "@POWER_SYNC_URL"

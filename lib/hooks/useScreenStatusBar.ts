@@ -20,6 +20,7 @@ export function useScreenStatusBar() {
         /^#f[fF]{5}$/.test(bg); // #ffffff, #fff, etc.
       StatusBar.setBarStyle(isLightBg ? "dark-content" : "light-content", true);
       if (Platform.OS === "android") {
+        StatusBar.setTranslucent(false);
         StatusBar.setBackgroundColor(bg, true);
       }
     }, [theme.background])

@@ -10,25 +10,55 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ScrollView,
   StatusBar,
   Text,
   TouchableOpacity,
   View,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
-import { supabase } from "~/lib";
-import { useTheme } from "~/lib";
-import { fetchAccounts, updateAccountBalance } from "~/lib";
-import { addExpense } from "~/lib";
-import { addTransaction } from "~/lib";
-import { addTransfer } from "~/lib";
-import { addSubscription } from "~/lib";
+import { toast } from "sonner-native";
+import {
+  addExpense,
+  addSubscription,
+  addTransaction,
+  addTransfer,
+  createExpenseLocal,
+  createSubscriptionLocal,
+  createTransactionLocal,
+  createTransferLocal,
+  fetchAccounts,
+  getCurrentUserOfflineFirst,
+  isOfflineGateLocked,
+  notificationService,
+  supabase,
+  triggerSync,
+  updateAccountBalance,
+  updateAccountLocal,
+  useAccount,
+  useLanguage,
+  useScreenStatusBar,
+  useTheme,
+} from "~/lib";
 import type { Account } from "~/lib";
 import { notificationService } from "~/lib";
 import { useLanguage } from "~/lib";
 import { useAccount, useScreenStatusBar } from "~/lib";
-import { playTabClickSound, preloadTabClickSound } from "~/lib/utils/playTabSound";
+import {
+  playTabClickSound,
+  preloadTabClickSound,
+} from "~/lib/utils/playTabSound";
 
 // Import the separated form components
 import {
@@ -86,13 +116,7 @@ export default function AddExpenseScreen() {
     }
   }, [accounts, selectedAccount]);
 
-  // Preload tab click sound so first tap plays immediately (dev build only; Expo Go uses haptics)
-  useEffect(() => {
-    void preloadTabClickSound();
-  }, []);
-
   const handleEntryTypeChange = (type: string) => {
-    void playTabClickSound();
     setEntryType(type);
     setSelectedCategory(null);
   };
@@ -234,7 +258,9 @@ export default function AddExpenseScreen() {
       // Check budget thresholds only for the expense category (notify only if this category has a budget)
       if (entryType === "Expense" && selectedCategory?.name) {
         try {
-          await notificationService.checkBudgetsAndNotify(selectedCategory.name);
+          await notificationService.checkBudgetsAndNotify(
+            selectedCategory.name,
+          );
         } catch (error) {
           console.error("Error checking budget notifications:", error);
         }
@@ -365,12 +391,7 @@ export default function AddExpenseScreen() {
     }
 
     // For Income and Expense (note/description is optional)
-    return (
-      !!amount &&
-      !!selectedAccount &&
-      !!selectedCategory &&
-      !isSubmitting
-    );
+    return !!amount && !!selectedAccount && !!selectedCategory && !isSubmitting;
   }, [
     amount,
     selectedAccount,
@@ -382,203 +403,228 @@ export default function AddExpenseScreen() {
     isSubmitting,
   ]);
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        {/* Header */}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            paddingHorizontal: 16,
-            paddingVertical: 16,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.border,
-          }}
-        >
-          <TouchableOpacity
-            style={{
-              padding: 8,
-              borderRadius: 12,
-              backgroundColor: theme.cardBackground,
-            }}
-            onPress={() => router.back()}
-          >
-            <X size={22} color={theme.textMuted} />
-          </TouchableOpacity>
-          <Text style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}>
-            {t.add_transaction || "Add Transaction"}
-          </Text>
-          <View style={{ width: 76 }} />
-        </View>
+  const statusBarTop = statusBarTopInset(insets);
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 24 }}
+  return (
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      {/* Opaque strip under clock/battery (edge-to-edge): blocks scroll overscroll bleed-through */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: statusBarTop,
+          backgroundColor: theme.background,
+          zIndex: 100,
+        }}
+      />
+      <StatusBar
+        backgroundColor={theme.background}
+        barStyle={theme.isDarkColorScheme ? "light-content" : "dark-content"}
+        translucent={Platform.OS === "android" ? false : undefined}
+      />
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+        <KeyboardAvoidingView
+          style={{ flex: 1, backgroundColor: theme.background }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          {/* Type Tabs - Modern Pills */}
+          {/* Header */}
           <View
             style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
               paddingHorizontal: 16,
               paddingVertical: 16,
               backgroundColor: theme.background,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.border,
             }}
           >
-            <View
+            <TouchableOpacity
               style={{
-                flexDirection: "row",
+                padding: 8,
                 borderRadius: 12,
-                borderWidth: 1,
-                borderColor: theme.border,
-                overflow: "hidden",
+                backgroundColor: theme.cardBackground,
               }}
+              onPress={() => router.back()}
             >
-              {ENTRY_TABS.map((tab, index) => {
-                const isActive = entryType === tab.id;
-                const activeBg = "#00BFFF";
-                return (
-                  <TouchableOpacity
-                    key={tab.id}
-                    activeOpacity={1}
-                    style={{
-                      flex: 1,
-                      paddingVertical: 12,
-                      backgroundColor: isActive
-                        ? activeBg
-                        : theme.cardBackground,
-                      borderRightWidth: index < ENTRY_TABS.length - 1 ? 1 : 0,
-                      borderRightColor: theme.border,
-                    }}
-                    onPress={() => handleEntryTypeChange(tab.id)}
-                  >
-                    <Text
-                      style={{
-                        textAlign: "center",
-                        fontWeight: isActive ? "600" : "400",
-                        fontSize: 14,
-                        color: isActive ? "#FFFFFF" : theme.text,
-                      }}
-                    >
-                      {tab.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+              <X size={22} color={theme.textMuted} />
+            </TouchableOpacity>
+            <Text
+              style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}
+            >
+              {t.add_transaction || "Add Transaction"}
+            </Text>
+            <View style={{ width: 76 }} />
           </View>
 
-          {/* Receipt scanning removed (manual entry only). */}
-
-          {/* Render the appropriate form based on entry type */}
-          {entryType === "Expense" && (
-            <ExpenseForm
-              amount={amount}
-              setAmount={setAmount}
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-              description={description}
-              setDescription={setDescription}
-              selectedAccount={selectedAccount}
-              setSelectedAccount={setSelectedAccount}
-              date={date}
-              setDate={setDate}
-              isRecurring={isRecurring}
-              setIsRecurring={setIsRecurring}
-              recurringFrequency={recurringFrequency}
-              setRecurringFrequency={setRecurringFrequency}
-              categories={expenseCategories}
-              accounts={accounts}
-              theme={theme}
-              t={t}
-            />
-          )}
-
-          {entryType === "Income" && (
-            <IncomeForm
-              amount={amount}
-              setAmount={setAmount}
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-              description={description}
-              setDescription={setDescription}
-              selectedAccount={selectedAccount}
-              setSelectedAccount={setSelectedAccount}
-              date={date}
-              setDate={setDate}
-              categories={incomeCategories}
-              accounts={accounts}
-              theme={theme}
-              t={t}
-            />
-          )}
-
-          {entryType === "Transfer" && (
-            <TransferForm
-              transferAmount={transferAmount}
-              setTransferAmount={setTransferAmount}
-              fromAccount={fromAccount}
-              setFromAccount={setFromAccount}
-              toAccount={toAccount}
-              setToAccount={setToAccount}
-              accounts={accounts}
-              isSubmitting={isSubmitting}
-              handleTransfer={handleTransfer}
-              theme={theme}
-              t={t}
-            />
-          )}
-        </ScrollView>
-
-        {/* Save button - Fixed at bottom with clear spacing */}
-        <View
-          style={{
-            paddingHorizontal: 16,
-            paddingTop: 8,
-            paddingBottom: Math.max(insets.bottom, 12),
-            alignItems: "flex-end",
-            backgroundColor: theme.background,
-            borderTopWidth: 1,
-            borderTopColor: theme.border,
-          }}
-        >
-          <TouchableOpacity
-            style={{
-              paddingVertical: 14,
-              paddingHorizontal: 28,
-              borderRadius: 14,
-              backgroundColor: theme.primary,
-              minWidth: 120,
-              alignItems: "center",
-              opacity: isFormValid() ? 1 : 0.7,
-            }}
-            onPress={
-              entryType === "Transfer" ? handleTransfer : handleSaveExpense
-            }
-            disabled={!isFormValid()}
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={{ flex: 1, backgroundColor: theme.background }}
+            contentContainerStyle={{ paddingBottom: 24 }}
           >
-            <Text
+            {/* Type Tabs - Modern Pills */}
+            <View
               style={{
-                fontWeight: "600",
-                fontSize: 16,
-                color: theme.primaryText,
+                paddingHorizontal: 16,
+                paddingVertical: 16,
+                backgroundColor: theme.background,
               }}
             >
-              {entryType === "Transfer"
-                ? isSubmitting
-                  ? t.saving || "Saving..."
-                  : (t.completeTransfer || "Transfer")
-                : isSubmitting
-                  ? t.saving || "Saving..."
-                  : t.save || "Save"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+              <View
+                style={{
+                  flexDirection: "row",
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  overflow: "hidden",
+                }}
+              >
+                {ENTRY_TABS.map((tab, index) => {
+                  const isActive = entryType === tab.id;
+                  const activeBg = "#00BFFF";
+                  return (
+                    <TouchableOpacity
+                      key={tab.id}
+                      activeOpacity={1}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 12,
+                        backgroundColor: isActive
+                          ? activeBg
+                          : theme.cardBackground,
+                        borderRightWidth: index < ENTRY_TABS.length - 1 ? 1 : 0,
+                        borderRightColor: theme.border,
+                      }}
+                      onPress={() => handleEntryTypeChange(tab.id)}
+                    >
+                      <Text
+                        style={{
+                          textAlign: "center",
+                          fontWeight: isActive ? "600" : "400",
+                          fontSize: 14,
+                          color: isActive ? "#FFFFFF" : theme.text,
+                        }}
+                      >
+                        {tab.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Receipt scanning removed (manual entry only). */}
+
+            {/* Render the appropriate form based on entry type */}
+            {entryType === "Expense" && (
+              <ExpenseForm
+                amount={amount}
+                setAmount={setAmount}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                description={description}
+                setDescription={setDescription}
+                selectedAccount={selectedAccount}
+                setSelectedAccount={setSelectedAccount}
+                date={date}
+                setDate={setDate}
+                isRecurring={isRecurring}
+                setIsRecurring={setIsRecurring}
+                recurringFrequency={recurringFrequency}
+                setRecurringFrequency={setRecurringFrequency}
+                categories={expenseCategories}
+                accounts={accounts}
+                theme={theme}
+                t={t}
+              />
+            )}
+
+            {entryType === "Income" && (
+              <IncomeForm
+                amount={amount}
+                setAmount={setAmount}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                description={description}
+                setDescription={setDescription}
+                selectedAccount={selectedAccount}
+                setSelectedAccount={setSelectedAccount}
+                date={date}
+                setDate={setDate}
+                categories={incomeCategories}
+                accounts={accounts}
+                theme={theme}
+                t={t}
+              />
+            )}
+
+            {entryType === "Transfer" && (
+              <TransferForm
+                transferAmount={transferAmount}
+                setTransferAmount={setTransferAmount}
+                fromAccount={fromAccount}
+                setFromAccount={setFromAccount}
+                toAccount={toAccount}
+                setToAccount={setToAccount}
+                accounts={accounts}
+                isSubmitting={isSubmitting}
+                handleTransfer={handleTransfer}
+                theme={theme}
+                t={t}
+              />
+            )}
+          </ScrollView>
+
+          {/* Save button - Fixed at bottom with clear spacing */}
+          <View
+            style={{
+              paddingHorizontal: 16,
+              paddingTop: 8,
+              paddingBottom: Math.max(insets.bottom, 12),
+              alignItems: "flex-end",
+              backgroundColor: theme.background,
+              borderTopWidth: 1,
+              borderTopColor: theme.border,
+            }}
+          >
+            <TouchableOpacity
+              style={{
+                paddingVertical: 14,
+                paddingHorizontal: 28,
+                borderRadius: 14,
+                backgroundColor: theme.primary,
+                minWidth: 120,
+                alignItems: "center",
+                opacity: isFormValid() ? 1 : 0.7,
+              }}
+              onPress={
+                entryType === "Transfer" ? handleTransfer : handleSaveExpense
+              }
+              disabled={!isFormValid()}
+            >
+              <Text
+                style={{
+                  fontWeight: "600",
+                  fontSize: 16,
+                  color: theme.primaryText,
+                }}
+              >
+                {entryType === "Transfer"
+                  ? isSubmitting
+                    ? t.saving || "Saving..."
+                    : t.completeTransfer || "Transfer"
+                  : isSubmitting
+                    ? t.saving || "Saving..."
+                    : t.save || "Save"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }

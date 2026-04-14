@@ -407,8 +407,6 @@ export const LANGUAGES = {
     noBudgetsSetUp: "No budgets set up yet",
     spent: "Spent",
     remaining: "Remaining",
-    over: "Over",
-    left: "Left",
     editBudget: "Edit Budget",
     addNewBudget: "Add New Budget",
     category: "Category",
@@ -674,9 +672,6 @@ export const LANGUAGES = {
     accountReports: "Account Reports",
     investmentReports: "Investment Reports",
     loanReports: "Loan Reports",
-    reports: "Reports",
-    investments: "Investments",
-    loans: "Loans",
     showingDataFor: "Showing data for:",
     pleaseSelectAccount: "Please select an account",
     netAmount: "Net Amount",
@@ -798,7 +793,6 @@ export const LANGUAGES = {
     allSubscriptions: "All Subscriptions",
     categories: "Categories",
     more: "more",
-    active: "Active",
     today: "Today",
     tomorrow: "Tomorrow",
     days: "days",
@@ -833,19 +827,16 @@ export const LANGUAGES = {
     keepUpGreatWork: "Keep up the great work!",
     daysOverdue: "days overdue",
     dueToday: "Due today",
-    daysLeft: "days left",
-    accounts: "accounts",
-    assets: "Assets",
-    liabilities: "Liabilities",
     accountDistribution: "Account Distribution",
     txns: "txns",
+    accountsPluralLower: "accounts",
 
     // Investment Report translations
     loadingInvestmentData: "Loading investment data...",
     noInvestmentsFound: "No Investments Found",
-    noInvestmentsYet: "Start tracking your investments to see them here.",
+    noInvestmentsReportHint:
+      "Start tracking your investments to see them here.",
     portfolioValue: "Portfolio Value",
-    totalInvested: "Total Invested",
     totalInvestments: "Total Investments",
     investmentsByType: "Investments by Type",
     types: "Types",
@@ -855,7 +846,7 @@ export const LANGUAGES = {
     // Loan Report translations
     loadingLoanData: "Loading loan data...",
     noLoansFound: "No Loans Found",
-    noLoansYet: "Track your loans given and taken here.",
+    noLoansReportHint: "Track your loans given and taken here.",
     netPosition: "Net Position",
     othersOweYou: "Others owe you more",
     youOweOthers: "You owe others more",
@@ -867,8 +858,6 @@ export const LANGUAGES = {
     allLoans: "All Loans",
     given: "GIVEN",
     taken: "TAKEN",
-    settled: "Settled",
-    partial: "Partial",
     recentRepayments: "Recent Repayments",
 
     // Transaction Report translations
@@ -1137,6 +1126,7 @@ export const LANGUAGES = {
 
     // Accounts screen
     accounts: "Akoonaadka",
+    accountsPluralLower: "Akoon",
     account: "Akoonka",
     addAccount: "Ku dar Akoon",
     addNewAccount: "Ku dar Akoon Cusub",
@@ -1773,19 +1763,15 @@ export const LANGUAGES = {
     keepUpGreatWork: "Sii wad shaqada wanaagsan!",
     daysOverdue: "maalmood ka dhaaftay",
     dueToday: "Maanta ayuu dhacayaa",
-    daysLeft: "maalmood hadhay",
-    accounts: "Akoon",
-    assets: "Hantida",
-    liabilities: "Deymaha",
     accountDistribution: "Qaybinta Akoonka",
     txns: "dhaq",
 
     // Investment Report translations
     loadingInvestmentData: "Xogta maalgelinta la soo dejinayaa...",
     noInvestmentsFound: "Maalgelinti Lama Helin",
-    // noInvestmentsYet: "Bilow la socoshada maalgelinkaaga si aad halkan ugu aragto.",
+    noInvestmentsReportHint:
+      "Bilow la socoshada maalgelinkaaga si aad halkan ugu aragto.",
     portfolioValue: "Qiimaha Guud",
-    // totalInvested: "Wadarta La Maalgeliyay",
     totalInvestments: "Wadarta Maalgelinta",
     investmentsByType: "Maalgelinta Nooca",
     types: "Noocyada",
@@ -1795,7 +1781,8 @@ export const LANGUAGES = {
     // Loan Report translations
     loadingLoanData: "Xogta amaahada la soo dejinayaa...",
     noLoansFound: "Amaaho Lama Helin",
-    // noLoansYet: "Halkan ka la soco amaahada la siiyay iyo la qaatay.",
+    noLoansReportHint:
+      "Halkan ka la soco amaahada la siiyay iyo la qaatay.",
     netPosition: "Xaalad Guud",
     othersOweYou: "Dadka kale waxay kugu leeyihiin wax badan",
     youOweOthers: "Waxaad leedahay dad kale wax badan",

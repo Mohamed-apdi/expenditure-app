@@ -2,7 +2,7 @@ export default ({ config }) => ({
   ...config,
   name: "Qoondeeye",
   slug: "qoondeeye",
-  version: "1.8.1",
+  version: "2.5.0",
   orientation: "portrait",
   icon: "./assets/images/adaptive-icon.png",
   scheme: "qoondeeye",
@@ -21,7 +21,7 @@ export default ({ config }) => ({
     bundleIdentifier: "com.mohamed-99.qoondeeye",
     supportsTablet: true,
     jsEngine: "hermes",
-    buildNumber: "30",
+    buildNumber: "32",
     icon: {
       dark: "./assets/images/ios-light.png",
       light: "./assets/images/ios-light.png",
@@ -30,7 +30,7 @@ export default ({ config }) => ({
   },
 
   android: {
-    versionCode: 30,
+    versionCode: 32,
     adaptiveIcon: {
       foregroundImage: "./assets/images/adaptive-icon.png",
       backgroundColor: "#00BFFF"

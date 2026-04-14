@@ -16,6 +16,12 @@ web-build/
 *.key
 *.mobileprovision
 
+# Android / Gradle build output (never commit)
+android/.gradle/
+android/app/build/
+android/build/
+modules/**/android/build/
+
 # Metro
 .metro-health-check*
 

@@ -832,7 +832,7 @@ export default function ProfileScreen() {
           {/* App Version */}
           <View style={{ alignItems: "center", marginTop: 32 }}>
             <Text style={{ color: theme.textMuted, fontSize: 12 }}>
-              Qoondeeye v{Constants.expoConfig?.version || "2.4.2"}
+              Qoondeeye v{Constants.expoConfig?.version || "2.5.0"}
             </Text>
           </View>
         </View>

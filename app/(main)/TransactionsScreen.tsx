@@ -39,7 +39,8 @@ import {
   deleteTransactionLocal,
   transactions$,
 } from "~/lib/stores/transactionsStore";
-import { updateAccountLocal, updateAccountBalance } from "~/lib/stores/accountsStore";
+import { updateAccountLocal } from "~/lib/stores/accountsStore";
+import { updateAccountBalance } from "~/lib/services/accounts";
 import { isOfflineGateLocked, triggerSync } from "~/lib/sync/legendSync";
 import { deleteTransaction } from "~/lib/services/transactions";
 import { useRouter } from "expo-router";
@@ -447,7 +448,7 @@ export default function TransactionsScreen() {
   const [evcCategorizeTarget, setEvcCategorizeTarget] =
     useState<Transaction | null>(null);
   const openRowRef = useRef<(() => void) | null>(null);
-  const { account } = useAccount();
+  const { selectedAccount } = useAccount();
 
   const quickCategoryLabels = useMemo(() => {
     const cats = getExpenseCategories(t);
@@ -588,25 +589,31 @@ export default function TransactionsScreen() {
                 if (!transaction || !userId) return;
 
                 const offline = await isOfflineGateLocked();
-                if (offline) {
+                  if (offline) {
                   await deleteTransactionLocal(id);
-                  if (account && transaction.account_id === account.id) {
+                  if (
+                    selectedAccount &&
+                    transaction.account_id === selectedAccount.id
+                  ) {
                     const newBalance =
                       transaction.type === "expense"
-                        ? account.balance + transaction.amount
-                        : account.balance - transaction.amount;
-                    await updateAccountLocal(account.id, {
-                      balance: newBalance,
+                        ? selectedAccount.amount + transaction.amount
+                        : selectedAccount.amount - transaction.amount;
+                    await updateAccountLocal(selectedAccount.id, {
+                      amount: newBalance,
                     });
                   }
                 } else {
                   await deleteTransaction(id);
-                  if (account && transaction.account_id === account.id) {
+                  if (
+                    selectedAccount &&
+                    transaction.account_id === selectedAccount.id
+                  ) {
                     const newBalance =
                       transaction.type === "expense"
-                        ? account.balance + transaction.amount
-                        : account.balance - transaction.amount;
-                    await updateAccountBalance(account.id, newBalance);
+                        ? selectedAccount.amount + transaction.amount
+                        : selectedAccount.amount - transaction.amount;
+                    await updateAccountBalance(selectedAccount.id, newBalance);
                   }
                 }
                 setTransactions((prev) => prev.filter((tx) => tx.id !== id));
@@ -623,7 +630,7 @@ export default function TransactionsScreen() {
         ],
       );
     },
-    [transactions, userId, account, t],
+    [transactions, userId, selectedAccount, t],
   );
 
   const toggleSelect = useCallback((id: string) => {

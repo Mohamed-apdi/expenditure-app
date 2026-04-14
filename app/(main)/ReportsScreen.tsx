@@ -78,7 +78,6 @@ import { generatePDFReport, sharePDF } from '~/lib/generators/pdfGenerator';
 import { generateCSVReport, shareCSV } from '~/lib/generators/csvGenerator';
 import { useTheme, useScreenStatusBar } from '~/lib';
 import { useLanguage } from '~/lib';
-import { playTabClickSound, preloadTabClickSound } from '~/lib/utils/playTabSound';
 import { toast } from 'sonner-native';
 import {
   categoryLabelFromStored,
@@ -216,11 +215,6 @@ export default function ReportsScreen() {
       onPanResponderTerminate: () => {},
     }),
   ).current;
-
-  // Preload tab click feedback (same as Add Expense / Budget)
-  useEffect(() => {
-    void preloadTabClickSound();
-  }, []);
 
   // Report data states
   const [transactionData, setTransactionData] =
@@ -2389,7 +2383,7 @@ export default function ReportsScreen() {
                 <Wallet size={12} color="#FFFFFF" />
               </View>
               <Text style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: 13 }}>
-                {totalAccounts} {t.accounts || 'accounts'}
+                {totalAccounts} {t.accountsPluralLower || 'accounts'}
               </Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -2445,7 +2439,7 @@ export default function ReportsScreen() {
               {formatCurrency(totalPositive)}
             </Text>
             <Text style={{ color: theme.textSecondary, fontSize: 11, marginTop: 4 }}>
-              {positiveAccounts.length} {t.accounts || 'accounts'}
+              {positiveAccounts.length} {t.accountsPluralLower || 'accounts'}
             </Text>
           </View>
 
@@ -2480,7 +2474,7 @@ export default function ReportsScreen() {
               {formatCurrency(totalNegative)}
             </Text>
             <Text style={{ color: theme.textSecondary, fontSize: 11, marginTop: 4 }}>
-              {negativeAccounts.length} {t.accounts || 'accounts'}
+              {negativeAccounts.length} {t.accountsPluralLower || 'accounts'}
             </Text>
           </View>
         </View>
@@ -4033,7 +4027,8 @@ export default function ReportsScreen() {
               textAlign: 'center',
               paddingHorizontal: 32,
             }}>
-            {t.noInvestmentsYet || 'Start tracking your investments to see them here.'}
+            {t.noInvestmentsReportHint ||
+              'Start tracking your investments to see them here.'}
           </Text>
         </View>
       );
@@ -4371,7 +4366,7 @@ export default function ReportsScreen() {
               textAlign: 'center',
               paddingHorizontal: 32,
             }}>
-            {t.noLoansYet || 'Track your loans given and taken here.'}
+            {t.noLoansReportHint || 'Track your loans given and taken here.'}
           </Text>
         </View>
       );
@@ -4888,7 +4883,6 @@ export default function ReportsScreen() {
                     backgroundColor: isActive ? '#00BFFF' : theme.background,
                   }}
                   onPress={() => {
-                    void playTabClickSound();
                     setActiveTab(tab.key);
                   }}>
                   <Text

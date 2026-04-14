@@ -45,7 +45,7 @@ type InputFieldProps = {
   hint?: string;
   keyboardType?: "default" | "phone-pad" | "email-address";
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
-  inputRef?: React.RefObject<TextInput>;
+  inputRef?: React.RefObject<TextInput | null>;
   prefix?: string;
   theme: any;
 };

@@ -41,7 +41,6 @@ import { useLanguage } from '~/lib';
 import Investments from '../components/Investments';
 import Debt_Loan from '../components/Debt_Loan';
 import { ExpandableTabFab } from '~/components/ExpandableTabFab';
-import { playTabClickSound, preloadTabClickSound } from '~/lib/utils/playTabSound';
 
 // Use the exact same expense categories as AddExpense
 
@@ -63,11 +62,6 @@ export default function BudgetScreen() {
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null); // For add/edit modal picker
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
-
-  // Preload tab click feedback (same as Add Expense)
-  useEffect(() => {
-    void preloadTabClickSound();
-  }, []);
 
   const TAB_KEYS = ['Budget', 'Subscriptions', 'Goals', 'Investments', 'Loan'];
 
@@ -484,7 +478,6 @@ export default function BudgetScreen() {
                     marginRight: 4,
                   }}
                   onPress={() => {
-                    void playTabClickSound();
                     setActiveTab(tab.key);
                   }}>
                   <Text

@@ -73,13 +73,13 @@ export default function ExpenseDetailScreen() {
           setExpense({
             id: data.id,
             amount: data.amount,
-            category: data.category,
+            category: data.category ?? "",
             description: data.description ?? "",
             date: data.date,
             is_recurring: data.is_recurring ?? false,
             recurrence_interval: data.recurrence_interval,
             is_essential: data.is_essential ?? false,
-            tags: data.tags,
+            tags: data.tags ?? [],
             created_at: data.created_at,
             receipt_url: data.receipt_url,
           });
