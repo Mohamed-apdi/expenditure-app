@@ -83,12 +83,12 @@ export function updateProfileLocal(
       // Create a new profile if one doesn't exist (upsert behavior)
       const newProfile: LocalProfile = {
         id: userId,
-        full_name: patch.full_name ?? null,
-        phone: patch.phone ?? null,
-        user_type: patch.user_type ?? null,
+        full_name: patch.full_name,
+        phone: patch.phone,
+        user_type: patch.user_type ?? "",
         created_at: now,
-        image_url: patch.image_url ?? null,
-        email: patch.email ?? null,
+        image_url: patch.image_url ?? undefined,
+        email: patch.email,
         deleted_at: null,
         __local_status: "pending",
         __local_updated_at: now,

@@ -274,7 +274,10 @@ export const ensureDefaultAccount = async (userId: string): Promise<void> => {
 
     if (serverAccounts.length > 0) {
       // Sync server accounts to local store
-      setAccountsFromServer(userId, serverAccounts as Array<Record<string, unknown>>);
+      setAccountsFromServer(
+        userId,
+        serverAccounts as unknown as Array<Record<string, unknown>>,
+      );
       console.log("ensureDefaultAccount: Synced server accounts to local store");
       return;
     }
@@ -307,7 +310,9 @@ export const ensureDefaultAccount = async (userId: string): Promise<void> => {
     
     // Sync the newly created account to local store
     if (serverAccount) {
-      setAccountsFromServer(userId, [serverAccount as Record<string, unknown>]);
+      setAccountsFromServer(userId, [
+        serverAccount as unknown as Record<string, unknown>,
+      ]);
       console.log("ensureDefaultAccount: Created and synced default account:", serverAccount.id);
     }
   } catch (createError) {

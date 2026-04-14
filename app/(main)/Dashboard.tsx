@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { statusBarTopInset } from "~/lib/utils/statusBarInset";
 import {
   deleteTransactionLocal,
   deleteTransaction,
@@ -370,6 +371,7 @@ export default function DashboardScreen() {
   };
 
   const insets = useSafeAreaInsets();
+  const topPad = statusBarTopInset(insets);
   const tabBarHeight = useBottomTabBarHeight();
 
   const transactionsByDay = useMemo(
@@ -379,12 +381,60 @@ export default function DashboardScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.background }}>
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: topPad,
+          backgroundColor: theme.background,
+          zIndex: 100,
+        }}
+      />
       <StatusBar
         barStyle={theme.isDark ? "light-content" : "dark-content"}
         backgroundColor={theme.background}
+        translucent={Platform.OS === "android" ? false : undefined}
       />
+      {/* Fixed header — does not scroll with month/transactions */}
+      <View
+        style={{
+          paddingTop: topPad,
+          paddingHorizontal: 16,
+          paddingBottom: 12,
+          backgroundColor: theme.background,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.border,
+          ...Platform.select({
+            ios: {
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: theme.isDark ? 0.2 : 0.06,
+              shadowRadius: 3,
+            },
+            android: { elevation: 2 },
+            default: {},
+          }),
+        }}
+      >
+        <DashboardHeader
+          variant="light"
+          userName={userProfile.fullName}
+          userEmail={userProfile.email}
+          userImageUrl={userProfile.image_url}
+          onLogoutPress={() => {
+            supabase.auth.signOut();
+            router.replace("/login");
+          }}
+          onSettingsPress={() => router.push("/(main)/SettingScreen")}
+          onNotificationPress={() => router.push("/(main)/notifications")}
+        />
+      </View>
+
       <ScrollView
-        className="flex-1"
+        style={{ flex: 1, backgroundColor: theme.background }}
         contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
         refreshControl={
           <RefreshControl
@@ -397,31 +447,6 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
         onScrollBeginDrag={closeOpenRow}
       >
-        {/* Compact header bar - same background as screen */}
-        <View
-          style={{
-            paddingTop: insets.top,
-            paddingHorizontal: 16,
-            paddingBottom: 12,
-            backgroundColor: theme.background,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.border,
-          }}
-        >
-          <DashboardHeader
-            variant="light"
-            userName={userProfile.fullName}
-            userEmail={userProfile.email}
-            userImageUrl={userProfile.image_url}
-            onLogoutPress={() => {
-              supabase.auth.signOut();
-              router.replace("/login");
-            }}
-            onSettingsPress={() => router.push("/(main)/SettingScreen")}
-            onNotificationPress={() => router.push("/(main)/notifications")}
-          />
-        </View>
-
         {/* Content: month selector + balance card + transactions in one flow */}
         <View style={{ paddingHorizontal: 16, paddingTop: 20 }}>
           <MonthYearScroller

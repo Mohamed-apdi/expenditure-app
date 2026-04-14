@@ -8,25 +8,40 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StatusBar,
-  ActivityIndicator,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { X, Camera, Image as ImageIcon, Scan } from "lucide-react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
-import { supabase } from "~/lib";
-import { useTheme } from "~/lib";
-import { fetchAccounts, updateAccountBalance } from "~/lib";
-import { addExpense } from "~/lib";
-import { addTransaction } from "~/lib";
-import { addTransfer } from "~/lib";
-import { addSubscription } from "~/lib";
+import { toast } from "sonner-native";
+import {
+  addExpense,
+  addSubscription,
+  addTransaction,
+  addTransfer,
+  createExpenseLocal,
+  createSubscriptionLocal,
+  createTransactionLocal,
+  createTransferLocal,
+  fetchAccounts,
+  getCurrentUserOfflineFirst,
+  isOfflineGateLocked,
+  notificationService,
+  supabase,
+  triggerSync,
+  updateAccountBalance,
+  updateAccountLocal,
+  useAccount,
+  useLanguage,
+  useScreenStatusBar,
+  useTheme,
+} from "~/lib";
 import type { Account } from "~/lib";
-import { notificationService } from "~/lib";
-import { useLanguage } from "~/lib";
-import * as ImagePicker from "expo-image-picker";
 import { scanReceiptWithOCR } from "~/lib/services/ocr";
+import { statusBarTopInset } from "~/lib/utils/statusBarInset";
 
 // Import the separated form components
 import {
@@ -88,13 +103,7 @@ export default function AddExpenseScreen() {
     }
   }, [accounts, selectedAccount]);
 
-  // Preload tab click sound so first tap plays immediately (dev build only; Expo Go uses haptics)
-  useEffect(() => {
-    void preloadTabClickSound();
-  }, []);
-
   const handleEntryTypeChange = (type: string) => {
-    void playTabClickSound();
     setEntryType(type);
     setSelectedCategory(null);
     // Reset to normal mode when changing entry type
@@ -529,12 +538,33 @@ export default function AddExpenseScreen() {
     isSubmitting,
   ]);
 
+  const statusBarTop = statusBarTopInset(insets);
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      {/* Opaque strip under clock/battery (edge-to-edge): blocks scroll overscroll bleed-through */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: statusBarTop,
+          backgroundColor: theme.background,
+          zIndex: 100,
+        }}
+      />
+      <StatusBar
+        backgroundColor={theme.background}
+        barStyle={theme.isDarkColorScheme ? "light-content" : "dark-content"}
+        translucent={Platform.OS === "android" ? false : undefined}
+      />
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+        <KeyboardAvoidingView
+          style={{ flex: 1, backgroundColor: theme.background }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
         {/* Header */}
         <View
           style={{
@@ -543,6 +573,7 @@ export default function AddExpenseScreen() {
             alignItems: "center",
             paddingHorizontal: 16,
             paddingVertical: 16,
+            backgroundColor: theme.background,
             borderBottomWidth: 1,
             borderBottomColor: theme.border,
           }}
@@ -565,7 +596,7 @@ export default function AddExpenseScreen() {
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          style={{ flex: 1 }}
+          style={{ flex: 1, backgroundColor: theme.background }}
           contentContainerStyle={{ paddingBottom: 24 }}
         >
           {/* Type Tabs - Modern Pills */}
@@ -844,201 +875,6 @@ export default function AddExpenseScreen() {
             </View>
           )}
 
-          {/* Input Mode Selector - Only show for Expense */}
-          {entryType === "Expense" && (
-            <View style={{ paddingHorizontal: 16, paddingBottom: 16, backgroundColor: theme.background }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TouchableOpacity
-                  style={{
-                    flex: 1,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    backgroundColor: inputMode === "normal" ? theme.primary : theme.cardBackground,
-                    borderWidth: 1,
-                    borderColor: inputMode === "normal" ? theme.primary : theme.border,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                  }}
-                  onPress={() => setInputMode("normal")}
-                >
-                  <Text
-                    style={{
-                      fontWeight: inputMode === "normal" ? "600" : "400",
-                      fontSize: 14,
-                      color: inputMode === "normal" ? theme.primaryText : theme.textSecondary,
-                    }}
-                  >
-                    Manual Entry
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{
-                    flex: 1,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    backgroundColor: inputMode === "ocr" ? theme.primary : theme.cardBackground,
-                    borderWidth: 1,
-                    borderColor: inputMode === "ocr" ? theme.primary : theme.border,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                  }}
-                  onPress={() => setInputMode("ocr")}
-                >
-                  <Scan size={16} color={inputMode === "ocr" ? theme.primaryText : theme.textSecondary} />
-                  <Text
-                    style={{
-                      fontWeight: inputMode === "ocr" ? "600" : "400",
-                      fontSize: 14,
-                      color: inputMode === "ocr" ? theme.primaryText : theme.textSecondary,
-                    }}
-                  >
-                    Scan Receipt
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-
-          {/* OCR Mode UI */}
-          {entryType === "Expense" && inputMode === "ocr" && (
-            <View style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
-              {isProcessingOCR ? (
-                <View
-                  style={{
-                    padding: 32,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: theme.cardBackground,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: theme.border,
-                  }}
-                >
-                  <ActivityIndicator size="large" color={theme.primary} />
-                  <Text
-                    style={{
-                      marginTop: 16,
-                      color: theme.text,
-                      fontSize: 16,
-                      fontWeight: "500",
-                    }}
-                  >
-                    Processing receipt...
-                  </Text>
-                  <Text
-                    style={{
-                      marginTop: 8,
-                      color: theme.textSecondary,
-                      fontSize: 14,
-                      textAlign: "center",
-                    }}
-                  >
-                    Please wait while we extract information from your receipt
-                  </Text>
-                </View>
-              ) : (
-                <View
-                  style={{
-                    padding: 24,
-                    backgroundColor: theme.cardBackground,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: theme.border,
-                  }}
-                >
-                  <View style={{ alignItems: "center", marginBottom: 24 }}>
-                    <View
-                      style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: 32,
-                        backgroundColor: `${theme.primary}20`,
-                        justifyContent: "center",
-                        alignItems: "center",
-                        marginBottom: 16,
-                      }}
-                    >
-                      <Scan size={32} color={theme.primary} />
-                    </View>
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        fontWeight: "600",
-                        color: theme.text,
-                        marginBottom: 8,
-                      }}
-                    >
-                      Scan Receipt
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        color: theme.textSecondary,
-                        textAlign: "center",
-                      }}
-                    >
-                      Take a photo or choose from gallery to automatically extract expense details
-                    </Text>
-                  </View>
-                  <View style={{ gap: 12 }}>
-                    <TouchableOpacity
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        paddingVertical: 16,
-                        borderRadius: 12,
-                        backgroundColor: theme.primary,
-                        gap: 8,
-                      }}
-                      onPress={handleTakePhoto}
-                    >
-                      <Camera size={20} color={theme.primaryText} />
-                      <Text
-                        style={{
-                          color: theme.primaryText,
-                          fontSize: 16,
-                          fontWeight: "600",
-                        }}
-                      >
-                        Take Photo
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        paddingVertical: 16,
-                        borderRadius: 12,
-                        backgroundColor: theme.cardBackground,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        gap: 8,
-                      }}
-                      onPress={handlePickImage}
-                    >
-                      <ImageIcon size={20} color={theme.text} />
-                      <Text
-                        style={{
-                          color: theme.text,
-                          fontSize: 16,
-                          fontWeight: "600",
-                        }}
-                      >
-                        Choose from Gallery
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
-
           {/* Render the appropriate form based on entry type */}
           {entryType === "Expense" && inputMode === "normal" && (
             <ExpenseForm
@@ -1143,7 +979,8 @@ export default function AddExpenseScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }

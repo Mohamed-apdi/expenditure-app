@@ -354,11 +354,14 @@ export default function EditExpenseScreen() {
 
         try {
           if (accountId) {
+            const txExisting = selectTransactionById(user.id, id);
             await upsertTransaction(id, {
               user_id: user.id,
               account_id: accountId,
               type: transactionType,
               ...txPatch,
+              is_recurring: txExisting?.is_recurring ?? false,
+              recurrence_interval: txExisting?.recurrence_interval,
             });
           }
         } catch (remoteError) {
@@ -673,7 +676,7 @@ export default function EditExpenseScreen() {
                   padding: 16,
                   fontSize: 16,
                   minHeight: 50,
-                  backgroundColor: theme.inputBackground ?? theme.background,
+                  backgroundColor: theme.inputBackground,
                   color: theme.text,
                   textAlignVertical: "top",
                 }}

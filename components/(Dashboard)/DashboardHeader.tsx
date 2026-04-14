@@ -23,7 +23,6 @@ import { useAccount } from "~/lib";
 import { useNotifications } from "~/lib";
 import { useRouter } from "expo-router";
 import { useLanguage } from "~/lib";
-import { playTabClickSound } from "~/lib/utils/playTabSound";
 import { CachedImage } from "~/components/CachedImage";
 
 interface DashboardHeaderProps {
@@ -134,7 +133,6 @@ export default function DashboardHeader({
         <View className="flex-row items-center gap-5">
           <TouchableOpacity
             onPress={() => {
-              void playTabClickSound();
               void toggleColorScheme();
             }}
             activeOpacity={0.7}
@@ -149,7 +147,6 @@ export default function DashboardHeader({
           <TouchableOpacity
             activeOpacity={0.7}
             onPress={() => {
-              void playTabClickSound();
               router.push("/(main)/SettingScreen");
             }}
           >

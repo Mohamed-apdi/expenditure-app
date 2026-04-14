@@ -167,7 +167,15 @@ function RootLayoutInner() {
           <SyncProvider>
             <ThemeProvider value={isDarkColorScheme ? DARK_THEME : LIGHT_THEME}>
               <BottomSheetModalProvider>
-                <StatusBar style={isDarkColorScheme ? 'dark' : 'light'} />
+                <StatusBar
+                  style={isDarkColorScheme ? 'light' : 'dark'}
+                  backgroundColor={
+                    isDarkColorScheme
+                      ? NAV_THEME.dark.background
+                      : NAV_THEME.light.background
+                  }
+                  translucent={Platform.OS === 'android' ? false : undefined}
+                />
                 <Stack screenOptions={{ headerShown: false, gestureEnabled: false }}>
                   <Stack.Screen name="index" options={{ gestureEnabled: false }} />
                   <Stack.Screen name="(onboarding)" options={{ gestureEnabled: false }} />
