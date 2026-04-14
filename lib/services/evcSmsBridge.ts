@@ -14,6 +14,8 @@ export type NativeEvcPendingRowNative = {
   name?: string | null;
   merchantName?: string | null;
   noticeSummary?: string | null;
+  subId?: number | null;
+  slot?: number | null;
   createdAt: number;
 };
 
@@ -32,7 +34,8 @@ type EvcNative = {
 };
 
 const NativeMod = requireOptionalNativeModule<EvcNative>("ExpoEvcSms");
-const emitter = NativeMod ? new EventEmitter(NativeMod as any) : null;
+// expo-modules-core EventEmitter typings require event-name generics; keep this module permissive.
+const emitter: any = NativeMod ? new EventEmitter(NativeMod as any) : null;
 
 export function isEvcSmsNativeAvailable(): boolean {
   return Platform.OS === "android" && !isExpoGo && NativeMod != null;
@@ -95,7 +98,12 @@ export function deleteNativeEvcPendingRowsByIds(ids: number[]): void {
 }
 
 export function subscribeEvcSms(
-  onSms: (payload: { sender: string; body: string }) => void,
+  onSms: (payload: {
+    sender: string;
+    body: string;
+    subId?: number | null;
+    slot?: number | null;
+  }) => void,
 ): { remove: () => void } | null {
   if (!emitter) return null;
   return emitter.addListener("onEvcSms", onSms as any);
@@ -106,6 +114,8 @@ export function subscribeSmsDebug(
     sender: string;
     bodyLen: number;
     forwarded: boolean;
+    subId?: number | null;
+    slot?: number | null;
   }) => void,
 ): { remove: () => void } | null {
   if (!emitter) return null;

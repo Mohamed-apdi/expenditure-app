@@ -4,6 +4,7 @@
  */
 import { supabase } from "../database/supabase";
 import type { Transaction, TransactionWithAccounts } from "../types/types";
+import { format } from "date-fns";
 
 export const fetchTransactions = async (
   userId: string
@@ -406,44 +407,44 @@ export const getTransactionsGroupedByDate = async (
     accountId?: string;
     type?: "expense" | "income" | "transfer";
     searchQuery?: string;
+    category?: string;
   }
 ) => {
   const transactions = await searchTransactions(userId, filters?.searchQuery || "", {
     accountId: filters?.accountId,
     type: filters?.type,
+    category: filters?.category,
   });
 
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const lastWeek = new Date(today);
-  lastWeek.setDate(lastWeek.getDate() - 7);
+  const txYmd = (t: any): string | null => {
+    const d = typeof t?.date === "string" ? t.date : "";
+    if (d && d.length >= 10) return d.slice(0, 10);
+    const c = typeof t?.created_at === "string" ? t.created_at : "";
+    if (c && c.length >= 10) return c.slice(0, 10);
+    return null;
+  };
 
-  const todayStr = today.toISOString().split("T")[0];
-  const yesterdayStr = yesterday.toISOString().split("T")[0];
-  const lastWeekStr = lastWeek.toISOString().split("T")[0];
-
-  const todayTransactions = transactions.filter((t) => t.date === todayStr);
-  const yesterdayTransactions = transactions.filter((t) => t.date === yesterdayStr);
-  const lastWeekTransactions = transactions.filter(
-    (t) => t.date < yesterdayStr && t.date >= lastWeekStr
-  );
-  const olderTransactions = transactions.filter((t) => t.date < lastWeekStr);
-
-  const sections = [];
-
-  if (todayTransactions.length > 0) {
-    sections.push({ title: "Today", data: todayTransactions });
-  }
-  if (yesterdayTransactions.length > 0) {
-    sections.push({ title: "Yesterday", data: yesterdayTransactions });
-  }
-  if (lastWeekTransactions.length > 0) {
-    sections.push({ title: "Last Week", data: lastWeekTransactions });
-  }
-  if (olderTransactions.length > 0) {
-    sections.push({ title: "Older", data: olderTransactions });
+  const byDay = new Map<string, any[]>();
+  for (const t of transactions as any[]) {
+    const key = txYmd(t);
+    if (!key) continue;
+    const arr = byDay.get(key);
+    if (arr) arr.push(t);
+    else byDay.set(key, [t]);
   }
 
-  return sections;
+  const sortedKeys = [...byDay.keys()].sort((a, b) => b.localeCompare(a));
+  return sortedKeys.map((dateKey) => {
+    const items = [...(byDay.get(dateKey) ?? [])];
+    items.sort((a, b) => {
+      const aTime = a?.created_at ?? "";
+      const bTime = b?.created_at ?? "";
+      return new Date(bTime).getTime() - new Date(aTime).getTime();
+    });
+    const [y, m, d] = dateKey.split("-").map(Number);
+    const localDay = new Date(y, m - 1, d);
+    // Match Dashboard label format: "Sun, 5 Apr"
+    const title = format(localDay, "EEE, d MMM");
+    return { title, data: items };
+  });
 };

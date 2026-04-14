@@ -27,7 +27,7 @@ export type LocalExpenseRow = {
   __local_updated_at?: string | null;
 };
 
-export type ExpenseBadge = "Conflict" | "Failed" | "Pending" | "Synced" | "Receipt Failed";
+export type ExpenseBadge = "Conflict" | "Failed" | "Pending" | "Synced";
 
 export interface ExpenseViewState {
   badge: ExpenseBadge;
@@ -35,10 +35,7 @@ export interface ExpenseViewState {
   canDelete: boolean;
   showConflictCTA: boolean;
   showErrorMessage: string | null;
-  showReceiptRetry: boolean;
 }
-
-export type ReceiptQueueStatus = "queued" | "uploading" | "failed" | "done" | null | undefined;
 
 /**
  * Map a local expense row + optional receipt queue status to a view state
@@ -46,7 +43,6 @@ export type ReceiptQueueStatus = "queued" | "uploading" | "failed" | "done" | nu
  */
 export function mapExpenseRowToViewState(
   row: LocalExpenseRow,
-  receiptQueueStatus?: ReceiptQueueStatus,
 ): ExpenseViewState {
   const status = row.__local_status;
   const isDeleted = !!row.deleted_at;
@@ -57,12 +53,6 @@ export function mapExpenseRowToViewState(
   if (status === "conflict") badge = "Conflict";
   else if (status === "failed") badge = "Failed";
   else if (status === "pending") badge = "Pending";
-
-  // Optional: surface receipt upload failure separately, without changing entity status.
-  const showReceiptRetry = receiptQueueStatus === "failed";
-  if (!isConflict && badge === "Synced" && showReceiptRetry) {
-    badge = "Receipt Failed";
-  }
 
   // Editing is blocked for conflicts and deleted rows; instead show Conflict CTA in UI.
   const canEdit = !isDeleted && !isConflict;
@@ -77,7 +67,6 @@ export function mapExpenseRowToViewState(
     canDelete,
     showConflictCTA: isConflict,
     showErrorMessage,
-    showReceiptRetry,
   };
 }
 

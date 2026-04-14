@@ -34,31 +34,17 @@ describe("mapExpenseRowToViewState", () => {
     expect(vm.badge).toBe("Pending");
   });
 
-  it("synced + receiptQueueStatus failed shows Receipt Failed badge, without conflict", () => {
-    const row = { ...baseRow, __local_status: "synced" as const };
-    const vm = mapExpenseRowToViewState(row, "failed");
-    expect(vm.badge).toBe("Receipt Failed");
-    expect(vm.showReceiptRetry).toBe(true);
-    expect(vm.showConflictCTA).toBe(false);
-  });
-
   it("deleted row cannot edit or delete", () => {
     const row = { ...baseRow, deleted_at: "2026-02-16T00:00:00Z" };
-    const vm = mapExpenseRowToViewState(row, null);
+    const vm = mapExpenseRowToViewState(row);
     expect(vm.canEdit).toBe(false);
     expect(vm.canDelete).toBe(false);
   });
 
-  it("receipt failure does not override Pending", () => {
-    const row = { ...baseRow, __local_status: "pending" as const };
-    const vm = mapExpenseRowToViewState(row, "failed");
-    expect(vm.badge).toBe("Pending");
-  });
-
-  it("receipt failure does not override Conflict", () => {
-    const row = { ...baseRow, __local_status: "conflict" as const };
-    const vm = mapExpenseRowToViewState(row, "failed");
-    expect(vm.badge).toBe("Conflict");
+  it("synced shows Synced badge", () => {
+    const row = { ...baseRow, __local_status: "synced" as const };
+    const vm = mapExpenseRowToViewState(row);
+    expect(vm.badge).toBe("Synced");
   });
 });
 

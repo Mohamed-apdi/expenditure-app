@@ -27,10 +27,19 @@ async function flushNativeEvcPendingRows(): Promise<void> {
   const pending = peekNativeEvcPendingRows(50);
   if (pending.length === 0) return;
 
+  console.log("[EVC SMS] pending rows", { count: pending.length });
+
   const idsToDelete: number[] = [];
   for (const row of pending) {
     const id = Number(row.id);
     if (!Number.isFinite(id)) continue;
+    console.log("[EVC SMS] pending row", {
+      id,
+      kind: row.kind,
+      slot: row.slot ?? null,
+      subId: row.subId ?? null,
+      createdAt: row.createdAt,
+    });
     const result = await applyNativeEvcRowToLedger({
       sender: String(row.sender ?? ""),
       kind: String(row.kind ?? "ignored"),
@@ -41,7 +50,10 @@ async function flushNativeEvcPendingRows(): Promise<void> {
       name: row.name ?? null,
       merchantName: row.merchantName ?? null,
       noticeSummary: row.noticeSummary ?? null,
+      subId: row.subId ?? null,
+      slot: row.slot ?? null,
     } as any);
+    console.log("[EVC SMS] pending row result", { id, result });
     if (result === "applied" || result === "skipped_duplicate") {
       idsToDelete.push(id);
     }
@@ -78,14 +90,14 @@ export function useSmsListener(): void {
         console.log("[EVC SMS] sms_debug", p);
       });
       const sub = subscribeEvcSms(async (payload) => {
-        const { sender, body } = payload;
+        const { sender, body, subId, slot } = payload;
         console.log("[EVC SMS] inbound", { sender });
         const n = normalizeSender(sender);
         if (!passesContentFilter(n, body)) return;
         const kind = classifyEvcMessage(n, body);
         console.log("[EVC SMS] classified", { sender: n, kind });
         try {
-          const okApply = await applyEvcSmsToLedger({ sender, body, kind });
+          const okApply = await applyEvcSmsToLedger({ sender, body, kind, subId: subId ?? null, slot: slot ?? null });
           console.log("[EVC SMS] applied?", okApply);
         } catch (e) {
           console.warn("[EVC SMS] apply failed", e);
