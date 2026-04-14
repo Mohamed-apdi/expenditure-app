@@ -4,7 +4,6 @@
   "main": "src/index.ts",
   "license": "MIT",
   "peerDependencies": {
-    "expo": "*",
-    "expo-modules-core": "*"
+    "expo": "*"
   }
 }

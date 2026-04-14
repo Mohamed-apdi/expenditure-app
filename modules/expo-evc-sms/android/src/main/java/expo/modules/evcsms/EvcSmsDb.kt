@@ -6,7 +6,7 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 
-class EvcSmsDb(context: Context) : SQLiteOpenHelper(context, "evc_sms.db", null, 1) {
+class EvcSmsDb(context: Context) : SQLiteOpenHelper(context, "evc_sms.db", null, 2) {
   override fun onCreate(db: SQLiteDatabase) {
     db.execSQL(
       """
@@ -21,6 +21,8 @@ class EvcSmsDb(context: Context) : SQLiteOpenHelper(context, "evc_sms.db", null,
         name TEXT,
         merchant_name TEXT,
         notice_summary TEXT,
+        sub_id INTEGER,
+        slot INTEGER,
         created_at INTEGER NOT NULL
       )
       """.trimIndent()
@@ -29,7 +31,11 @@ class EvcSmsDb(context: Context) : SQLiteOpenHelper(context, "evc_sms.db", null,
   }
 
   override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-    // v1 only
+    if (oldVersion < 2) {
+      // Add SIM metadata columns (optional) for dual-SIM routing.
+      db.execSQL("ALTER TABLE evc_queue ADD COLUMN sub_id INTEGER")
+      db.execSQL("ALTER TABLE evc_queue ADD COLUMN slot INTEGER")
+    }
   }
 
   fun insert(parsed: EvcSmsParsed) {
@@ -44,6 +50,8 @@ class EvcSmsDb(context: Context) : SQLiteOpenHelper(context, "evc_sms.db", null,
     cv.put("name", parsed.name)
     cv.put("merchant_name", parsed.merchantName)
     cv.put("notice_summary", parsed.noticeSummary)
+    if (parsed.subId != null) cv.put("sub_id", parsed.subId) else cv.putNull("sub_id")
+    if (parsed.slot != null) cv.put("slot", parsed.slot) else cv.putNull("slot")
     cv.put("created_at", System.currentTimeMillis())
     db.insert("evc_queue", null, cv)
   }
@@ -60,7 +68,9 @@ class EvcSmsDb(context: Context) : SQLiteOpenHelper(context, "evc_sms.db", null,
       "name" to if (it.isNull(7)) null else it.getString(7),
       "merchantName" to if (it.isNull(8)) null else it.getString(8),
       "noticeSummary" to if (it.isNull(9)) null else it.getString(9),
-      "createdAt" to it.getLong(10)
+      "subId" to if (it.isNull(10)) null else it.getLong(10),
+      "slot" to if (it.isNull(11)) null else it.getInt(11),
+      "createdAt" to it.getLong(12)
     )
   }
 
@@ -69,7 +79,7 @@ class EvcSmsDb(context: Context) : SQLiteOpenHelper(context, "evc_sms.db", null,
     val db = writableDatabase
     val out = mutableListOf<Map<String, Any?>>()
     val cursor = db.rawQuery(
-      "SELECT id,sender,kind,amount,date_iso,tar_raw,phone,name,merchant_name,notice_summary,created_at FROM evc_queue ORDER BY id ASC LIMIT ?",
+      "SELECT id,sender,kind,amount,date_iso,tar_raw,phone,name,merchant_name,notice_summary,sub_id,slot,created_at FROM evc_queue ORDER BY id ASC LIMIT ?",
       arrayOf(limit.toString())
     )
     cursor.use {

@@ -67,6 +67,8 @@ export type Expense = {
   created_at: string;
   updated_at: string;
   receipt_url?: string;
+  /** Optional labels (e.g. future use / local-only) */
+  tags?: string[];
   entry_type: "Income" | "Expense";
   account_id?: string;
   evc_kind?: "merchant" | "transfer" | null;

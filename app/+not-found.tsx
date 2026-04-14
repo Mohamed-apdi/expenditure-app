@@ -1,10 +1,7 @@
 import { Stack, useRouter } from "expo-router";
-import { View, TouchableOpacity } from "react-native";
+import { Dimensions, View, TouchableOpacity } from "react-native";
 import { Text } from "~/components/ui/text";
 import { Ionicons } from "@expo/vector-icons";
-
-const { width, height } = Dimensions.get("window");
-
 
 // Not Found Screen
 

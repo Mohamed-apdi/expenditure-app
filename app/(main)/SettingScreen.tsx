@@ -1,5 +1,5 @@
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   TextInput,
   Modal,
+  Pressable,
   Alert,
   Linking,
   Switch,
@@ -43,6 +44,10 @@ import {
   getEvcSmsConsentSeen,
   setEvcSmsConsentSeen,
   syncEvcSmsNativeEnabledFlag,
+  getEvcImportAccountBySim,
+  getEvcImportAccountId,
+  setEvcImportAccountForSim,
+  setEvcImportAccountId,
 } from "~/lib/services/evcSmsSettings";
 import {
   requestSmsPermissionsForEvc,
@@ -50,6 +55,7 @@ import {
 } from "~/lib/services/evcSmsBridge";
 import { UserProfile } from "~/types/userTypes";
 import { useTheme, useScreenStatusBar } from "~/lib";
+import { useAccount } from "~/lib";
 import { useLanguage } from "~/lib";
 import {
   fetchProfile,
@@ -75,6 +81,7 @@ export default function ProfileScreen() {
   const params = useLocalSearchParams();
   const { t, language, setLanguage } = useLanguage();
   const syncState = useSyncStatus();
+  const { accounts } = useAccount();
   const [userProfile, setUserProfile] = useState<UserProfile>({
     fullName: "",
     email: "",
@@ -102,6 +109,11 @@ export default function ProfileScreen() {
   const permissionJustGrantedRef = useRef(false);
   const [evcSmsEnabled, setEvcSmsEnabled] = useState(false);
   const [evcConsentModalVisible, setEvcConsentModalVisible] = useState(false);
+  const [evcImportModalVisible, setEvcImportModalVisible] = useState(false);
+  const [evcImportAccountId, setEvcImportAccountIdState] = useState<string | null>(null);
+  const [evcSim1AccountId, setEvcSim1AccountIdState] = useState<string | null>(null);
+  const [evcSim2AccountId, setEvcSim2AccountIdState] = useState<string | null>(null);
+  const [evcPickerTarget, setEvcPickerTarget] = useState<"global" | "sim1" | "sim2" | null>(null);
 
   const theme = useTheme();
   const tabBarHeight = useBottomTabBarHeight();
@@ -122,16 +134,36 @@ export default function ProfileScreen() {
     checkNotificationPermission();
   }, [checkNotificationPermission]);
 
-  useEffect(() => {
-    void (async () => {
-      setEvcSmsEnabled(await getEvcSmsUserEnabled());
-    })();
+  const refreshEvcImportSettings = useCallback(async () => {
+    try {
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) return;
+      const [globalId, simMap, enabled] = await Promise.all([
+        getEvcImportAccountId(user.id),
+        getEvcImportAccountBySim(user.id),
+        getEvcSmsUserEnabled(user.id),
+      ]);
+      setEvcImportAccountIdState(globalId);
+      setEvcSim1AccountIdState(simMap.sim1 ?? null);
+      setEvcSim2AccountIdState(simMap.sim2 ?? null);
+      setEvcSmsEnabled(enabled);
+    } catch {
+      // ignore
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshEvcImportSettings();
+    }, [refreshEvcImportSettings]),
+  );
 
   const handleEvcSmsToggle = async (value: boolean) => {
     if (Platform.OS !== "android") return;
+    const user = await getCurrentUserOfflineFirst();
+    if (!user) return;
     if (!value) {
-      await setEvcSmsUserEnabled(false);
+      await setEvcSmsUserEnabled(user.id, false);
       await syncEvcSmsNativeEnabledFlag(false);
       setEvcSmsEnabled(false);
       await syncEvcSmsNativeListening();
@@ -158,15 +190,54 @@ export default function ProfileScreen() {
       );
       return;
     }
-    await setEvcSmsUserEnabled(true);
+    await setEvcSmsUserEnabled(user.id, true);
     await syncEvcSmsNativeEnabledFlag(true);
     setEvcSmsEnabled(true);
     await syncEvcSmsNativeListening();
   };
 
+  const accountNameById = useCallback(
+    (id: string | null) => {
+      if (!id) return null;
+      return accounts.find((a) => a.id === id)?.name ?? null;
+    },
+    [accounts],
+  );
+
+  const evcImportAccountsRowSubtitle = useMemo(() => {
+    const noneConfigured =
+      !evcImportAccountId && !evcSim1AccountId && !evcSim2AccountId;
+    if (noneConfigured) return t.evcImportAccountsRowSubtitleEmpty;
+    const fmt = (id: string | null) =>
+      accountNameById(id) ?? t.evcImportAccountsNotSetShort;
+    return `${t.evcImportAccountsSummaryFallback}: ${fmt(evcImportAccountId)} · ${t.evcImportAccountsSummarySim1}: ${fmt(evcSim1AccountId)} · ${t.evcImportAccountsSummarySim2}: ${fmt(evcSim2AccountId)}`;
+  }, [
+    evcImportAccountId,
+    evcSim1AccountId,
+    evcSim2AccountId,
+    accountNameById,
+    t,
+  ]);
+
+  const saveEvcAccountSelection = useCallback(
+    async (target: "global" | "sim1" | "sim2", accountId: string | null) => {
+      const user = await getCurrentUserOfflineFirst();
+      if (!user) return;
+      if (target === "global") {
+        await setEvcImportAccountId(user.id, accountId);
+      } else {
+        await setEvcImportAccountForSim(user.id, target, accountId);
+      }
+      await refreshEvcImportSettings();
+    },
+    [refreshEvcImportSettings],
+  );
+
   const handleEvcConsentContinue = async () => {
     setEvcConsentModalVisible(false);
     await setEvcSmsConsentSeen();
+    const user = await getCurrentUserOfflineFirst();
+    if (!user) return;
     const ok = await requestSmsPermissionsForEvc();
     if (!ok) {
       Alert.alert(
@@ -179,7 +250,7 @@ export default function ProfileScreen() {
       );
       return;
     }
-    await setEvcSmsUserEnabled(true);
+    await setEvcSmsUserEnabled(user.id, true);
     await syncEvcSmsNativeEnabledFlag(true);
     setEvcSmsEnabled(true);
     await syncEvcSmsNativeListening();
@@ -726,6 +797,14 @@ export default function ProfileScreen() {
                     }
                   />
                   <Divider />
+                  <SettingItem
+                    icon={<Smartphone size={22} color="#22c55e" />}
+                    iconBg="#22c55e15"
+                    title={t.evcImportAccountsRowTitle}
+                    subtitle={evcImportAccountsRowSubtitle}
+                    onPress={() => setEvcImportModalVisible(true)}
+                  />
+                  <Divider />
                 </>
               )}
               <SettingItem
@@ -765,7 +844,7 @@ export default function ProfileScreen() {
           {/* App Version */}
           <View style={{ alignItems: "center", marginTop: 32 }}>
             <Text style={{ color: theme.textMuted, fontSize: 12 }}>
-              Qoondeeye v{Constants.expoConfig?.version || "2.4.2"}
+              Qoondeeye v{Constants.expoConfig?.version || "2.5.0"}
             </Text>
           </View>
         </View>
@@ -824,6 +903,231 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      <Modal
+        visible={evcImportModalVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setEvcImportModalVisible(false)}
+      >
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            padding: 20,
+          }}
+        >
+          <View
+            style={{
+              width: "100%",
+              maxWidth: 420,
+              backgroundColor: theme.cardBackground,
+              borderRadius: 24,
+              padding: 20,
+              borderWidth: 1,
+              borderColor: theme.border,
+            }}
+          >
+            <Text style={{ color: theme.text, fontSize: 20, fontWeight: "700" }}>
+              {"Automatic EVC Imports"}
+            </Text>
+            <Text
+              style={{
+                color: theme.textSecondary,
+                fontSize: 13,
+                marginTop: 8,
+                lineHeight: 18,
+              }}
+            >
+              {"Choose where automatic EVC transactions are saved."}
+            </Text>
+
+            <View style={{ marginTop: 16 }}>
+              <TouchableOpacity
+                onPress={() => setEvcPickerTarget("global")}
+                style={{
+                  paddingVertical: 14,
+                  paddingHorizontal: 14,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  backgroundColor: theme.background,
+                }}
+              >
+                <Text style={{ color: theme.text, fontSize: 14, fontWeight: "700" }}>
+                  {"Fallback Import Account (optional)"}
+                </Text>
+                <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 4 }}>
+                  {accountNameById(evcImportAccountId) ??
+                    "Not set (uses current default account)"}
+                </Text>
+                <Text style={{ color: theme.textMuted, fontSize: 12, marginTop: 6 }}>
+                  {"Used when SIM not detected or the SIM slot is not mapped."}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={{ height: 10 }} />
+
+              <TouchableOpacity
+                onPress={() => setEvcPickerTarget("sim1")}
+                style={{
+                  paddingVertical: 14,
+                  paddingHorizontal: 14,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  backgroundColor: theme.background,
+                }}
+              >
+                <Text style={{ color: theme.text, fontSize: 14, fontWeight: "700" }}>
+                  {"SIM 1 Account (optional)"}
+                </Text>
+                <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 4 }}>
+                  {accountNameById(evcSim1AccountId) ??
+                    "Not set (uses fallback import account, otherwise current default account)"}
+                </Text>
+              </TouchableOpacity>
+
+              <View style={{ height: 10 }} />
+
+              <TouchableOpacity
+                onPress={() => setEvcPickerTarget("sim2")}
+                style={{
+                  paddingVertical: 14,
+                  paddingHorizontal: 14,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  backgroundColor: theme.background,
+                }}
+              >
+                <Text style={{ color: theme.text, fontSize: 14, fontWeight: "700" }}>
+                  {"SIM 2 Account (optional)"}
+                </Text>
+                <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 4 }}>
+                  {accountNameById(evcSim2AccountId) ??
+                    "Not set (uses fallback import account, otherwise current default account)"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => setEvcImportModalVisible(false)}
+              style={{
+                marginTop: 18,
+                backgroundColor: theme.primary,
+                paddingVertical: 14,
+                borderRadius: 16,
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ color: theme.primaryText, fontWeight: "600", fontSize: 15 }}>
+                {"Save"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={evcPickerTarget != null}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEvcPickerTarget(null)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            justifyContent: "flex-end",
+            backgroundColor: "rgba(0,0,0,0.4)",
+          }}
+          onPress={() => setEvcPickerTarget(null)}
+        >
+          <Pressable
+            style={{
+              maxHeight: "75%",
+              backgroundColor: theme.cardBackground,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              overflow: "hidden",
+              paddingHorizontal: 20,
+              paddingTop: 14,
+              paddingBottom: 20,
+            }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={{ color: theme.text, fontSize: 18, fontWeight: "700" }}>
+              {"Select Account"}
+            </Text>
+            <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 6 }}>
+              {evcPickerTarget === "global"
+                ? "Applies to all EVC SMS imports."
+                : "Overrides the EVC import account for this SIM."}
+            </Text>
+
+            <ScrollView
+              style={{ marginTop: 14 }}
+              contentContainerStyle={{ paddingBottom: 10 }}
+              showsVerticalScrollIndicator={false}
+            >
+              <TouchableOpacity
+                onPress={async () => {
+                  if (!evcPickerTarget) return;
+                  await saveEvcAccountSelection(evcPickerTarget, null);
+                  setEvcPickerTarget(null);
+                }}
+                style={{
+                  paddingVertical: 12,
+                  paddingHorizontal: 12,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  backgroundColor: theme.background,
+                  marginBottom: 8,
+                }}
+              >
+                <Text style={{ color: theme.text, fontSize: 15, fontWeight: "600" }}>
+                  {"Not set"}
+                </Text>
+                <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 2 }}>
+                  {evcPickerTarget === "global"
+                    ? "Uses current default account."
+                    : "Uses fallback import account (if set), otherwise current default account."}
+                </Text>
+              </TouchableOpacity>
+
+              {accounts.map((a) => (
+                <TouchableOpacity
+                  key={a.id}
+                  onPress={async () => {
+                    if (!evcPickerTarget) return;
+                    await saveEvcAccountSelection(evcPickerTarget, a.id);
+                    setEvcPickerTarget(null);
+                  }}
+                  style={{
+                    paddingVertical: 12,
+                    paddingHorizontal: 12,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                    backgroundColor: theme.background,
+                    marginBottom: 8,
+                  }}
+                >
+                  <Text style={{ color: theme.text, fontSize: 15, fontWeight: "600" }}>
+                    {a.name}
+                  </Text>
+                  <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 2 }}>
+                    {"Balance: $" + (a.amount ?? 0).toFixed(2)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* Password Change Modal */}

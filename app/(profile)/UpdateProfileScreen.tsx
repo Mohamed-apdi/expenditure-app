@@ -24,6 +24,8 @@ import {
 } from "lucide-react-native";
 import { supabase, getCurrentUserOfflineFirst, updateProfileLocal, isOfflineGateLocked, triggerSync } from "~/lib";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import { decode } from "base64-arraybuffer";
 import { useTheme, useScreenStatusBar } from "~/lib";
 import { useLanguage } from "~/lib";
@@ -43,7 +45,7 @@ type InputFieldProps = {
   hint?: string;
   keyboardType?: "default" | "phone-pad" | "email-address";
   autoCapitalize?: "none" | "sentences" | "words" | "characters";
-  inputRef?: React.RefObject<TextInput>;
+  inputRef?: React.RefObject<TextInput | null>;
   prefix?: string;
   theme: any;
 };
@@ -414,40 +416,41 @@ export default function UpdateProfileScreen() {
           Alert.alert(t.error, t.permissionToAccessCamera || "Camera permission is required");
           return;
         }
-      } else {
-        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== "granted") {
-          Alert.alert(t.error, t.permissionToAccessCamera || "Photo library permission is required");
-          return;
-        }
       }
-
-      let result;
 
       if (useCamera) {
-        result = await ImagePicker.launchCameraAsync({
+        const result = await ImagePicker.launchCameraAsync({
           mediaTypes: ImagePicker.MediaTypeOptions.Images,
           allowsEditing: true,
           aspect: [1, 1],
           quality: 0.8,
           base64: true,
         });
-      } else {
-        result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.8,
-          base64: true,
-        });
-      }
-
-      if (!result.canceled && result.assets[0]) {
-        const asset = result.assets[0];
-        const imageUri = await uploadImage(asset.base64 || "", asset.uri);
-        if (imageUri) {
-          updateFormData("image_url", imageUri);
+        if (!result.canceled && result.assets[0]) {
+          const asset = result.assets[0];
+          const imageUri = await uploadImage(asset.base64 || "", asset.uri);
+          if (imageUri) {
+            updateFormData("image_url", imageUri);
+          }
         }
+      } else {
+        // Use system picker (no broad media permissions required)
+        const picked = await DocumentPicker.getDocumentAsync({
+          type: ["image/*"],
+          multiple: false,
+          copyToCacheDirectory: true,
+        });
+        if (picked.canceled) return;
+        const asset = (picked as any).assets?.[0];
+        const uri: string | undefined = asset?.uri ?? (picked as any).uri;
+        if (!uri) return;
+        const base64Encoding: any =
+          (FileSystem as any).EncodingType?.Base64 ?? "base64";
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: base64Encoding,
+        });
+        const imageUri = await uploadImage(base64, uri);
+        if (imageUri) updateFormData("image_url", imageUri);
       }
     } catch (error) {
       console.error("Image picker error:", error);

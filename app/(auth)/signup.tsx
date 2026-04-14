@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import {
   View,
   TextInput,
@@ -86,7 +86,7 @@ export default function SignupScreen() {
 
       if (data.user) {
         if (data.user.email_confirmed_at) {
-          router.replace("/(onboarding)/post-signup-setup");
+          router.replace("/(onboarding)/post-signup-setup" as Href);
         } else {
             Toast.show({
               type: "success",
@@ -222,7 +222,7 @@ export default function SignupScreen() {
               });
 
               // Redirect to onboarding for new users
-              router.replace('/(onboarding)/post-signup-setup');
+              router.replace('/(onboarding)/post-signup-setup' as Href);
             }
           } else {
             // Try to get tokens from query params if not in hash
@@ -274,7 +274,7 @@ export default function SignupScreen() {
                 });
 
                 // Redirect to onboarding for new users
-                router.replace('/(onboarding)/post-signup-setup');
+                router.replace('/(onboarding)/post-signup-setup' as Href);
               }
             }
           }

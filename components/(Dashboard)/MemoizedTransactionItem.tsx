@@ -284,13 +284,8 @@ const MemoizedTransactionItem = memo<TransactionItemProps>(
                 className="flex-row items-center rounded-xl gap-3"
                 style={{
                   backgroundColor: theme.cardBackground,
-                  borderLeftWidth: categoryMissing ? 3 : 0,
-                  borderLeftColor: categoryMissing
-                    ? warningAccent
-                    : "transparent",
                   paddingVertical: 16,
-                  paddingRight: 16,
-                  paddingLeft: categoryMissing ? 13 : 16,
+                  paddingHorizontal: 16,
                 }}
               >
                 <View

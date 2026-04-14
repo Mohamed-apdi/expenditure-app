@@ -92,8 +92,8 @@ android {
         applicationId 'com.mohamed_99.qoondeeye'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 30
-        versionName "2.4.2"
+        versionCode 32
+        versionName "2.5.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }

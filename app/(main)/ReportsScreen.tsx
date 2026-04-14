@@ -78,7 +78,6 @@ import { generatePDFReport, sharePDF } from '~/lib/generators/pdfGenerator';
 import { generateCSVReport, shareCSV } from '~/lib/generators/csvGenerator';
 import { useTheme, useScreenStatusBar } from '~/lib';
 import { useLanguage } from '~/lib';
-import { playTabClickSound, preloadTabClickSound } from '~/lib/utils/playTabSound';
 import { toast } from 'sonner-native';
 import {
   categoryLabelFromStored,
@@ -216,11 +215,6 @@ export default function ReportsScreen() {
       onPanResponderTerminate: () => {},
     }),
   ).current;
-
-  // Preload tab click feedback (same as Add Expense / Budget)
-  useEffect(() => {
-    void preloadTabClickSound();
-  }, []);
 
   // Report data states
   const [transactionData, setTransactionData] =
@@ -1546,9 +1540,33 @@ export default function ReportsScreen() {
       : '0';
 
     const incomeExpenseComparisonData = [
-      { value: transactionData.summary.total_income, frontColor: '#10B981', label: t.income || 'Income' },
-      { value: transactionData.summary.total_expenses, frontColor: '#EF4444', label: t.expenses || 'Expenses' },
+      {
+        value: Number(transactionData.summary.total_income) || 0,
+        frontColor: '#10B981',
+        label: t.income || 'Income',
+        topLabelComponent: () => (
+          <Text style={{ color: theme.text, fontSize: 11, fontWeight: '700' }}>
+            {formatCurrency(Number(transactionData.summary.total_income) || 0)}
+          </Text>
+        ),
+      },
+      {
+        value: Number(transactionData.summary.total_expenses) || 0,
+        frontColor: '#EF4444',
+        label: t.expenses || 'Expenses',
+        topLabelComponent: () => (
+          <Text style={{ color: theme.text, fontSize: 11, fontWeight: '700' }}>
+            {formatCurrency(Number(transactionData.summary.total_expenses) || 0)}
+          </Text>
+        ),
+      },
     ];
+    const incomeExpenseMax = Math.max(
+      ...incomeExpenseComparisonData.map((d) => Number(d.value) || 0),
+      0,
+    );
+    const incomeExpenseMaxWithHeadroom =
+      incomeExpenseMax > 0 ? incomeExpenseMax * 1.15 : 1;
 
     const lineChartData = (processedChartData?.displayData || []).map((item: any) => {
       const dateLabel = item.date
@@ -1704,12 +1722,18 @@ export default function ReportsScreen() {
             }}>
             {t.incomeVsExpenses || 'Income vs Expenses'}
           </Text>
-          <View style={{ alignItems: 'center' }}>
+          <View
+            style={{
+              alignItems: 'center',
+              paddingTop: 18,
+              overflow: 'visible',
+            }}>
             <GiftedBarChart
               data={incomeExpenseComparisonData}
               barWidth={60}
               barBorderRadius={8}
               noOfSections={4}
+              maxValue={incomeExpenseMaxWithHeadroom}
               yAxisThickness={0}
               xAxisThickness={0}
               yAxisTextStyle={{ color: theme.textSecondary, fontSize: 10 }}
@@ -1717,12 +1741,12 @@ export default function ReportsScreen() {
               formatYLabel={(v) => `$${Number(v).toLocaleString()}`}
               hideRules
               width={screenWidth - 100}
-              height={160}
+              height={210}
               initialSpacing={40}
               spacing={60}
               isAnimated
-              showValuesAsTopLabel
-              topLabelTextStyle={{ color: theme.text, fontSize: 10, fontWeight: '600' }}
+              // We render our own top labels via `topLabelComponent` to avoid
+              // the Android zero-padding bug + prevent clipping at the top.
             />
           </View>
           {/* Visual comparison bar */}
@@ -2359,7 +2383,7 @@ export default function ReportsScreen() {
                 <Wallet size={12} color="#FFFFFF" />
               </View>
               <Text style={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: 13 }}>
-                {totalAccounts} {t.accounts || 'accounts'}
+                {totalAccounts} {t.accountsPluralLower || 'accounts'}
               </Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -2415,7 +2439,7 @@ export default function ReportsScreen() {
               {formatCurrency(totalPositive)}
             </Text>
             <Text style={{ color: theme.textSecondary, fontSize: 11, marginTop: 4 }}>
-              {positiveAccounts.length} {t.accounts || 'accounts'}
+              {positiveAccounts.length} {t.accountsPluralLower || 'accounts'}
             </Text>
           </View>
 
@@ -2450,7 +2474,7 @@ export default function ReportsScreen() {
               {formatCurrency(totalNegative)}
             </Text>
             <Text style={{ color: theme.textSecondary, fontSize: 11, marginTop: 4 }}>
-              {negativeAccounts.length} {t.accounts || 'accounts'}
+              {negativeAccounts.length} {t.accountsPluralLower || 'accounts'}
             </Text>
           </View>
         </View>
@@ -4003,7 +4027,8 @@ export default function ReportsScreen() {
               textAlign: 'center',
               paddingHorizontal: 32,
             }}>
-            {t.noInvestmentsYet || 'Start tracking your investments to see them here.'}
+            {t.noInvestmentsReportHint ||
+              'Start tracking your investments to see them here.'}
           </Text>
         </View>
       );
@@ -4341,7 +4366,7 @@ export default function ReportsScreen() {
               textAlign: 'center',
               paddingHorizontal: 32,
             }}>
-            {t.noLoansYet || 'Track your loans given and taken here.'}
+            {t.noLoansReportHint || 'Track your loans given and taken here.'}
           </Text>
         </View>
       );
@@ -4858,7 +4883,6 @@ export default function ReportsScreen() {
                     backgroundColor: isActive ? '#00BFFF' : theme.background,
                   }}
                   onPress={() => {
-                    void playTabClickSound();
                     setActiveTab(tab.key);
                   }}>
                   <Text

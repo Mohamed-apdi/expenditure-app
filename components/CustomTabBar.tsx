@@ -2,6 +2,7 @@
  * Bottom tab bar for main app navigation — floating pill + squircle FAB
  */
 import { BottomTabBarHeightCallbackContext } from "@react-navigation/bottom-tabs";
+import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import { Plus } from "lucide-react-native";
 import React from "react";
@@ -14,7 +15,6 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLanguage, useTheme } from "~/lib";
-import { playTabClickSound } from "~/lib/utils/playTabSound";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import Entypo from "@expo/vector-icons/Entypo";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -42,6 +42,8 @@ const OUTER_PADDING_TOP = 8;
 const OUTER_PADDING_BOTTOM_MIN = 8;
 /** Active tab chip: large radius = capsule (20 looked square on a tall icon+label stack). */
 const TAB_HIGHLIGHT_RADIUS = 20;
+/** Extra height above the home-indicator inset so the frosted strip feels taller. */
+const BLUR_STRIP_EXTRA = 16;
 
 export default function CustomTabBar({ state }: any) {
   const router = useRouter();
@@ -53,7 +55,8 @@ export default function CustomTabBar({ state }: any) {
   );
 
   const activeColor = theme.tabActive;
-  const activeTabBg = primaryAlpha(theme.primary, theme.isDark ? 0.2 : 0.12);
+  const activeTabBg = primaryAlpha(theme.primary, theme.isDark ? 0.32 : 0.2);
+  /** Opaque track — list must not show through the pill (light mode uses screen bg). */
   const pillBg = theme.isDark ? theme.cardBackground : theme.background;
   const pillBorder = theme.isDark
     ? { borderWidth: 1, borderColor: theme.border }
@@ -102,7 +105,11 @@ export default function CustomTabBar({ state }: any) {
     elevation: 8,
   };
 
-  const paddingBottom = Math.max(insets.bottom, 12) + OUTER_PADDING_BOTTOM_MIN;
+  /** Space below pill/FAB (safe area + breathing room). */
+  const paddingBottom = Math.max(insets.bottom, 10) + OUTER_PADDING_BOTTOM_MIN;
+  /** Home-indicator zone + extra frosted height (blur only; does not move the pill). */
+  const homeIndicatorStripHeight =
+    insets.bottom > 0 ? insets.bottom + BLUR_STRIP_EXTRA : 0;
 
   const onLayout = (e: LayoutChangeEvent) => {
     onTabBarHeightChange?.(e.nativeEvent.layout.height);
@@ -118,6 +125,24 @@ export default function CustomTabBar({ state }: any) {
         alignSelf: "stretch",
       }}
     >
+      {homeIndicatorStripHeight > 0 ? (
+        <BlurView
+          pointerEvents="none"
+          intensity={theme.isDark ? 55 : 70}
+          tint={theme.isDark ? "dark" : "light"}
+          experimentalBlurMethod={
+            Platform.OS === "android" ? "dimezisBlurView" : undefined
+          }
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: homeIndicatorStripHeight,
+            zIndex: 1,
+          }}
+        />
+      ) : null}
       <View
         pointerEvents="box-none"
         onLayout={onLayout}
@@ -130,6 +155,7 @@ export default function CustomTabBar({ state }: any) {
           paddingHorizontal: H_PADDING,
           paddingTop: OUTER_PADDING_TOP,
           paddingBottom,
+          zIndex: 2,
         }}
       >
         <View
@@ -143,7 +169,6 @@ export default function CustomTabBar({ state }: any) {
         >
           <View
             collapsable={false}
-            needsOffscreenAlphaCompositing={Platform.OS === "android"}
             style={{
               flex: 1,
               flexDirection: "row",
@@ -186,7 +211,6 @@ export default function CustomTabBar({ state }: any) {
                     paddingHorizontal: 2,
                   }}
                   onPress={() => {
-                    void playTabClickSound();
                     router.push(tab.route as any);
                   }}
                 >
@@ -223,7 +247,6 @@ export default function CustomTabBar({ state }: any) {
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => {
-              void playTabClickSound();
               router.push("/(expense)/AddExpense");
             }}
             style={{

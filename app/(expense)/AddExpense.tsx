@@ -1,32 +1,50 @@
 "use client";
 
-import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { Camera, Image as ImageIcon, Scan, X } from "lucide-react-native";
+import { X } from "lucide-react-native";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StatusBar,
-  ActivityIndicator,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { X, Camera, Image as ImageIcon, Scan } from "lucide-react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
-import { supabase } from "~/lib";
-import { useTheme } from "~/lib";
-import { fetchAccounts, updateAccountBalance } from "~/lib";
-import { addExpense } from "~/lib";
-import { addTransaction } from "~/lib";
-import { addTransfer } from "~/lib";
-import { addSubscription } from "~/lib";
+import { toast } from "sonner-native";
+import {
+  addExpense,
+  addSubscription,
+  addTransaction,
+  addTransfer,
+  createExpenseLocal,
+  createSubscriptionLocal,
+  createTransactionLocal,
+  createTransferLocal,
+  fetchAccounts,
+  getCurrentUserOfflineFirst,
+  isOfflineGateLocked,
+  notificationService,
+  supabase,
+  triggerSync,
+  updateAccountBalance,
+  updateAccountLocal,
+  useAccount,
+  useLanguage,
+  useScreenStatusBar,
+  useTheme,
+} from "~/lib";
 import type { Account } from "~/lib";
-import { notificationService } from "~/lib";
-import { useLanguage } from "~/lib";
-import * as ImagePicker from "expo-image-picker";
-import { scanReceiptWithOCR } from "~/lib/services/ocr";
+import { statusBarTopInset } from "~/lib/utils/statusBarInset";
 
 // Import the separated form components
 import {
@@ -61,10 +79,6 @@ export default function AddExpenseScreen() {
   const { accounts } = useAccount();
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
 
-  // OCR states
-  const [inputMode, setInputMode] = useState<"normal" | "ocr">("normal");
-  const [isProcessingOCR, setIsProcessingOCR] = useState(false);
-
   // Transfer-specific state
   const [fromAccount, setFromAccount] = useState<Account | null>(null);
   const [toAccount, setToAccount] = useState<Account | null>(null);
@@ -88,160 +102,9 @@ export default function AddExpenseScreen() {
     }
   }, [accounts, selectedAccount]);
 
-  // Preload tab click sound so first tap plays immediately (dev build only; Expo Go uses haptics)
-  useEffect(() => {
-    void preloadTabClickSound();
-  }, []);
-
   const handleEntryTypeChange = (type: string) => {
-    void playTabClickSound();
     setEntryType(type);
     setSelectedCategory(null);
-    // Reset to normal mode when changing entry type
-    if (inputMode === "ocr") {
-      setInputMode("normal");
-    }
-  };
-
-  // Map OCR category to app category
-  const mapOCRCategoryToAppCategory = (ocrCategory: string): Category | null => {
-    const categories = entryType === "Expense" ? expenseCategories : incomeCategories;
-    const categoryLower = ocrCategory.toLowerCase();
-
-    // Direct mapping
-    const categoryMap: Record<string, string> = {
-      food: "food",
-      groceries: "food",
-      restaurant: "food",
-      cafe: "food",
-      transport: "transport",
-      gas: "transport",
-      taxi: "transport",
-      uber: "transport",
-      shopping: "shopping",
-      walmart: "shopping",
-      target: "shopping",
-      amazon: "shopping",
-    };
-
-    // Find matching category
-    for (const [key, categoryId] of Object.entries(categoryMap)) {
-      if (categoryLower.includes(key)) {
-        const found = categories.find((cat) => cat.id === categoryId);
-        if (found) return found;
-      }
-    }
-
-    // Default to first category if no match
-    return categories.length > 0 ? categories[0] : null;
-  };
-
-  const handlePickImage = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        Toast.show({
-          type: "error",
-          text1: t.error || "Error",
-          text2: t.permissionToAccessCamera || "Permission to access camera roll is required",
-        });
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 1,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        await processReceiptImage(result.assets[0].uri);
-      }
-    } catch (error) {
-      console.error("Error picking image:", error);
-      Toast.show({
-        type: "error",
-        text1: t.error || "Error",
-        text2: t.failedToPickImage || "Failed to pick image",
-      });
-    }
-  };
-
-  const handleTakePhoto = async () => {
-    try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== "granted") {
-        Toast.show({
-          type: "error",
-          text1: t.error || "Error",
-          text2: "Camera permission is required",
-        });
-        return;
-      }
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 1,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        await processReceiptImage(result.assets[0].uri);
-      }
-    } catch (error) {
-      console.error("Error taking photo:", error);
-      Toast.show({
-        type: "error",
-        text1: t.error || "Error",
-        text2: "Failed to take photo",
-      });
-    }
-  };
-
-  const processReceiptImage = async (imageUri: string) => {
-    setIsProcessingOCR(true);
-    try {
-      const ocrResult = await scanReceiptWithOCR(imageUri);
-
-      // Populate form fields with OCR results
-      if (ocrResult.amount) {
-        setAmount(ocrResult.amount.toString());
-      }
-
-      if (ocrResult.merchant) {
-        setDescription(ocrResult.merchant);
-      }
-
-      if (ocrResult.date) {
-        setDate(new Date(ocrResult.date));
-      }
-
-      // Map category
-      if (ocrResult.category) {
-        const mappedCategory = mapOCRCategoryToAppCategory(ocrResult.category);
-        if (mappedCategory) {
-          setSelectedCategory(mappedCategory);
-        }
-      }
-
-      // Switch to normal mode after OCR processing
-      setInputMode("normal");
-
-      Toast.show({
-        type: "success",
-        text1: "Receipt scanned!",
-        text2: "Please review and edit the details before saving.",
-      });
-    } catch (error) {
-      console.error("OCR processing error:", error);
-      Toast.show({
-        type: "error",
-        text1: "OCR Failed",
-        text2: error instanceof Error ? error.message : "Failed to process receipt image",
-      });
-    } finally {
-      setIsProcessingOCR(false);
-    }
   };
 
   const handleSaveExpense = async () => {
@@ -381,7 +244,9 @@ export default function AddExpenseScreen() {
       // Check budget thresholds only for the expense category (notify only if this category has a budget)
       if (entryType === "Expense" && selectedCategory?.name) {
         try {
-          await notificationService.checkBudgetsAndNotify(selectedCategory.name);
+          await notificationService.checkBudgetsAndNotify(
+            selectedCategory.name,
+          );
         } catch (error) {
           console.error("Error checking budget notifications:", error);
         }
@@ -512,12 +377,7 @@ export default function AddExpenseScreen() {
     }
 
     // For Income and Expense (note/description is optional)
-    return (
-      !!amount &&
-      !!selectedAccount &&
-      !!selectedCategory &&
-      !isSubmitting
-    );
+    return !!amount && !!selectedAccount && !!selectedCategory && !isSubmitting;
   }, [
     amount,
     selectedAccount,
@@ -529,621 +389,228 @@ export default function AddExpenseScreen() {
     isSubmitting,
   ]);
 
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        {/* Header */}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            paddingHorizontal: 16,
-            paddingVertical: 16,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.border,
-          }}
-        >
-          <TouchableOpacity
-            style={{
-              padding: 8,
-              borderRadius: 12,
-              backgroundColor: theme.cardBackground,
-            }}
-            onPress={() => router.back()}
-          >
-            <X size={22} color={theme.textMuted} />
-          </TouchableOpacity>
-          <Text style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}>
-            {t.add_transaction || "Add Transaction"}
-          </Text>
-          <View style={{ width: 76 }} />
-        </View>
+  const statusBarTop = statusBarTopInset(insets);
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 24 }}
+  return (
+    <View style={{ flex: 1, backgroundColor: theme.background }}>
+      {/* Opaque strip under clock/battery (edge-to-edge): blocks scroll overscroll bleed-through */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: statusBarTop,
+          backgroundColor: theme.background,
+          zIndex: 100,
+        }}
+      />
+      <StatusBar
+        backgroundColor={theme.background}
+        barStyle={theme.isDarkColorScheme ? "light-content" : "dark-content"}
+        translucent={Platform.OS === "android" ? false : undefined}
+      />
+      <SafeAreaView style={{ flex: 1, backgroundColor: theme.background }}>
+        <KeyboardAvoidingView
+          style={{ flex: 1, backgroundColor: theme.background }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          {/* Type Tabs - Modern Pills */}
+          {/* Header */}
           <View
             style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
               paddingHorizontal: 16,
               paddingVertical: 16,
               backgroundColor: theme.background,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.border,
             }}
           >
-            <View
+            <TouchableOpacity
               style={{
-                flexDirection: "row",
+                padding: 8,
                 borderRadius: 12,
-                borderWidth: 1,
-                borderColor: theme.border,
-                overflow: "hidden",
+                backgroundColor: theme.cardBackground,
               }}
+              onPress={() => router.back()}
             >
-              {ENTRY_TABS.map((tab, index) => {
-                const isActive = entryType === tab.id;
-                const activeBg = "#00BFFF";
-                return (
-                  <TouchableOpacity
-                    key={tab.id}
-                    activeOpacity={1}
-                    style={{
-                      flex: 1,
-                      paddingVertical: 12,
-                      backgroundColor: isActive
-                        ? activeBg
-                        : theme.cardBackground,
-                      borderRightWidth: index < ENTRY_TABS.length - 1 ? 1 : 0,
-                      borderRightColor: theme.border,
-                    }}
-                    onPress={() => handleEntryTypeChange(tab.id)}
-                  >
-                    <Text
-                      style={{
-                        textAlign: "center",
-                        fontWeight: isActive ? "600" : "400",
-                        fontSize: 14,
-                        color: isActive ? "#FFFFFF" : theme.text,
-                      }}
-                    >
-                      {tab.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+              <X size={22} color={theme.textMuted} />
+            </TouchableOpacity>
+            <Text
+              style={{ color: theme.text, fontSize: 18, fontWeight: "bold" }}
+            >
+              {t.add_transaction || "Add Transaction"}
+            </Text>
+            <View style={{ width: 76 }} />
           </View>
 
-          {/* Input Mode Selector - Only show for Expense */}
-          {entryType === "Expense" && (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={{ flex: 1, backgroundColor: theme.background }}
+            contentContainerStyle={{ paddingBottom: 24 }}
+          >
+            {/* Type Tabs - Modern Pills */}
             <View
               style={{
                 paddingHorizontal: 16,
-                paddingBottom: 16,
+                paddingVertical: 16,
                 backgroundColor: theme.background,
               }}
             >
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TouchableOpacity
-                  style={{
-                    flex: 1,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    backgroundColor:
-                      inputMode === "normal"
-                        ? "#00BFFF"
-                        : theme.cardBackground,
-                    borderWidth: 1,
-                    borderColor:
-                      inputMode === "normal" ? "#00BFFF" : theme.border,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                  }}
-                  onPress={() => setInputMode("normal")}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={{
-                      fontWeight: inputMode === "normal" ? "600" : "400",
-                      fontSize: 14,
-                      color:
-                        inputMode === "normal"
-                          ? "#FFFFFF"
-                          : theme.textSecondary,
-                    }}
-                  >
-                    Manual Entry
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{
-                    flex: 1,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    backgroundColor:
-                      inputMode === "ocr"
-                        ? "#00BFFF"
-                        : theme.cardBackground,
-                    borderWidth: 1,
-                    borderColor:
-                      inputMode === "ocr" ? "#00BFFF" : theme.border,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                  }}
-                  onPress={() => setInputMode("ocr")}
-                  activeOpacity={0.8}
-                >
-                  <Scan
-                    size={16}
-                    color={
-                      inputMode === "ocr"
-                        ? "#FFFFFF"
-                        : theme.textSecondary
-                    }
-                  />
-                  <Text
-                    style={{
-                      fontWeight: inputMode === "ocr" ? "600" : "400",
-                      fontSize: 14,
-                      color:
-                        inputMode === "ocr"
-                          ? "#FFFFFF"
-                          : theme.textSecondary,
-                    }}
-                  >
-                    Scan Receipt
-                  </Text>
-                </TouchableOpacity>
+              <View
+                style={{
+                  flexDirection: "row",
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  overflow: "hidden",
+                }}
+              >
+                {ENTRY_TABS.map((tab, index) => {
+                  const isActive = entryType === tab.id;
+                  const activeBg = "#00BFFF";
+                  return (
+                    <TouchableOpacity
+                      key={tab.id}
+                      activeOpacity={1}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 12,
+                        backgroundColor: isActive
+                          ? activeBg
+                          : theme.cardBackground,
+                        borderRightWidth: index < ENTRY_TABS.length - 1 ? 1 : 0,
+                        borderRightColor: theme.border,
+                      }}
+                      onPress={() => handleEntryTypeChange(tab.id)}
+                    >
+                      <Text
+                        style={{
+                          textAlign: "center",
+                          fontWeight: isActive ? "600" : "400",
+                          fontSize: 14,
+                          color: isActive ? "#FFFFFF" : theme.text,
+                        }}
+                      >
+                        {tab.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
-          )}
 
-          {/* OCR Mode UI */}
-          {entryType === "Expense" && inputMode === "ocr" && (
-            <View style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
-              {isProcessingOCR ? (
-                <View
-                  style={{
-                    padding: 32,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: theme.cardBackground,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: theme.border,
-                  }}
-                >
-                  <ActivityIndicator size="large" color={theme.primary} />
-                  <Text
-                    style={{
-                      marginTop: 16,
-                      color: theme.text,
-                      fontSize: 16,
-                      fontWeight: "500",
-                    }}
-                  >
-                    Processing receipt...
-                  </Text>
-                  <Text
-                    style={{
-                      marginTop: 8,
-                      color: theme.textSecondary,
-                      fontSize: 14,
-                      textAlign: "center",
-                    }}
-                  >
-                    Please wait while we extract information from your receipt
-                  </Text>
-                </View>
-              ) : (
-                <View
-                  style={{
-                    padding: 24,
-                    backgroundColor: theme.cardBackground,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: theme.border,
-                  }}
-                >
-                  <View style={{ alignItems: "center", marginBottom: 24 }}>
-                    <View
-                      style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: 32,
-                        backgroundColor: `${theme.primary}20`,
-                        justifyContent: "center",
-                        alignItems: "center",
-                        marginBottom: 16,
-                      }}
-                    >
-                      <Scan size={32} color={theme.primary} />
-                    </View>
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        fontWeight: "600",
-                        color: theme.text,
-                        marginBottom: 8,
-                      }}
-                    >
-                      Scan Receipt
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        color: theme.textSecondary,
-                        textAlign: "center",
-                      }}
-                    >
-                      Take a photo or choose from gallery to automatically
-                      extract expense details
-                    </Text>
-                  </View>
-                  <View style={{ gap: 12 }}>
-                    <TouchableOpacity
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        paddingVertical: 16,
-                        borderRadius: 12,
-                        backgroundColor: theme.primary,
-                        gap: 8,
-                      }}
-                      onPress={handleTakePhoto}
-                    >
-                      <Camera size={20} color={theme.primaryText} />
-                      <Text
-                        style={{
-                          color: theme.primaryText,
-                          fontSize: 16,
-                          fontWeight: "600",
-                        }}
-                      >
-                        Take Photo
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        paddingVertical: 16,
-                        borderRadius: 12,
-                        backgroundColor: theme.cardBackground,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        gap: 8,
-                      }}
-                      onPress={handlePickImage}
-                    >
-                      <ImageIcon size={20} color={theme.text} />
-                      <Text
-                        style={{
-                          color: theme.text,
-                          fontSize: 16,
-                          fontWeight: "600",
-                        }}
-                      >
-                        Choose from Gallery
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
+            {/* Receipt scanning removed (manual entry only). */}
 
-          {/* Input Mode Selector - Only show for Expense */}
-          {entryType === "Expense" && (
-            <View style={{ paddingHorizontal: 16, paddingBottom: 16, backgroundColor: theme.background }}>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TouchableOpacity
-                  style={{
-                    flex: 1,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    backgroundColor: inputMode === "normal" ? theme.primary : theme.cardBackground,
-                    borderWidth: 1,
-                    borderColor: inputMode === "normal" ? theme.primary : theme.border,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                  }}
-                  onPress={() => setInputMode("normal")}
-                >
-                  <Text
-                    style={{
-                      fontWeight: inputMode === "normal" ? "600" : "400",
-                      fontSize: 14,
-                      color: inputMode === "normal" ? theme.primaryText : theme.textSecondary,
-                    }}
-                  >
-                    Manual Entry
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={{
-                    flex: 1,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    backgroundColor: inputMode === "ocr" ? theme.primary : theme.cardBackground,
-                    borderWidth: 1,
-                    borderColor: inputMode === "ocr" ? theme.primary : theme.border,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                  }}
-                  onPress={() => setInputMode("ocr")}
-                >
-                  <Scan size={16} color={inputMode === "ocr" ? theme.primaryText : theme.textSecondary} />
-                  <Text
-                    style={{
-                      fontWeight: inputMode === "ocr" ? "600" : "400",
-                      fontSize: 14,
-                      color: inputMode === "ocr" ? theme.primaryText : theme.textSecondary,
-                    }}
-                  >
-                    Scan Receipt
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+            {/* Render the appropriate form based on entry type */}
+            {entryType === "Expense" && (
+              <ExpenseForm
+                amount={amount}
+                setAmount={setAmount}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                description={description}
+                setDescription={setDescription}
+                selectedAccount={selectedAccount}
+                setSelectedAccount={setSelectedAccount}
+                date={date}
+                setDate={setDate}
+                isRecurring={isRecurring}
+                setIsRecurring={setIsRecurring}
+                recurringFrequency={recurringFrequency}
+                setRecurringFrequency={setRecurringFrequency}
+                categories={expenseCategories}
+                accounts={accounts}
+                theme={theme}
+                t={t}
+              />
+            )}
 
-          {/* OCR Mode UI */}
-          {entryType === "Expense" && inputMode === "ocr" && (
-            <View style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
-              {isProcessingOCR ? (
-                <View
-                  style={{
-                    padding: 32,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: theme.cardBackground,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: theme.border,
-                  }}
-                >
-                  <ActivityIndicator size="large" color={theme.primary} />
-                  <Text
-                    style={{
-                      marginTop: 16,
-                      color: theme.text,
-                      fontSize: 16,
-                      fontWeight: "500",
-                    }}
-                  >
-                    Processing receipt...
-                  </Text>
-                  <Text
-                    style={{
-                      marginTop: 8,
-                      color: theme.textSecondary,
-                      fontSize: 14,
-                      textAlign: "center",
-                    }}
-                  >
-                    Please wait while we extract information from your receipt
-                  </Text>
-                </View>
-              ) : (
-                <View
-                  style={{
-                    padding: 24,
-                    backgroundColor: theme.cardBackground,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: theme.border,
-                  }}
-                >
-                  <View style={{ alignItems: "center", marginBottom: 24 }}>
-                    <View
-                      style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: 32,
-                        backgroundColor: `${theme.primary}20`,
-                        justifyContent: "center",
-                        alignItems: "center",
-                        marginBottom: 16,
-                      }}
-                    >
-                      <Scan size={32} color={theme.primary} />
-                    </View>
-                    <Text
-                      style={{
-                        fontSize: 18,
-                        fontWeight: "600",
-                        color: theme.text,
-                        marginBottom: 8,
-                      }}
-                    >
-                      Scan Receipt
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        color: theme.textSecondary,
-                        textAlign: "center",
-                      }}
-                    >
-                      Take a photo or choose from gallery to automatically extract expense details
-                    </Text>
-                  </View>
-                  <View style={{ gap: 12 }}>
-                    <TouchableOpacity
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        paddingVertical: 16,
-                        borderRadius: 12,
-                        backgroundColor: theme.primary,
-                        gap: 8,
-                      }}
-                      onPress={handleTakePhoto}
-                    >
-                      <Camera size={20} color={theme.primaryText} />
-                      <Text
-                        style={{
-                          color: theme.primaryText,
-                          fontSize: 16,
-                          fontWeight: "600",
-                        }}
-                      >
-                        Take Photo
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        paddingVertical: 16,
-                        borderRadius: 12,
-                        backgroundColor: theme.cardBackground,
-                        borderWidth: 1,
-                        borderColor: theme.border,
-                        gap: 8,
-                      }}
-                      onPress={handlePickImage}
-                    >
-                      <ImageIcon size={20} color={theme.text} />
-                      <Text
-                        style={{
-                          color: theme.text,
-                          fontSize: 16,
-                          fontWeight: "600",
-                        }}
-                      >
-                        Choose from Gallery
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
+            {entryType === "Income" && (
+              <IncomeForm
+                amount={amount}
+                setAmount={setAmount}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                description={description}
+                setDescription={setDescription}
+                selectedAccount={selectedAccount}
+                setSelectedAccount={setSelectedAccount}
+                date={date}
+                setDate={setDate}
+                categories={incomeCategories}
+                accounts={accounts}
+                theme={theme}
+                t={t}
+              />
+            )}
 
-          {/* Render the appropriate form based on entry type */}
-          {entryType === "Expense" && inputMode === "normal" && (
-            <ExpenseForm
-              amount={amount}
-              setAmount={setAmount}
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-              description={description}
-              setDescription={setDescription}
-              selectedAccount={selectedAccount}
-              setSelectedAccount={setSelectedAccount}
-              date={date}
-              setDate={setDate}
-              isRecurring={isRecurring}
-              setIsRecurring={setIsRecurring}
-              recurringFrequency={recurringFrequency}
-              setRecurringFrequency={setRecurringFrequency}
-              categories={expenseCategories}
-              accounts={accounts}
-              theme={theme}
-              t={t}
-            />
-          )}
+            {entryType === "Transfer" && (
+              <TransferForm
+                transferAmount={transferAmount}
+                setTransferAmount={setTransferAmount}
+                fromAccount={fromAccount}
+                setFromAccount={setFromAccount}
+                toAccount={toAccount}
+                setToAccount={setToAccount}
+                accounts={accounts}
+                isSubmitting={isSubmitting}
+                handleTransfer={handleTransfer}
+                theme={theme}
+                t={t}
+              />
+            )}
+          </ScrollView>
 
-          {entryType === "Income" && (
-            <IncomeForm
-              amount={amount}
-              setAmount={setAmount}
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
-              description={description}
-              setDescription={setDescription}
-              selectedAccount={selectedAccount}
-              setSelectedAccount={setSelectedAccount}
-              date={date}
-              setDate={setDate}
-              categories={incomeCategories}
-              accounts={accounts}
-              theme={theme}
-              t={t}
-            />
-          )}
-
-          {entryType === "Transfer" && (
-            <TransferForm
-              transferAmount={transferAmount}
-              setTransferAmount={setTransferAmount}
-              fromAccount={fromAccount}
-              setFromAccount={setFromAccount}
-              toAccount={toAccount}
-              setToAccount={setToAccount}
-              accounts={accounts}
-              isSubmitting={isSubmitting}
-              handleTransfer={handleTransfer}
-              theme={theme}
-              t={t}
-            />
-          )}
-        </ScrollView>
-
-        {/* Save button - Fixed at bottom with clear spacing */}
-        <View
-          style={{
-            paddingHorizontal: 16,
-            paddingTop: 8,
-            paddingBottom: Math.max(insets.bottom, 12),
-            alignItems: "flex-end",
-            backgroundColor: theme.background,
-            borderTopWidth: 1,
-            borderTopColor: theme.border,
-          }}
-        >
-          <TouchableOpacity
+          {/* Save button - Fixed at bottom with clear spacing */}
+          <View
             style={{
-              paddingVertical: 14,
-              paddingHorizontal: 28,
-              borderRadius: 14,
-              backgroundColor: theme.primary,
-              minWidth: 120,
-              alignItems: "center",
-              opacity: isFormValid() ? 1 : 0.7,
+              paddingHorizontal: 16,
+              paddingTop: 8,
+              paddingBottom: Math.max(insets.bottom, 12),
+              alignItems: "flex-end",
+              backgroundColor: theme.background,
+              borderTopWidth: 1,
+              borderTopColor: theme.border,
             }}
-            onPress={
-              entryType === "Transfer" ? handleTransfer : handleSaveExpense
-            }
-            disabled={!isFormValid()}
           >
-            <Text
+            <TouchableOpacity
               style={{
-                fontWeight: "600",
-                fontSize: 16,
-                color: theme.primaryText,
+                paddingVertical: 14,
+                paddingHorizontal: 28,
+                borderRadius: 14,
+                backgroundColor: theme.primary,
+                minWidth: 120,
+                alignItems: "center",
+                opacity: isFormValid() ? 1 : 0.7,
               }}
+              onPress={
+                entryType === "Transfer" ? handleTransfer : handleSaveExpense
+              }
+              disabled={!isFormValid()}
             >
-              {entryType === "Transfer"
-                ? isSubmitting
-                  ? t.saving || "Saving..."
-                  : (t.completeTransfer || "Transfer")
-                : isSubmitting
-                  ? t.saving || "Saving..."
-                  : t.save || "Save"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+              <Text
+                style={{
+                  fontWeight: "600",
+                  fontSize: 16,
+                  color: theme.primaryText,
+                }}
+              >
+                {entryType === "Transfer"
+                  ? isSubmitting
+                    ? t.saving || "Saving..."
+                    : t.completeTransfer || "Transfer"
+                  : isSubmitting
+                    ? t.saving || "Saving..."
+                    : t.save || "Save"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }

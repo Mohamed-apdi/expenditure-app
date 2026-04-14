@@ -99,13 +99,15 @@ class ExpoEvcSmsModule : Module() {
       if (bridgeActive) return
       Log.i(tag, "EVC SMS bridge on (manifest receiver + sink only)")
       bridgeActive = true
-      EvcSmsBridge.setSink { sender, body, bodyLen, forwarded ->
+      EvcSmsBridge.setSink { sender, body, bodyLen, forwarded, slot, subId ->
         sendEvent(
           "onSmsDebug",
           mapOf(
             "sender" to sender,
             "bodyLen" to bodyLen,
-            "forwarded" to forwarded
+            "forwarded" to forwarded,
+            "slot" to slot,
+            "subId" to subId
           )
         )
         if (forwarded) {
@@ -113,7 +115,9 @@ class ExpoEvcSmsModule : Module() {
             "onEvcSms",
             mapOf(
               "sender" to sender,
-              "body" to body
+              "body" to body,
+              "slot" to slot,
+              "subId" to subId
             )
           )
         }

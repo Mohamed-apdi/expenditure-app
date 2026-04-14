@@ -40,7 +40,9 @@ object EvcSmsParser {
         phone = null,
         name = null,
         merchantName = null,
-        noticeSummary = summarizeNotice(body)
+        noticeSummary = summarizeNotice(body),
+        slot = null,
+        subId = null
       )
     }
 
@@ -64,7 +66,9 @@ object EvcSmsParser {
       phone = phone,
       name = name,
       merchantName = merchant,
-      noticeSummary = null
+      noticeSummary = null,
+      slot = null,
+      subId = null
     )
   }
 
