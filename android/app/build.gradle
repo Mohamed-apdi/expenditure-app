@@ -1,3 +1,4 @@
+// Android app module — Qoondeeye (Expo / React Native)
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
@@ -96,6 +97,11 @@ android {
         versionName "2.5.0"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
+
+        ndk {
+            // Temporarily limit to 32-bit to avoid arm64 native build issues
+            abiFilters "armeabi-v7a"
+        }
     }
     signingConfigs {
         debug {
