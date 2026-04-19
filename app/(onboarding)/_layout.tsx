@@ -1,3 +1,6 @@
+/**
+ * Onboarding stack: welcome flow and session gate before main app
+ */
 import { useEffect, useState } from "react";
 import { Stack, router } from "expo-router";
 import { supabase } from "~/lib";
