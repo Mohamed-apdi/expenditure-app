@@ -1,3 +1,4 @@
+// Babel config for Expo, NativeWind, and Reanimated (plugin must stay last)
 module.exports = function (api) {
   api.cache(true);
   return {
