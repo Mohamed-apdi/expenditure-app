@@ -1,3 +1,6 @@
+/**
+ * Auth layout: login/signup slot and session restore before entering app
+ */
 import { useEffect, useState } from "react";
 import { Slot, router } from "expo-router";
 import { getItemAsync } from "expo-secure-store";
