@@ -14,7 +14,8 @@ import { saveItem, getItem } from "../config/storage/secureStore";
 const LanguageContext = createContext<any>(null);
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = useState<keyof typeof LANGUAGES>("en");
+  /** Default Somali for new installs; persisted `app_language` overrides after first choice. */
+  const [language, setLanguage] = useState<keyof typeof LANGUAGES>("so");
   const mounted = useRef(true);
 
   // Load persisted language
