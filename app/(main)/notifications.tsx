@@ -79,12 +79,9 @@ export default function NotificationsScreen() {
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [showFilterSheet, setShowFilterSheet] = useState(false);
 
+  /** Always land on Home — `router.back()` can pop past (main) to index/onboarding/auth and strand the user on login. */
   const handleGoBack = useCallback(() => {
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace("/(main)/Dashboard");
-    }
+    router.replace("/(main)/Dashboard");
   }, [router]);
 
   // Get filtered notifications based on filter mode

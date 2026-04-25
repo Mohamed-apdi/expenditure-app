@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import 'react-native-url-polyfill/auto'; // Required for React Native
-import { getItemAsync } from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
 // Get environment variables using multiple methods for compatibility
@@ -39,8 +39,17 @@ if (SUPABASE_URL.trim() === '' || SUPABASE_KEY.trim() === '') {
   throw new Error('Supabase environment variables are set but empty. Please check your EAS secrets.');
 }
 
-// Create Supabase client - this will throw if URL or KEY are invalid
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Persist auth in AsyncStorage so cold starts (process killed / cleared from recents)
+// still see a session via getSession() without hitting the network — required for offline-first.
+// See: https://supabase.com/docs/reference/javascript/initializing?example=react-native-options-async-storage
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    storage: AsyncStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+  },
+});
 
 export async function getSupabaseWithToken(token: string) {
   return createClient(SUPABASE_URL!, SUPABASE_KEY!, {
