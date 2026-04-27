@@ -1,4 +1,6 @@
-// lib/language/languages.ts
+/**
+ * App copy: English (`en`) and Somali (`so`) translation maps for `useLanguage().t`
+ */
 export const LANGUAGES = {
   en: {
     languages: "Languages",
@@ -194,7 +196,8 @@ export const LANGUAGES = {
     phoneRequired: "Phone number is required",
     validPhoneNumber: "Please enter a valid phone number",
     youNeedToBeLoggedIn: "You need to be logged in to update your profile",
-    cantVerifySignInOffline: "Can't verify sign-in while offline. Please connect to the internet and try again.",
+    cantVerifySignInOffline:
+      "Can't verify sign-in while offline. Please connect to the internet and try again.",
     failedToFetchUser: "Failed to fetch user data",
     ok: "OK",
     failedToUploadImage: "Failed to upload image",
@@ -371,7 +374,8 @@ export const LANGUAGES = {
     evcSmsConsentMessage:
       "Qoondeeye can receive incoming SMS from senders 192 and NOTICE (and messages containing EVCPLUS) to detect mobile-money transactions. Other messages are ignored and full SMS text is not stored—only parsed amounts and notes you see in the app.",
     evcSmsConsentContinue: "Continue",
-    evcSmsExpoGoHint: "EVC SMS import requires a development or production build (not Expo Go).",
+    evcSmsExpoGoHint:
+      "EVC SMS import requires a development or production build (not Expo Go).",
     evcImportAccountsRowTitle: "SIM 1, SIM 2 & fallback",
     evcImportAccountsRowSubtitleEmpty:
       "Tap to choose an account for each SIM and an optional fallback when the SIM slot is unknown.",
@@ -382,10 +386,12 @@ export const LANGUAGES = {
     evcDiscoveryTitle: "Automatic EVC imports",
     evcDiscoverySubtitle:
       "Save time by recording Hormuud EVC transactions from SMS. You control everything in Settings.",
-    evcDiscoveryBullet1: "Turn on EVC SMS import and grant SMS permission when prompted.",
+    evcDiscoveryBullet1:
+      "Turn on EVC SMS import and grant SMS permission when prompted.",
     evcDiscoveryBullet2:
       "Optional: pick a fallback account, or map SIM 1 and SIM 2 to different accounts (dual-SIM).",
-    evcDiscoveryBullet3: "Only EVC-related messages are used; other SMS is ignored.",
+    evcDiscoveryBullet3:
+      "Only EVC-related messages are used; other SMS is ignored.",
     evcDiscoveryOpenSettings: "Open Settings",
     evcDiscoveryMaybeLater: "Maybe later",
     evcDiscoveryDontShowAgain: "Don't show again",
@@ -946,7 +952,7 @@ export const LANGUAGES = {
     home: "Home",
     appName: "Qoondeeye",
     tagline:
-      "Maamul lacagtaaga mustaqbalka adoo isticmaalaya maamul lacag oo caqliga ah",
+      "Maamul lacagtaada mustaqbalka adoo isticmaalaya maamul lacag oo caqliga ah",
     descriptionHome:
       "La soco kharashaadka, maamul miisaaniyada, oo gaadhada hadafyada lacagtaaga",
     expenseTracking: "La soco Kharashaadka",
@@ -957,7 +963,7 @@ export const LANGUAGES = {
     // InputCategoriesScreen translations
     accountSetup: "Akoon Setup",
     accountSetupDescription:
-      "Dooro waxa aad rabto inaad maamusho — Akoonaadka, kharashaadka, iyo wax kale",
+      "Dooro waxa aad rabto inaad maamusho — Akoomada, kharashaadka, iyo wax kale",
     continue: "Sii Gudub",
     includes: "Waxay ku jiraan:",
     accountsDescription: "Lacag caddaan, bangiga, kaarka, iyo kaydka",
@@ -1067,14 +1073,14 @@ export const LANGUAGES = {
     compareExpenses: "Isku barbar dhig Kharashaadka",
 
     // ProfileScreen translations
-    contactInformation: "Macluumaadka Xiriirka",
+    contactInformation: "Macluumaadkaaga",
     help: "Caawimaad",
     phoneNumber: "Telefoonka",
     noNameProvided: "Magac ma la bixin",
     noPhoneProvided: "Telefoon ma la bixin",
     security: "Amniga",
-    changePassword: "Beddel Furaha",
-    updateAccountPassword: "Cusboonaysii furaha akoonkaaga",
+    changePassword: "Beddel Password-kaaga",
+    updateAccountPassword: "Cusboonaysii password-ka akoonkaaga",
     signOut: "Ka bax",
     loading: "loading...",
     currentPassword: "Furaha Hadda",
@@ -1213,7 +1219,7 @@ export const LANGUAGES = {
     accountDeletedSuccessfully: "Akoonaadka si guul leh ayaa loo dibay!",
 
     unexpectedError: "Wuxuu u dib u dibay inaad ku dibay",
-    editAccount: "Beddel Akoon",
+    editAccount: "habey Akoon",
     currentBalance: "Lacagta Wadarta Hadda.",
     income: "Dakhliga.",
     expense: "Kharashaadka.",
@@ -1309,15 +1315,16 @@ export const LANGUAGES = {
 
     mobileMoney: "Lacagta Mobileka",
 
-    evcSmsAutoImport: "Soo dejinta SMS-ka EVC",
+    evcSmsAutoImport: "Qabashada Qarashaadka EVC",
     evcSmsAutoImportSubtitle:
-      "Waxay ogaan kartaa EVC (192 / NOTICE) waxayna ku dartaa koontadaada caadiga ah. Kaliya SMS-yada EVC ayaa la shaqaynayaa.",
+      "Waxaad lasocon kartaa Qarashaadka EVC (192) waxayna kugu darsami doonta account-ka application-kan. Kaliya qarashaadka EVC ayaa lasoo aqrin doona",
     evcSmsConsentTitle: "Helitaanka SMS EVC",
     evcSmsConsentMessage:
       "Qoondeeye waxay qaadan kartaa SMS-yada soo gala ee 192 iyo NOTICE (iyo kuwa ku jira EVCPLUS) si loo ogaado lacagaha mobile-ka. Farriimaha kale waa la iska indha tirayaa; ma kaydinayo SMS buuxa—kaliya lacagaha la fahmay iyo qoraallada app-ka.",
     evcSmsConsentContinue: "Sii wad",
-    evcSmsExpoGoHint: "Soo dejinta SMS-ka EVC waxay u baahan tahay build-ka horumarinta ama wax soo saarka (ma aha Expo Go).",
-    evcImportAccountsRowTitle: "SIM 1, SIM 2 & caawimaad",
+    evcSmsExpoGoHint:
+      "Soo dejinta SMS-ka EVC waxay u baahan tahay build-ka horumarinta ama wax soo saarka (ma aha Expo Go).",
+    evcImportAccountsRowTitle: "SIM 1, SIM 2 & hadii lawayo SIM-ka",
     evcImportAccountsRowSubtitleEmpty:
       "Taabo si aad u doorato koonto SIM kasta iyo caawimaad ikhtiyaari ah marka booska SIM aan la garanayn.",
     evcImportAccountsSummaryFallback: "Caawimaad",
@@ -1327,10 +1334,12 @@ export const LANGUAGES = {
     evcDiscoveryTitle: "Soo dejinta EVC otomaatig ah",
     evcDiscoverySubtitle:
       "Waxaad waqti u badbaadin kartaa adigoo diiwaan gelinaya wareejinta EVC ee Hormuud SMS-ka. Wax walba waxaad xakameynaysaa Goobaha.",
-    evcDiscoveryBullet1: "Shid soo dejinta SMS-ka EVC oo oggolow ogolaanshaha SMS marka la weydiiyo.",
+    evcDiscoveryBullet1:
+      "Shid soo dejinta SMS-ka EVC oo oggolow ogolaanshaha SMS marka la weydiiyo.",
     evcDiscoveryBullet2:
       "Ikhtiyaari: dooro koontada caawimaad, ama ku xidh SIM 1 iyo SIM 2 koonto kala duwan (laba SIM).",
-    evcDiscoveryBullet3: "Kaliya farriimaha EVC ayaa la isticmaalaa; SMS kale waa la iska indha tirayaa.",
+    evcDiscoveryBullet3:
+      "Kaliya farriimaha EVC ayaa la isticmaalaa; SMS kale waa la iska indha tirayaa.",
     evcDiscoveryOpenSettings: "Fur Goobaha",
     evcDiscoveryMaybeLater: "Hadba ha iigu soo sheegin",
     evcDiscoveryDontShowAgain: "Mar dambe ha i tusin",
@@ -1815,8 +1824,7 @@ export const LANGUAGES = {
     // Loan Report translations
     loadingLoanData: "Xogta amaahada la soo dejinayaa...",
     noLoansFound: "Amaaho Lama Helin",
-    noLoansReportHint:
-      "Halkan ka la soco amaahada la siiyay iyo la qaatay.",
+    noLoansReportHint: "Halkan ka la soco amaahada la siiyay iyo la qaatay.",
     netPosition: "Xaalad Guud",
     othersOweYou: "Dadka kale waxay kugu leeyihiin wax badan",
     youOweOthers: "Waxaad leedahay dad kale wax badan",
@@ -1845,9 +1853,11 @@ export const LANGUAGES = {
     transaction: "dhaqdhaqaaq",
 
     // Onboarding translations (3 slides)
-    onboardingSlide1: "Miisaaniyadda caqliga leh halkan ka bilow—la soco lacag kasta",
+    onboardingSlide1:
+      "Miisaaniyadda caqliga leh halkan ka bilow—la soco lacag kasta",
     onboardingSlide2: "Warbixinno qurux badan—arag qaababka kharashkaaga",
-    onboardingSlide3: "Wax kasta oo aad u baahan tahay—miisaaniyad, hadaf, amaah, iyo wax kale",
+    onboardingSlide3:
+      "Wax kasta oo aad u baahan tahay—miisaaniyad, hadaf, amaah, iyo wax kale",
     next: "Xiga",
     // Onboarding translations
     welcomeToApp: "Soo dhowow Qoondeeye",

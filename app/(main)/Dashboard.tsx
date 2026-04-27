@@ -107,6 +107,8 @@ export default function DashboardScreen() {
 
   const { selectedAccount, refreshBalances, accounts } = useAccount();
   const [userId, setUserId] = useState<string | null>(null);
+  /** Local calendar month of signup — limits dashboard month scroller (no empty past months). */
+  const [memberSince, setMemberSince] = useState<Date | null>(null);
   const [userProfile, setUserProfile] = useState({
     fullName: "",
     email: "",
@@ -147,6 +149,11 @@ export default function DashboardScreen() {
       if (!user) return;
 
       setUserId(user.id);
+      if (user.created_at) {
+        setMemberSince(new Date(user.created_at));
+      } else {
+        setMemberSince(new Date());
+      }
 
       // Offline-first: show local profile immediately; refresh from server when online
       const localProfile = selectProfile(user.id);
@@ -455,6 +462,7 @@ export default function DashboardScreen() {
             fetchMonthData={fetchMonthData}
             refreshTrigger={refreshTrigger}
             userId={userId}
+            memberSince={memberSince}
           />
         </View>
 
