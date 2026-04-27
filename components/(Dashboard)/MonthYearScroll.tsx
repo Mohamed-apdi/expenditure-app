@@ -48,6 +48,11 @@ type MonthYearScrollerProps = {
   refreshTrigger?: number;
   /** When provided, month data is only fetched after userId is set (avoids showing 0s before auth is ready). */
   userId?: string | null;
+  /**
+   * First month/year shown in the scroller (account signup). Earlier months are omitted.
+   * When omitted, defaults to Jan 2025 for backward compatibility.
+   */
+  memberSince?: Date | null;
 };
 
 type ItemLayout = { x: number; width: number };
@@ -58,6 +63,7 @@ export default function MonthYearScroller({
   fetchMonthData,
   refreshTrigger = 0,
   userId,
+  memberSince,
 }: MonthYearScrollerProps) {
   const current = new Date();
   const currentYear = current.getFullYear();
@@ -79,17 +85,36 @@ export default function MonthYearScroller({
     return selectedAccount?.amount || 0;
   }, [selectedAccount]);
 
-  // Generate list from 2025 → current month/year
+  /** Earliest month in the scroller: signup month, or Jan 2025 if prop missing, never past “now”. */
+  const rangeStart = useMemo(() => {
+    let sy = 2025;
+    let sm = 0;
+    if (memberSince && !Number.isNaN(memberSince.getTime())) {
+      sy = memberSince.getFullYear();
+      sm = memberSince.getMonth();
+    }
+    if (sy > currentYear || (sy === currentYear && sm > currentMonth)) {
+      sy = currentYear;
+      sm = currentMonth;
+    }
+    return { year: sy, month: sm };
+  }, [memberSince, currentYear, currentMonth]);
+
+  // Generate list from signup (or Jan 2025) through current month/year
   const data = useMemo(() => {
     const arr: string[] = [];
-    for (let y = 2025; y <= currentYear; y++) {
-      for (let m = 0; m < 12; m++) {
-        if (y === currentYear && m > currentMonth) break;
-        arr.push(`${months[m]} ${y}`);
+    let y = rangeStart.year;
+    let m = rangeStart.month;
+    while (y < currentYear || (y === currentYear && m <= currentMonth)) {
+      arr.push(`${months[m]} ${y}`);
+      m += 1;
+      if (m > 11) {
+        m = 0;
+        y += 1;
       }
     }
     return arr;
-  }, [currentYear, currentMonth]);
+  }, [rangeStart.year, rangeStart.month, currentYear, currentMonth]);
 
   // Get index of current month in the data array
   const currentMonthIndex = useMemo(() => {
