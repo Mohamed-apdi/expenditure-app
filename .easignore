@@ -1,0 +1,26 @@
+# Reduce EAS Build upload size (archive size).
+# This file does NOT affect git — only what gets uploaded to EAS.
+
+# dependencies
+node_modules/
+
+# Expo / exports
+.expo/
+.expo-export-test/
+dist/
+web-build/
+
+# Android / Gradle outputs
+android/.gradle/
+android/app/build/
+android/build/
+
+# iOS outputs
+ios/build/
+
+# Misc
+.DS_Store
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
