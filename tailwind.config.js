@@ -1,3 +1,4 @@
+// Tailwind + NativeWind: content paths for app/components and CSS variable theme
 const { hairlineWidth } = require('nativewind/theme');
 
 /** @type {import('tailwindcss').Config} */
