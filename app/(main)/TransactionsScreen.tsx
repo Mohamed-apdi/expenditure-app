@@ -224,13 +224,14 @@ function TransactionRow({
   const rowCategoryLabel = categoryMissing
     ? ""
     : categoryLabelFromStored(t, catTrim) || catTrim;
-  const fromEvc = getTransactionSource(transaction) === "evc";
+  const smsSource = getTransactionSource(transaction);
+  const fromSmsImport = smsSource != null;
   const listTitle = categoryMissing
     ? cleanNote || t.noDescription
     : cleanNote || rowCategoryLabel || "Transaction";
 
   const evcSubtitle =
-    fromEvc && !categoryMissing
+    fromSmsImport && !categoryMissing
       ? formatEvcCategoryChannelSubtitle(
           rowCategoryLabel,
           transaction.type,
@@ -238,11 +239,12 @@ function TransactionRow({
             sentViaEvc: t.transactionSentViaEvc,
             receivedViaEvc: t.transactionReceivedViaEvc,
           },
+          smsSource,
         )
       : null;
 
   const nonEvcSubtitle =
-    !fromEvc && !categoryMissing && cleanNote ? rowCategoryLabel : null;
+    !fromSmsImport && !categoryMissing && cleanNote ? rowCategoryLabel : null;
 
   const onMainPress = () => {
     if (selectionMode) {

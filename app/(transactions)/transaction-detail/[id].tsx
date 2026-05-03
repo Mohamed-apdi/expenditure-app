@@ -475,13 +475,17 @@ export default function TransactionDetailScreen() {
 
   const TransactionIcon = getTransactionIcon(transaction.type);
   const transactionColor = getTransactionColor(transaction.type);
-  const evcViaLine =
-    getTransactionSource(transaction) === "evc"
-      ? evcDetailViaLabel(transaction, {
+  const txSource = getTransactionSource(transaction);
+  const evcViaLine = txSource
+    ? evcDetailViaLabel(
+        transaction,
+        {
           sentViaEvc: t.transactionSentViaEvc,
           receivedViaEvc: t.transactionReceivedViaEvc,
-        })
-      : null;
+        },
+        txSource,
+      )
+    : null;
   const CategoryIcon = getCategoryIcon(
     transaction.category || "",
     transaction.type

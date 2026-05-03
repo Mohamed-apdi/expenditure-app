@@ -20,10 +20,9 @@ import {
   selectTransactionById,
 } from "../stores/transactionsStore";
 import { isOfflineGateLocked, triggerSync } from "../sync/legendSync";
-import type { EvcMessageKind } from "./evcMessageClassifier";
 import { parseEvcFields } from "./evcSmsParser";
 import {
-  buildCanonicalEvcDedupeKey,
+  buildCanonicalSmsDedupeKey,
   checkAndMarkDedupe,
 } from "./evcDedupe";
 import { runSerializedEvcApply } from "./evcApplySerialize";
@@ -37,10 +36,17 @@ import {
   isLikelyEvcTopupLedgerMatch,
 } from "./evcTransactionDescription";
 import { isEvcNoteUserEdited } from "./evcNoteUserEdited";
+import { parseSmsTransaction } from "../sms/providers/parseSmsTransaction";
+import type { SmsParsedTransaction } from "../sms/providers/types";
+import { SMS_TRANSFER_TO_BANK_LABEL } from "../sms/providers/types";
+import type { SmsProvider } from "../sms/providers/types";
+import { resolveSmsImportTargetAccount } from "../sms/resolveSmsImportAccount";
 import {
-  getEvcImportAccountBySim,
-  getEvcImportAccountId,
-} from "../services/evcSmsSettings";
+  classifyEvcMessage,
+  normalizeSender,
+  passesContentFilter,
+  type EvcMessageKind,
+} from "./evcMessageClassifier";
 
 function getDefaultAccountForUser(userId: string) {
   const accounts = selectAccounts(userId);
@@ -56,32 +62,27 @@ function slotIndexToSim(slot: number | null | undefined): "sim1" | "sim2" | null
   return null;
 }
 
-async function resolveEvcTargetAccount(input: {
-  userId: string;
-  slot?: number | null;
-}): Promise<{ id: string; amount: number } | null> {
-  const { userId, slot } = input;
+function ledgerSourceFromProvider(p: SmsProvider): "evc" | "somnet_jeeb" | "salaam_bank" | "somtel" {
+  return p;
+}
 
-  // 1) Per-SIM override (SIM1/SIM2)
-  const sim = slotIndexToSim(slot ?? null);
-  if (sim) {
-    const simMap = await getEvcImportAccountBySim(userId);
-    const accountId = simMap[sim];
-    if (accountId) {
-      const a = selectAccounts(userId).find((x) => x.id === accountId);
-      if (a) return a;
-    }
-  }
-
-  // 2) Global EVC import account
-  const globalAccountId = await getEvcImportAccountId(userId);
-  if (globalAccountId) {
-    const a = selectAccounts(userId).find((x) => x.id === globalAccountId);
-    if (a) return a;
-  }
-
-  // 3) Fallback: current behavior (default account)
-  return getDefaultAccountForUser(userId) ?? null;
+function legacyParsedFromEvcFields(
+  kind: EvcMessageKind,
+  body: string,
+): SmsParsedTransaction {
+  const f = parseEvcFields(kind, body);
+  return {
+    provider: "evc",
+    kind,
+    amount: f.amount,
+    dateIso: f.dateIso,
+    tarRaw: f.tarRaw ?? null,
+    phone: f.phone ?? null,
+    name: f.counterpartyName ?? null,
+    merchantName: f.merchantName ?? null,
+    balance: f.balanceAfter ?? null,
+    noticeSummary: f.noticeSummary ?? null,
+  };
 }
 
 function toDateStr(dateIso?: string): string {
@@ -210,8 +211,18 @@ async function mergeBundleNoticeForUser(
   return true;
 }
 
+/** Apply fully parsed multi-provider SMS to the ledger. */
+export async function applySmsImportToLedger(input: {
+  parsed: SmsParsedTransaction;
+  sender: string;
+  slot?: number | null;
+}): Promise<boolean> {
+  return runSerializedEvcApply(() => applySmsImportLedgerRow(input));
+}
+
 /**
  * Process a single SMS after classifier + parser. Returns true if ledger was updated.
+ * @deprecated Prefer {@link applySmsImportToLedger} with {@link parseSmsTransaction}.
  */
 export async function applyEvcSmsToLedger(input: {
   sender: string;
@@ -233,67 +244,104 @@ async function applyEvcSmsToLedgerInner(input: {
   const { sender, body, kind, slot } = input;
   if (kind === "ignored") return false;
 
-  const user = await getCurrentUserOfflineFirst();
+  let parsed = parseSmsTransaction(sender, body);
+  if (!parsed || parsed.kind === "ignored") {
+    const n = normalizeSender(sender);
+    if (!passesContentFilter(n, body)) return false;
+    const k = classifyEvcMessage(n, body);
+    if (k === "ignored") return false;
+    parsed = legacyParsedFromEvcFields(k, body);
+  }
+
+  return applySmsImportLedgerRow({ parsed, sender, slot });
+}
+
+async function applySmsImportLedgerRow(input: {
+  parsed: SmsParsedTransaction;
+  sender: string;
+  slot?: number | null;
+  /** When set (e.g. native queue), skip session resolve — caller must verify user/account. */
+  preloaded?: { userId: string; account: { id: string; amount: number } };
+}): Promise<boolean> {
+  const { parsed, sender, slot, preloaded } = input;
+  if (parsed.kind === "ignored") return false;
+
+  const user = preloaded
+    ? { id: preloaded.userId }
+    : await getCurrentUserOfflineFirst();
   if (!user) {
-    console.log("[EVC SMS] skip: no user session");
+    console.log("[SMS import] skip: no user session");
     return false;
   }
 
-  const account = await resolveEvcTargetAccount({ userId: user.id, slot: slot ?? null });
+  const account =
+    preloaded?.account ??
+    (await resolveSmsImportTargetAccount({
+      userId: user.id,
+      provider: parsed.provider,
+      slot: slot ?? null,
+    }));
   if (!account) {
-    console.log("[EVC SMS] skip: no account");
+    console.log("[SMS import] skip: no account");
     return false;
   }
 
-  const parsed = parseEvcFields(kind, body);
-  console.log("[EVC SMS] parsed", {
-    kind,
+  console.log("[SMS import] parsed", {
+    provider: parsed.provider,
+    kind: parsed.kind,
+    rawType: parsed.rawType,
     amount: parsed.amount,
-    dateIso: parsed.dateIso,
-    hasNotice: !!parsed.noticeSummary,
   });
 
-  if (kind === "bundle_notice") {
-    const summary = parsed.noticeSummary;
+  if (parsed.kind === "bundle_notice") {
+    const summary = parsed.noticeSummary?.trim();
     if (!summary) return false;
     return mergeBundleNoticeForUser(user.id, summary);
   }
 
   const amount = parsed.amount;
   if (amount == null || !Number.isFinite(amount) || amount <= 0) {
-    console.log("[EVC SMS] skip: invalid amount", { amount });
+    console.log("[SMS import] skip: invalid amount", { amount });
     return false;
   }
 
-  const dedupeKey = buildCanonicalEvcDedupeKey({
+  const dedupeKey = buildCanonicalSmsDedupeKey({
+    provider: parsed.provider,
     sender,
-    kind,
+    kind: parsed.kind,
     amount,
     dateIso: parsed.dateIso,
     tarRaw: parsed.tarRaw,
     phone: parsed.phone,
     merchantName: parsed.merchantName,
-    counterpartyName: parsed.counterpartyName,
+    counterpartyName: parsed.name,
+    rawType: parsed.rawType,
+    reference: parsed.reference,
+    transactionId: parsed.transactionId,
+    accountNumber: parsed.accountNumber,
+    balance: parsed.balance ?? null,
   });
   if (await checkAndMarkDedupe(dedupeKey)) {
-    console.log("[EVC SMS] skip: deduped");
+    console.log("[SMS import] skip: deduped");
     return false;
   }
 
   const dateStr = toDateStr(parsed.dateIso);
+  const src = ledgerSourceFromProvider(parsed.provider);
 
-  if (kind === "receive") {
+  if (parsed.kind === "receive") {
     const evc = resolveEvcCategory({
       kind: "receive",
-      phoneRaw: parsed.phone,
+      phoneRaw: parsed.phone ?? undefined,
       lookupMemory: memoryLookupForUser(user.id),
       lookupNote: memoryNoteLookupForUser(user.id),
     });
     const description =
+      (parsed.note && parsed.note.trim().length > 0 ? parsed.note : null) ??
       evc.description ??
-      buildEvcTransactionDescription(kind, {
+      buildEvcTransactionDescription("receive", {
         phone: parsed.phone,
-        counterpartyName: parsed.counterpartyName,
+        name: parsed.name,
         merchantName: parsed.merchantName,
       });
     const exp = createExpenseLocal({
@@ -321,17 +369,17 @@ async function applyEvcSmsToLedgerInner(input: {
       evc_kind: evc.evc_kind,
       evc_counterparty_phone: evc.evc_counterparty_phone,
       source_expense_id: exp.id,
-      source: "evc",
+      source: src,
     });
     updateAccountLocal(account.id, { amount: account.amount + amount });
     if (!(await isOfflineGateLocked())) void triggerSync();
     return true;
   }
 
-  if (kind === "topup") {
-    const description = buildEvcTransactionDescription(kind, {
+  if (parsed.kind === "topup") {
+    const description = buildEvcTransactionDescription("topup", {
       phone: parsed.phone,
-      counterpartyName: parsed.counterpartyName,
+      name: parsed.name,
       merchantName: parsed.merchantName,
     });
     const categoryExpense = "electronics";
@@ -356,7 +404,7 @@ async function applyEvcSmsToLedgerInner(input: {
       is_recurring: false,
       type: "expense",
       source_expense_id: exp.id,
-      source: "evc",
+      source: src,
     });
     updateAccountLocal(account.id, { amount: account.amount - amount });
     await pushPending({
@@ -369,18 +417,52 @@ async function applyEvcSmsToLedgerInner(input: {
     return true;
   }
 
+  if (parsed.rawType === "evc_to_bank") {
+    const label = SMS_TRANSFER_TO_BANK_LABEL;
+    const exp = createExpenseLocal({
+      user_id: user.id,
+      account_id: account.id,
+      amount,
+      category: label,
+      description: label,
+      date: dateStr,
+      is_recurring: false,
+      is_essential: false,
+      entry_type: "Expense",
+      evc_kind: "transfer",
+      evc_counterparty_phone: null,
+    });
+    createTransactionLocal({
+      user_id: user.id,
+      account_id: account.id,
+      amount,
+      description: label,
+      date: dateStr,
+      category: label,
+      is_recurring: false,
+      type: "expense",
+      evc_kind: "transfer",
+      evc_counterparty_phone: null,
+      source_expense_id: exp.id,
+      source: src,
+    });
+    updateAccountLocal(account.id, { amount: account.amount - amount });
+    if (!(await isOfflineGateLocked())) void triggerSync();
+    return true;
+  }
+
   const evc = resolveEvcCategory({
-    kind,
-    merchantName: parsed.merchantName,
-    phoneRaw: parsed.phone,
+    kind: parsed.kind,
+    merchantName: parsed.merchantName ?? undefined,
+    phoneRaw: parsed.phone ?? undefined,
     lookupMemory: memoryLookupForUser(user.id),
     lookupNote: memoryNoteLookupForUser(user.id),
   });
   const description =
     evc.description ??
-    buildEvcTransactionDescription(kind, {
+    buildEvcTransactionDescription(parsed.kind, {
       phone: parsed.phone,
-      counterpartyName: parsed.counterpartyName,
+      name: parsed.name,
       merchantName: parsed.merchantName,
     });
 
@@ -409,7 +491,7 @@ async function applyEvcSmsToLedgerInner(input: {
     evc_kind: evc.evc_kind,
     evc_counterparty_phone: evc.evc_counterparty_phone,
     source_expense_id: exp.id,
-    source: "evc",
+    source: src,
   });
   updateAccountLocal(account.id, { amount: account.amount - amount });
 
@@ -424,6 +506,7 @@ export type NativeEvcQueueResult =
   | "deferred";
 
 export type NativeEvcPendingRow = {
+  provider?: string | null;
   sender: string;
   kind: EvcMessageKind;
   amount?: number | null;
@@ -435,7 +518,36 @@ export type NativeEvcPendingRow = {
   noticeSummary?: string | null;
   subId?: number | null;
   slot?: number | null;
+  rawType?: string | null;
+  reference?: string | null;
+  transactionId?: string | null;
+  accountNumber?: string | null;
+  balance?: number | null;
+  currency?: string | null;
+  note?: string | null;
 };
+
+function nativeRowToParsed(row: NativeEvcPendingRow): SmsParsedTransaction {
+  const provider = (row.provider as SmsProvider) || "evc";
+  return {
+    provider,
+    kind: row.kind,
+    amount: row.amount ?? undefined,
+    dateIso: row.dateIso ?? undefined,
+    tarRaw: row.tarRaw ?? null,
+    phone: row.phone ?? null,
+    name: row.name ?? null,
+    merchantName: row.merchantName ?? null,
+    noticeSummary: row.noticeSummary ?? null,
+    rawType: row.rawType ?? undefined,
+    reference: row.reference ?? null,
+    transactionId: row.transactionId ?? null,
+    accountNumber: row.accountNumber ?? null,
+    balance: row.balance ?? null,
+    currency: row.currency === "SOS" || row.currency === "USD" ? row.currency : undefined,
+    note: row.note ?? null,
+  };
+}
 
 /**
  * Apply a parsed row captured natively (when JS was not running).
@@ -450,175 +562,24 @@ export async function applyNativeEvcRowToLedger(
 async function applyNativeEvcRowToLedgerInner(
   row: NativeEvcPendingRow,
 ): Promise<NativeEvcQueueResult> {
-  const kind = row.kind;
-  if (kind === "ignored") return "skipped_duplicate";
+  const parsed = nativeRowToParsed(row);
+  if (parsed.kind === "ignored") return "skipped_duplicate";
 
   const user = await getCurrentUserOfflineFirst();
   if (!user) return "deferred";
 
-  const account = await resolveEvcTargetAccount({ userId: user.id, slot: row.slot ?? null });
+  const account = await resolveSmsImportTargetAccount({
+    userId: user.id,
+    provider: parsed.provider,
+    slot: row.slot ?? null,
+  });
   if (!account) return "deferred";
 
-  if (kind === "bundle_notice") {
-    const summary = row.noticeSummary?.trim();
-    if (!summary) return "skipped_duplicate";
-    const ok = await mergeBundleNoticeForUser(user.id, summary);
-    return ok ? "applied" : "deferred";
-  }
-
-  const amount = row.amount ?? undefined;
-  if (amount == null || !Number.isFinite(amount) || amount <= 0) {
-    return "skipped_duplicate";
-  }
-
-  const nativeDedupeKey = buildCanonicalEvcDedupeKey({
+  const ok = await applySmsImportLedgerRow({
+    parsed,
     sender: row.sender,
-    kind,
-    amount,
-    dateIso: row.dateIso ?? undefined,
-    tarRaw: row.tarRaw ?? undefined,
-    phone: row.phone ?? undefined,
-    merchantName: row.merchantName ?? undefined,
-    counterpartyName: row.name ?? undefined,
+    slot: row.slot ?? null,
+    preloaded: { userId: user.id, account },
   });
-  if (await checkAndMarkDedupe(nativeDedupeKey)) {
-    console.log("[EVC SMS] native row skip: deduped");
-    return "skipped_duplicate";
-  }
-
-  const dateStr = toDateStr(row.dateIso ?? undefined);
-
-  if (kind === "receive") {
-    const evc = resolveEvcCategory({
-      kind: "receive",
-      phoneRaw: row.phone ?? undefined,
-      lookupMemory: memoryLookupForUser(user.id),
-      lookupNote: memoryNoteLookupForUser(user.id),
-    });
-    const description =
-      evc.description ??
-      buildEvcTransactionDescription(kind, {
-        phone: row.phone,
-        name: row.name,
-        merchantName: row.merchantName,
-      });
-    const exp = createExpenseLocal({
-      user_id: user.id,
-      account_id: account.id,
-      amount,
-      category: evc.category,
-      description,
-      date: dateStr,
-      is_recurring: false,
-      is_essential: false,
-      entry_type: "Income",
-      evc_kind: evc.evc_kind,
-      evc_counterparty_phone: evc.evc_counterparty_phone,
-    });
-    createTransactionLocal({
-      user_id: user.id,
-      account_id: account.id,
-      amount,
-      description,
-      date: dateStr,
-      category: evc.category,
-      is_recurring: false,
-      type: "income",
-      evc_kind: evc.evc_kind,
-      evc_counterparty_phone: evc.evc_counterparty_phone,
-      source_expense_id: exp.id,
-      source: "evc",
-    });
-    updateAccountLocal(account.id, { amount: account.amount + amount });
-    if (!(await isOfflineGateLocked())) void triggerSync();
-    return "applied";
-  }
-
-  if (kind === "topup") {
-    const description = buildEvcTransactionDescription(kind, {
-      phone: row.phone,
-      name: row.name,
-      merchantName: row.merchantName,
-    });
-    const categoryExpense = "electronics";
-    const exp = createExpenseLocal({
-      user_id: user.id,
-      account_id: account.id,
-      amount,
-      category: categoryExpense,
-      description,
-      date: dateStr,
-      is_recurring: false,
-      is_essential: false,
-      entry_type: "Expense",
-    });
-    const tx = createTransactionLocal({
-      user_id: user.id,
-      account_id: account.id,
-      amount,
-      description,
-      date: dateStr,
-      category: categoryExpense,
-      is_recurring: false,
-      type: "expense",
-      source_expense_id: exp.id,
-      source: "evc",
-    });
-    updateAccountLocal(account.id, { amount: account.amount - amount });
-    await pushPending({
-      transactionId: tx.id,
-      expenseId: exp.id,
-      amount,
-      at: Date.now(),
-    });
-    if (!(await isOfflineGateLocked())) void triggerSync();
-    return "applied";
-  }
-
-  const evc = resolveEvcCategory({
-    kind,
-    merchantName: row.merchantName ?? undefined,
-    phoneRaw: row.phone ?? undefined,
-    lookupMemory: memoryLookupForUser(user.id),
-    lookupNote: memoryNoteLookupForUser(user.id),
-  });
-  const description =
-    evc.description ??
-    buildEvcTransactionDescription(kind, {
-      phone: row.phone,
-      name: row.name,
-      merchantName: row.merchantName,
-    });
-
-  const exp = createExpenseLocal({
-    user_id: user.id,
-    account_id: account.id,
-    amount,
-    category: evc.category,
-    description,
-    date: dateStr,
-    is_recurring: false,
-    is_essential: false,
-    entry_type: "Expense",
-    evc_kind: evc.evc_kind,
-    evc_counterparty_phone: evc.evc_counterparty_phone,
-  });
-  createTransactionLocal({
-    user_id: user.id,
-    account_id: account.id,
-    amount,
-    description,
-    date: dateStr,
-    category: evc.category,
-    is_recurring: false,
-    type: "expense",
-    evc_kind: evc.evc_kind,
-    evc_counterparty_phone: evc.evc_counterparty_phone,
-    source_expense_id: exp.id,
-    source: "evc",
-  });
-  updateAccountLocal(account.id, { amount: account.amount - amount });
-
-  if (!(await isOfflineGateLocked())) void triggerSync();
-  return "applied";
+  return ok ? "applied" : "skipped_duplicate";
 }

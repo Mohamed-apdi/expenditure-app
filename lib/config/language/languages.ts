@@ -134,6 +134,8 @@ export const LANGUAGES = {
     // ProfileScreen translations
     contactInformation: "Contact Information",
     help: "Help",
+    settingsPrivacyPolicySubtitle:
+      "How Qoondeeye handles your data and SMS auto-import.",
     phoneNumber: "Phone Number",
     noNameProvided: "No name provided",
     noPhoneProvided: "No phone provided",
@@ -367,15 +369,87 @@ export const LANGUAGES = {
 
     mobileMoney: "Mobile Money",
 
-    evcSmsAutoImport: "EVC SMS import",
+    /** @deprecated Use smsAutoImportTitle — kept so older builds/strings do not regress. */
+    evcSmsAutoImport: "SMS Auto-Import",
     evcSmsAutoImportSubtitle:
-      "Detect Hormuud EVC (192 / NOTICE) messages and add them to your default account. Only EVC-related SMS are processed.",
-    evcSmsConsentTitle: "SMS access for EVC",
+      "Automatically record supported Somali mobile-money SMS transactions.",
+    evcSmsConsentTitle: "SMS access for auto-import",
     evcSmsConsentMessage:
-      "Qoondeeye can receive incoming SMS from senders 192 and NOTICE (and messages containing EVCPLUS) to detect mobile-money transactions. Other messages are ignored and full SMS text is not stored—only parsed amounts and notes you see in the app.",
+      "Qoondeeye can receive new incoming SMS to detect supported mobile-money and bank messages (EVC, Somnet/JEEB, Salaam Bank). Other SMS is ignored. Full message text is not stored—only parsed fields you see in the app.",
     evcSmsConsentContinue: "Continue",
     evcSmsExpoGoHint:
-      "EVC SMS import requires a development or production build (not Expo Go).",
+      "SMS auto-import requires a development or production build (not Expo Go).",
+    smsAutoImportTitle: "SMS Auto-Import",
+    smsAutoImportSubtitle:
+      "Automatically record supported Somali mobile-money SMS transactions.",
+    smsProviderEvc: "EVC Plus",
+    smsProviderEvcSubtitle: "Hormuud — 192, NOTICE, and EVC Plus messages",
+    smsProviderSomnet: "Somnet / JEEB",
+    smsProviderSomnetSubtitle: "898 or JEEB markers",
+    smsProviderSalaam: "Salaam Bank",
+    smsProviderSalaamSubtitle: "Salaam App and bank SMS we recognize",
+    smsProviderSomtel: "Somtel",
+    smsProviderSomtelSubtitle: "Coming soon — detection not enabled yet",
+    smsImportAccountsRowTitle: "Accounts for SMS import",
+    smsImportAccountsRowSubtitleEmpty:
+      "Choose accounts for each service. SIM options are only for advanced setups.",
+    smsImportAccountsRowSubtitleConfigured: "Tap to review or change account mapping",
+    smsImportMappingTitle: "SMS import accounts",
+    smsImportMappingSubtitle:
+      "Choose where imported SMS transactions are saved. Most users only need one account per service. Use SIM 1 / SIM 2 only if you have two numbers for the same service.",
+    smsMapSectionAllProviders: "Fallback",
+    smsMapGlobalDefaultTitle: "Fallback account",
+    smsMapGlobalDefaultHint:
+      "Used only when a service has no account selected. If left empty, the app default account is used.",
+    smsMapSectionEvc: "Hormuud / EVC Plus",
+    smsMapSectionSomnet: "Somnet / JEEB",
+    smsMapSectionSalaam: "Salaam Bank",
+    /** @deprecated UI uses smsMapEvcMainAccountTitle / smsMapSomnetMainAccountTitle */
+    smsMapProviderFallback: "Provider default (optional)",
+    smsMapEvcMainAccountTitle: "Main EVC account",
+    smsMapEvcMainAccountHint:
+      "Used for all EVC SMS unless a SIM-specific account is set.",
+    smsMapSomnetMainAccountTitle: "Main Somnet account",
+    smsMapSomnetMainAccountHint:
+      "Used for all Somnet/JEEB SMS unless a SIM-specific account is set.",
+    smsMapAdvancedSimHeading: "Advanced: SIM-specific accounts",
+    smsMapAdvancedSimShow: "Show",
+    smsMapAdvancedSimHide: "Hide",
+    smsMapEvcSim1Hint:
+      "Optional — only if this SIM should use a different EVC account.",
+    smsMapEvcSim2Hint:
+      "Optional — only if this SIM should use a different EVC account.",
+    smsMapSomnetSim1Hint:
+      "Optional — only if this SIM should use a different Somnet account.",
+    smsMapSomnetSim2Hint:
+      "Optional — only if this SIM should use a different Somnet account.",
+    smsMapSalaamAccountTitle: "Salaam Bank account",
+    smsMapSalaamAccountHint: "Used for all Salaam Bank SMS.",
+    smsPickSelectAccount: "Select account",
+    smsPickHintGlobalDefault: "Clears to your normal app default account.",
+    smsPickHintSim:
+      "Optional — overrides the main account for this SIM slot only.",
+    smsPickHintProviderFallback:
+      "Used when this SIM slot has no SIM-specific account.",
+    smsPickHintSalaam: "Primary Salaam account; fallback still applies first if set.",
+    smsPickNotSetGlobal: "Use the app’s default account.",
+    smsPickNotSetSim: "Use main account, then fallback, then app default.",
+    smsPickNotSetProvider: "Use fallback account, then app default.",
+    smsImportNotSetShort: "Not set",
+    smsImportSim1Label: "SIM 1",
+    smsImportSim2Label: "SIM 2",
+    smsDiscoveryTitle: "SMS Auto-Import",
+    smsDiscoverySubtitle:
+      "Automatically record supported Somali mobile-money SMS transactions.",
+    smsDiscoveryBullet1:
+      "Turn on SMS Auto-Import and allow SMS when the system asks.",
+    smsDiscoveryBullet2:
+      "Enable EVC Plus, Somnet/JEEB, Salaam Bank, or Somtel (when available), and map accounts in Settings if you want.",
+    smsDiscoveryBullet3:
+      "Only supported money SMS is used; everything else is ignored.",
+    smsDiscoveryOpenSettings: "Open Settings",
+    smsDiscoveryMaybeLater: "Maybe later",
+    smsDiscoveryDontShowAgain: "Don't show again",
     evcImportAccountsRowTitle: "SIM 1, SIM 2 & fallback",
     evcImportAccountsRowSubtitleEmpty:
       "Tap to choose an account for each SIM and an optional fallback when the SIM slot is unknown.",
@@ -383,15 +457,15 @@ export const LANGUAGES = {
     evcImportAccountsSummarySim1: "SIM 1",
     evcImportAccountsSummarySim2: "SIM 2",
     evcImportAccountsNotSetShort: "Not set",
-    evcDiscoveryTitle: "Automatic EVC imports",
+    evcDiscoveryTitle: "SMS Auto-Import",
     evcDiscoverySubtitle:
-      "Save time by recording Hormuud EVC transactions from SMS. You control everything in Settings.",
+      "Automatically record supported Somali mobile-money SMS transactions.",
     evcDiscoveryBullet1:
-      "Turn on EVC SMS import and grant SMS permission when prompted.",
+      "Turn on SMS Auto-Import and allow SMS when the system asks.",
     evcDiscoveryBullet2:
-      "Optional: pick a fallback account, or map SIM 1 and SIM 2 to different accounts (dual-SIM).",
+      "Enable EVC Plus, Somnet/JEEB, Salaam Bank, or Somtel (when available), and map accounts in Settings if you want.",
     evcDiscoveryBullet3:
-      "Only EVC-related messages are used; other SMS is ignored.",
+      "Only supported money SMS is used; everything else is ignored.",
     evcDiscoveryOpenSettings: "Open Settings",
     evcDiscoveryMaybeLater: "Maybe later",
     evcDiscoveryDontShowAgain: "Don't show again",
@@ -1005,7 +1079,7 @@ export const LANGUAGES = {
     // LoginScreen translations
     welcomeBack: "Soo dhowow Mar kale",
     signInDescription: "Gali si aad u hesho dashboardka maamulka lacagtaaga",
-    emailAddress: "Emailka address",
+    emailAddress: "Email address",
     enterYourEmail: "Geli emailka",
     password: "Furaha",
     enterYourPassword: "Geli furahaaga",
@@ -1029,12 +1103,12 @@ export const LANGUAGES = {
     atLeast8Characters: "Ugu yaraan 8 xaraf",
     oneUppercaseLetter: "Hal xaraf weyn",
     oneNumber: "Hal tiro",
-    welcomeTo: "Soo dhowow",
+    welcomeTo: "Ku Soo dhowow",
     login: "Soo gal",
     rememberMe: "I xasuuso",
     forgetPassword: "Furaha illow",
-    continueWith: "Sii wad",
-    continueWithGoogle: "Sii wad Google",
+    continueWith: "Kusoo gal",
+    continueWithGoogle: "Kusoo gal Google",
     continueWithApple: "Sii wad Apple",
     continueWithGithub: "Sii wad Git Hub",
     creatingAccount: "Sameeitaanka Akoonka...",
@@ -1075,6 +1149,8 @@ export const LANGUAGES = {
     // ProfileScreen translations
     contactInformation: "Macluumaadkaaga",
     help: "Caawimaad",
+    settingsPrivacyPolicySubtitle:
+      "Sida Qoondeeye u maareeyo xogtaada iyo soo dejinta SMS-ka otomaatiga ah.",
     phoneNumber: "Telefoonka",
     noNameProvided: "Magac ma la bixin",
     noPhoneProvided: "Telefoon ma la bixin",
@@ -1315,15 +1391,85 @@ export const LANGUAGES = {
 
     mobileMoney: "Lacagta Mobileka",
 
-    evcSmsAutoImport: "Qabashada Qarashaadka EVC",
+    evcSmsAutoImport: "SMS Auto-Import",
     evcSmsAutoImportSubtitle:
-      "Waxaad lasocon kartaa Qarashaadka EVC (192) waxayna kugu darsami doonta account-ka application-kan. Kaliya qarashaadka EVC ayaa lasoo aqrin doona",
-    evcSmsConsentTitle: "Helitaanka SMS EVC",
+      "Si otomaatig ah u diiwaangeli farriimaha lacagta mobile-ka ee Soomaalida ee la taageerayo.",
+    evcSmsConsentTitle: "Helitaanka SMS soo dejinta",
     evcSmsConsentMessage:
-      "Qoondeeye waxay qaadan kartaa SMS-yada soo gala ee 192 iyo NOTICE (iyo kuwa ku jira EVCPLUS) si loo ogaado lacagaha mobile-ka. Farriimaha kale waa la iska indha tirayaa; ma kaydinayo SMS buuxa—kaliya lacagaha la fahmay iyo qoraallada app-ka.",
+      "Qoondeeye waxay qaadan kartaa SMS cusub si loo ogaado lacagaha mobile-ka iyo bangiga (EVC, Somnet/JEEB, Salaam Bank). Farriimaha kale waa la iska indha tirayaa. Ma kaydinayo SMS buuxa—kaliya qaybaha la fahmay ee app-ka.",
     evcSmsConsentContinue: "Sii wad",
     evcSmsExpoGoHint:
-      "Soo dejinta SMS-ka EVC waxay u baahan tahay build-ka horumarinta ama wax soo saarka (ma aha Expo Go).",
+      "Soo dejinta SMS-ka otomaatiggu waxay u baahan tahay build-ka horumarinta ama wax soo saarka (ma aha Expo Go).",
+    smsAutoImportTitle: "SMS Auto-Import",
+    smsAutoImportSubtitle:
+      "Si otomaatig ah u diiwaangeli farriimaha lacagta mobile-ka ee Soomaalida ee la taageerayo.",
+    smsProviderEvc: "EVC Plus",
+    smsProviderEvcSubtitle: "Hormuud — 192, NOTICE, iyo EVC Plus",
+    smsProviderSomnet: "Somnet / JEEB",
+    smsProviderSomnetSubtitle: "898 ama calaamadaha JEEB",
+    smsProviderSalaam: "Salaam Bank",
+    smsProviderSalaamSubtitle: "Salaam App iyo SMS-yada bangiga aan aqoonsanno",
+    smsProviderSomtel: "Somtel",
+    smsProviderSomtelSubtitle: "Dhowaan — aqoonsi weli lama furo",
+    smsImportAccountsRowTitle: "Akoonnada soo dejinta SMS",
+    smsImportAccountsRowSubtitleEmpty:
+      "Dooro akoon kasta adeegga. SIM-ka waxaa loogu talagalay habka horumarsan oo keliya.",
+    smsImportAccountsRowSubtitleConfigured: "Taabo si aad u beddesho akoonnada",
+    smsImportMappingTitle: "Akoonnada soo dejinta SMS",
+    smsImportMappingSubtitle:
+      "Dooro meesha SMS-yada laga soo dajiyo loo keydin doono. Inta badan hal akoon ayaa ku filan adeeg kasta. SIM 1 / SIM 2 kaliya haddii aad labo lambar SIM ah u leedahay isla adeegga.",
+    smsMapSectionAllProviders: "Dayn guud",
+    smsMapGlobalDefaultTitle: "Akoonka lagu daydo",
+    smsMapGlobalDefaultHint:
+      "La isticmaalaa kaliya marka adeegga uusan haysan akoon la doortay. Marka la daayo, waxaa la isticmaalaa akoonka caadiga ah ee app-ka.",
+    smsMapSectionEvc: "Hormuud / EVC Plus",
+    smsMapSectionSomnet: "Somnet / JEEB",
+    smsMapSectionSalaam: "Salaam Bank",
+    smsMapProviderFallback: "Akoonka caadiga ah ee bixiyaha (ikhtiyaari)",
+    smsMapEvcMainAccountTitle: "Akoonka ugu weyn ee EVC",
+    smsMapEvcMainAccountHint:
+      "Waxaa loo isticmaalaa dhammaan SMS-yada EVC illaa aad haysato akoon SIM gaar ah.",
+    smsMapSomnetMainAccountTitle: "Akoonka ugu weyn ee Somnet",
+    smsMapSomnetMainAccountHint:
+      "Waxaa loo isticmaalaa dhammaan SMS-yada Somnet/JEEB illaa aad haysato akoon SIM gaar ah.",
+    smsMapAdvancedSimHeading: "Horumar: Akoonnada SIM-ka",
+    smsMapAdvancedSimShow: "Muuji",
+    smsMapAdvancedSimHide: "Qari",
+    smsMapEvcSim1Hint:
+      "Ikhtiyaari — kaliya haddii SIM-kan uu u baahan yahay akoon EVC oo kala duwan.",
+    smsMapEvcSim2Hint:
+      "Ikhtiyaari — kaliya haddii SIM-kan uu u baahan yahay akoon EVC oo kala duwan.",
+    smsMapSomnetSim1Hint:
+      "Ikhtiyaari — kaliya haddii SIM-kan uu u baahan yahay akoon Somnet oo kala duwan.",
+    smsMapSomnetSim2Hint:
+      "Ikhtiyaari — kaliya haddii SIM-kan uu u baahan yahay akoon Somnet oo kala duwan.",
+    smsMapSalaamAccountTitle: "Akoonka Salaam Bank",
+    smsMapSalaamAccountHint: "Waxaa loo isticmaalaa dhammaan SMS-yada Salaam Bank.",
+    smsPickSelectAccount: "Dooro akoon",
+    smsPickHintGlobalDefault: "Marka la nadiifiyo waxay isticmaashaa akoonka caadiga ah ee app-ka.",
+    smsPickHintSim:
+      "Ikhtiyaari — waxay ka badbaadinaysaa akoonka ugu weyn ee SIM-kaas oo keliya.",
+    smsPickHintProviderFallback:
+      "Marka booska SIM uusan haysan akoon SIM gaar ah.",
+    smsPickHintSalaam: "Akoonka ugu horreeya ee Salaam; akoonka lagu daydo ayaa mudnaanta hore haysa haddii la dhigo.",
+    smsPickNotSetGlobal: "Isticmaal akoonka caadiga ah ee app-ka.",
+    smsPickNotSetSim: "Isticmaal akoonka ugu weyn, ka dib kan lagu daydo, ka dib app-ka.",
+    smsPickNotSetProvider: "Isticmaal akoonka lagu daydo, ka dib app-ka.",
+    smsImportNotSetShort: "Lama dhigin",
+    smsImportSim1Label: "SIM 1",
+    smsImportSim2Label: "SIM 2",
+    smsDiscoveryTitle: "SMS Auto-Import",
+    smsDiscoverySubtitle:
+      "Si otomaatig ah u diiwaangeli farriimaha lacagta mobile-ka ee Soomaalida ee la taageerayo.",
+    smsDiscoveryBullet1:
+      "Shid SMS Auto-Import oo oggolow SMS marka nidaamku weydiiyo.",
+    smsDiscoveryBullet2:
+      "Shid EVC Plus, Somnet/JEEB, Salaam Bank, ama Somtel (marka la heli karo), oo ku xidh akoonnada Goobaha haddii aad rabto.",
+    smsDiscoveryBullet3:
+      "Kaliya SMS lacag oo la taageeray ayaa la isticmaalaa; wax kale waa la iska indha tirayaa.",
+    smsDiscoveryOpenSettings: "Fur Goobaha",
+    smsDiscoveryMaybeLater: "Hadba ha iigu soo sheegin",
+    smsDiscoveryDontShowAgain: "Mar dambe ha i tusin",
     evcImportAccountsRowTitle: "SIM 1, SIM 2 & hadii lawayo SIM-ka",
     evcImportAccountsRowSubtitleEmpty:
       "Taabo si aad u doorato koonto SIM kasta iyo caawimaad ikhtiyaari ah marka booska SIM aan la garanayn.",
@@ -1331,15 +1477,15 @@ export const LANGUAGES = {
     evcImportAccountsSummarySim1: "SIM 1",
     evcImportAccountsSummarySim2: "SIM 2",
     evcImportAccountsNotSetShort: "Lama dhigin",
-    evcDiscoveryTitle: "Soo dejinta EVC otomaatig ah",
+    evcDiscoveryTitle: "SMS Auto-Import",
     evcDiscoverySubtitle:
-      "Waxaad waqti u badbaadin kartaa adigoo diiwaan gelinaya wareejinta EVC ee Hormuud SMS-ka. Wax walba waxaad xakameynaysaa Goobaha.",
+      "Si otomaatig ah u diiwaangeli farriimaha lacagta mobile-ka ee Soomaalida ee la taageerayo.",
     evcDiscoveryBullet1:
-      "Shid soo dejinta SMS-ka EVC oo oggolow ogolaanshaha SMS marka la weydiiyo.",
+      "Shid SMS Auto-Import oo oggolow SMS marka nidaamku weydiiyo.",
     evcDiscoveryBullet2:
-      "Ikhtiyaari: dooro koontada caawimaad, ama ku xidh SIM 1 iyo SIM 2 koonto kala duwan (laba SIM).",
+      "Shid EVC Plus, Somnet/JEEB, Salaam Bank, ama Somtel (marka la heli karo), oo ku xidh akoonnada Goobaha haddii aad rabto.",
     evcDiscoveryBullet3:
-      "Kaliya farriimaha EVC ayaa la isticmaalaa; SMS kale waa la iska indha tirayaa.",
+      "Kaliya SMS lacag oo la taageeray ayaa la isticmaalaa; wax kale waa la iska indha tirayaa.",
     evcDiscoveryOpenSettings: "Fur Goobaha",
     evcDiscoveryMaybeLater: "Hadba ha iigu soo sheegin",
     evcDiscoveryDontShowAgain: "Mar dambe ha i tusin",
@@ -1855,7 +2001,7 @@ export const LANGUAGES = {
     // Onboarding translations (3 slides)
     onboardingSlide1:
       "Miisaaniyadda caqliga leh halkan ka bilow—la soco lacag kasta",
-    onboardingSlide2: "Warbixinno qurux badan—arag qaababka kharashkaaga",
+    onboardingSlide2: "Warbixinno qurux badan lasoco kharashaadkaaga",
     onboardingSlide3:
       "Wax kasta oo aad u baahan tahay—miisaaniyad, hadaf, amaah, iyo wax kale",
     next: "Xiga",

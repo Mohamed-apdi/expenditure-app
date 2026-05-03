@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /** @deprecated Legacy global toggle; migrated once to per-user keys. */
 const KEY_ENABLED_LEGACY = "@evc_sms_user_enabled_v1";
-const KEY_ENABLED_PER_USER_PREFIX = "@evc_sms_user_enabled_per_user_v1:";
+export const KEY_ENABLED_PER_USER_PREFIX = "@evc_sms_user_enabled_per_user_v1:";
 const KEY_ENABLED_LEGACY_MIGRATED = "@evc_sms_user_enabled_legacy_migrated_v1";
 
 function keyUserEnabled(userId: string): string {
@@ -13,7 +13,7 @@ function keyUserEnabled(userId: string): string {
  * First logged-in user after upgrade keeps the old global ON/OFF value;
  * the legacy key is removed so other accounts on the device do not inherit it.
  */
-async function migrateLegacyEvcEnabledOnce(currentUserId: string): Promise<void> {
+export async function migrateLegacyEvcEnabledOnce(currentUserId: string): Promise<void> {
   try {
     const migrated = await AsyncStorage.getItem(KEY_ENABLED_LEGACY_MIGRATED);
     if (migrated === "true") return;
@@ -28,8 +28,8 @@ async function migrateLegacyEvcEnabledOnce(currentUserId: string): Promise<void>
   }
 }
 const KEY_CONSENT = "@evc_sms_consent_v1";
-const KEY_IMPORT_ACCOUNT_PREFIX = "@evc_sms_import_account_v1:"; // + userId
-const KEY_SIM_MAP_PREFIX = "@evc_sms_import_account_sim_map_v1:"; // + userId
+export const KEY_IMPORT_ACCOUNT_PREFIX = "@evc_sms_import_account_v1:"; // + userId
+export const KEY_SIM_MAP_PREFIX = "@evc_sms_import_account_sim_map_v1:"; // + userId
 const KEY_SLOT_SCHEME_PREFIX = "@evc_sms_slot_scheme_v1:"; // + userId
 const KEY_DISCOVERY_DISMISSED_PREFIX = "@evc_sms_discovery_sheet_dismissed_v1:"; // + userId
 
@@ -55,8 +55,39 @@ export async function setEvcDiscoverySheetDismissedForever(
   await AsyncStorage.setItem(keyDiscoveryDismissed(userId), "true");
 }
 
-/** True when user has already enabled EVC or configured any import account mapping. */
+function providerHasAccountMapping(p: {
+  defaultAccountId: string | null;
+  sim1AccountId: string | null;
+  sim2AccountId: string | null;
+}): boolean {
+  return !!(p.defaultAccountId || p.sim1AccountId || p.sim2AccountId);
+}
+
+/** True when SMS auto-import is on (global + a provider) or any import account mapping exists. */
 export async function isEvcDiscoverySetupComplete(userId: string): Promise<boolean> {
+  try {
+    const { getSmsImportSettings } = await import("./smsImportSettings");
+    const s = await getSmsImportSettings(userId);
+    if (
+      s.globalEnabled &&
+      (s.evc.enabled ||
+        s.somnet_jeeb.enabled ||
+        s.salaam_bank.enabled ||
+        s.somtel.enabled)
+    ) {
+      return true;
+    }
+    if (s.globalDefaultAccountId) return true;
+    if (
+      providerHasAccountMapping(s.evc) ||
+      providerHasAccountMapping(s.somnet_jeeb) ||
+      providerHasAccountMapping(s.salaam_bank)
+    ) {
+      return true;
+    }
+  } catch {
+    // fall through
+  }
   if (await getEvcSmsUserEnabled(userId)) return true;
   const fallback = await getEvcImportAccountId(userId);
   if (fallback) return true;
@@ -68,6 +99,25 @@ export async function isEvcDiscoverySetupComplete(userId: string): Promise<boole
 export async function getEvcSmsUserEnabled(userId: string): Promise<boolean> {
   await migrateLegacyEvcEnabledOnce(userId);
   try {
+    const v2 = await AsyncStorage.getItem(`@sms_import_settings_v2:${userId}`);
+    if (v2) {
+      const s = JSON.parse(v2) as {
+        globalEnabled?: boolean;
+        evc?: { enabled?: boolean };
+        somnet_jeeb?: { enabled?: boolean };
+        salaam_bank?: { enabled?: boolean };
+        somtel?: { enabled?: boolean };
+      };
+      if (s && typeof s === "object") {
+        if (s.globalEnabled !== true) return false;
+        return !!(
+          s.evc?.enabled ||
+          s.somnet_jeeb?.enabled ||
+          s.salaam_bank?.enabled ||
+          s.somtel?.enabled
+        );
+      }
+    }
     const v = await AsyncStorage.getItem(keyUserEnabled(userId));
     return v === "true";
   } catch {
@@ -80,7 +130,27 @@ export async function setEvcSmsUserEnabled(
   enabled: boolean,
 ): Promise<void> {
   await migrateLegacyEvcEnabledOnce(userId);
-  await AsyncStorage.setItem(keyUserEnabled(userId), enabled ? "true" : "false");
+  try {
+    const { getSmsImportSettings, saveSmsImportSettings } = await import("./smsImportSettings");
+    const cur = await getSmsImportSettings(userId);
+    const next = enabled
+      ? { ...cur, globalEnabled: true, evc: { ...cur.evc, enabled: true } }
+      : {
+          ...cur,
+          globalEnabled: false,
+          evc: { ...cur.evc, enabled: false },
+          somnet_jeeb: { ...cur.somnet_jeeb, enabled: false },
+          salaam_bank: { ...cur.salaam_bank, enabled: false },
+          somtel: { ...cur.somtel, enabled: false },
+        };
+    await saveSmsImportSettings(userId, next);
+    await AsyncStorage.setItem(
+      keyUserEnabled(userId),
+      next.globalEnabled && next.evc.enabled ? "true" : "false",
+    );
+  } catch {
+    await AsyncStorage.setItem(keyUserEnabled(userId), enabled ? "true" : "false");
+  }
 }
 
 type SimAccountMap = Partial<Record<"sim1" | "sim2", string>>;
@@ -165,12 +235,15 @@ export async function setEvcImportAccountForSim(
   await AsyncStorage.setItem(keySimMap(userId), JSON.stringify(next));
 }
 
-// Native mirror so the manifest receiver can respect the toggle when JS isn't running.
-export async function syncEvcSmsNativeEnabledFlag(enabled: boolean): Promise<void> {
+/** Push full SMS import config to native prefs (receiver + queue path). */
+export async function syncEvcSmsNativeEnabledFlag(_enabled: boolean): Promise<void> {
   try {
-    const { requireOptionalNativeModule } = await import("expo-modules-core");
-    const mod = requireOptionalNativeModule<any>("ExpoEvcSms");
-    mod?.setNativeEnabled?.(enabled);
+    const { getCurrentUserOfflineFirst } = await import("../auth");
+    const user = await getCurrentUserOfflineFirst();
+    if (!user) return;
+    const { getSmsImportSettings, syncNativeSmsImportConfig } = await import("./smsImportSettings");
+    const s = await getSmsImportSettings(user.id);
+    await syncNativeSmsImportConfig(s);
   } catch {
     // ignore
   }

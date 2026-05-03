@@ -79,12 +79,12 @@ export default function AuthCallbackScreen() {
             await setItemAsync("userId", data.user.id);
             await setItemAsync("supabase_session", JSON.stringify(data.session));
 
-            setStatus("Setting up your account...");
+            setStatus("Loading your accounts...");
             try {
-              const { ensureDefaultAccount } = await import("~/lib/services/accounts");
-              await ensureDefaultAccount(data.user.id);
+              const { syncAccountsFromServer } = await import("~/lib/services/accounts");
+              await syncAccountsFromServer(data.user.id);
             } catch (accountError) {
-              console.error("Error creating default account:", accountError);
+              console.error("Error syncing accounts:", accountError);
             }
 
             Toast.show({ type: "success", text1: "Signed in successfully" });

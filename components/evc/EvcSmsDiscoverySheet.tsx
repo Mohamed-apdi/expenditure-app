@@ -62,7 +62,7 @@ function Bullet({
 }
 
 /**
- * One-time style post-login sheet: explains EVC SMS import + optional SIM1/SIM2 mapping.
+ * One-time post-login sheet: SMS Auto-Import overview (Android, not Expo Go).
  */
 export function EvcSmsDiscoverySheet({
   visible,
@@ -137,7 +137,7 @@ export function EvcSmsDiscoverySheet({
               marginBottom: 8,
             }}
           >
-            {t.evcDiscoveryTitle}
+            {t.smsDiscoveryTitle}
           </Text>
           <Text
             style={{
@@ -147,7 +147,7 @@ export function EvcSmsDiscoverySheet({
               marginBottom: 18,
             }}
           >
-            {t.evcDiscoverySubtitle}
+            {t.smsDiscoverySubtitle}
           </Text>
 
           <ScrollView
@@ -155,9 +155,9 @@ export function EvcSmsDiscoverySheet({
             keyboardShouldPersistTaps="handled"
             style={{ maxHeight: 280 }}
           >
-            <Bullet text={t.evcDiscoveryBullet1} theme={theme} />
-            <Bullet text={t.evcDiscoveryBullet2} theme={theme} />
-            <Bullet text={t.evcDiscoveryBullet3} theme={theme} />
+            <Bullet text={t.smsDiscoveryBullet1} theme={theme} />
+            <Bullet text={t.smsDiscoveryBullet2} theme={theme} />
+            <Bullet text={t.smsDiscoveryBullet3} theme={theme} />
           </ScrollView>
 
           <TouchableOpacity
@@ -174,7 +174,7 @@ export function EvcSmsDiscoverySheet({
             }}
           >
             <Text style={{ color: "#fff", fontSize: 16, fontWeight: "800" }}>
-              {t.evcDiscoveryOpenSettings}
+              {t.smsDiscoveryOpenSettings}
             </Text>
           </TouchableOpacity>
 
@@ -192,7 +192,7 @@ export function EvcSmsDiscoverySheet({
             }}
           >
             <Text style={{ color: theme.text, fontSize: 15, fontWeight: "700" }}>
-              {t.evcDiscoveryMaybeLater}
+              {t.smsDiscoveryMaybeLater}
             </Text>
           </TouchableOpacity>
 
@@ -202,7 +202,7 @@ export function EvcSmsDiscoverySheet({
             style={{ marginTop: 14, paddingVertical: 8, alignItems: "center" }}
           >
             <Text style={{ color: theme.textMuted, fontSize: 13, fontWeight: "600" }}>
-              {t.evcDiscoveryDontShowAgain}
+              {t.smsDiscoveryDontShowAgain}
             </Text>
           </TouchableOpacity>
         </Pressable>

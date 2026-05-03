@@ -10,7 +10,15 @@ export type EvcMessageKind =
   | "topup"
   | "bundle_notice";
 
-const EXPENSE_SEND = ["uwareejisay", "diray", "wareejisay"] as const;
+const EXPENSE_SEND = [
+  "uwareejisay",
+  "u wareejisay",
+  "diray",
+  "wareejisay",
+  /** EVC → Somnet / similar: "ayaad u dirtay … (252…)" */
+  "ayaad u dirtay",
+  "u dirtay",
+] as const;
 const INCOME = ["ka heshay", "laguu soo diray", "heshay"] as const;
 const TOPUP = ["ugu shubtay"] as const;
 
@@ -30,7 +38,11 @@ export function normalizeSender(sender: string): string {
 
 export function passesContentFilter(senderNorm: string, body: string): boolean {
   if (senderNorm === "192" || senderNorm === "NOTICE") return true;
-  if (body.toUpperCase().includes("EVCPLUS")) return true;
+  const u = body.toUpperCase();
+  if (u.includes("EVCPLUS") || u.includes("[-EVCPLUS-]")) return true;
+  if (body.toLowerCase().includes("evc plus")) return true;
+  if (body.includes("[-JEEB-]") || body.includes("[-jeeb-]")) return true;
+  if (senderNorm.replace(/\s+/g, "") === "898") return true;
   return false;
 }
 

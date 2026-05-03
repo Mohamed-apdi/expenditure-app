@@ -29,7 +29,7 @@ import { useLanguage } from "~/lib";
 import * as WebBrowser from "expo-web-browser";
 import * as AuthSession from "expo-auth-session";
 import { setItemAsync } from "expo-secure-store";
-import { createAccount, fetchAccounts } from "~/lib/services/accounts";
+import { ensureDefaultAccount } from "~/lib/services/accounts";
 
 // Required for Expo OAuth
 WebBrowser.maybeCompleteAuthSession();
@@ -192,23 +192,10 @@ export default function SignupScreen() {
               await setItemAsync('userId', sessionData.user.id);
               await setItemAsync('supabase_session', JSON.stringify(sessionData.session));
 
-              // Create "Account 1" for new social login users
               try {
-                const existingAccounts = await fetchAccounts(sessionData.user.id);
-                if (existingAccounts.length === 0) {
-                  await createAccount({
-                    user_id: sessionData.user.id,
-                    account_type: 'Accounts',
-                    name: 'Account 1',
-                    amount: 0,
-                    description: 'Default account',
-                    is_default: true,
-                    currency: 'USD',
-                  });
-                }
+                await ensureDefaultAccount(sessionData.user.id);
               } catch (accountError) {
-                console.error('Error creating default account:', accountError);
-                // Don't block signup if account creation fails
+                console.error("Error ensuring default account:", accountError);
               }
 
               Toast.show({
@@ -244,23 +231,10 @@ export default function SignupScreen() {
                 await setItemAsync('userId', sessionData.user.id);
                 await setItemAsync('supabase_session', JSON.stringify(sessionData.session));
 
-                // Create "Account 1" for new social login users
                 try {
-                  const existingAccounts = await fetchAccounts(sessionData.user.id);
-                  if (existingAccounts.length === 0) {
-                    await createAccount({
-                      user_id: sessionData.user.id,
-                      account_type: 'Accounts',
-                      name: 'Account 1',
-                      amount: 0,
-                      description: 'Default account',
-                      is_default: true,
-                      currency: 'USD',
-                    });
-                  }
+                  await ensureDefaultAccount(sessionData.user.id);
                 } catch (accountError) {
-                  console.error('Error creating default account:', accountError);
-                  // Don't block signup if account creation fails
+                  console.error("Error ensuring default account:", accountError);
                 }
 
                 Toast.show({

@@ -104,7 +104,7 @@ export type Transaction = {
   /** Expense row created with this transaction from the same SMS */
   source_expense_id?: string | null;
   /** Payment rail (local / client-only until DB column exists); use with `getTransactionSource` */
-  source?: "evc";
+  source?: "evc" | "somnet_jeeb" | "salaam_bank" | "somtel";
 };
 
 export type Transfer = {
