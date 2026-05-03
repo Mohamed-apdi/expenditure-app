@@ -27,7 +27,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { toast } from "sonner-native";
 import { supabase, useLanguage, useScreenStatusBar, useTheme } from "~/lib";
 import { APP_COLORS } from "~/lib/config/theme/constants";
-import { ensureDefaultAccount } from "~/lib/services/accounts";
+import {
+  ensureDefaultAccount,
+  syncAccountsFromServer,
+} from "~/lib/services/accounts";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -110,7 +113,7 @@ export default function AuthGateScreen() {
           await deleteItemAsync("userId");
           await deleteItemAsync("supabase_session");
         }
-        await ensureDefaultAccount(data.user.id);
+        await syncAccountsFromServer(data.user.id);
         toast.success(t.loginSuccessfully);
         router.replace("/(main)/Dashboard");
       } else {
@@ -236,9 +239,9 @@ export default function AuthGateScreen() {
               JSON.stringify(sessionData.session),
             );
             try {
-              await ensureDefaultAccount(sessionData.user.id);
+              await syncAccountsFromServer(sessionData.user.id);
             } catch {
-              // Don't block sign-in if default account creation fails
+              // Don't block sign-in if account sync fails
             }
             toast.success(t.loginSuccessfully);
             router.replace("/(main)/Dashboard");

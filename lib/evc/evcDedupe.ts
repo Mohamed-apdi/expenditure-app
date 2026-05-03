@@ -42,10 +42,52 @@ function amountKey(amount: number): string {
   return Number(amount.toFixed(4)).toString();
 }
 
+function balanceDedupePart(balance: number | null | undefined): string {
+  if (balance == null || !Number.isFinite(balance)) return "na";
+  return amountKey(balance);
+}
+
 /**
- * Single canonical identity for an EVC money movement (live SMS or native row).
+ * Single canonical identity for SMS import (live or native queue).
  * Does not use SMS body text so native-queue and live paths always match.
  */
+export function buildCanonicalSmsDedupeKey(parts: {
+  provider?: string | null;
+  sender: string;
+  kind: string;
+  amount: number;
+  dateIso?: string | null;
+  tarRaw?: string | null;
+  phone?: string | null;
+  merchantName?: string | null;
+  counterpartyName?: string | null;
+  rawType?: string | null;
+  reference?: string | null;
+  transactionId?: string | null;
+  accountNumber?: string | null;
+  /** When set, avoids false duplicate suppression for same amount/tar-less rows (e.g. micro bank credits). */
+  balance?: number | null;
+}): string {
+  const raw = [
+    normalizeDedupeText(parts.provider ?? "evc"),
+    normalizeSender(parts.sender),
+    parts.kind,
+    amountKey(parts.amount),
+    parts.dateIso?.trim() || "na",
+    (parts.tarRaw?.trim() || "na").toLowerCase(),
+    normalizePhoneKey(parts.phone),
+    normalizeDedupeText(parts.merchantName),
+    normalizeDedupeText(parts.counterpartyName),
+    normalizeDedupeText(parts.rawType),
+    normalizeDedupeText(parts.reference),
+    normalizeDedupeText(parts.transactionId),
+    normalizeDedupeText(parts.accountNumber),
+    balanceDedupePart(parts.balance),
+  ].join("|");
+  return hashDjb2(raw);
+}
+
+/** @deprecated Use {@link buildCanonicalSmsDedupeKey}; kept for tests and older call sites. */
 export function buildCanonicalEvcDedupeKey(parts: {
   sender: string;
   kind: string;
@@ -56,17 +98,7 @@ export function buildCanonicalEvcDedupeKey(parts: {
   merchantName?: string | null;
   counterpartyName?: string | null;
 }): string {
-  const raw = [
-    normalizeSender(parts.sender),
-    parts.kind,
-    amountKey(parts.amount),
-    parts.dateIso?.trim() || "na",
-    (parts.tarRaw?.trim() || "na").toLowerCase(),
-    normalizePhoneKey(parts.phone),
-    normalizeDedupeText(parts.merchantName),
-    normalizeDedupeText(parts.counterpartyName),
-  ].join("|");
-  return hashDjb2(raw);
+  return buildCanonicalSmsDedupeKey({ ...parts, provider: "evc" });
 }
 
 async function readStore(): Promise<DedupeEntry[]> {

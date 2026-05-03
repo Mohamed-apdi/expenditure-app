@@ -63,6 +63,26 @@ class ExpoEvcSmsModule : Module() {
       true
     }
 
+    Function("setSmsImportConfig") { config: Map<String, Any?> ->
+      val ctx = dbContext() ?: return@Function false
+      fun Any?.asBool(): Boolean = when (this) {
+        is Boolean -> this
+        is Number -> this.toInt() != 0
+        else -> false
+      }
+      EvcSmsPrefs.setSmsImportConfig(
+        ctx,
+        EvcSmsPrefs.SmsImportConfig(
+          globalEnabled = config["globalEnabled"].asBool(),
+          providerEvc = config["providerEvc"].asBool(),
+          providerSomnetJeeb = config["providerSomnetJeeb"].asBool(),
+          providerSalaamBank = config["providerSalaamBank"].asBool(),
+          providerSomtel = config["providerSomtel"].asBool(),
+        ),
+      )
+      true
+    }
+
     Function("peekPendingRows") { limit: Int ->
       val ctx = dbContext() ?: return@Function emptyList<Map<String, Any?>>()
       return@Function EvcSmsDb(ctx).peek(limit)

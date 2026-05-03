@@ -2,10 +2,11 @@ import { Platform, PermissionsAndroid } from "react-native";
 import { EventEmitter, requireOptionalNativeModule } from "expo-modules-core";
 import { getCurrentUserOfflineFirst } from "../auth";
 import { isExpoGo } from "../utils/expoGoUtils";
-import { getEvcSmsUserEnabled } from "./evcSmsSettings";
+import { getSmsImportSettings, syncNativeSmsImportConfig } from "./smsImportSettings";
 
 export type NativeEvcPendingRowNative = {
   id: number;
+  provider?: string | null;
   sender: string;
   kind: string;
   amount?: number | null;
@@ -17,6 +18,13 @@ export type NativeEvcPendingRowNative = {
   noticeSummary?: string | null;
   subId?: number | null;
   slot?: number | null;
+  rawType?: string | null;
+  reference?: string | null;
+  transactionId?: string | null;
+  accountNumber?: string | null;
+  balance?: number | null;
+  currency?: string | null;
+  note?: string | null;
   createdAt: number;
 };
 
@@ -30,6 +38,7 @@ type EvcNative = {
     enabledPref?: boolean;
   };
   setNativeEnabled?: (enabled: boolean) => boolean;
+  setSmsImportConfig?: (c: Record<string, boolean>) => boolean;
   peekPendingRows?: (limit: number) => NativeEvcPendingRowNative[];
   deletePendingRowsByIds?: (ids: number[]) => boolean;
 };
@@ -64,12 +73,24 @@ async function hasSmsPermissions(): Promise<boolean> {
 export async function syncEvcSmsNativeListening(): Promise<void> {
   if (!isEvcSmsNativeAvailable() || !NativeMod) return;
   const user = await getCurrentUserOfflineFirst();
-  const want = user ? await getEvcSmsUserEnabled(user.id) : false;
-  try {
-    NativeMod.setNativeEnabled?.(want);
-  } catch {
-    // ignore
+  if (!user) {
+    try {
+      NativeMod.setSmsImportConfig?.({
+        globalEnabled: false,
+        providerEvc: false,
+        providerSomnetJeeb: false,
+        providerSalaamBank: false,
+        providerSomtel: false,
+      });
+    } catch {
+      /* ignore */
+    }
+    await NativeMod.setListeningEnabled(false);
+    return;
   }
+  const s = await getSmsImportSettings(user.id);
+  await syncNativeSmsImportConfig(s);
+  const want = s.globalEnabled;
   if (!want) {
     await NativeMod.setListeningEnabled(false);
     return;

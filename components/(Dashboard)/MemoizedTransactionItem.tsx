@@ -137,14 +137,15 @@ const MemoizedTransactionItem = memo<TransactionItemProps>(
     const cleanNote = stripLegacyEvcDescriptionForListTitle(
       transaction.description,
     );
-    const fromEvc = getTransactionSource(transaction) === "evc";
+    const smsSource = getTransactionSource(transaction);
+    const fromSmsImport = smsSource != null;
     /** List title: name when uncategorized; name or category when categorized (no "Categorize this transaction" here). */
     const titleLine = categoryMissing
       ? cleanNote || t.noDescription
       : cleanNote || categoryLabel;
 
     const evcSubtitle =
-      fromEvc && !categoryMissing
+      fromSmsImport && !categoryMissing
         ? formatEvcCategoryChannelSubtitle(
             categoryLabel,
             transaction.type,
@@ -152,11 +153,12 @@ const MemoizedTransactionItem = memo<TransactionItemProps>(
               sentViaEvc: t.transactionSentViaEvc,
               receivedViaEvc: t.transactionReceivedViaEvc,
             },
+            smsSource,
           )
         : null;
 
     const nonEvcSubtitle =
-      !fromEvc && !categoryMissing && cleanNote
+      !fromSmsImport && !categoryMissing && cleanNote
         ? categoryLabel
         : null;
 

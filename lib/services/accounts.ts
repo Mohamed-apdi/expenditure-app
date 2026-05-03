@@ -254,12 +254,30 @@ export const getDefaultAccount = async (
 export const DEFAULT_ACCOUNT_NAME = "Main Account";
 
 /**
- * Ensures the user has exactly one default account. If they have no accounts,
- * creates one (behind the scenes). Idempotent: safe to call on every login/signup.
- * Used to satisfy "auto create default account on registration" (spec 004).
- * 
- * IMPORTANT: Always checks server FIRST to prevent duplicate creation.
- * The server is the source of truth for account existence.
+ * Pulls accounts from Supabase into the local store. Never inserts rows.
+ * Use on every sign-in so returning users never get a spurious extra account.
+ */
+export async function syncAccountsFromServer(userId: string): Promise<void> {
+  const { setAccountsFromServer } = await import("../stores/accountsStore");
+  try {
+    const serverAccounts = await fetchAccounts(userId);
+    if (serverAccounts.length > 0) {
+      setAccountsFromServer(
+        userId,
+        serverAccounts as unknown as Array<Record<string, unknown>>,
+      );
+    }
+  } catch (e) {
+    console.error("syncAccountsFromServer: fetch failed", e);
+  }
+}
+
+/**
+ * Ensures the user has at least one account when they truly have none on the server.
+ * Call from **signup / first session** flows only — not from routine login, so
+ * renamed accounts and multi-account users are never duplicated if a fetch races empty.
+ *
+ * Always checks server first; never creates when the fetch fails (ambiguous).
  */
 export const ensureDefaultAccount = async (userId: string): Promise<void> => {
   const { selectAccounts, setAccountsFromServer } = await import("../stores/accountsStore");

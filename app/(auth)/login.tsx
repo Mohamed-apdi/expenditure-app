@@ -24,7 +24,6 @@ import * as AuthSession from 'expo-auth-session';
 import Toast from 'react-native-toast-message';
 import { useTheme } from '~/lib';
 import { useLanguage } from '~/lib';
-import { createAccount, fetchAccounts } from '~/lib/services/accounts';
 
 // Required for Expo OAuth
 WebBrowser.maybeCompleteAuthSession();
@@ -145,25 +144,6 @@ export default function LoginScreen() {
               await setItemAsync('userId', sessionData.user.id);
               await setItemAsync('supabase_session', JSON.stringify(sessionData.session));
 
-              // Check if user has any accounts, if not create "Account 1"
-              try {
-                const existingAccounts = await fetchAccounts(sessionData.user.id);
-                if (existingAccounts.length === 0) {
-                  await createAccount({
-                    user_id: sessionData.user.id,
-                    account_type: 'Accounts',
-                    name: 'Account 1',
-                    amount: 0,
-                    description: 'Default account',
-                    is_default: true,
-                    currency: 'USD',
-                  });
-                }
-              } catch (accountError) {
-                console.error('Error creating default account:', accountError);
-                // Don't block login if account creation fails
-              }
-
               Toast.show({
                 type: 'success',
                 position: 'top',
@@ -195,25 +175,6 @@ export default function LoginScreen() {
                 await setItemAsync('token', sessionData.session.access_token);
                 await setItemAsync('userId', sessionData.user.id);
                 await setItemAsync('supabase_session', JSON.stringify(sessionData.session));
-
-                // Check if user has any accounts, if not create "Account 1"
-                try {
-                  const existingAccounts = await fetchAccounts(sessionData.user.id);
-                  if (existingAccounts.length === 0) {
-                    await createAccount({
-                      user_id: sessionData.user.id,
-                      account_type: 'Accounts',
-                      name: 'Account 1',
-                      amount: 0,
-                      description: 'Default account',
-                      is_default: true,
-                      currency: 'USD',
-                    });
-                  }
-                } catch (accountError) {
-                  console.error('Error creating default account:', accountError);
-                  // Don't block login if account creation fails
-                }
 
                 Toast.show({
                   type: 'success',

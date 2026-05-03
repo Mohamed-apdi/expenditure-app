@@ -35,6 +35,14 @@ describe("getTransactionSource", () => {
       }),
     ).toBeUndefined();
   });
+
+  it("returns somnet_jeeb when source is set", () => {
+    expect(getTransactionSource({ source: "somnet_jeeb" })).toBe("somnet_jeeb");
+  });
+
+  it("returns salaam_bank when source is set", () => {
+    expect(getTransactionSource({ source: "salaam_bank" })).toBe("salaam_bank");
+  });
 });
 
 describe("formatEvcCategoryChannelSubtitle", () => {
@@ -60,6 +68,18 @@ describe("formatEvcCategoryChannelSubtitle", () => {
       "Transfer • EVC",
     );
   });
+
+  it("uses Somnet channel when source is somnet_jeeb", () => {
+    expect(
+      formatEvcCategoryChannelSubtitle("Food", "expense", labels, "somnet_jeeb"),
+    ).toBe("Food • Somnet");
+  });
+
+  it("uses Salaam Bank channel when source is salaam_bank", () => {
+    expect(
+      formatEvcCategoryChannelSubtitle("Salary", "income", labels, "salaam_bank"),
+    ).toBe("Salary • Salaam Bank");
+  });
 });
 
 describe("evcDetailViaLabel", () => {
@@ -78,5 +98,9 @@ describe("evcDetailViaLabel", () => {
 
   it("returns null for transfer", () => {
     expect(evcDetailViaLabel({ type: "transfer" }, labels)).toBeNull();
+  });
+
+  it("returns Somnet for explicit source", () => {
+    expect(evcDetailViaLabel({ type: "expense" }, labels, "somnet_jeeb")).toBe("Somnet");
   });
 });

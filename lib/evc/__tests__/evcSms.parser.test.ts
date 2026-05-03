@@ -18,6 +18,8 @@ const MERCH_192 =
   "[-EVCPlus-] $1.89 Ayaad uwareejisay HAYAT MARKET CASHIER 31(709540), Tel: +252610433145, Tar: 19/03/26 16:11:20, Haraagaagu waa $220.25.";
 const TOPUP_192 =
   "[-EVCPlus-] Waxaad $0.5 ugu shubtay 252612673277, Haraagaagu waa $142.";
+const SEND_SOMNET_DIRTAY =
+  "[-EVCPLUS-] Tixraac: 2361595058, $0.01 ayaad u dirtay 252684387407 252684387407 252684387407(252684387407) via 252684387407 252684387407 252684387407,Tar: 03/05/26 06:43:57 haraagaagu waa $0.7.";
 const NOTICE =
   "Waxaad heshay Anfacplus_Minutes 30 daqiiqado, waqtiga uu dhacayo: 08:27:43 30/03/2026. Anfacplus_data 850.000 MB...";
 
@@ -38,10 +40,18 @@ describe("classifyEvcMessage", () => {
     expect(classifyEvcMessage("192", MERCH_192)).toBe("send_merchant");
     expect(classifyEvcMessage("192", TOPUP_192)).toBe("topup");
     expect(classifyEvcMessage("NOTICE", NOTICE)).toBe("bundle_notice");
+    expect(classifyEvcMessage("192", SEND_SOMNET_DIRTAY)).toBe("send_p2p");
   });
 });
 
 describe("parseEvcFields", () => {
+  it("parses Somnet dirtay send phone and skips Tixraac ref", () => {
+    const s = parseEvcFields("send_p2p", SEND_SOMNET_DIRTAY);
+    expect(s.amount).toBe(0.01);
+    expect(s.phone).toBe("252684387407");
+    expect(s.balanceAfter).toBe(0.7);
+  });
+
   it("parses amounts and Tar from 192 samples", () => {
     const s = parseEvcFields("send_p2p", SEND_192);
     expect(s.amount).toBe(1);
@@ -57,6 +67,7 @@ describe("parseEvcFields", () => {
 
   it("extractPrimaryAmount", () => {
     expect(extractPrimaryAmount(SEND_192)).toBe(1);
+    expect(extractPrimaryAmount("[-EVCPlus-] waxaad \uFF04 0.01 ka heshay X(Y)")).toBe(0.01);
   });
 
   it("parses receive phone from laguu soo diray", () => {

@@ -8,8 +8,8 @@ import android.telephony.SubscriptionManager
 import android.util.Log
 
 /**
- * Manifest-registered SMS receiver for best reliability on newer Android/OEM builds.
- * Only forwards EVC-related messages (privacy).
+ * Manifest-registered SMS receiver. Forwards only when global SMS import is on,
+ * a supported provider is detected, and that provider is enabled in native prefs.
  */
 class SmsBroadcastReceiver : BroadcastReceiver() {
   private val tag = "ExpoEvcSms"
@@ -18,7 +18,9 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
     if (context == null) return
     val appCtx = context.applicationContext
     if (Telephony.Sms.Intents.SMS_RECEIVED_ACTION != intent?.action) return
-    if (!EvcSmsPrefs.isEnabled(appCtx)) return
+
+    val cfg = EvcSmsPrefs.getSmsImportConfig(appCtx)
+    if (!cfg.globalEnabled) return
 
     val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
     if (messages.isEmpty()) return
@@ -27,38 +29,35 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
     val body = messages.joinToString(separator = "") { it.messageBody ?: "" }
     val sender = messages[0].originatingAddress?.trim() ?: ""
 
-    val forwarded = shouldForward(sender, body)
+    val forwarded = shouldForward(appCtx, sender, body)
     Log.i(tag, "manifestReceiver(sender=$sender, bodyLen=${body.length}, forwarded=$forwarded, slot=${sim.slot}, subId=${sim.subId})")
 
     if (!forwarded) return
 
-    val parsed = EvcSmsParser.parse(sender, body).copy(
+    val parsed = SmsImportParser.parse(sender, body).copy(
       slot = sim.slot,
-      subId = sim.subId
+      subId = sim.subId,
     )
     if (parsed.kind == "ignored") return
-    // If JS is running, it applies from the live event — do not queue the same SMS (would duplicate on resume).
+
     val deliveredLive = EvcSmsBridge.notifySmsReceived(
       sender = sender,
       body = body,
       forwarded = forwarded,
       slot = sim.slot,
-      subId = sim.subId
+      subId = sim.subId,
     )
     if (!deliveredLive) {
-      // Privacy: persist only parsed fields (never full SMS).
-      // applicationContext: same DB path as JS peek/delete; survives receiver Context quirks.
       EvcSmsDb(appCtx).insert(parsed)
     }
   }
 
   private data class SimInfo(
     val slot: Int?,
-    val subId: Long?
+    val subId: Long?,
   )
 
   private fun extractSimInfo(intent: Intent, messages: Array<android.telephony.SmsMessage>): SimInfo {
-    // Prefer standardized extras if present (may vary by OEM/OS for SMS_RECEIVED_ACTION).
     val extras = intent.extras
     val slotFromExtras = extras?.let { b ->
       when {
@@ -81,7 +80,6 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
       }
     }
 
-    // Some devices expose subscription id on SmsMessage. Use reflection to stay compatible.
     val subFromMessage = try {
       val m0 = messages[0]
       val method = m0.javaClass.methods.firstOrNull {
@@ -92,12 +90,10 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
       null
     }
 
-    // Some devices return 0 for unknown subscription on SmsMessage; treat that as "missing".
     val subFromMessageSafe = subFromMessage?.takeIf { it > 0 }
     val subId = subFromMessageSafe ?: subFromExtras
     val derivedSlot = if (subId != null) {
       try {
-        // Returns 0/1 for SIM slot index on modern Android, no extra permission required.
         SubscriptionManager.getSlotIndex(subId.toInt()).takeIf { it >= 0 }
       } catch (_: Throwable) {
         null
@@ -106,15 +102,13 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
 
     return SimInfo(
       slot = slot ?: derivedSlot,
-      subId = subId
+      subId = subId,
     )
   }
 
-  private fun shouldForward(originatingAddress: String, body: String): Boolean {
-    val addr = originatingAddress.uppercase().replace(Regex("\\s+"), "")
-    if (addr == "192" || addr == "NOTICE") return true
-    if (body.contains("EVCPLUS", ignoreCase = true)) return true
-    return false
+  private fun shouldForward(context: Context, originatingAddress: String, body: String): Boolean {
+    val provider = SmsProviderDetect.detectProvider(originatingAddress, body) ?: return false
+    if (provider == "somtel") return false
+    return EvcSmsPrefs.isProviderEnabled(context, provider)
   }
 }
-

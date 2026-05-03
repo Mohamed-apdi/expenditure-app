@@ -16,7 +16,9 @@ export type ParsedEvcFields = {
   noticeSummary?: string;
 };
 
-const AMOUNT_RE = /\$\s*([\d]+(?:[.,]\d+)?)/gi;
+/** ASCII `$`, fullwidth `＄`, small `﹩` (some carrier handsets). */
+const DOLLAR = String.raw`(?:\$|\uFF04|\uFE69)`;
+const AMOUNT_RE = new RegExp(`${DOLLAR}\\s*([\\d]+(?:[.,]\\d+)?)`, "gi");
 const TAR_RE =
   /Tar:\s*(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(\d{1,2}:\d{1,2}:\d{1,2})/i;
 const PHONE_LOOSE_RE =
@@ -38,7 +40,7 @@ export function extractPrimaryAmount(body: string): number | undefined {
 
 /** Last "… waa $X" balance line (Haraagaagu / haraagagu variants). */
 export function extractBalanceAfter(body: string): number | undefined {
-  const re = /\bwaa\s+\$\s*([\d]+(?:[.,]\d+)?)/gi;
+  const re = new RegExp(`\\bwaa\\s+${DOLLAR}\\s*([\\d]+(?:[.,]\\d+)?)`, "gi");
   let match: RegExpExecArray | null;
   let last: number | undefined;
   while ((match = re.exec(body)) !== null) {
@@ -72,6 +74,36 @@ function extractPhoneFromSegment(segment: string): string | undefined {
   PHONE_LOOSE_RE.lastIndex = 0;
   const m = PHONE_LOOSE_RE.exec(segment);
   return m?.[0]?.replace(/\s/g, "");
+}
+
+/**
+ * P2P send destination MSISDN. Handles Somnet-style "ayaad u dirtay 252…(252…)" and avoids
+ * mis-reading `Tixraac:` reference digits as the phone.
+ */
+export function extractSendP2pCounterpartyPhone(body: string): string | undefined {
+  const refM = body.match(/Tixraac:\s*(\d+)/i);
+  const tix = refM?.[1]?.replace(/\s/g, "") ?? null;
+  const lower = body.toLowerCase();
+  const dirtIdx = lower.search(/\bayaad\s+u\s+dirtay\b|\bu\s+dirtay\b/);
+  if (dirtIdx >= 0) {
+    const tail = body.slice(dirtIdx);
+    const paren252 = tail.match(/\(\s*(252\d{9})\s*\)/);
+    if (paren252?.[1]) return paren252[1];
+    const m252 = tail.match(/252\d{9}/);
+    if (m252?.[0]) return m252[0];
+  }
+  const preTar = body.split(/\bTar:/i)[0] ?? body;
+  const early252 = preTar.match(/252\d{9}/);
+  if (early252?.[0]) return early252[0];
+
+  const re = new RegExp(`${PHONE_LOOSE_RE.source}`, "gi");
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(body)) !== null) {
+    const p = m[0].replace(/\s/g, "");
+    if (tix && p === tix) continue;
+    return p;
+  }
+  return undefined;
 }
 
 /** P2P send: name before (617703215) */
@@ -138,7 +170,7 @@ export function parseEvcFields(
       return {
         ...base,
         counterpartyName: parseP2PName(body),
-        phone: extractPhoneFromSegment(body),
+        phone: extractSendP2pCounterpartyPhone(body) ?? extractPhoneFromSegment(body),
       };
     case "send_merchant":
       return {

@@ -124,6 +124,7 @@ export default function MainLayout() {
       <Tabs.Screen name="Accounts" options={{ title: "Accounts" }} />
       <Tabs.Screen name="SettingScreen" options={{ href: null }} />
       <Tabs.Screen name="ConflictsScreen" options={{ href: null }} />
+      <Tabs.Screen name="sms-import-accounts" options={{ href: null }} />
     </Tabs>
     <EvcSmsDiscoverySheet
       visible={evcDiscoveryVisible}
