@@ -47,6 +47,28 @@ import {
   passesContentFilter,
   type EvcMessageKind,
 } from "./evcMessageClassifier";
+import type { Account } from "../types/types";
+import { notifySmsImportRecordedIfEligible } from "./smsImportRecordedNotification";
+
+function notifySmsImportSuccess(
+  userId: string,
+  entryType: "income" | "expense",
+  amount: number,
+  parsed: SmsParsedTransaction,
+  account: { id: string; amount: number; name?: string; currency?: string },
+  meta?: { ledgerCategory?: string | null; ledgerDescription?: string | null },
+) {
+  const a = account as Account;
+  void notifySmsImportRecordedIfEligible(userId, {
+    entryType,
+    amount,
+    parsed,
+    accountName: a.name ?? "",
+    accountCurrency: a.currency ?? "USD",
+    ledgerCategory: meta?.ledgerCategory,
+    ledgerDescription: meta?.ledgerDescription,
+  });
+}
 
 function getDefaultAccountForUser(userId: string) {
   const accounts = selectAccounts(userId);
@@ -262,8 +284,11 @@ async function applySmsImportLedgerRow(input: {
   slot?: number | null;
   /** When set (e.g. native queue), skip session resolve — caller must verify user/account. */
   preloaded?: { userId: string; account: { id: string; amount: number } };
+  /** When true, skip JS "recorded" notification (native already showed "Transaction captured"). */
+  suppressImportRecordedNotification?: boolean;
 }): Promise<boolean> {
-  const { parsed, sender, slot, preloaded } = input;
+  const { parsed, sender, slot, preloaded, suppressImportRecordedNotification } = input;
+  const skipRecordedNotify = suppressImportRecordedNotification === true;
   if (parsed.kind === "ignored") return false;
 
   const user = preloaded
@@ -372,6 +397,12 @@ async function applySmsImportLedgerRow(input: {
       source: src,
     });
     updateAccountLocal(account.id, { amount: account.amount + amount });
+    if (!skipRecordedNotify) {
+      notifySmsImportSuccess(user.id, "income", amount, parsed, account, {
+        ledgerCategory: evc.category ?? null,
+        ledgerDescription: description,
+      });
+    }
     if (!(await isOfflineGateLocked())) void triggerSync();
     return true;
   }
@@ -407,6 +438,12 @@ async function applySmsImportLedgerRow(input: {
       source: src,
     });
     updateAccountLocal(account.id, { amount: account.amount - amount });
+    if (!skipRecordedNotify) {
+      notifySmsImportSuccess(user.id, "expense", amount, parsed, account, {
+        ledgerCategory: categoryExpense,
+        ledgerDescription: description,
+      });
+    }
     await pushPending({
       transactionId: tx.id,
       expenseId: exp.id,
@@ -447,6 +484,12 @@ async function applySmsImportLedgerRow(input: {
       source: src,
     });
     updateAccountLocal(account.id, { amount: account.amount - amount });
+    if (!skipRecordedNotify) {
+      notifySmsImportSuccess(user.id, "expense", amount, parsed, account, {
+        ledgerCategory: label,
+        ledgerDescription: label,
+      });
+    }
     if (!(await isOfflineGateLocked())) void triggerSync();
     return true;
   }
@@ -494,6 +537,12 @@ async function applySmsImportLedgerRow(input: {
     source: src,
   });
   updateAccountLocal(account.id, { amount: account.amount - amount });
+  if (!skipRecordedNotify) {
+    notifySmsImportSuccess(user.id, "expense", amount, parsed, account, {
+      ledgerCategory: evc.category ?? null,
+      ledgerDescription: description,
+    });
+  }
 
   if (!(await isOfflineGateLocked())) void triggerSync();
   return true;
@@ -525,6 +574,8 @@ export type NativeEvcPendingRow = {
   balance?: number | null;
   currency?: string | null;
   note?: string | null;
+  /** From native queue: user already saw "Transaction captured" notification. */
+  capturedNotificationShown?: boolean | number | null;
 };
 
 function nativeRowToParsed(row: NativeEvcPendingRow): SmsParsedTransaction {
@@ -575,11 +626,15 @@ async function applyNativeEvcRowToLedgerInner(
   });
   if (!account) return "deferred";
 
+  const suppressRecorded =
+    row.capturedNotificationShown === true || row.capturedNotificationShown === 1;
+
   const ok = await applySmsImportLedgerRow({
     parsed,
     sender: row.sender,
     slot: row.slot ?? null,
     preloaded: { userId: user.id, account },
+    suppressImportRecordedNotification: suppressRecorded,
   });
   return ok ? "applied" : "skipped_duplicate";
 }

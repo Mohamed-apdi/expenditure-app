@@ -15,6 +15,7 @@ object EvcSmsPrefs {
     val providerSomnetJeeb: Boolean,
     val providerSalaamBank: Boolean,
     val providerSomtel: Boolean,
+    val importTransactionNotificationsEnabled: Boolean = true,
   )
 
   private fun defaultFromLegacy(context: Context): SmsImportConfig {
@@ -25,6 +26,7 @@ object EvcSmsPrefs {
       providerSomnetJeeb = false,
       providerSalaamBank = false,
       providerSomtel = false,
+      importTransactionNotificationsEnabled = true,
     )
   }
 
@@ -39,6 +41,7 @@ object EvcSmsPrefs {
         providerSomnetJeeb = o.optBoolean("providerSomnetJeeb", false),
         providerSalaamBank = o.optBoolean("providerSalaamBank", false),
         providerSomtel = o.optBoolean("providerSomtel", false),
+        importTransactionNotificationsEnabled = o.optBoolean("importTransactionNotificationsEnabled", true),
       )
     } catch (_: Exception) {
       defaultFromLegacy(context)
@@ -53,6 +56,7 @@ object EvcSmsPrefs {
     o.put("providerSomnetJeeb", config.providerSomnetJeeb)
     o.put("providerSalaamBank", config.providerSalaamBank)
     o.put("providerSomtel", config.providerSomtel)
+    o.put("importTransactionNotificationsEnabled", config.importTransactionNotificationsEnabled)
     prefs.edit().putString(KEY_SMS_IMPORT_CONFIG, o.toString()).apply()
     // Keep legacy key aligned for older code paths
     prefs.edit().putBoolean(KEY_ENABLED, config.globalEnabled).apply()
@@ -64,7 +68,17 @@ object EvcSmsPrefs {
   /** Legacy bridge from JS `setNativeEnabled`: ON = global + EVC; OFF = all providers off. */
   fun setEnabled(context: Context, enabled: Boolean) {
     if (!enabled) {
-      setSmsImportConfig(context, SmsImportConfig(false, false, false, false, false))
+      setSmsImportConfig(
+        context,
+        SmsImportConfig(
+          globalEnabled = false,
+          providerEvc = false,
+          providerSomnetJeeb = false,
+          providerSalaamBank = false,
+          providerSomtel = false,
+          importTransactionNotificationsEnabled = false,
+        ),
+      )
       return
     }
     val cur = getSmsImportConfig(context)

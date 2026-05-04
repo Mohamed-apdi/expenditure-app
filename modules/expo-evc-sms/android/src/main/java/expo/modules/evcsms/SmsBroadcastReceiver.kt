@@ -48,7 +48,17 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
       subId = sim.subId,
     )
     if (!deliveredLive) {
-      EvcSmsDb(appCtx).insert(parsed)
+      val db = EvcSmsDb(appCtx)
+      val rowId = db.insert(parsed)
+      if (rowId != -1L &&
+        parsed.kind != "bundle_notice" &&
+        cfg.importTransactionNotificationsEnabled
+      ) {
+        val notificationId = ((rowId % 1_000_000L) + 9_000_000L).toInt()
+        if (SmsImportNotificationHelper.tryShowTransactionCaptured(appCtx, notificationId)) {
+          db.markCapturedNotificationShown(rowId)
+        }
+      }
     }
   }
 

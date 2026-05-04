@@ -23,6 +23,8 @@ export type ProviderSmsSettings = {
 export type SmsImportUserSettings = {
   globalEnabled: boolean;
   globalDefaultAccountId: string | null;
+  /** When true (default), show a local notification after each SMS-imported ledger transaction. */
+  importTransactionNotificationsEnabled: boolean;
   evc: ProviderSmsSettings;
   somnet_jeeb: ProviderSmsSettings;
   salaam_bank: ProviderSmsSettings;
@@ -40,6 +42,7 @@ export function defaultSmsImportSettings(): SmsImportUserSettings {
   return {
     globalEnabled: false,
     globalDefaultAccountId: null,
+    importTransactionNotificationsEnabled: true,
     evc: defaultProvider(false),
     somnet_jeeb: defaultProvider(false),
     salaam_bank: defaultProvider(false),
@@ -104,6 +107,8 @@ export async function getSmsImportSettings(userId: string): Promise<SmsImportUse
     return {
       ...defaultSmsImportSettings(),
       ...p,
+      importTransactionNotificationsEnabled:
+        p.importTransactionNotificationsEnabled ?? true,
       evc: { ...defaultProvider(false), ...p.evc },
       somnet_jeeb: { ...defaultProvider(false), ...p.somnet_jeeb },
       salaam_bank: { ...defaultProvider(false), ...p.salaam_bank },
@@ -150,6 +155,7 @@ export function settingsToNativeConfig(s: SmsImportUserSettings): NativeSmsImpor
     providerSomnetJeeb: s.somnet_jeeb.enabled,
     providerSalaamBank: s.salaam_bank.enabled,
     providerSomtel: s.somtel.enabled,
+    importTransactionNotificationsEnabled: s.importTransactionNotificationsEnabled,
   };
 }
 
@@ -166,6 +172,7 @@ export async function syncNativeSmsImportConfig(s: SmsImportUserSettings): Promi
       providerSomnetJeeb: c.providerSomnetJeeb,
       providerSalaamBank: c.providerSalaamBank,
       providerSomtel: c.providerSomtel,
+      importTransactionNotificationsEnabled: c.importTransactionNotificationsEnabled,
     });
   } catch {
     // ignore

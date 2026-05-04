@@ -58,6 +58,11 @@ object SmsImportParser {
     "(\\d*\\.?\\d+)\\s+USD,\\s*AYAA\\s+LA\\s+DHIGAY\\s+KOONTO\\s+(\\S+)\\s+KANA\\s+TIMID\\s+EVC\\+\\s*(\\d[\\d\\s]*)[\\s\\S]*?FAAHFAAHIN:\\s*([^,]+)[\\s\\S]*?Tix:\\s*(\\d+)[\\s\\S]*?Xilliga:\\s*([^\\n.]+)",
     Pattern.CASE_INSENSITIVE,
   )
+  /** Debit from bank account via linked bank card (Somali template). */
+  private val salaamBankCardDebitRe = Pattern.compile(
+    "(\\d*\\.?\\d+)\\s*USD\\s*,\\s*ayaa\\s+laga\\s+saaray\\s+(?:koontadaada|kontadaada)\\s+bangiga\\s+(\\S+?)\\s+ayado\\s+la\\s+istimaalayo\\s+Card\\s+kaaga\\s+bangiga\\.?\\s*Xarunta:\\s*([^,]+),\\s*Tix:\\s*(\\d+)\\s*,\\s*Xilliga:\\s*([^\\n.]+)",
+    Pattern.CASE_INSENSITIVE,
+  )
 
   private val salaamMerchantWords = listOf(
     "MARKET", "CASHIER", "SHOP", "STORE", "HOTEL", "RESTAURANT", "CAFE", "PHARMACY",
@@ -483,6 +488,36 @@ object SmsImportParser {
         currency = "USD",
         rawType = if (merchant) "salaam_app_send_merchant" else "salaam_app_send",
       )
+    }
+
+    if (Pattern.compile("\\bayaa\\s+laga\\s+saaray\\b", Pattern.CASE_INSENSITIVE).matcher(body).find() &&
+      Pattern.compile("card\\s+kaaga\\s+bangiga", Pattern.CASE_INSENSITIVE).matcher(body).find()
+    ) {
+      val mCard = salaamBankCardDebitRe.matcher(body)
+      if (mCard.find()) {
+        val amountCard = parseAmountLoose(mCard.group(1) ?: return null) ?: return null
+        val dCard = parseSalaamBankDate(mCard.group(5)?.trim() ?: "")
+        val tix = mCard.group(4)?.trim() ?: return null
+        val outlet = mCard.group(3)?.trim() ?: return null
+        return EvcSmsParsed(
+          provider = "salaam_bank",
+          kind = "send_merchant",
+          sender = senderTrim,
+          amount = amountCard,
+          dateIso = dCard.first,
+          tarRaw = dCard.second,
+          phone = null,
+          name = null,
+          merchantName = outlet,
+          noticeSummary = null,
+          accountNumber = mCard.group(2)?.trim(),
+          reference = tix,
+          transactionId = tix,
+          currency = "USD",
+          note = "Salaam Bank card",
+          rawType = "salaam_bank_card_debit",
+        )
+      }
     }
 
     if (bu.contains("AYAA LAGU WAREEJIYAY KONTADAADA") && bu.contains("KANA TIMID #EX:")) {

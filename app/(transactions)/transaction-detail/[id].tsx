@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   ChevronLeft,
@@ -19,6 +20,8 @@ import {
   Wallet,
   TrendingUp,
   AlertCircle,
+  Check,
+  MessageSquareText,
 } from "lucide-react-native";
 import { format, formatDistanceToNow } from "date-fns";
 import {
@@ -89,6 +92,8 @@ type Transaction = {
   };
 };
 
+const NOTE_SAVE_DEBOUNCE_MS = 700;
+
 export default function TransactionDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
@@ -96,6 +101,16 @@ export default function TransactionDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
+  const [noteFocused, setNoteFocused] = useState(false);
+  const [noteSaveUi, setNoteSaveUi] = useState<"idle" | "saving" | "saved">(
+    "idle",
+  );
+  const noteTextRef = useRef(noteText);
+  noteTextRef.current = noteText;
+  const noteDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const noteSavedClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveNoteFromFieldRef = useRef<() => Promise<void>>(async () => {});
+  const flushNoteSaveRef = useRef<() => void>(() => {});
   const theme = useTheme();
   const { t } = useLanguage();
   useScreenStatusBar();
@@ -309,94 +324,178 @@ export default function TransactionDetailScreen() {
     setNoteText(transaction.description ?? "");
   }, [transaction?.id, transaction?.description]);
 
+  useEffect(() => {
+    return () => {
+      if (noteDebounceRef.current) {
+        clearTimeout(noteDebounceRef.current);
+        noteDebounceRef.current = null;
+      }
+      if (noteSavedClearRef.current) {
+        clearTimeout(noteSavedClearRef.current);
+        noteSavedClearRef.current = null;
+      }
+    };
+  }, []);
+
+  const clearNoteSavedTimer = () => {
+    if (noteSavedClearRef.current) {
+      clearTimeout(noteSavedClearRef.current);
+      noteSavedClearRef.current = null;
+    }
+  };
+
+  const scheduleNoteSave = () => {
+    if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current);
+    noteDebounceRef.current = setTimeout(() => {
+      noteDebounceRef.current = null;
+      void saveNoteFromFieldRef.current();
+    }, NOTE_SAVE_DEBOUNCE_MS);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        flushNoteSaveRef.current();
+      };
+    }, []),
+  );
+
   async function saveNoteFromField() {
     if (!transaction) return;
     const user = await getCurrentUserOfflineFirst();
     if (!user) return;
 
-    const trimmed = noteText.trim();
+    const trimmed = noteTextRef.current.trim();
     const prev = (transaction.description ?? "").trim();
     if (trimmed === prev) return;
 
-    const persistEvcNoteMemory = (phoneRaw: string | null | undefined) => {
-      if (!phoneRaw?.trim()) return;
-      setCategoryMemoryForUser(user.id, {
-        phoneRaw,
-        note: trimmed,
-      });
-    };
+    clearNoteSavedTimer();
 
-    const localTx = selectTransactionById(user.id, transaction.id);
-    if (localTx) {
-      updateTransactionLocal(transaction.id, {
-        description: trimmed.length ? trimmed : undefined,
-      });
-      await markEvcNoteUserEdited(transaction.id);
-      if (localTx.source_expense_id) {
-        updateExpenseLocal(localTx.source_expense_id, {
+    setNoteSaveUi("saving");
+    try {
+      const persistEvcNoteMemory = (phoneRaw: string | null | undefined) => {
+        if (!phoneRaw?.trim()) return;
+        setCategoryMemoryForUser(user.id, {
+          phoneRaw,
+          note: trimmed,
+        });
+      };
+
+      const localTx = selectTransactionById(user.id, transaction.id);
+      if (localTx) {
+        updateTransactionLocal(transaction.id, {
           description: trimmed.length ? trimmed : undefined,
         });
-        await markEvcNoteUserEdited(localTx.source_expense_id);
+        await markEvcNoteUserEdited(transaction.id);
+        if (localTx.source_expense_id) {
+          updateExpenseLocal(localTx.source_expense_id, {
+            description: trimmed.length ? trimmed : undefined,
+          });
+          await markEvcNoteUserEdited(localTx.source_expense_id);
+        }
+        let evcPhone = localTx.evc_counterparty_phone;
+        if (!evcPhone?.trim() && localTx.source_expense_id) {
+          evcPhone = selectExpenseById(user.id, localTx.source_expense_id)
+            ?.evc_counterparty_phone;
+        }
+        persistEvcNoteMemory(evcPhone);
+        if (!(await isOfflineGateLocked())) void triggerSync();
+        await fetchTransaction();
+        setNoteSaveUi("saved");
+        noteSavedClearRef.current = setTimeout(() => {
+          noteSavedClearRef.current = null;
+          setNoteSaveUi("idle");
+        }, 2200);
+        return;
       }
-      let evcPhone = localTx.evc_counterparty_phone;
-      if (!evcPhone?.trim() && localTx.source_expense_id) {
-        evcPhone = selectExpenseById(user.id, localTx.source_expense_id)
-          ?.evc_counterparty_phone;
+
+      const localEx = selectExpenseById(user.id, transaction.id);
+      if (localEx) {
+        updateExpenseLocal(transaction.id, {
+          description: trimmed.length ? trimmed : undefined,
+        });
+        await markEvcNoteUserEdited(transaction.id);
+        persistEvcNoteMemory(localEx.evc_counterparty_phone);
+        if (!(await isOfflineGateLocked())) void triggerSync();
+        await fetchTransaction();
+        setNoteSaveUi("saved");
+        noteSavedClearRef.current = setTimeout(() => {
+          noteSavedClearRef.current = null;
+          setNoteSaveUi("idle");
+        }, 2200);
+        return;
       }
-      persistEvcNoteMemory(evcPhone);
-      if (!(await isOfflineGateLocked())) void triggerSync();
-      await fetchTransaction();
-      return;
-    }
 
-    const localEx = selectExpenseById(user.id, transaction.id);
-    if (localEx) {
-      updateExpenseLocal(transaction.id, {
-        description: trimmed.length ? trimmed : undefined,
-      });
-      await markEvcNoteUserEdited(transaction.id);
-      persistEvcNoteMemory(localEx.evc_counterparty_phone);
-      if (!(await isOfflineGateLocked())) void triggerSync();
-      await fetchTransaction();
-      return;
-    }
+      const payload = {
+        description: trimmed.length ? trimmed : null,
+        updated_at: new Date().toISOString(),
+      };
+      const { data: txRows, error: txErr } = await supabase
+        .from("transactions")
+        .update(payload)
+        .eq("id", transaction.id)
+        .eq("user_id", user.id)
+        .select("id");
+      if (!txErr && txRows && txRows.length > 0) {
+        await markEvcNoteUserEdited(transaction.id);
+        persistEvcNoteMemory(
+          (transaction as { evc_counterparty_phone?: string | null })
+            .evc_counterparty_phone,
+        );
+        if (!(await isOfflineGateLocked())) void triggerSync();
+        await fetchTransaction();
+        setNoteSaveUi("saved");
+        noteSavedClearRef.current = setTimeout(() => {
+          noteSavedClearRef.current = null;
+          setNoteSaveUi("idle");
+        }, 2200);
+        return;
+      }
+      const { data: exRows, error: exErr } = await supabase
+        .from("expenses")
+        .update(payload)
+        .eq("id", transaction.id)
+        .eq("user_id", user.id)
+        .select("id");
+      if (!exErr && exRows && exRows.length > 0) {
+        await markEvcNoteUserEdited(transaction.id);
+        persistEvcNoteMemory(
+          (transaction as { evc_counterparty_phone?: string | null })
+            .evc_counterparty_phone,
+        );
+        if (!(await isOfflineGateLocked())) void triggerSync();
+        await fetchTransaction();
+        setNoteSaveUi("saved");
+        noteSavedClearRef.current = setTimeout(() => {
+          noteSavedClearRef.current = null;
+          setNoteSaveUi("idle");
+        }, 2200);
+        return;
+      }
 
-    const payload = {
-      description: trimmed.length ? trimmed : null,
-      updated_at: new Date().toISOString(),
-    };
-    const { data: txRows, error: txErr } = await supabase
-      .from("transactions")
-      .update(payload)
-      .eq("id", transaction.id)
-      .eq("user_id", user.id)
-      .select("id");
-    if (!txErr && txRows && txRows.length > 0) {
-      await markEvcNoteUserEdited(transaction.id);
-      persistEvcNoteMemory(
-        (transaction as { evc_counterparty_phone?: string | null })
-          .evc_counterparty_phone,
+      setNoteSaveUi("idle");
+      Alert.alert(
+        t.error || "Error",
+        t.failedToUpdateAccount || "Could not save your note. Try again.",
       );
-      if (!(await isOfflineGateLocked())) void triggerSync();
-      await fetchTransaction();
-      return;
-    }
-    const { data: exRows, error: exErr } = await supabase
-      .from("expenses")
-      .update(payload)
-      .eq("id", transaction.id)
-      .eq("user_id", user.id)
-      .select("id");
-    if (!exErr && exRows && exRows.length > 0) {
-      await markEvcNoteUserEdited(transaction.id);
-      persistEvcNoteMemory(
-        (transaction as { evc_counterparty_phone?: string | null })
-          .evc_counterparty_phone,
+    } catch (e) {
+      console.error("saveNoteFromField:", e);
+      setNoteSaveUi("idle");
+      Alert.alert(
+        t.error || "Error",
+        t.failedToUpdateAccount || "Could not save your note. Try again.",
       );
-      if (!(await isOfflineGateLocked())) void triggerSync();
-      await fetchTransaction();
     }
   }
+
+  saveNoteFromFieldRef.current = saveNoteFromField;
+  flushNoteSaveRef.current = () => {
+    if (noteDebounceRef.current) {
+      clearTimeout(noteDebounceRef.current);
+      noteDebounceRef.current = null;
+    }
+    void saveNoteFromFieldRef.current();
+  };
 
   const getCategoryIcon = (category: string, type: string) => {
     if (type === "transfer") return ArrowRightLeft;
@@ -604,6 +703,97 @@ export default function TransactionDetailScreen() {
           ) : null}
         </View>
 
+        {/* Note — autosaves while typing */}
+        <View
+          style={{
+            backgroundColor: theme.cardBackground,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 16,
+          }}
+        >
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 10,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  backgroundColor: `${theme.primary}18`,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <MessageSquareText size={18} color={theme.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.text, fontSize: 16, fontWeight: "700" }}>
+                  {t.evcNoteLabel || "Note"}
+                </Text>
+                <Text style={{ color: theme.textMuted, fontSize: 12, marginTop: 2 }}>
+                  {t.transactionNoteAutosaveHint}
+                </Text>
+              </View>
+            </View>
+            {noteSaveUi === "saving" ? (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <ActivityIndicator size="small" color={theme.primary} />
+                <Text style={{ color: theme.textSecondary, fontSize: 12, fontWeight: "600" }}>
+                  {t.saving}
+                </Text>
+              </View>
+            ) : noteSaveUi === "saved" ? (
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Check size={16} color={theme.success} strokeWidth={2.5} />
+                <Text style={{ color: theme.success, fontSize: 12, fontWeight: "700" }}>
+                  {t.saved}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          <TextInput
+            value={noteText}
+            onChangeText={(text) => {
+              setNoteText(text);
+              clearNoteSavedTimer();
+              setNoteSaveUi((s) => (s === "saved" ? "idle" : s));
+              scheduleNoteSave();
+            }}
+            onFocus={() => setNoteFocused(true)}
+            onBlur={() => {
+              setNoteFocused(false);
+              flushNoteSaveRef.current();
+            }}
+            placeholder={t.add_note_about_transaction}
+            placeholderTextColor={theme.placeholder}
+            multiline
+            keyboardAppearance={theme.isDark ? "dark" : "light"}
+            underlineColorAndroid="transparent"
+            style={{
+              color: theme.text,
+              fontSize: 16,
+              lineHeight: 22,
+              borderRadius: 14,
+              borderWidth: noteFocused ? 2 : 1,
+              borderColor: noteFocused ? theme.primary : theme.border,
+              backgroundColor: theme.inputBackground,
+              paddingHorizontal: 14,
+              paddingVertical: 14,
+              minHeight: 100,
+              maxHeight: 200,
+              textAlignVertical: "top",
+            }}
+          />
+        </View>
+
         {/* Details Card */}
         <View
           style={{
@@ -618,31 +808,6 @@ export default function TransactionDetailScreen() {
           </Text>
 
           <View style={{ gap: 12 }}>
-            <View>
-              <Text style={{ color: theme.textMuted, fontSize: 11, marginBottom: 4 }}>
-                Note
-              </Text>
-              <TextInput
-                value={noteText}
-                onChangeText={setNoteText}
-                onBlur={() => void saveNoteFromField()}
-                placeholder={t.add_note_about_transaction}
-                placeholderTextColor={theme.textMuted}
-                multiline
-                style={{
-                  color: theme.text,
-                  fontSize: 15,
-                  borderWidth: 1,
-                  borderColor: theme.border,
-                  borderRadius: 12,
-                  paddingHorizontal: 12,
-                  paddingVertical: 10,
-                  minHeight: 48,
-                  textAlignVertical: "top",
-                }}
-              />
-            </View>
-
             {/* Category */}
             {transaction.category ? (
               <View>

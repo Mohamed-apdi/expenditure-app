@@ -70,6 +70,12 @@ class ExpoEvcSmsModule : Module() {
         is Number -> this.toInt() != 0
         else -> false
       }
+      fun Any?.asBoolDefaultTrue(): Boolean = when (this) {
+        null -> true
+        is Boolean -> this
+        is Number -> this.toInt() != 0
+        else -> true
+      }
       EvcSmsPrefs.setSmsImportConfig(
         ctx,
         EvcSmsPrefs.SmsImportConfig(
@@ -78,6 +84,8 @@ class ExpoEvcSmsModule : Module() {
           providerSomnetJeeb = config["providerSomnetJeeb"].asBool(),
           providerSalaamBank = config["providerSalaamBank"].asBool(),
           providerSomtel = config["providerSomtel"].asBool(),
+          importTransactionNotificationsEnabled =
+            config["importTransactionNotificationsEnabled"].asBoolDefaultTrue(),
         ),
       )
       true

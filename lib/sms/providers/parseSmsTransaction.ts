@@ -49,6 +49,10 @@ const SALAAM_OWN_EVC_RE =
 const SALAAM_EXT_EVC_RE =
   /(\d*\.?\d+)\s+USD,\s*AYAA\s+LA\s+DHIGAY\s+KOONTO\s+(\S+)\s+KANA\s+TIMID\s+EVC\+\s*(\d[\d\s]*)[\s\S]*?FAAHFAAHIN:\s*([^,]+)[\s\S]*?Tix:\s*(\d+)[\s\S]*?Xilliga:\s*([^\n.]+)/i;
 
+/** Debit from bank account via linked bank card (Somali template). */
+const SALAAM_BANK_CARD_DEBIT_RE =
+  /(\d*\.?\d+)\s*USD\s*,\s*ayaa\s+laga\s+saaray\s+(?:koontadaada|kontadaada)\s+bangiga\s+(\S+?)\s+ayado\s+la\s+istimaalayo\s+Card\s+kaaga\s+bangiga\.?\s*Xarunta:\s*([^,]+),\s*Tix:\s*(\d+)\s*,\s*Xilliga:\s*([^\n.]+)/i;
+
 const SALAAM_MERCHANT_WORDS = [
   "MARKET",
   "CASHIER",
@@ -382,6 +386,34 @@ function parseSalaamBank(body: string): SmsParsedTransaction | null {
       merchantName: merchant ? namePart : null,
       rawType: merchant ? "salaam_app_send_merchant" : "salaam_app_send",
     };
+  }
+
+  if (/\bayaa\s+laga\s+saaray\b/i.test(body) && /card\s+kaaga\s+bangiga/i.test(body)) {
+    const m = body.match(SALAAM_BANK_CARD_DEBIT_RE);
+    if (m) {
+      const amount = parseAmountLoose(m[1]);
+      if (amount != null) {
+        const { dateIso, tarRaw } = parseSalaamBankDate(m[5].trim());
+        const tix = m[4].trim();
+        const outlet = m[3].trim();
+        return {
+          provider: "salaam_bank",
+          kind: "send_merchant",
+          amount,
+          currency: "USD",
+          dateIso,
+          tarRaw,
+          phone: null,
+          name: null,
+          merchantName: outlet,
+          accountNumber: m[2].trim(),
+          reference: tix,
+          transactionId: tix,
+          note: "Salaam Bank card",
+          rawType: "salaam_bank_card_debit",
+        };
+      }
+    }
   }
 
   if (bu.includes("AYAA LAGU WAREEJIYAY KONTADAADA") && bu.includes("KANA TIMID #EX:")) {

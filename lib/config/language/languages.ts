@@ -301,6 +301,7 @@ export const LANGUAGES = {
 
     whats_this_for: "What's this for?",
     add_note_about_transaction: "Add a note about this transaction...",
+    transactionNoteAutosaveHint: "Saves automatically after you pause typing",
     select_account: "Select Account",
     when: "When?",
     transfer: "Transfer",
@@ -394,6 +395,11 @@ export const LANGUAGES = {
     smsImportAccountsRowSubtitleEmpty:
       "Choose accounts for each service. SIM options are only for advanced setups.",
     smsImportAccountsRowSubtitleConfigured: "Tap to review or change account mapping",
+    smsImportTxNotifyTitle: "Transaction import notifications",
+    smsImportTxNotifySubtitle:
+      "Get notified when transactions are recorded. If the app is closed, Qoondeeye may notify you when a supported SMS is captured.",
+    smsImportTxNotifySubtitleNeedsOsPermission:
+      "Enable system notifications in Settings to see these alerts.",
     smsImportMappingTitle: "SMS import accounts",
     smsImportMappingSubtitle:
       "Choose where imported SMS transactions are saved. Most users only need one account per service. Use SIM 1 / SIM 2 only if you have two numbers for the same service.",
@@ -497,6 +503,10 @@ export const LANGUAGES = {
     goals: "Goals",
     monthlyBudget: "Monthly Budget",
     addBudgets: "Add Budgets",
+    mainFabHintTitle: "Bottom + button",
+    mainFabHintBody:
+      "Adds something for the screen you're on — an expense from Home, a budget or subscription on this tab, an account on Accounts, and more.",
+    mainFabHintGotIt: "Got it",
     budgetAlertsEnabled: "Budget alerts enabled",
     budgetAlertsDescription:
       "Get notified when budgets reach 80% or exceed 100%",
@@ -1323,6 +1333,8 @@ export const LANGUAGES = {
 
     whats_this_for: "Ku qor ujeeddada?",
     add_note_about_transaction: "Ku dar Faahfaahin ku saabsan Dhaqdhaqaaqaaga?",
+    transactionNoteAutosaveHint:
+      "Si toos ah ayaa loo keydinayaa markaad joojiso qorista",
     select_account: "Dooro akoonkaaga",
     when: "Goorme?",
     transfer: "Wareejinta",
@@ -1415,6 +1427,11 @@ export const LANGUAGES = {
     smsImportAccountsRowSubtitleEmpty:
       "Dooro akoon kasta adeegga. SIM-ka waxaa loogu talagalay habka horumarsan oo keliya.",
     smsImportAccountsRowSubtitleConfigured: "Taabo si aad u beddesho akoonnada",
+    smsImportTxNotifyTitle: "Digniinta soo dejinta SMS",
+    smsImportTxNotifySubtitle:
+      "Hel digniin marka lacagaha la diiwaangeliyo. Haddii app-ka xiran yahay, Qoondeeye waxay ku digniin kartaa marka SMS taageeraya la qabto.",
+    smsImportTxNotifySubtitleNeedsOsPermission:
+      "Fur digniinta nidaamka ee Settings si aad u aragto digniinnada.",
     smsImportMappingTitle: "Akoonnada soo dejinta SMS",
     smsImportMappingSubtitle:
       "Dooro meesha SMS-yada laga soo dajiyo loo keydin doono. Inta badan hal akoon ayaa ku filan adeeg kasta. SIM 1 / SIM 2 kaliya haddii aad labo lambar SIM ah u leedahay isla adeegga.",
@@ -1517,6 +1534,10 @@ export const LANGUAGES = {
     goals: "Hadaf",
     monthlyBudget: "Miisaaniyada Bishii",
     addBudgets: "Ku dar Miisaaniyada",
+    mainFabHintTitle: "Badhanka + ee hoose",
+    mainFabHintBody:
+      "Wuxuu ku daraa wax ku haboon bogga aad joogtid — kharash guriga, miisaaniyad ama macaamiil boggan, koonto bogga Koontada, iyo waxyaabo kale.",
+    mainFabHintGotIt: "Waan fahmay",
     budgetAlertsEnabled: "Digniinta miisaaniyada waa la dhaqsiisay",
     budgetAlertsDescription:
       "La heli doonaa digniin marka miisaaniyada gaadho 80% ama  dhaafto 100%",

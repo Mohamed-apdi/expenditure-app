@@ -2,8 +2,8 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { X } from "lucide-react-native";
-import React, { useCallback, useState, useRef, useEffect } from "react";
-import { ScrollView, Text, TouchableOpacity, View, Animated } from "react-native";
+import React, { useCallback, useState, useEffect } from "react";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Account,
@@ -21,7 +21,7 @@ import {
   triggerSync,
 } from "~/lib";
 import AddAccount from "../account-details/add-account";
-import { ExpandableTabFab } from "~/components/ExpandableTabFab";
+import { useMainTabFabHandlers } from "~/components/MainTabFabContext";
 
 interface AccountGroup {
   id: string;
@@ -45,36 +45,21 @@ const accountGroups: AccountGroup[] = [
 
 const Accounts = () => {
   const router = useRouter();
+  const { accountsFabPress } = useMainTabFabHandlers();
   const { refreshAccounts: refreshContextAccounts } = useAccount();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [showAddAccount, setShowAddAccount] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fabExpanded, setFabExpanded] = useState(false);
   const theme = useTheme();
   const { t } = useLanguage();
   const tabBarHeight = useBottomTabBarHeight();
 
-  // Animation for FAB
-  const fabAnimation = useRef(new Animated.Value(0)).current;
-
-  const expandFab = () => {
-    fabAnimation.setValue(1);
-    setFabExpanded(true);
-  };
-
-  const collapseFab = () => {
-    fabAnimation.setValue(0);
-    setFabExpanded(false);
-  };
-
-  const handleFabPress = () => {
-    if (fabExpanded) {
-      setShowAddAccount(true);
-      collapseFab();
-    } else {
-      expandFab();
-    }
-  };
+  accountsFabPress.current = () => setShowAddAccount(true);
+  useEffect(() => {
+    return () => {
+      accountsFabPress.current = null;
+    };
+  }, []);
 
   const loadAccounts = async () => {
     try {
@@ -423,32 +408,6 @@ const Accounts = () => {
         </View>
       </ScrollView>
       </View>
-
-      {/* Close area when expanded - must be before FAB */}
-      {fabExpanded && (
-        <TouchableOpacity
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-          }}
-          activeOpacity={1}
-          onPress={collapseFab}
-        />
-      )}
-
-      <ExpandableTabFab
-        bottom={tabBarHeight + 20}
-        fabAnimation={fabAnimation}
-        fabExpanded={fabExpanded}
-        expandedWidth={175}
-        onPress={handleFabPress}
-        label="Add Account"
-        surfaceKey={theme.background}
-        backgroundColor={theme.primary}
-      />
 
       {/* Add Account Modal */}
       <AddAccount
