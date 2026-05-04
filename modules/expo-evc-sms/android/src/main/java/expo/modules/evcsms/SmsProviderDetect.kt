@@ -24,7 +24,15 @@ object SmsProviderDetect {
       bu.contains("AYAA LAGU WAREEJIYAY KONTADAADA") ||
       bu.contains("AYAA LA DHIGAY KOONTO") ||
       bu.contains("KANA TIMID EVC+") ||
-      bu.contains("KANA TIMID #EX:")
+      bu.contains("KANA TIMID #EX:") ||
+      (
+        bu.contains("LAGA SAARAY") &&
+          (
+            bu.contains("KOONTADAADA BANGIGA") ||
+              bu.contains("KONTADAADA BANGIGA") ||
+              bu.contains("CARD KAAGA BANGIGA")
+            )
+        )
     ) {
       return "salaam_bank"
     }

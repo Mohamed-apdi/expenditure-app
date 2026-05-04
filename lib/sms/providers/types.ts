@@ -39,6 +39,8 @@ export type NativeSmsImportConfig = {
   providerSomnetJeeb: boolean;
   providerSalaamBank: boolean;
   providerSomtel: boolean;
+  /** Mirrored to native prefs for manifest-receiver notification gating (no AsyncStorage read in native). */
+  importTransactionNotificationsEnabled: boolean;
 };
 
 export const DEFAULT_NATIVE_SMS_IMPORT_CONFIG: NativeSmsImportConfig = {
@@ -47,4 +49,5 @@ export const DEFAULT_NATIVE_SMS_IMPORT_CONFIG: NativeSmsImportConfig = {
   providerSomnetJeeb: false,
   providerSalaamBank: false,
   providerSomtel: false,
+  importTransactionNotificationsEnabled: false,
 };

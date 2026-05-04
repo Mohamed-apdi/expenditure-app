@@ -1,5 +1,5 @@
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type MutableRefObject } from 'react';
 import {
   View,
   Text,
@@ -71,6 +71,8 @@ interface SubscriptionsScreenProps {
   onRefresh?: () => Promise<void>;
   /** When set (e.g. from Budget screen), show only subscriptions for this account (same as Dashboard). */
   selectedAccountId?: string | null;
+  /** When set, hide the inline FAB and route “add” through the main tab bar +. */
+  tabBarAddActionRef?: MutableRefObject<(() => void) | null>;
 }
 
 export default function SubscriptionsScreen({
@@ -78,6 +80,7 @@ export default function SubscriptionsScreen({
   userId: propUserId,
   onRefresh: propOnRefresh,
   selectedAccountId: propSelectedAccountId,
+  tabBarAddActionRef,
 }: SubscriptionsScreenProps = {}) {
   const theme = useTheme();
   const { t } = useLanguage();
@@ -330,6 +333,13 @@ export default function SubscriptionsScreen({
     setupNotifications();
   }, []);
 
+  useEffect(() => {
+    if (!tabBarAddActionRef) return undefined;
+    return () => {
+      tabBarAddActionRef.current = null;
+    };
+  }, [tabBarAddActionRef]);
+
   const toggleSubscription = async (id: string, currentStatus: boolean) => {
     try {
       updateSubscriptionLocal(id, { is_active: !currentStatus });
@@ -377,6 +387,12 @@ export default function SubscriptionsScreen({
     setIsEditMode(false);
     setIsModalVisible(true);
   };
+
+  if (tabBarAddActionRef) {
+    tabBarAddActionRef.current = () => {
+      openAddModal();
+    };
+  }
 
   const openEditModal = (subscription: any) => {
     setCurrentSubscription(subscription);
@@ -972,7 +988,7 @@ export default function SubscriptionsScreen({
       </ScrollView>
 
       {/* Close area when FAB expanded */}
-      {fabExpanded && (
+      {!tabBarAddActionRef && fabExpanded && (
         <TouchableOpacity
           style={{
             position: 'absolute',
@@ -986,16 +1002,18 @@ export default function SubscriptionsScreen({
         />
       )}
 
-      <ExpandableTabFab
-        bottom={tabBarHeight + 20}
-        fabAnimation={fabAnimation}
-        fabExpanded={fabExpanded}
-        expandedWidth={200}
-        onPress={handleFabPress}
-        label={t.addSubscription}
-        surfaceKey={theme.background}
-        backgroundColor={theme.primary}
-      />
+      {!tabBarAddActionRef ? (
+        <ExpandableTabFab
+          bottom={tabBarHeight + 20}
+          fabAnimation={fabAnimation}
+          fabExpanded={fabExpanded}
+          expandedWidth={200}
+          onPress={handleFabPress}
+          label={t.addSubscription}
+          surfaceKey={theme.background}
+          backgroundColor={theme.primary}
+        />
+      ) : null}
 
       {/* Add/Edit Subscription Modal - Simplified */}
       <Modal

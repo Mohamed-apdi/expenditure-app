@@ -72,6 +72,7 @@ async function flushNativeEvcPendingRows(): Promise<void> {
       balance: row.balance ?? null,
       currency: row.currency ?? null,
       note: row.note ?? null,
+      capturedNotificationShown: row.capturedNotificationShown ?? null,
     };
     const result = await applyNativeEvcRowToLedger(nativeRow);
     console.log("[SMS import] pending row result", { id, result });

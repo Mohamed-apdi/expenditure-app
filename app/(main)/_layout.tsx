@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Tabs, useRouter, useSegments, useFocusEffect } from "expo-router";
 import { BackHandler, Platform } from "react-native";
 import CustomTabBar from "~/components/CustomTabBar";
+import { MainTabFabProvider } from "~/components/MainTabFabContext";
 import { EvcSmsDiscoverySheet } from "~/components/evc/EvcSmsDiscoverySheet";
 import {
   getCurrentUserOfflineFirst,
@@ -102,6 +103,7 @@ export default function MainLayout() {
 
   return (
     <>
+    <MainTabFabProvider>
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
@@ -126,6 +128,7 @@ export default function MainLayout() {
       <Tabs.Screen name="ConflictsScreen" options={{ href: null }} />
       <Tabs.Screen name="sms-import-accounts" options={{ href: null }} />
     </Tabs>
+    </MainTabFabProvider>
     <EvcSmsDiscoverySheet
       visible={evcDiscoveryVisible}
       onClose={dismissEvcDiscoverySession}

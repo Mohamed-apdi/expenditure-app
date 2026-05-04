@@ -2,6 +2,7 @@
  * Bottom tab bar for main app navigation — floating pill + squircle FAB
  */
 import { BottomTabBarHeightCallbackContext } from "@react-navigation/bottom-tabs";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import { Plus } from "lucide-react-native";
@@ -15,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLanguage, useTheme } from "~/lib";
+import { useMainTabFabHandlers } from "~/components/MainTabFabContext";
 import FontAwesome6 from "@expo/vector-icons/FontAwesome6";
 import Entypo from "@expo/vector-icons/Entypo";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -45,8 +47,11 @@ const TAB_HIGHLIGHT_RADIUS = 20;
 /** Extra height above the home-indicator inset so the frosted strip feels taller. */
 const BLUR_STRIP_EXTRA = 16;
 
+const MAIN_FAB_HINT_STORAGE_KEY = "@qoondeeye/main_tab_fab_contextual_hint_v1";
+
 export default function CustomTabBar({ state }: any) {
   const router = useRouter();
+  const { accountsFabPress, budgetFabPress } = useMainTabFabHandlers();
   const theme = useTheme();
   const { t } = useLanguage();
   const insets = useSafeAreaInsets();
@@ -115,6 +120,52 @@ export default function CustomTabBar({ state }: any) {
     onTabBarHeightChange?.(e.nativeEvent.layout.height);
   };
 
+  const [fabHintVisible, setFabHintVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const v = await AsyncStorage.getItem(MAIN_FAB_HINT_STORAGE_KEY);
+        if (!alive) return;
+        if (v !== "true") setFabHintVisible(true);
+      } catch {
+        if (alive) setFabHintVisible(true);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const dismissFabHint = React.useCallback(async () => {
+    setFabHintVisible(false);
+    try {
+      await AsyncStorage.setItem(MAIN_FAB_HINT_STORAGE_KEY, "true");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const runMainFabPress = React.useCallback(() => {
+    const idx = state.index;
+    if (idx === 3) {
+      const fn = accountsFabPress.current;
+      if (fn) {
+        fn();
+        return;
+      }
+    }
+    if (idx === 2) {
+      const fn = budgetFabPress.current;
+      if (fn) {
+        fn();
+        return;
+      }
+    }
+    router.push("/(expense)/AddExpense");
+  }, [accountsFabPress, budgetFabPress, router, state.index]);
+
   return (
     <View
       pointerEvents="box-none"
@@ -158,6 +209,81 @@ export default function CustomTabBar({ state }: any) {
           zIndex: 2,
         }}
       >
+        {fabHintVisible ? (
+          <View
+            pointerEvents="box-none"
+            style={{
+              position: "absolute",
+              left: H_PADDING,
+              right: H_PADDING,
+              bottom: paddingBottom + PILL_TRACK_HEIGHT + 10,
+              alignItems: "flex-end",
+              zIndex: 10,
+            }}
+          >
+            <View
+              style={{
+                maxWidth: 288,
+                paddingHorizontal: 14,
+                paddingTop: 12,
+                paddingBottom: 12,
+                borderRadius: 14,
+                backgroundColor: theme.cardBackground,
+                borderWidth: 1,
+                borderColor: theme.border,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: theme.isDark ? 0.35 : 0.12,
+                shadowRadius: 8,
+                elevation: 6,
+              }}
+            >
+              <Text
+                style={{
+                  fontWeight: "700",
+                  color: theme.text,
+                  fontSize: 15,
+                  marginBottom: 6,
+                }}
+              >
+                {t.mainFabHintTitle}
+              </Text>
+              <Text
+                style={{
+                  color: theme.textSecondary,
+                  fontSize: 13,
+                  lineHeight: 19,
+                  marginBottom: 12,
+                }}
+              >
+                {t.mainFabHintBody}
+              </Text>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => {
+                  void dismissFabHint();
+                }}
+                style={{
+                  alignSelf: "flex-end",
+                  backgroundColor: theme.primary,
+                  paddingVertical: 8,
+                  paddingHorizontal: 16,
+                  borderRadius: 10,
+                }}
+              >
+                <Text
+                  style={{
+                    color: theme.primaryText,
+                    fontWeight: "600",
+                    fontSize: 14,
+                  }}
+                >
+                  {t.mainFabHintGotIt}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
         <View
           key={theme.background}
           style={{
@@ -247,7 +373,8 @@ export default function CustomTabBar({ state }: any) {
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => {
-              router.push("/(expense)/AddExpense");
+              if (fabHintVisible) void dismissFabHint();
+              runMainFabPress();
             }}
             style={{
               width: FAB_SIZE,

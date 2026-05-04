@@ -190,6 +190,38 @@ export default function ProfileScreen() {
     await refreshSmsImportSettings();
   };
 
+  const handleSmsImportTxNotifyToggle = async (value: boolean) => {
+    const user = await getCurrentUserOfflineFirst();
+    if (!user) return;
+    const cur = smsSettings ?? (await getSmsImportSettings(user.id));
+    if (value) {
+      const { status: before } = await Notifications.getPermissionsAsync();
+      if (before !== "granted") {
+        await Notifications.requestPermissionsAsync();
+      }
+      await saveSmsImportSettings(user.id, {
+        ...cur,
+        importTransactionNotificationsEnabled: true,
+      });
+    } else {
+      await saveSmsImportSettings(user.id, {
+        ...cur,
+        importTransactionNotificationsEnabled: false,
+      });
+    }
+    await refreshSmsImportSettings();
+    await checkNotificationPermission();
+  };
+
+  const smsImportTxNotifySubtitleResolved = useMemo(() => {
+    if (!smsSettings?.importTransactionNotificationsEnabled) {
+      return t.smsImportTxNotifySubtitle;
+    }
+    return notificationsEnabled
+      ? t.smsImportTxNotifySubtitle
+      : t.smsImportTxNotifySubtitleNeedsOsPermission;
+  }, [smsSettings?.importTransactionNotificationsEnabled, notificationsEnabled, t]);
+
   const smsImportAccountsRowSubtitle = useMemo(() => {
     if (!smsSettings) return t.smsImportAccountsRowSubtitleEmpty;
     const s = smsSettings;
@@ -847,6 +879,27 @@ export default function ProfileScreen() {
                             onValueChange={(v) => handleSmsProviderToggle("somtel", v)}
                             trackColor={{ false: theme.border, true: theme.primary + "60" }}
                             thumbColor={smsSettings.somtel.enabled ? theme.primary : "#f4f3f4"}
+                            ios_backgroundColor={theme.border}
+                          />
+                        }
+                      />
+                      <Divider />
+                      <SettingItem
+                        icon={<Bell size={22} color="#a855f7" />}
+                        iconBg="#a855f722"
+                        title={t.smsImportTxNotifyTitle}
+                        subtitle={smsImportTxNotifySubtitleResolved}
+                        showArrow={false}
+                        rightElement={
+                          <Switch
+                            value={smsSettings.importTransactionNotificationsEnabled}
+                            onValueChange={handleSmsImportTxNotifyToggle}
+                            trackColor={{ false: theme.border, true: theme.primary + "60" }}
+                            thumbColor={
+                              smsSettings.importTransactionNotificationsEnabled
+                                ? theme.primary
+                                : "#f4f3f4"
+                            }
                             ios_backgroundColor={theme.border}
                           />
                         }

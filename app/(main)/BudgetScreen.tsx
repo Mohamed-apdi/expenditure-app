@@ -13,7 +13,6 @@ import {
   PanResponder,
   RefreshControl,
   Platform,
-  Animated,
 } from 'react-native';
 import { X, Edit2, Trash2, Wallet, ChevronDown } from 'lucide-react-native';
 import {
@@ -40,17 +39,25 @@ import { useLanguage } from '~/lib';
 
 import Investments from '../components/Investments';
 import Debt_Loan from '../components/Debt_Loan';
-import { ExpandableTabFab } from '~/components/ExpandableTabFab';
+import { useRouter } from 'expo-router';
+import { useMainTabFabHandlers } from '~/components/MainTabFabContext';
 
 // Use the exact same expense categories as AddExpense
 
 export default function BudgetScreen() {
+  const router = useRouter();
+  const { budgetFabPress } = useMainTabFabHandlers();
   const theme = useTheme();
   const { t } = useLanguage();
   const { accounts, selectedAccount: selectedAccountInApp } = useAccount(); // Same selected account as Dashboard
   const [activeTab, setActiveTab] = useState('Budget');
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
+
+  const subscriptionsTabBarAddRef = useRef<(() => void) | null>(null);
+  const goalsTabBarAddRef = useRef<(() => void) | null>(null);
+  const investmentsTabBarAddRef = useRef<(() => void) | null>(null);
+  const loanTabBarAddRef = useRef<(() => void) | null>(null);
   const tabsScrollRef = useRef<ScrollView>(null);
   const tabLayoutsRef = useRef<Record<string, { x: number; width: number }>>({});
   const tabsScrollWidthRef = useRef(0);
@@ -190,29 +197,6 @@ export default function BudgetScreen() {
   const [newCategory, setNewCategory] = useState('');
   const [newAllocated, setNewAllocated] = useState('');
 
-  // FAB animation state (same pattern as Accounts)
-  const [fabExpanded, setFabExpanded] = useState(false);
-  const fabAnimation = useRef(new Animated.Value(0)).current;
-
-  const expandFab = () => {
-    fabAnimation.setValue(1);
-    setFabExpanded(true);
-  };
-
-  const collapseFab = () => {
-    fabAnimation.setValue(0);
-    setFabExpanded(false);
-  };
-
-  const handleFabPress = () => {
-    if (fabExpanded) {
-      openAddModal();
-      collapseFab();
-    } else {
-      expandFab();
-    }
-  };
-
   const fetchData = async () => {
     try {
       const user = await getCurrentUserOfflineFirst();
@@ -257,6 +241,12 @@ export default function BudgetScreen() {
 
   useScreenStatusBar();
 
+  useEffect(() => {
+    return () => {
+      budgetFabPress.current = null;
+    };
+  }, [budgetFabPress]);
+
   const openAddModal = () => {
     if (accounts.length === 0) {
       Alert.alert(t.noAccounts, t.createAccountFirst);
@@ -267,6 +257,40 @@ export default function BudgetScreen() {
     setNewAllocated('');
     setSelectedAccount(selectedAccountInApp ?? accounts[0]); // Default to same account as Dashboard
     setIsModalVisible(true);
+  };
+
+  budgetFabPress.current = () => {
+    switch (activeTab) {
+      case 'Budget':
+        openAddModal();
+        break;
+      case 'Subscriptions': {
+        const fn = subscriptionsTabBarAddRef.current;
+        if (fn) fn();
+        else router.push('/(expense)/AddExpense');
+        break;
+      }
+      case 'Goals': {
+        const fn = goalsTabBarAddRef.current;
+        if (fn) fn();
+        else router.push('/(expense)/AddExpense');
+        break;
+      }
+      case 'Investments': {
+        const fn = investmentsTabBarAddRef.current;
+        if (fn) fn();
+        else router.push('/(expense)/AddExpense');
+        break;
+      }
+      case 'Loan': {
+        const fn = loanTabBarAddRef.current;
+        if (fn) fn();
+        else router.push('/(expense)/AddExpense');
+        break;
+      }
+      default:
+        router.push('/(expense)/AddExpense');
+    }
   };
 
   const openEditModal = (budget: any) => {
@@ -386,6 +410,7 @@ export default function BudgetScreen() {
       userId={userId}
       onRefresh={fetchData}
       selectedAccountId={selectedAccountInApp?.id}
+      tabBarAddActionRef={subscriptionsTabBarAddRef}
     />
   );
 
@@ -396,6 +421,7 @@ export default function BudgetScreen() {
       userId={userId}
       onRefresh={fetchData}
       selectedAccountId={selectedAccountInApp?.id}
+      tabBarAddActionRef={goalsTabBarAddRef}
     />
   );
 
@@ -406,6 +432,7 @@ export default function BudgetScreen() {
       userId={userId}
       onRefresh={fetchData}
       selectedAccountId={selectedAccountInApp?.id}
+      tabBarAddActionRef={investmentsTabBarAddRef}
     />
   );
 
@@ -416,6 +443,7 @@ export default function BudgetScreen() {
       userId={userId}
       onRefresh={fetchData}
       selectedAccountId={selectedAccountInApp?.id}
+      tabBarAddActionRef={loanTabBarAddRef}
     />
   );
 
@@ -750,34 +778,6 @@ export default function BudgetScreen() {
             </View>
           )}
         </View>
-
-        {/* Close area when FAB expanded - must be before FAB */}
-        {activeTab === 'Budget' && fabExpanded && (
-          <TouchableOpacity
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-            }}
-            activeOpacity={1}
-            onPress={collapseFab}
-          />
-        )}
-
-        {activeTab === 'Budget' && (
-          <ExpandableTabFab
-            bottom={tabBarHeight + 20}
-            fabAnimation={fabAnimation}
-            fabExpanded={fabExpanded}
-            expandedWidth={175}
-            onPress={handleFabPress}
-            label={t.addBudgets || 'Add Budget'}
-            surfaceKey={theme.background}
-            backgroundColor={theme.primary}
-          />
-        )}
 
         {/* Add/Edit Budget Modal - Simplified */}
         <Modal

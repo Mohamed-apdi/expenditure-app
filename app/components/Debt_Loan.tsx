@@ -49,6 +49,8 @@ interface DebtLoanProps {
   onRefresh?: () => Promise<void>;
   /** When set (e.g. from Budget screen), show only loans for this account (same as Dashboard). */
   selectedAccountId?: string | null;
+  /** When set, hide the inline FAB and route “add” through the main tab bar +. */
+  tabBarAddActionRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 const Debt_Loan = ({
@@ -56,6 +58,7 @@ const Debt_Loan = ({
   userId: propUserId,
   onRefresh: propOnRefresh,
   selectedAccountId: propSelectedAccountId,
+  tabBarAddActionRef,
 }: DebtLoanProps = {}) => {
   const { refreshAccounts } = useAccount();
   const { t } = useLanguage();
@@ -116,14 +119,17 @@ const Debt_Loan = ({
     setFabExpanded(false);
   };
 
+  const openLoanAddModal = () => {
+    if (accounts.length === 0) {
+      Alert.alert(t.noAccountsForLoan, t.createAccountFirstForLoan);
+      return;
+    }
+    setShowAddModal(true);
+  };
+
   const handleFabPress = () => {
     if (fabExpanded) {
-      if (accounts.length === 0) {
-        Alert.alert(t.noAccountsForLoan, t.createAccountFirstForLoan);
-        collapseFab();
-        return;
-      }
-      setShowAddModal(true);
+      openLoanAddModal();
       collapseFab();
     } else {
       expandFab();
@@ -225,6 +231,17 @@ const Debt_Loan = ({
       setCurrentUser(propUserId);
     }
   }, [propUserId]);
+
+  useEffect(() => {
+    if (!tabBarAddActionRef) return undefined;
+    return () => {
+      tabBarAddActionRef.current = null;
+    };
+  }, [tabBarAddActionRef]);
+
+  if (tabBarAddActionRef) {
+    tabBarAddActionRef.current = openLoanAddModal;
+  }
 
   const showDatepicker = () => {
     setSelectedDate(formData.due_date ? new Date(formData.due_date + 'T12:00:00') : new Date());
@@ -1891,7 +1908,7 @@ const Debt_Loan = ({
       </ScrollView>
 
       {/* Close area when FAB expanded */}
-      {fabExpanded && (
+      {!tabBarAddActionRef && fabExpanded && (
         <TouchableOpacity
           style={{
             position: 'absolute',
@@ -1905,16 +1922,18 @@ const Debt_Loan = ({
         />
       )}
 
-      <ExpandableTabFab
-        bottom={tabBarHeight + 20}
-        fabAnimation={fabAnimation}
-        fabExpanded={fabExpanded}
-        expandedWidth={155}
-        onPress={handleFabPress}
-        label={t.addLoan}
-        surfaceKey={theme.background}
-        backgroundColor={theme.primary}
-      />
+      {!tabBarAddActionRef ? (
+        <ExpandableTabFab
+          bottom={tabBarHeight + 20}
+          fabAnimation={fabAnimation}
+          fabExpanded={fabExpanded}
+          expandedWidth={155}
+          onPress={handleFabPress}
+          label={t.addLoan}
+          surfaceKey={theme.background}
+          backgroundColor={theme.primary}
+        />
+      ) : null}
     </SafeAreaView>
   );
 };

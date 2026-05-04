@@ -1,5 +1,5 @@
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, type MutableRefObject } from 'react';
 import {
   View,
   Text,
@@ -107,6 +107,8 @@ interface SavingsScreenProps {
   onRefresh?: () => Promise<void>;
   /** When set (e.g. from Budget screen), show only goals for this account (same as Dashboard). */
   selectedAccountId?: string | null;
+  /** When set, hide the inline FAB and route “add” through the main tab bar +. */
+  tabBarAddActionRef?: MutableRefObject<(() => void) | null>;
 }
 
 export default function SavingsScreen({
@@ -114,6 +116,7 @@ export default function SavingsScreen({
   userId: propUserId,
   onRefresh: propOnRefresh,
   selectedAccountId: propSelectedAccountId,
+  tabBarAddActionRef,
 }: SavingsScreenProps = {}) {
   const theme = useTheme();
   const { t } = useLanguage();
@@ -275,6 +278,13 @@ export default function SavingsScreen({
     if (list.length > 0 && !selectedAccount) setSelectedAccount(list[0]);
   }, [propUserId, propAccounts, contextAccounts]);
 
+  useEffect(() => {
+    if (!tabBarAddActionRef) return undefined;
+    return () => {
+      tabBarAddActionRef.current = null;
+    };
+  }, [tabBarAddActionRef]);
+
   const handleToggleGoalStatus = async (id: string, currentStatus: boolean) => {
     try {
       updateGoalLocal(id, { is_active: !currentStatus });
@@ -311,6 +321,12 @@ export default function SavingsScreen({
     setIsEditMode(false);
     setIsModalVisible(true);
   };
+
+  if (tabBarAddActionRef) {
+    tabBarAddActionRef.current = () => {
+      openAddModal();
+    };
+  }
 
   const openEditModal = (goal: any) => {
     setCurrentGoal(goal);
@@ -979,7 +995,7 @@ export default function SavingsScreen({
       </ScrollView>
 
       {/* Close area when FAB expanded */}
-      {fabExpanded && (
+      {!tabBarAddActionRef && fabExpanded && (
         <TouchableOpacity
           style={{
             position: 'absolute',
@@ -993,16 +1009,18 @@ export default function SavingsScreen({
         />
       )}
 
-      <ExpandableTabFab
-        bottom={tabBarHeight + 20}
-        fabAnimation={fabAnimation}
-        fabExpanded={fabExpanded}
-        expandedWidth={160}
-        onPress={handleFabPress}
-        label={t.addGoal}
-        surfaceKey={theme.background}
-        backgroundColor={theme.primary}
-      />
+      {!tabBarAddActionRef ? (
+        <ExpandableTabFab
+          bottom={tabBarHeight + 20}
+          fabAnimation={fabAnimation}
+          fabExpanded={fabExpanded}
+          expandedWidth={160}
+          onPress={handleFabPress}
+          label={t.addGoal}
+          surfaceKey={theme.background}
+          backgroundColor={theme.primary}
+        />
+      ) : null}
 
       {/* Add/Edit Goal Modal - Simplified */}
       <Modal

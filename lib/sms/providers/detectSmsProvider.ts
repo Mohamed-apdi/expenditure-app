@@ -31,7 +31,12 @@ export function detectSmsProvider(sender: string, body: string): SmsProvider | n
     bu.includes("AYAA LAGU WAREEJIYAY KONTADAADA") ||
     bu.includes("AYAA LA DHIGAY KOONTO") ||
     bu.includes("KANA TIMID EVC+") ||
-    bu.includes("KANA TIMID #EX:")
+    bu.includes("KANA TIMID #EX:") ||
+    /** Bank account debit when paying with linked Salaam bank card */
+    (bu.includes("LAGA SAARAY") &&
+      (bu.includes("KOONTADAADA BANGIGA") ||
+        bu.includes("KONTADAADA BANGIGA") ||
+        bu.includes("CARD KAAGA BANGIGA")))
   ) {
     return "salaam_bank";
   }

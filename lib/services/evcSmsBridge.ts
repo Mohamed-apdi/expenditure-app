@@ -26,6 +26,8 @@ export type NativeEvcPendingRowNative = {
   currency?: string | null;
   note?: string | null;
   createdAt: number;
+  /** True when native already posted "Transaction captured" for this queued row. */
+  capturedNotificationShown?: boolean | null;
 };
 
 type EvcNative = {
@@ -81,6 +83,7 @@ export async function syncEvcSmsNativeListening(): Promise<void> {
         providerSomnetJeeb: false,
         providerSalaamBank: false,
         providerSomtel: false,
+        importTransactionNotificationsEnabled: false,
       });
     } catch {
       /* ignore */

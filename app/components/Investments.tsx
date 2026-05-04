@@ -1,5 +1,5 @@
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, type MutableRefObject } from 'react';
 import {
   View,
   Text,
@@ -81,6 +81,8 @@ interface InvestmentsProps {
   onRefresh?: () => Promise<void>;
   /** When set (e.g. from Budget screen), show only investments for this account (same as Dashboard). */
   selectedAccountId?: string | null;
+  /** When set, hide the inline FAB and route “add” through the main tab bar +. */
+  tabBarAddActionRef?: MutableRefObject<(() => void) | null>;
 }
 
 const Investments = ({
@@ -88,6 +90,7 @@ const Investments = ({
   userId: propUserId,
   onRefresh: propOnRefresh,
   selectedAccountId: propSelectedAccountId,
+  tabBarAddActionRef,
 }: InvestmentsProps = {}) => {
   const theme = useTheme();
   const { t } = useLanguage();
@@ -220,6 +223,13 @@ const Investments = ({
     }
   }, [propUserId]);
 
+  useEffect(() => {
+    if (!tabBarAddActionRef) return undefined;
+    return () => {
+      tabBarAddActionRef.current = null;
+    };
+  }, [tabBarAddActionRef]);
+
   const openAddModal = () => {
     if (accounts.length === 0) {
       Alert.alert(t.noAccountsForInvestment, t.createAccountFirstForInvestment);
@@ -233,6 +243,12 @@ const Investments = ({
     setSelectedAccount(accounts[0]);
     setIsModalVisible(true);
   };
+
+  if (tabBarAddActionRef) {
+    tabBarAddActionRef.current = () => {
+      openAddModal();
+    };
+  }
 
   const openEditModal = (investment: Investment) => {
     setCurrentInvestment(investment);
@@ -1041,7 +1057,7 @@ const Investments = ({
       </ScrollView>
 
       {/* Close area when FAB expanded */}
-      {fabExpanded && (
+      {!tabBarAddActionRef && fabExpanded && (
         <TouchableOpacity
           style={{
             position: 'absolute',
@@ -1055,16 +1071,18 @@ const Investments = ({
         />
       )}
 
-      <ExpandableTabFab
-        bottom={tabBarHeight + 20}
-        fabAnimation={fabAnimation}
-        fabExpanded={fabExpanded}
-        expandedWidth={195}
-        onPress={handleFabPress}
-        label={t.addInvestment}
-        surfaceKey={theme.background}
-        backgroundColor={theme.primary}
-      />
+      {!tabBarAddActionRef ? (
+        <ExpandableTabFab
+          bottom={tabBarHeight + 20}
+          fabAnimation={fabAnimation}
+          fabExpanded={fabExpanded}
+          expandedWidth={195}
+          onPress={handleFabPress}
+          label={t.addInvestment}
+          surfaceKey={theme.background}
+          backgroundColor={theme.primary}
+        />
+      ) : null}
     </SafeAreaView>
   );
 };

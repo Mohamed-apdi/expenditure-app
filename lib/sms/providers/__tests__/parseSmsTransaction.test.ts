@@ -25,6 +25,9 @@ const SALAAM_OWN_EVC =
   "15.00 USD, AYAA LAGU WAREEJIYAY KONTADAADA ACC001. KANA TIMID #EX: ref bit #REF: 55555 more Xarunta: CENTER, Tix: 2002 , Xilliga: 04-05-2026 2:00:00 PM";
 const SALAAM_EXT_EVC =
   "7.25 USD, AYAA LA DHIGAY KOONTO ACC777 KANA TIMID EVC+ 252617000099 FAAHFAAHIN: Note text Tix: 3003 Xilliga: 05-05-2026 10:15:30 AM";
+const SALAAM_BANK_CARD_DEBIT = `1.99 USD, ayaa laga saaray koontadaada bangiga 372XXX74 ayado la istimaalayo Card kaaga bangiga.  Xarunta: BANK CARD, Tix: 133675, Xilliga: 03-05-2026 10:16:57 AM.
+
+Laso deg https://salaambank.so/salaam-app-download`;
 
 describe("detectSmsProvider", () => {
   it("prefers Somnet over EVC when JEEB marker present", () => {
@@ -37,6 +40,10 @@ describe("detectSmsProvider", () => {
 
   it("detects Salaam before EVC body markers would matter", () => {
     expect(detectSmsProvider("unknown", SALAAM_APP)).toBe("salaam_bank");
+  });
+
+  it("detects Salaam for bank card debit SMS (laga saaray + card)", () => {
+    expect(detectSmsProvider("SalaamBank", SALAAM_BANK_CARD_DEBIT)).toBe("salaam_bank");
   });
 
   it("detects EVC from 192", () => {
@@ -97,6 +104,19 @@ describe("parseSmsTransaction", () => {
     expect(p?.provider).toBe("salaam_bank");
     expect(p?.kind).toBe("send_p2p");
     expect(p?.amount).toBe(2.5);
+  });
+
+  it("parses Salaam bank card debit (linked card charge)", () => {
+    const p = parseSmsTransaction("SalaamBank", SALAAM_BANK_CARD_DEBIT);
+    expect(p?.provider).toBe("salaam_bank");
+    expect(p?.kind).toBe("send_merchant");
+    expect(p?.amount).toBe(1.99);
+    expect(p?.rawType).toBe("salaam_bank_card_debit");
+    expect(p?.accountNumber).toBe("372XXX74");
+    expect(p?.merchantName).toBe("BANK CARD");
+    expect(p?.reference).toBe("133675");
+    expect(p?.transactionId).toBe("133675");
+    expect(p?.dateIso).toBeDefined();
   });
 
   it("parses Salaam transfer in", () => {
