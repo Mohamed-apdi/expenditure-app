@@ -34,6 +34,7 @@ import { notificationService } from '~/lib';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { LanguageProvider } from '~/lib';
 import { EvcSmsInboundHost } from '~/components/EvcSmsInboundHost';
+import { initAuthSessionPersistence } from '~/lib/auth/sessionPersistence';
 
 // Ensure index is the initial route on app load/reload to avoid 404 when restoring state
 export const unstable_settings = {
@@ -102,6 +103,11 @@ function RootLayoutInner() {
       }),
     [],
   );
+
+  // Keep SecureStore session backup in sync (login, refresh, sign-out)
+  React.useEffect(() => {
+    return initAuthSessionPersistence();
+  }, []);
 
   // Initialize notifications globally and request permission on app start
   React.useEffect(() => {

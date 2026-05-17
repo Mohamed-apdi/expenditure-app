@@ -4,7 +4,11 @@
 
 import type { EvcMessageKind } from "~/lib/evc/evcMessageClassifier";
 
-export type SmsProvider = "evc" | "somnet_jeeb" | "salaam_bank" | "somtel";
+export type SmsProvider =
+  | "evc"
+  | "somnet_jeeb"
+  | "salaam_bank"
+  | "somtel_edahab";
 
 export type SmsCurrency = "USD" | "SOS";
 
@@ -27,6 +31,8 @@ export type SmsParsedTransaction = {
   reference?: string | null;
   transactionId?: string | null;
   balance?: number | null;
+  /** Service fee when present (e.g. eDahab send). */
+  fee?: number | null;
   note?: string | null;
   rawType?: string;
   /** EVC NOTICE bundle summary (native queue only; live path may omit). */

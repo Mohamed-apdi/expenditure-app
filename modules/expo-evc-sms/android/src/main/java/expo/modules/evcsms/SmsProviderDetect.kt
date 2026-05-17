@@ -8,9 +8,7 @@ object SmsProviderDetect {
   private fun normalizeSender(sender: String): String =
     sender.trim().uppercase(Locale.ROOT).replace("\\s+".toRegex(), "")
 
-  /**
-   * Which provider this SMS belongs to for forwarding (never "somtel" until implemented).
-   */
+  /** Which provider this SMS belongs to for forwarding. */
   fun detectProvider(sender: String, body: String): String? {
     val d = digitsOnly(sender)
     val bu = body.uppercase(Locale.ROOT)
@@ -35,6 +33,14 @@ object SmsProviderDetect {
         )
     ) {
       return "salaam_bank"
+    }
+
+    if (
+      body.contains("[-eDahab-Service-]", ignoreCase = true) ||
+      bu.contains("[-EDAHAB-SERVICE-]") ||
+      Regex("\\bedahab\\b", RegexOption.IGNORE_CASE).containsMatchIn(body)
+    ) {
+      return "somtel_edahab"
     }
 
     val sNorm = normalizeSender(sender)

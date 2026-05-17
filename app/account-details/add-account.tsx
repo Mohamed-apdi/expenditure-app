@@ -44,9 +44,9 @@ const AddAccount = ({
   const [newAccount, setNewAccount] = useState({
     account_type: "", // Changed from group_name
     name: "",
-    amount: 0,
     description: "",
   });
+  const [amountText, setAmountText] = useState("");
 
   // Removed accountTypes array
 
@@ -60,7 +60,7 @@ const AddAccount = ({
     onAddAccount({
       account_type: newAccount.account_type, // Changed from group_name
       name: newAccount.name,
-      amount: newAccount.amount || 0,
+      amount: amountText ? parseFloat(amountText) : 0,
       description: newAccount.description,
       // Removed type field
     });
@@ -68,10 +68,10 @@ const AddAccount = ({
     setNewAccount({
       account_type: "", // Changed from group_name
       name: "",
-      amount: 0,
       description: "",
       // Removed type field
     });
+    setAmountText("");
   };
 
   return (
@@ -203,12 +203,8 @@ const AddAccount = ({
                 }}
                 placeholder="0.00"
                 placeholderTextColor={theme.placeholder}
-                keyboardType="numeric"
-                value={
-                  newAccount.amount !== undefined && !isNaN(newAccount.amount)
-                    ? newAccount.amount.toString()
-                    : ""
-                }
+                keyboardType="decimal-pad"
+                value={amountText}
                 onChangeText={(text) => {
                   const cleanedText = text.replace(/[^0-9.]/g, "");
                   const decimalParts = cleanedText.split(".");
@@ -219,14 +215,7 @@ const AddAccount = ({
                       "." + decimalParts.slice(1).join("").substring(0, 2);
                   }
 
-                  const numericValue = formattedValue
-                    ? parseFloat(formattedValue)
-                    : 0;
-
-                  setNewAccount({
-                    ...newAccount,
-                    amount: numericValue,
-                  });
+                  setAmountText(formattedValue);
                 }}
               />
             </View>

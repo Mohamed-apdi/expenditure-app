@@ -23,6 +23,7 @@ import {
   CreditCard,
   Radio,
   Landmark,
+  MessageSquare,
 } from "lucide-react-native";
 import { getCurrentUserOfflineFirst } from "~/lib";
 import {
@@ -36,7 +37,7 @@ type SmsAccountPick =
   | { kind: "global_default" }
   | {
       kind: "provider";
-      provider: "evc" | "somnet_jeeb" | "salaam_bank";
+      provider: "evc" | "somnet_jeeb" | "salaam_bank" | "somtel_edahab";
       field: "default" | "sim1" | "sim2";
     };
 
@@ -242,6 +243,7 @@ export default function SmsImportAccountsScreen() {
   const [accountPick, setAccountPick] = useState<SmsAccountPick | null>(null);
   const [evcAdvancedExpanded, setEvcAdvancedExpanded] = useState(false);
   const [somnetAdvancedExpanded, setSomnetAdvancedExpanded] = useState(false);
+  const [somtelAdvancedExpanded, setSomtelAdvancedExpanded] = useState(false);
 
   const refreshSmsImportSettings = useCallback(async () => {
     try {
@@ -497,6 +499,60 @@ export default function SmsImportAccountsScreen() {
                   isPlaceholder={!smsSettings.somnet_jeeb.sim2AccountId}
                   onPress={() =>
                     setAccountPick({ kind: "provider", provider: "somnet_jeeb", field: "sim2" })
+                  }
+                />
+              </>
+            ) : null}
+          </Card>
+
+          <SectionLabel text={t.smsMapSectionSomtel} theme={theme} />
+          <Card theme={theme}>
+            <MappingRow
+              theme={theme}
+              icon={<MessageSquare size={22} color="#ca8a04" />}
+              iconBg="#eab30822"
+              title={t.smsMapSomtelMainAccountTitle}
+              valueLabel={displayAccount(smsSettings.somtel_edahab.defaultAccountId)}
+              hint={t.smsMapSomtelMainAccountHint}
+              isPlaceholder={!smsSettings.somtel_edahab.defaultAccountId}
+              onPress={() =>
+                setAccountPick({ kind: "provider", provider: "somtel_edahab", field: "default" })
+              }
+            />
+            <RowDivider theme={theme} />
+            <AdvancedSimToggleRow
+              theme={theme}
+              label={t.smsMapAdvancedSimHeading}
+              expanded={somtelAdvancedExpanded}
+              onToggle={() => setSomtelAdvancedExpanded((v) => !v)}
+              showLabel={t.smsMapAdvancedSimShow}
+              hideLabel={t.smsMapAdvancedSimHide}
+            />
+            {somtelAdvancedExpanded ? (
+              <>
+                <MappingRow
+                  theme={theme}
+                  icon={<CreditCard size={22} color="#d97706" />}
+                  iconBg="#d9770618"
+                  title={t.smsImportSim1Label}
+                  valueLabel={displayAccount(smsSettings.somtel_edahab.sim1AccountId)}
+                  hint={t.smsMapSomtelSim1Hint}
+                  isPlaceholder={!smsSettings.somtel_edahab.sim1AccountId}
+                  onPress={() =>
+                    setAccountPick({ kind: "provider", provider: "somtel_edahab", field: "sim1" })
+                  }
+                />
+                <RowDivider theme={theme} />
+                <MappingRow
+                  theme={theme}
+                  icon={<CreditCard size={22} color="#d97706" />}
+                  iconBg="#d9770618"
+                  title={t.smsImportSim2Label}
+                  valueLabel={displayAccount(smsSettings.somtel_edahab.sim2AccountId)}
+                  hint={t.smsMapSomtelSim2Hint}
+                  isPlaceholder={!smsSettings.somtel_edahab.sim2AccountId}
+                  onPress={() =>
+                    setAccountPick({ kind: "provider", provider: "somtel_edahab", field: "sim2" })
                   }
                 />
               </>

@@ -1,12 +1,16 @@
 import type { Transaction } from "../types/types";
 
-export type LedgerSource = "evc" | "somnet_jeeb" | "salaam_bank" | "somtel";
+export type LedgerSource =
+  | "evc"
+  | "somnet_jeeb"
+  | "salaam_bank"
+  | "somtel_edahab";
 
 const SMS_SOURCES: readonly LedgerSource[] = [
   "evc",
   "somnet_jeeb",
   "salaam_bank",
-  "somtel",
+  "somtel_edahab",
 ];
 
 function isLedgerSource(s: string | undefined): s is LedgerSource {
@@ -34,7 +38,7 @@ export function formatEvcCategoryChannelSubtitle(
   let channel: string;
   if (source === "somnet_jeeb") channel = "Somnet";
   else if (source === "salaam_bank") channel = "Salaam Bank";
-  else if (source === "somtel") channel = "Somtel";
+  else if (source === "somtel_edahab") channel = "eDahab";
   else if (type === "income") channel = labels.receivedViaEvc;
   else if (type === "expense") channel = labels.sentViaEvc;
   else channel = "EVC";
@@ -48,7 +52,7 @@ export function evcDetailViaLabel(
 ): string | null {
   if (source === "somnet_jeeb") return "Somnet";
   if (source === "salaam_bank") return "Salaam Bank";
-  if (source === "somtel") return "Somtel";
+  if (source === "somtel_edahab") return "eDahab";
   if (tx.type === "income") return labels.receivedViaEvc;
   if (tx.type === "expense") return labels.sentViaEvc;
   return null;

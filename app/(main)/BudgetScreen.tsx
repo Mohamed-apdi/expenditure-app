@@ -110,7 +110,7 @@ export default function BudgetScreen() {
   const expenseCategories = [
     { key: 'Food & Drinks', label: t.foodAndDrinks },
     { key: 'Home & Rent', label: t.homeAndRent },
-    { key: 'Travel', label: t.travel },
+    { key: 'Transport', label: t.transport },
     { key: 'Bills', label: t.bills },
     { key: 'Fun', label: t.fun },
     { key: 'Health', label: t.health },
@@ -397,8 +397,10 @@ export default function BudgetScreen() {
 
   // Get translated category label
   const getCategoryLabel = (categoryKey: string) => {
+    const normalizedKey =
+      categoryKey === "Travel" ? "Transport" : categoryKey;
     const categoryObj = expenseCategories.find(
-      (cat) => cat.key === categoryKey,
+      (cat) => cat.key === normalizedKey,
     );
     return categoryObj ? categoryObj.label : categoryKey;
   };

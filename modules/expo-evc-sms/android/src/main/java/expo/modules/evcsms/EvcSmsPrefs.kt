@@ -91,7 +91,7 @@ object EvcSmsPrefs {
       "evc" -> c.providerEvc
       "somnet_jeeb" -> c.providerSomnetJeeb
       "salaam_bank" -> c.providerSalaamBank
-      "somtel" -> c.providerSomtel
+      "somtel_edahab" -> c.providerSomtel
       else -> false
     }
   }

@@ -335,7 +335,8 @@ export default function ReportsScreen() {
     const categoryMap: { [key: string]: string } = {
       'Food & Drinks': t.foodAndDrinks,
       'Home & Rent': t.homeAndRent,
-      Travel: t.travel,
+      Transport: t.transport,
+      Travel: t.transport,
       Fun: t.fun,
       Health: t.health,
       Shopping: t.shopping,

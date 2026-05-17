@@ -1,7 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as AuthSession from "expo-auth-session";
 import { useRouter } from "expo-router";
-import { deleteItemAsync, setItemAsync } from "expo-secure-store";
+import { deleteItemAsync } from "expo-secure-store";
+import { persistAuthSession } from "~/lib/auth/sessionPersistence";
 import * as WebBrowser from "expo-web-browser";
 import {
   ArrowRight,
@@ -104,14 +105,10 @@ export default function AuthGateScreen() {
         });
         if (error) throw error;
         if (!data.session) throw new Error("No session");
-        if (rememberMe) {
-          await setItemAsync("token", data.session.access_token);
-          if (data.user?.id) await setItemAsync("userId", data.user.id);
-          await setItemAsync("supabase_session", JSON.stringify(data.session));
-        } else {
+        // Always back up session for offline use; "remember me" only controls legacy token keys.
+        await persistAuthSession(data.session);
+        if (!rememberMe) {
           await deleteItemAsync("token");
-          await deleteItemAsync("userId");
-          await deleteItemAsync("supabase_session");
         }
         await syncAccountsFromServer(data.user.id);
         toast.success(t.loginSuccessfully);
@@ -146,9 +143,7 @@ export default function AuthGateScreen() {
           toast.success(t.accountCreated, { description: t.pleaseCheckEmail });
           router.push("/(auth)/login");
         } else if (data.user?.email_confirmed_at && data.session) {
-          await setItemAsync("token", data.session.access_token);
-          if (data.user.id) await setItemAsync("userId", data.user.id);
-          await setItemAsync("supabase_session", JSON.stringify(data.session));
+          await persistAuthSession(data.session);
           await ensureDefaultAccount(data.user.id);
           router.replace("/(main)/Dashboard");
         }
@@ -232,12 +227,7 @@ export default function AuthGateScreen() {
           if (sessionError) throw sessionError;
 
           if (sessionData.session && sessionData.user?.id) {
-            await setItemAsync("token", sessionData.session.access_token);
-            await setItemAsync("userId", sessionData.user.id);
-            await setItemAsync(
-              "supabase_session",
-              JSON.stringify(sessionData.session),
-            );
+            await persistAuthSession(sessionData.session);
             try {
               await syncAccountsFromServer(sessionData.user.id);
             } catch {

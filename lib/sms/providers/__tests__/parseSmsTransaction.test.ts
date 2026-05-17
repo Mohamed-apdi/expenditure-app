@@ -5,11 +5,14 @@ import { SMS_TRANSFER_TO_BANK_LABEL } from "../types";
 const EVC_VIA_SALAAM_BANK = `[-EVCPlus-] waxaad $ 0.01 ka heshay MAHDI ABDULKADIR AHMED(38XXXX54), via Salaam Somali Bank,  haraagagu waa $0.65. La soo deg App-ka WAAFI http://onelink.to/waafi
 30868567270`;
 
-const EVC_SEND = "[-EVCPLUS-] $1 ayaad uwareejisay cabduqadir axmed xasan(617703215), Tar: 21/03/26 12:22:27, Haraagaagu waa $130.5.";
+const EVC_SEND =
+  "[-EVCPLUS-] $1 ayaad uwareejisay cabduqadir axmed xasan(617703215), Tar: 21/03/26 12:22:27, Haraagaagu waa $130.5.";
 const EVC_SEND_SOMNET_DIRTAY =
   "[-EVCPLUS-] Tixraac: 2361595058, $0.01 ayaad u dirtay 252684387407 252684387407 252684387407(252684387407) via 252684387407 252684387407 252684387407,Tar: 03/05/26 06:43:57 haraagaagu waa $0.7.";
 const EVC_BANK =
   "[-EVCPlus-] waxaad $20 ku shubtay Bank account: MOHAMED ABDIFITAH MOHAMED (374XXX11), haraagaagu waa $0.";
+const EVC_BANK_KAAGA =
+  "[-EVCPlus-] Waxaad $50 ku shubtey bank account-kaaga: 385XXX54, Haraagaaga waa $105.65.";
 const EVC_TOPUP =
   "[-EVCPlus-] Waxaad $0.5 ugu shubtay 252612673277, Haraagaagu waa $142.";
 const JEEB_VIA_EVC =
@@ -29,6 +32,12 @@ const SALAAM_BANK_CARD_DEBIT = `1.99 USD, ayaa laga saaray koontadaada bangiga 3
 
 Laso deg https://salaambank.so/salaam-app-download`;
 
+const EDAHAB_INCOME =
+  "(0.1 Dollar Ayaad Ka Heshay Mohamed Musse Mohamud.Code-ka:NA. Lambarka :627194533 Aqanoosiga : PP260511.2237.D39733 Haraagaaga Cusubi Waa: 0.1 Dollar..Tariikh:11-05-2026[-eDahab-Service-]";
+
+const EDAHAB_EXPENSE =
+  "0.1 Dollar ayad u warejisay Mohamed Musse Mohamud. No: 627194533.Tixrac: PP260511.2238.D39825 Haraaga: 0 Dollar Kharashyada Adeegga:0 Dollar Tariikh:11-05-2026[-eDahab-Service-]";
+
 describe("detectSmsProvider", () => {
   it("prefers Somnet over EVC when JEEB marker present", () => {
     expect(detectSmsProvider("192", JEEB_VIA_EVC)).toBe("somnet_jeeb");
@@ -43,11 +52,21 @@ describe("detectSmsProvider", () => {
   });
 
   it("detects Salaam for bank card debit SMS (laga saaray + card)", () => {
-    expect(detectSmsProvider("SalaamBank", SALAAM_BANK_CARD_DEBIT)).toBe("salaam_bank");
+    expect(detectSmsProvider("SalaamBank", SALAAM_BANK_CARD_DEBIT)).toBe(
+      "salaam_bank",
+    );
   });
 
   it("detects EVC from 192", () => {
     expect(detectSmsProvider("192", EVC_SEND)).toBe("evc");
+  });
+
+  it("detects Somtel eDahab from [-eDahab-Service-]", () => {
+    expect(detectSmsProvider("unknown", EDAHAB_INCOME)).toBe("somtel_edahab");
+  });
+
+  it("does not classify eDahab as EVC when sender is 192", () => {
+    expect(detectSmsProvider("192", EDAHAB_INCOME)).toBe("somtel_edahab");
   });
 });
 
@@ -77,6 +96,17 @@ describe("parseSmsTransaction", () => {
     expect(p?.rawType).toBe("evc_to_bank");
     expect(p?.note).toBe(SMS_TRANSFER_TO_BANK_LABEL);
     expect(p?.amount).toBe(20);
+  });
+
+  it("parses EVC bank transfer to account-kaaga (ku shubtey)", () => {
+    const p = parseSmsTransaction("192", EVC_BANK_KAAGA);
+    expect(p?.provider).toBe("evc");
+    expect(p?.kind).toBe("send_p2p");
+    expect(p?.rawType).toBe("evc_to_bank");
+    expect(p?.amount).toBe(50);
+    expect(p?.accountNumber).toBe("385XXX54");
+    expect(p?.balance).toBe(105.65);
+    expect(p?.note).toBe(SMS_TRANSFER_TO_BANK_LABEL);
   });
 
   it("parses EVC topup when not bank transfer", () => {
@@ -248,6 +278,33 @@ describe("parseSmsTransaction", () => {
     expect(p?.name).toBe("MAHDI ABDULKADIR AHMED");
     expect(p?.phone).toBe("38XXXX54");
     expect(p?.rawType).toBe("evc_receive_from_bank");
+  });
+
+  it("parses Somtel eDahab income", () => {
+    const p = parseSmsTransaction("eDahab", EDAHAB_INCOME);
+    expect(p?.provider).toBe("somtel_edahab");
+    expect(p?.kind).toBe("receive");
+    expect(p?.amount).toBe(0.1);
+    expect(p?.name).toBe("Mohamed Musse Mohamud");
+    expect(p?.phone).toBe("627194533");
+    expect(p?.reference).toBe("PP260511.2237.D39733");
+    expect(p?.balance).toBe(0.1);
+    expect(p?.rawType).toBe("somtel_edahab_receive");
+    expect(p?.dateIso).toBeTruthy();
+  });
+
+  it("parses Somtel eDahab expense", () => {
+    const p = parseSmsTransaction("eDahab", EDAHAB_EXPENSE);
+    expect(p?.provider).toBe("somtel_edahab");
+    expect(p?.kind).toBe("send_p2p");
+    expect(p?.amount).toBe(0.1);
+    expect(p?.name).toBe("Mohamed Musse Mohamud");
+    expect(p?.phone).toBe("627194533");
+    expect(p?.reference).toBe("PP260511.2238.D39825");
+    expect(p?.balance).toBe(0);
+    expect(p?.fee).toBe(0);
+    expect(p?.rawType).toBe("somtel_edahab_send");
+    expect(p?.dateIso).toBeTruthy();
   });
 
   it("parses Salaam external EVC sample F", () => {

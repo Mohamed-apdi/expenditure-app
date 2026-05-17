@@ -13,12 +13,16 @@ object SmsImportParser {
   private const val TRANSFER_BANK = "Transfer to bank"
 
   private val evcToBankRe = Pattern.compile(
-    "waxaad\\s+\\$?\\s*([\\d.]+)\\s+ku\\s+shubtay\\s+Bank\\s+account:\\s*(.+?)\\s*\\(([^)]+)\\)",
+    "waxaad\\s+\\$?\\s*([\\d.]+)\\s+ku\\s+shubte?y\\s+Bank\\s+account:\\s*(.+?)\\s*\\(([^)]+)\\)",
     Pattern.CASE_INSENSITIVE,
   )
-  /** Hormuud uses `haraagaagu` and `haraagagu` spellings (1–2 a's before `gu`). */
+  private val evcToBankKaagaRe = Pattern.compile(
+    "waxaad\\s+\\$?\\s*([\\d.]+)\\s+ku\\s+shubte?y\\s+bank\\s+account-kaaga\\s*:\\s*([^\\s,]+)",
+    Pattern.CASE_INSENSITIVE,
+  )
+  /** Hormuud balance spellings: haraagaagu, haraagagu, haraagaaga, etc. */
   private val haraagaRe = Pattern.compile(
-    "haraaga{1,2}gu\\s+waa\\s+[\\$\uFF04\uFE69]?\\s*([\\d.]+)",
+    "(?:haraaga{1,2}gu|haraagaaga)\\s+waa\\s+[\\$\uFF04\uFE69]?\\s*([\\d.]+)",
     Pattern.CASE_INSENSITIVE,
   )
   /** ASCII `$`, fullwidth `＄`, small `﹩`. */
@@ -72,8 +76,11 @@ object SmsImportParser {
 
   fun parse(sender: String, body: String): EvcSmsParsed {
     val senderTrim = sender.trim()
+    val provider = SmsProviderDetect.detectProvider(senderTrim, body) ?: return ignoredRow(senderTrim)
+    if (provider == "somtel_edahab") {
+      return parseSomtelEdahab(body, senderTrim) ?: ignoredRow(senderTrim)
+    }
     val bodyNorm = prioritizeEvcHeaderBody(body)
-    val provider = SmsProviderDetect.detectProvider(senderTrim, bodyNorm) ?: return ignoredRow(senderTrim)
     return when (provider) {
       "salaam_bank" -> parseSalaam(bodyNorm, senderTrim) ?: ignoredRow(senderTrim)
       "somnet_jeeb", "evc" -> parseEvcShaped(provider, senderTrim, bodyNorm)
@@ -151,7 +158,9 @@ object SmsImportParser {
   private fun classifyEvcShaped(provider: String, senderNorm: String, body: String, inner: String): String {
     val b = norm(inner)
     if (provider == "evc" && senderNorm == "NOTICE") return "bundle_notice"
-    if (evcToBankRe.matcher(inner).find()) return "send_p2p"
+    if (evcToBankRe.matcher(inner).find() || evcToBankKaagaRe.matcher(inner).find()) {
+      return "send_p2p"
+    }
     if (b.contains("ugu shubtay")) return "topup"
     if (
       b.contains("ka heshay") || b.contains("laguu soo diray") || b.contains("ayaad ka heshay") ||
@@ -331,6 +340,30 @@ object SmsImportParser {
       )
     }
 
+    val bankKaagaM = evcToBankKaagaRe.matcher(inner)
+    if (kind == "send_p2p" && bankKaagaM.find()) {
+      val amt = parseAmountLoose(bankKaagaM.group(1) ?: "")
+        ?: return ignoredRow(senderTrim).copy(provider = provider)
+      val tar2 = parseTar(inner)
+      return EvcSmsParsed(
+        provider = provider,
+        kind = "send_p2p",
+        sender = senderTrim,
+        amount = amt,
+        dateIso = tar2.first ?: tar.first,
+        tarRaw = tar2.second ?: tar.second,
+        phone = null,
+        name = null,
+        merchantName = null,
+        noticeSummary = null,
+        rawType = "evc_to_bank",
+        accountNumber = bankKaagaM.group(2)?.trim(),
+        balance = extractBalanceWaa(inner) ?: extractHaraagaagu(inner),
+        currency = "USD",
+        note = TRANSFER_BANK,
+      )
+    }
+
     val bankM = evcToBankRe.matcher(inner)
     if (kind == "send_p2p" && bankM.find()) {
       val amt = parseAmountLoose(bankM.group(1) ?: "") ?: return ignoredRow(senderTrim).copy(provider = provider)
@@ -348,7 +381,7 @@ object SmsImportParser {
         noticeSummary = null,
         rawType = "evc_to_bank",
         accountNumber = bankM.group(3)?.trim(),
-        balance = extractHaraagaagu(inner),
+        balance = extractBalanceWaa(inner) ?: extractHaraagaagu(inner),
         currency = "USD",
         note = TRANSFER_BANK,
       )
@@ -588,6 +621,102 @@ object SmsImportParser {
         transactionId = m.group(5),
         currency = "USD",
         rawType = "salaam_bank_transfer_in",
+      )
+    }
+
+    return null
+  }
+
+  private val edahabFirstDollarRe = Pattern.compile(
+    "([\\d.]+)\\s+Dollar",
+    Pattern.CASE_INSENSITIVE,
+  )
+  private val edahabExpenseMarkerRe = Pattern.compile(
+    "ayad\\s+u\\s+warejisay|u\\s+warejisay",
+    Pattern.CASE_INSENSITIVE,
+  )
+  private val edahabIncomeMarkerRe = Pattern.compile(
+    "Ayaad\\s+Ka\\s+Heshay|Ka\\s+Heshay",
+    Pattern.CASE_INSENSITIVE,
+  )
+
+  private fun parseDdMmYyyyDate(raw: String): Pair<String?, String?> {
+    val m = Pattern.compile("^(\\d{1,2})-(\\d{1,2})-(\\d{4})").matcher(raw.trim())
+    if (!m.find()) return Pair(null, raw.trim())
+    val day = m.group(1)!!.toInt()
+    val month = m.group(2)!!.toInt() - 1
+    val year = m.group(3)!!.toInt()
+    val cal = Calendar.getInstance()
+    cal.set(year, month, day, 12, 0, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    val iso = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+      timeZone = TimeZone.getTimeZone("UTC")
+    }.format(cal.time)
+    return Pair(iso, raw.trim())
+  }
+
+  private fun parseSomtelEdahab(body: String, senderTrim: String): EvcSmsParsed? {
+    val b = body.trim()
+    if (b.isEmpty()) return null
+    val am = edahabFirstDollarRe.matcher(b)
+    if (!am.find()) return null
+    val amount = parseAmountLoose(am.group(1) ?: return null) ?: return null
+
+    val tariikhM = Pattern.compile("Tariikh:\\s*([^\\n\\[]+)", Pattern.CASE_INSENSITIVE).matcher(b)
+    val tariikhRaw = if (tariikhM.find()) tariikhM.group(1)?.trim() else null
+    val tariikhClean = tariikhRaw?.split(Regex("\\[?-eDahab", RegexOption.IGNORE_CASE))?.firstOrNull()?.trim()
+    val d = if (tariikhClean != null) parseDdMmYyyyDate(tariikhClean) else Pair(null, null)
+
+    if (edahabExpenseMarkerRe.matcher(b).find()) {
+      val nameM = Pattern.compile("u\\s+warejisay\\s+(.+?)\\.\\s*No:", Pattern.CASE_INSENSITIVE).matcher(b)
+      val phoneM = Pattern.compile("\\.?\\s*No:\\s*(\\d+)", Pattern.CASE_INSENSITIVE).matcher(b)
+      val refM = Pattern.compile("Tixrac:\\s*(\\S+)", Pattern.CASE_INSENSITIVE).matcher(b)
+      val balM = Pattern.compile("Haraaga:\\s*([\\d.]+)\\s+Dollar", Pattern.CASE_INSENSITIVE).matcher(b)
+      val feeM = Pattern.compile(
+        "Kharashyada Adeegga:\\s*([\\d.]+)\\s+Dollar",
+        Pattern.CASE_INSENSITIVE,
+      ).matcher(b)
+      return EvcSmsParsed(
+        provider = "somtel_edahab",
+        kind = "send_p2p",
+        sender = senderTrim,
+        amount = amount,
+        dateIso = d.first,
+        tarRaw = d.second ?: tariikhRaw,
+        phone = if (phoneM.find()) phoneM.group(1)?.trim() else null,
+        name = if (nameM.find()) nameM.group(1)?.trim() else null,
+        merchantName = null,
+        noticeSummary = null,
+        reference = if (refM.find()) refM.group(1)?.trim() else null,
+        balance = if (balM.find()) parseBalanceLoose(balM.group(1) ?: "") else null,
+        currency = "USD",
+        rawType = "somtel_edahab_send",
+      )
+    }
+
+    if (edahabIncomeMarkerRe.matcher(b).find()) {
+      val nameM = Pattern.compile("Ka\\s+Heshay\\s+(.+?)\\.Code-ka", Pattern.CASE_INSENSITIVE).matcher(b)
+      val phoneM = Pattern.compile("Lambarka\\s*:\\s*(\\d+)", Pattern.CASE_INSENSITIVE).matcher(b)
+      val refM = Pattern.compile("Aqanoosiga\\s*:\\s*(\\S+)", Pattern.CASE_INSENSITIVE).matcher(b)
+      val balM = Pattern.compile(
+        "Haraagaaga\\s+Cusubi\\s+Waa:\\s*([\\d.]+)\\s+Dollar",
+        Pattern.CASE_INSENSITIVE,
+      ).matcher(b)
+      return EvcSmsParsed(
+        provider = "somtel_edahab",
+        kind = "receive",
+        sender = senderTrim,
+        amount = amount,
+        dateIso = d.first,
+        tarRaw = d.second ?: tariikhRaw,
+        phone = if (phoneM.find()) phoneM.group(1)?.trim() else null,
+        name = if (nameM.find()) nameM.group(1)?.trim() else null,
+        merchantName = null,
+        noticeSummary = null,
+        reference = if (refM.find()) refM.group(1)?.trim() else null,
+        balance = if (balM.find()) parseBalanceLoose(balM.group(1) ?: "") else null,
+        currency = "USD",
+        rawType = "somtel_edahab_receive",
       )
     }
 

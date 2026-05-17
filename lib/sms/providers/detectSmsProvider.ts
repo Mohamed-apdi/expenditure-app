@@ -1,6 +1,6 @@
 /**
- * Provider detection — same order as Kotlin: somnet_jeeb → salaam_bank → evc.
- * Somtel is never detected here (placeholder only).
+ * Provider detection — same order as Kotlin:
+ * somnet_jeeb → salaam_bank → somtel_edahab → evc.
  */
 
 import type { SmsProvider } from "./types";
@@ -17,12 +17,19 @@ export function normalizeSmsSender(sender: string): string {
 /**
  * Returns detected provider for a message that may be financial SMS, or null if none.
  */
-export function detectSmsProvider(sender: string, body: string): SmsProvider | null {
+export function detectSmsProvider(
+  sender: string,
+  body: string,
+): SmsProvider | null {
   const d = digitsOnly(sender);
   const b = body;
   const bu = b.toUpperCase();
 
-  if (b.includes("[-JEEB-]") || d === "898" || normalizeSmsSender(sender) === "898") {
+  if (
+    b.includes("[-JEEB-]") ||
+    d === "898" ||
+    normalizeSmsSender(sender) === "898"
+  ) {
     return "somnet_jeeb";
   }
 
@@ -39,6 +46,14 @@ export function detectSmsProvider(sender: string, body: string): SmsProvider | n
         bu.includes("CARD KAAGA BANGIGA")))
   ) {
     return "salaam_bank";
+  }
+
+  if (
+    body.includes("[-eDahab-Service-]") ||
+    bu.includes("[-EDAHAB-SERVICE-]") ||
+    /\bedahab\b/i.test(b)
+  ) {
+    return "somtel_edahab";
   }
 
   const sNorm = normalizeSmsSender(sender);

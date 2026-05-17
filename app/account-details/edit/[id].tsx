@@ -71,9 +71,9 @@ export default function EditAccount() {
   const [formData, setFormData] = useState({
     account_type: "",
     name: "",
-    amount: 0,
     description: "",
   });
+  const [amountText, setAmountText] = useState("");
 
   useEffect(() => {
     loadAccount();
@@ -88,7 +88,7 @@ export default function EditAccount() {
 
       const user = await getCurrentUserOfflineFirst();
       if (!user) {
-        router.replace("/login");
+        setError(t.failedToLoadAccount);
         return;
       }
 
@@ -114,9 +114,10 @@ export default function EditAccount() {
       setFormData({
         account_type: accountData.account_type || "",
         name: accountData.name || "",
-        amount: accountData.amount ?? 0,
         description: accountData.description || "",
       });
+      const loadedAmount = accountData.amount ?? 0;
+      setAmountText(loadedAmount === 0 ? "" : String(loadedAmount));
     } catch (error) {
       console.error("Error loading account:", error);
       setError(t.failedToLoadAccount);
@@ -139,13 +140,13 @@ export default function EditAccount() {
 
       const user = await getCurrentUserOfflineFirst();
       if (!user) {
-        router.replace("/login");
+        setError(t.failedToUpdateAccount);
         return;
       }
 
       const latest = selectAccountById(user.id, account.id);
       const previousAmount = latest?.amount ?? account.amount ?? 0;
-      const newAmount = formData.amount;
+      const newAmount = amountText ? parseFloat(amountText) : 0;
       const delta =
         Math.round((newAmount - previousAmount + Number.EPSILON) * 100) / 100;
 
@@ -297,8 +298,8 @@ export default function EditAccount() {
               style={{ color: theme.text }}
               placeholder="0.00"
               placeholderTextColor={theme.placeholder}
-              keyboardType="numeric"
-              value={formData.amount.toString()}
+              keyboardType="decimal-pad"
+              value={amountText}
               onChangeText={(text) => {
                 const cleanedText = text.replace(/[^0-9.]/g, "");
                 const decimalParts = cleanedText.split(".");
@@ -309,10 +310,7 @@ export default function EditAccount() {
                     "." + decimalParts.slice(1).join("").substring(0, 2);
                 }
 
-                const numericValue = formattedValue
-                  ? parseFloat(formattedValue)
-                  : 0;
-                setFormData({ ...formData, amount: numericValue });
+                setAmountText(formattedValue);
               }}
             />
           </View>

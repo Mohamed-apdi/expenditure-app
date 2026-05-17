@@ -57,7 +57,7 @@ export type Frequency = "daily" | "weekly" | "monthly" | "yearly";
 export const getExpenseCategories = (t: any): Category[] => [
   { id: "food", name: t.foodAndDrinks, icon: Utensils, color: "#059669" },
   { id: "rent", name: t.homeAndRent, icon: Home, color: "#92400e" },
-  { id: "transport", name: t.travel, icon: Bus, color: "#ca8a04" },
+  { id: "transport", name: t.transport, icon: Bus, color: "#ca8a04" },
   { id: "utilities", name: t.bills, icon: Zap, color: "#ea580c" },
   { id: "entertainment", name: t.fun, icon: Film, color: "#9333ea" },
   { id: "healthcare", name: t.health, icon: HeartPulse, color: "#6d28d9" },
@@ -171,7 +171,8 @@ const LEGACY_EN_LABEL_TO_CATEGORY_ID: Readonly<Record<string, string>> = {
   Housing: "rent",
   Mortgage: "rent",
 
-  // —— Transport ——
+  // —— Transport (legacy "Travel" label) ——
+  Travel: "transport",
   Transport: "transport",
   Gas: "transport",
   PublicTransport: "transport",
