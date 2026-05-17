@@ -13,14 +13,22 @@ import {
   summarizeNotice,
 } from "~/lib/evc/evcSmsParser";
 import { detectSmsProvider } from "./detectSmsProvider";
+import { parseSomtelEdahab } from "./parseSomtelEdahab";
 import type { SmsCurrency, SmsParsedTransaction, SmsProvider } from "./types";
 import { SMS_TRANSFER_TO_BANK_LABEL } from "./types";
 
 const EVC_TO_BANK_RE =
-  /waxaad\s+\$?\s*([\d.]+)\s+ku\s+shubtay\s+Bank\s+account:\s*(.+?)\s*\(([^)]+)\)/i;
-/** Hormuud uses `haraagaagu` and `haraagagu` spellings (1–2 a's before `gu`). */
+  /waxaad\s+\$?\s*([\d.]+)\s+ku\s+shubte?y\s+Bank\s+account:\s*(.+?)\s*\(([^)]+)\)/i;
+/** `bank account-kaaga: 385XXX54` (no name in parentheses). */
+const EVC_TO_BANK_KAAGA_RE =
+  /waxaad\s+\$?\s*([\d.]+)\s+ku\s+shubte?y\s+bank\s+account-kaaga\s*:\s*([^\s,]+)/i;
+/** Hormuud balance spellings: haraagaagu, haraagagu, haraagaaga, etc. */
 const HARAAGA_RE =
-  /haraaga{1,2}gu\s+waa\s+(?:\$|\uFF04|\uFE69)?\s*([\d.]+)/i;
+  /(?:haraaga{1,2}gu|haraagaaga)\s+waa\s+(?:\$|\uFF04|\uFE69)?\s*([\d.]+)/i;
+
+function isEvcToBankTransfer(inner: string): boolean {
+  return EVC_TO_BANK_RE.test(inner) || EVC_TO_BANK_KAAGA_RE.test(inner);
+}
 
 /** Bank / carrier multipart SMS sometimes prepends a line (e.g. MSISDN) before the EVC header. */
 function prioritizeEvcHeaderBody(body: string): string {
@@ -91,7 +99,9 @@ function parseBalanceLoose(raw: string): number | undefined {
 }
 
 function parseDdMmYyTime(raw: string): { dateIso?: string; tarRaw?: string } {
-  const m = raw.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})/);
+  const m = raw
+    .trim()
+    .match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{1,2}):(\d{1,2})/);
   if (!m) return { tarRaw: raw };
   const day = Number.parseInt(m[1], 10);
   const month = Number.parseInt(m[2], 10) - 1;
@@ -106,7 +116,10 @@ function parseDdMmYyTime(raw: string): { dateIso?: string; tarRaw?: string } {
 }
 
 /** Salaam bank hyphen date: dd-MM-yyyy h:mm:ss AM/PM */
-function parseSalaamBankDate(raw: string): { dateIso?: string; tarRaw?: string } {
+function parseSalaamBankDate(raw: string): {
+  dateIso?: string;
+  tarRaw?: string;
+} {
   const m = raw
     .trim()
     .match(
@@ -128,7 +141,10 @@ function parseSalaamBankDate(raw: string): { dateIso?: string; tarRaw?: string }
 }
 
 /** Salaam App: M/d/yyyy h:mm:ss AM/PM */
-function parseSalaamAppDate(raw: string): { dateIso?: string; tarRaw?: string } {
+function parseSalaamAppDate(raw: string): {
+  dateIso?: string;
+  tarRaw?: string;
+} {
   const m = raw
     .trim()
     .match(
@@ -192,7 +208,7 @@ function classifyEvcShapedBody(
     return "bundle_notice";
   }
 
-  if (EVC_TO_BANK_RE.test(inner)) {
+  if (isEvcToBankTransfer(inner)) {
     return "send_p2p";
   }
 
@@ -223,17 +239,29 @@ function extractHaraagaaguBalance(body: string): number | undefined {
 }
 
 function parseEvcToBank(inner: string): Partial<SmsParsedTransaction> {
+  const balance =
+    extractHaraagaaguBalance(inner) ?? extractBalanceAfter(inner) ?? null;
+
+  const kaaga = inner.match(EVC_TO_BANK_KAAGA_RE);
+  if (kaaga) {
+    return {
+      kind: "send_p2p",
+      amount: parseAmountLoose(kaaga[1]),
+      name: null,
+      accountNumber: kaaga[2]?.trim() ?? null,
+      balance,
+      rawType: "evc_to_bank",
+      note: SMS_TRANSFER_TO_BANK_LABEL,
+    };
+  }
+
   const m = inner.match(EVC_TO_BANK_RE);
   if (!m) return {};
-  const amount = parseAmountLoose(m[1]);
-  const name = m[2]?.trim() ?? null;
-  const accountNumber = m[3]?.trim() ?? null;
-  const balance = extractHaraagaaguBalance(inner) ?? null;
   return {
     kind: "send_p2p",
-    amount: amount ?? undefined,
-    name,
-    accountNumber,
+    amount: parseAmountLoose(m[1]),
+    name: m[2]?.trim() ?? null,
+    accountNumber: m[3]?.trim() ?? null,
     balance,
     rawType: "evc_to_bank",
     note: SMS_TRANSFER_TO_BANK_LABEL,
@@ -265,7 +293,7 @@ function parseEvcShaped(
     };
   }
 
-  if (kind === "send_p2p" && EVC_TO_BANK_RE.test(inner)) {
+  if (kind === "send_p2p" && isEvcToBankTransfer(inner)) {
     const bank = parseEvcToBank(inner);
     const { dateIso: d2, tarRaw: t2 } = parseTarDate(inner);
     return {
@@ -285,7 +313,8 @@ function parseEvcShaped(
   }
 
   const primaryAmount = extractPrimaryAmount(inner);
-  const balanceAfter = extractBalanceAfter(inner) ?? extractHaraagaaguBalance(inner);
+  const balanceAfter =
+    extractBalanceAfter(inner) ?? extractHaraagaaguBalance(inner);
 
   const somnetReceive = inner.match(SOMNET_RECEIVE_RE);
   if (kind === "receive" && somnetReceive) {
@@ -326,7 +355,8 @@ function parseEvcShaped(
     base.merchantName = m?.[1]?.trim() ?? null;
     const tel = inner.match(/Tel:\s*(\+?\d[\d\s-]{6,20})/i);
     const loose = inner.match(/(?:\+?252|0)?\d{9,12}|\b\d{9}\b/);
-    base.phone = (tel?.[1]?.replace(/\s/g, "") ?? loose?.[0]?.replace(/\s/g, "")) ?? null;
+    base.phone =
+      tel?.[1]?.replace(/\s/g, "") ?? loose?.[0]?.replace(/\s/g, "") ?? null;
   } else if (kind === "send_p2p") {
     const refM = inner.match(/Tixraac:\s*(\d+)/i);
     if (refM?.[1]) base.reference = refM[1].trim();
@@ -350,7 +380,10 @@ function parseEvcShaped(
       const laguu = inner.match(/laguu\s+soo\s+diray\s+(\+?\d[\d\s]+)/i);
       base.phone = (ka?.[1] ?? laguu?.[1])?.replace(/\s/g, "") ?? null;
     }
-    if (/\bvia\s+salaam\b/i.test(inner) || /salaam\s+somali\s+bank/i.test(inner)) {
+    if (
+      /\bvia\s+salaam\b/i.test(inner) ||
+      /salaam\s+somali\s+bank/i.test(inner)
+    ) {
       base.rawType = "evc_receive_from_bank";
     }
   } else if (kind === "topup") {
@@ -365,7 +398,10 @@ function parseEvcShaped(
 function parseSalaamBank(body: string): SmsParsedTransaction | null {
   const bu = body.toUpperCase();
 
-  if (bu.includes("SALAAM APP:") && body.toLowerCase().includes("ayaad u wareejisay")) {
+  if (
+    bu.includes("SALAAM APP:") &&
+    body.toLowerCase().includes("ayaad u wareejisay")
+  ) {
     const m = body.match(SALAAM_APP_SEND_RE);
     if (!m) return null;
     const amount = parseAmountLoose(m[1]);
@@ -388,7 +424,10 @@ function parseSalaamBank(body: string): SmsParsedTransaction | null {
     };
   }
 
-  if (/\bayaa\s+laga\s+saaray\b/i.test(body) && /card\s+kaaga\s+bangiga/i.test(body)) {
+  if (
+    /\bayaa\s+laga\s+saaray\b/i.test(body) &&
+    /card\s+kaaga\s+bangiga/i.test(body)
+  ) {
     const m = body.match(SALAAM_BANK_CARD_DEBIT_RE);
     if (m) {
       const amount = parseAmountLoose(m[1]);
@@ -416,7 +455,10 @@ function parseSalaamBank(body: string): SmsParsedTransaction | null {
     }
   }
 
-  if (bu.includes("AYAA LAGU WAREEJIYAY KONTADAADA") && bu.includes("KANA TIMID #EX:")) {
+  if (
+    bu.includes("AYAA LAGU WAREEJIYAY KONTADAADA") &&
+    bu.includes("KANA TIMID #EX:")
+  ) {
     const m = body.match(SALAAM_OWN_EVC_RE);
     if (!m) return null;
     const amount = parseAmountLoose(m[1]);
@@ -486,10 +528,18 @@ function parseSalaamBank(body: string): SmsParsedTransaction | null {
 /**
  * Parse incoming SMS. Returns null if message should be ignored.
  */
-export function parseSmsTransaction(sender: string, body: string): SmsParsedTransaction | null {
+export function parseSmsTransaction(
+  sender: string,
+  body: string,
+): SmsParsedTransaction | null {
+  const provider = detectSmsProvider(sender, body);
+  if (!provider) return null;
+
+  if (provider === "somtel_edahab") {
+    return parseSomtelEdahab(body);
+  }
+
   const bodyNorm = prioritizeEvcHeaderBody(body);
-  const provider = detectSmsProvider(sender, bodyNorm);
-  if (!provider || provider === "somtel") return null;
 
   if (provider === "salaam_bank") {
     return parseSalaamBank(bodyNorm);

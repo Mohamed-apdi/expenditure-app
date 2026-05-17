@@ -159,7 +159,7 @@ export default function IncomeForm({
             marginBottom: 8,
             color: theme.textSecondary,
           }}>
-          {t.select_category || 'Category'}
+          {t.select_category_money || t.select_category || 'Category'}
         </Text>
         <TouchableOpacity
           activeOpacity={0.85}
@@ -201,7 +201,8 @@ export default function IncomeForm({
                 color: selectedCategory ? theme.text : theme.placeholder,
               }}
               numberOfLines={1}>
-              {selectedCategory?.name ?? (t.select_category || 'Select category')}
+              {selectedCategory?.name ??
+                (t.select_category_money || t.select_category || 'Select category')}
             </Text>
           </View>
           <ChevronDown size={20} color={theme.textMuted} />
@@ -213,6 +214,7 @@ export default function IncomeForm({
         onClose={closeCategorySheet}
         categories={categories}
         onSelect={handleSelectCategory}
+        title={t.select_category_money || t.select_category}
       />
 
       {/* Note - Optional */}

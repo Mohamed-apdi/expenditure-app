@@ -118,7 +118,6 @@ class SmsBroadcastReceiver : BroadcastReceiver() {
 
   private fun shouldForward(context: Context, originatingAddress: String, body: String): Boolean {
     val provider = SmsProviderDetect.detectProvider(originatingAddress, body) ?: return false
-    if (provider == "somtel") return false
     return EvcSmsPrefs.isProviderEnabled(context, provider)
   }
 }

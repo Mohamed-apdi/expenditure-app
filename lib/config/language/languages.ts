@@ -298,6 +298,8 @@ export const LANGUAGES = {
     how_much: "How much?",
     choose_category: "Choose Category",
     select_category: "Select a category",
+    /** Add expense / add income category field label & placeholder */
+    select_category_money: "Select a category",
 
     whats_this_for: "What's this for?",
     add_note_about_transaction: "Add a note about this transaction...",
@@ -331,7 +333,8 @@ export const LANGUAGES = {
     // Income and Expense Categories
     foodAndDrinks: "Food & Drinks",
     homeAndRent: "Home & Rent",
-    travel: "Travel",
+    travel: "Transport",
+    transport: "Transport",
     fun: "Fun",
     health: "Health",
     shopping: "Shopping",
@@ -389,8 +392,8 @@ export const LANGUAGES = {
     smsProviderSomnetSubtitle: "898 or JEEB markers",
     smsProviderSalaam: "Salaam Bank",
     smsProviderSalaamSubtitle: "Salaam App and bank SMS we recognize",
-    smsProviderSomtel: "Somtel",
-    smsProviderSomtelSubtitle: "Coming soon — detection not enabled yet",
+    smsProviderSomtel: "Somtel eDahab",
+    smsProviderSomtelSubtitle: "[-eDahab-Service-] and eDahab messages",
     smsImportAccountsRowTitle: "Accounts for SMS import",
     smsImportAccountsRowSubtitleEmpty:
       "Choose accounts for each service. SIM options are only for advanced setups.",
@@ -409,6 +412,7 @@ export const LANGUAGES = {
       "Used only when a service has no account selected. If left empty, the app default account is used.",
     smsMapSectionEvc: "Hormuud / EVC Plus",
     smsMapSectionSomnet: "Somnet / JEEB",
+    smsMapSectionSomtel: "Somtel / eDahab",
     smsMapSectionSalaam: "Salaam Bank",
     /** @deprecated UI uses smsMapEvcMainAccountTitle / smsMapSomnetMainAccountTitle */
     smsMapProviderFallback: "Provider default (optional)",
@@ -429,6 +433,13 @@ export const LANGUAGES = {
       "Optional — only if this SIM should use a different Somnet account.",
     smsMapSomnetSim2Hint:
       "Optional — only if this SIM should use a different Somnet account.",
+    smsMapSomtelMainAccountTitle: "Main eDahab account",
+    smsMapSomtelMainAccountHint:
+      "Used for all Somtel eDahab SMS unless a SIM-specific account is set.",
+    smsMapSomtelSim1Hint:
+      "Optional — only if this SIM should use a different eDahab account.",
+    smsMapSomtelSim2Hint:
+      "Optional — only if this SIM should use a different eDahab account.",
     smsMapSalaamAccountTitle: "Salaam Bank account",
     smsMapSalaamAccountHint: "Used for all Salaam Bank SMS.",
     smsPickSelectAccount: "Select account",
@@ -1328,8 +1339,9 @@ export const LANGUAGES = {
     // AddExpense component
     add_transaction: "Ku dar Dhaqdhaqaaqaaga",
     how_much: "Xaddiga Lacagta?",
-    choose_category: "Dooro Nooca",
-    select_category: "Dooro Nooca",
+    choose_category: "Dooro nooc",
+    select_category: "Dooro nooc",
+    select_category_money: "Dooro nooca lacagta",
 
     whats_this_for: "Ku qor ujeeddada?",
     add_note_about_transaction: "Ku dar Faahfaahin ku saabsan Dhaqdhaqaaqaaga?",
@@ -1352,7 +1364,7 @@ export const LANGUAGES = {
     completeTransfer: "Dhameystir Wareejinta",
     insufficientFunds: "Lacag  kugu filan maku jirto",
     transferReady: "Wareejinta waa  Diyaar",
-    selectCategory: "Dooro Nuuca",
+    selectCategory: "Dooro nooc",
 
     select: "Dooro",
 
@@ -1364,7 +1376,8 @@ export const LANGUAGES = {
     // Income and Expense Categories
     foodAndDrinks: "Cuntada iyo Cabitaanka",
     homeAndRent: "Kireysiga Kaaga Baxay",
-    travel: "Safar",
+    travel: "Gaadiid",
+    transport: "Gaadiid",
     fun: "Madadaalo",
     health: "Caafimaad ahan",
     shopping: "Tukaameysi",
@@ -1421,8 +1434,8 @@ export const LANGUAGES = {
     smsProviderSomnetSubtitle: "898 ama calaamadaha JEEB",
     smsProviderSalaam: "Salaam Bank",
     smsProviderSalaamSubtitle: "Salaam App iyo SMS-yada bangiga aan aqoonsanno",
-    smsProviderSomtel: "Somtel",
-    smsProviderSomtelSubtitle: "Dhowaan — aqoonsi weli lama furo",
+    smsProviderSomtel: "Somtel eDahab",
+    smsProviderSomtelSubtitle: "[-eDahab-Service-] iyo farriimaha eDahab",
     smsImportAccountsRowTitle: "Akoonnada soo dejinta SMS",
     smsImportAccountsRowSubtitleEmpty:
       "Dooro akoon kasta adeegga. SIM-ka waxaa loogu talagalay habka horumarsan oo keliya.",
@@ -1441,6 +1454,7 @@ export const LANGUAGES = {
       "La isticmaalaa kaliya marka adeegga uusan haysan akoon la doortay. Marka la daayo, waxaa la isticmaalaa akoonka caadiga ah ee app-ka.",
     smsMapSectionEvc: "Hormuud / EVC Plus",
     smsMapSectionSomnet: "Somnet / JEEB",
+    smsMapSectionSomtel: "Somtel / eDahab",
     smsMapSectionSalaam: "Salaam Bank",
     smsMapProviderFallback: "Akoonka caadiga ah ee bixiyaha (ikhtiyaari)",
     smsMapEvcMainAccountTitle: "Akoonka ugu weyn ee EVC",
@@ -1460,6 +1474,13 @@ export const LANGUAGES = {
       "Ikhtiyaari — kaliya haddii SIM-kan uu u baahan yahay akoon Somnet oo kala duwan.",
     smsMapSomnetSim2Hint:
       "Ikhtiyaari — kaliya haddii SIM-kan uu u baahan yahay akoon Somnet oo kala duwan.",
+    smsMapSomtelMainAccountTitle: "Akoonka ugu weyn ee eDahab",
+    smsMapSomtelMainAccountHint:
+      "Waxaa loo isticmaalaa dhammaan SMS-yada Somtel eDahab illaa aad haysato akoon SIM gaar ah.",
+    smsMapSomtelSim1Hint:
+      "Ikhtiyaari — kaliya haddii SIM-kan uu u baahan yahay akoon eDahab oo kala duwan.",
+    smsMapSomtelSim2Hint:
+      "Ikhtiyaari — kaliya haddii SIM-kan uu u baahan yahay akoon eDahab oo kala duwan.",
     smsMapSalaamAccountTitle: "Akoonka Salaam Bank",
     smsMapSalaamAccountHint: "Waxaa loo isticmaalaa dhammaan SMS-yada Salaam Bank.",
     smsPickSelectAccount: "Dooro akoon",
@@ -1506,23 +1527,23 @@ export const LANGUAGES = {
     evcDiscoveryOpenSettings: "Fur Goobaha",
     evcDiscoveryMaybeLater: "Hadba ha iigu soo sheegin",
     evcDiscoveryDontShowAgain: "Mar dambe ha i tusin",
-    evcSelectCategory: "Dooro qaybta",
-    evcCategorizeTitle: "Qaybi wareejintan",
+    evcSelectCategory: "Dooro nooc",
+    evcCategorizeTitle: "Dooro nooca lacagta",
     evcCategorizeSubtitle: "Tani waxay hagaajineysaa warbixinnadaada",
     evcSuggested: "La soo jeediyay",
-    evcMoreCategories: "Qaybo kale",
+    evcMoreCategories: "Noocyo kale",
     evcAddNoteOptional: "+ Ku dar qoraal (ikhtiyaari)",
     evcNoteLabel: "Qoraal",
     evcNotePlaceholder: "Ku dar qoraal...",
     evcUsedBefore: "Horay loo isticmaalay",
-    evcTransactionsNeedCategory: "{{count}} wareejin ayaa u baahan qayb",
-    evcNeedCategoryLine2: "wareejin ayaa u baahan qayb",
+    evcTransactionsNeedCategory: "{{count}} wareejin ayaa u baahan nooc",
+    evcNeedCategoryLine2: "wareejin ayaa u baahan nooc",
     evcSelectMultiple: "Dooro badan",
     evcApplyToSelected: "Ku dar kuwa la doortay",
     uncategorizedTransactions: "Wareejinta aan la kala soocin",
     transactionUncategorized: "Aan la kala soocin",
-    transactionNeedsCategory: "U baahan yahay qayb",
-    transactionTapToCategorize: "Taab si aad u qaybiso",
+    transactionNeedsCategory: "U baahan yahay nooc",
+    transactionTapToCategorize: "Taab si aad u doorato nooca",
     transactionSentViaEvc: "Loo diray EVC",
     transactionReceivedViaEvc: "Laga helay EVC",
 
@@ -1549,7 +1570,7 @@ export const LANGUAGES = {
     left: "Ka hadhay",
     editBudget: "wax ka beddel Miisaaniyada",
     addNewBudget: "Ku dar Miisaaniyada Cusub",
-    category: "Nuuca",
+    category: "Nooc",
 
     selectAccount: "Dooro Akoon",
     budgetAmount: "Lacagta Miisaaniyada ($)",
@@ -1567,7 +1588,7 @@ export const LANGUAGES = {
     createAccountFirst: "Fadlan Samee Akoon horey u sameesnen miisaaniyada",
     selectAccountForBudget: "Fadlan dooro Akoon miisaaniyadan",
     missingInfo: "Macluumaadka maqan",
-    pleaseFillCategoryAndAmount: "Fadlan buuxi nuuca iyo lacagta la qeexay",
+    pleaseFillCategoryAndAmount: "Fadlan buuxi nooca iyo lacagta la qeexay",
     failedToFetchData: "Macluumaadka lama soo dejin karin",
 
     // SubscriptionsScreen translations
@@ -1628,8 +1649,8 @@ export const LANGUAGES = {
     currentAmount: "Lacagta Hadda",
     targetDate: "Taariikhda Hadafka",
     selectTargetDate: "Dooro taariikhda hadafka",
-    goalCategory: "Nuuca Hadafka",
-    selectGoalCategory: "Dooro nuuca",
+    goalCategory: "Nooca Hadafka",
+    selectGoalCategory: "Dooro nooc",
     goalDescription: "Faahfaahin Hadafka",
     enterGoalDescription: "Geli Faahfaahin (ikhtiyaar)",
     goalIcon: "Astaanta Hadafka",
@@ -1817,12 +1838,12 @@ export const LANGUAGES = {
     pleaseSelectAccount: "Fadlan dooro akoon",
     netAmount: "Wadarta Guud",
     incomeExpenses: "Dakhlig - Kharashaadka",
-    spendingByCategory: "Kharashaadka Nuuca",
-    tapCategoryForDetails: "Riix nuuca si aad u aragto faahfaahinta:",
+    spendingByCategory: "Kharashaadka Noocyada",
+    tapCategoryForDetails: "Riix nooc si aad u aragto faahfaahinta:",
     dailySpendingTrends: "Dhaqdhaqaaqa Kharashaadka Maalin kasta",
     weeklySpendingTrends: "Dhaqdhaqaaqa Kharashaadka Usbuucii",
     monthlySpendingTrends: "Dhaqdhaqaaqa Kharashaadka Bishii",
-    categoryBreakdown: "Qaybinta Nuuca",
+    categoryBreakdown: "Qaybinta Noocyada",
     transactionsCount: "dhaqdhaqaaq",
     showingMostRecent:
       "Waxay muujinayaan {max} xogta ugu dambeeyay ee {total} wadarta",
@@ -1841,7 +1862,7 @@ export const LANGUAGES = {
     confirm: "Xaqiiji",
     close: "Xir",
     percentageOfTotal: "Qaybka Wadarta",
-    allCategories: "Dhammaan Nuuca",
+    allCategories: "Dhammaan Noocyada",
     tapChartArea: "Riix goobta shaaxda si aad u aragto faahfaahinta guud",
     noAccountSelected: "Akoonka ma la doortay",
     pleaseSelectAccountToViewReports:
@@ -1935,7 +1956,7 @@ export const LANGUAGES = {
     noActiveSubscriptionsYet:
       "Ma haysataa rukumo socda. Ku dar rukumo si aad u socoto kharashaadka joogtada ah.",
     allSubscriptions: "Dhammaan Rukumada",
-    categories: "Qaybaha",
+    categories: "Noocyada",
     more: "dheeraad",
     today: "Maanta",
     tomorrow: "Berri",
@@ -2016,7 +2037,7 @@ export const LANGUAGES = {
     totalTransactions: "Wadarta Dhaqdhaqaaqa",
     avgTransaction: "Celceliska Dhaqdhaqaaqa",
     largestExpense: "Kharashaadka Ugu Weyn",
-    categoriesUsed: "Qaybaha La Isticmaalay",
+    categoriesUsed: "Noocyada La Isticmaalay",
     transaction: "dhaqdhaqaaq",
 
     // Onboarding translations (3 slides)

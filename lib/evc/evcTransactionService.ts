@@ -4,10 +4,7 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getCurrentUserOfflineFirst } from "../auth";
-import {
-  selectAccounts,
-  updateAccountLocal,
-} from "../stores/accountsStore";
+import { selectAccounts, updateAccountLocal } from "../stores/accountsStore";
 import {
   createExpenseLocal,
   updateExpenseLocal,
@@ -21,10 +18,7 @@ import {
 } from "../stores/transactionsStore";
 import { isOfflineGateLocked, triggerSync } from "../sync/legendSync";
 import { parseEvcFields } from "./evcSmsParser";
-import {
-  buildCanonicalSmsDedupeKey,
-  checkAndMarkDedupe,
-} from "./evcDedupe";
+import { buildCanonicalSmsDedupeKey, checkAndMarkDedupe } from "./evcDedupe";
 import { runSerializedEvcApply } from "./evcApplySerialize";
 import { resolveEvcCategory } from "./resolveEvcCategory";
 import {
@@ -35,6 +29,7 @@ import {
   buildEvcTransactionDescription,
   isLikelyEvcTopupLedgerMatch,
 } from "./evcTransactionDescription";
+import { buildSmsImportTransactionDescription } from "../sms/smsImportTransactionDescription";
 import { isEvcNoteUserEdited } from "./evcNoteUserEdited";
 import { parseSmsTransaction } from "../sms/providers/parseSmsTransaction";
 import type { SmsParsedTransaction } from "../sms/providers/types";
@@ -76,7 +71,9 @@ function getDefaultAccountForUser(userId: string) {
   return d ?? accounts[0];
 }
 
-function slotIndexToSim(slot: number | null | undefined): "sim1" | "sim2" | null {
+function slotIndexToSim(
+  slot: number | null | undefined,
+): "sim1" | "sim2" | null {
   // We only treat 0/1 as authoritative slot indices.
   // If a device reports 1/2, Android receiver now derives 0/1 from subId via SubscriptionManager.
   if (slot === 0) return "sim1";
@@ -84,7 +81,9 @@ function slotIndexToSim(slot: number | null | undefined): "sim1" | "sim2" | null
   return null;
 }
 
-function ledgerSourceFromProvider(p: SmsProvider): "evc" | "somnet_jeeb" | "salaam_bank" | "somtel" {
+function ledgerSourceFromProvider(
+  p: SmsProvider,
+): "evc" | "somnet_jeeb" | "salaam_bank" | "somtel_edahab" {
   return p;
 }
 
@@ -144,14 +143,18 @@ async function savePending(list: PendingBundle[]): Promise<void> {
 /** Most recent top-up waits for NOTICE next (LIFO). */
 async function pushPending(row: PendingBundle): Promise<void> {
   const now = Date.now();
-  const list = (await loadPending()).filter((p) => now - p.at < MATCH_WINDOW_MS);
+  const list = (await loadPending()).filter(
+    (p) => now - p.at < MATCH_WINDOW_MS,
+  );
   list.push(row);
   await savePending(list.slice(-20));
 }
 
 async function popLatestPending(): Promise<PendingBundle | null> {
   const now = Date.now();
-  const list = (await loadPending()).filter((p) => now - p.at < MATCH_WINDOW_MS);
+  const list = (await loadPending()).filter(
+    (p) => now - p.at < MATCH_WINDOW_MS,
+  );
   if (list.length === 0) return null;
   const last = list[list.length - 1];
   const rest = list.slice(0, -1);
@@ -218,10 +221,7 @@ async function mergeBundleNoticeForUser(
   });
 
   const expenseId = t0.source_expense_id;
-  if (
-    expenseId &&
-    !(await isEvcNoteUserEdited(expenseId))
-  ) {
+  if (expenseId && !(await isEvcNoteUserEdited(expenseId))) {
     const curEx = selectExpenseById(userId, expenseId);
     const baseEx = (curEx?.description ?? "").trim();
     updateExpenseLocal(expenseId, {
@@ -287,7 +287,13 @@ async function applySmsImportLedgerRow(input: {
   /** When true, skip JS "recorded" notification (native already showed "Transaction captured"). */
   suppressImportRecordedNotification?: boolean;
 }): Promise<boolean> {
-  const { parsed, sender, slot, preloaded, suppressImportRecordedNotification } = input;
+  const {
+    parsed,
+    sender,
+    slot,
+    preloaded,
+    suppressImportRecordedNotification,
+  } = input;
   const skipRecordedNotify = suppressImportRecordedNotification === true;
   if (parsed.kind === "ignored") return false;
 
@@ -364,11 +370,7 @@ async function applySmsImportLedgerRow(input: {
     const description =
       (parsed.note && parsed.note.trim().length > 0 ? parsed.note : null) ??
       evc.description ??
-      buildEvcTransactionDescription("receive", {
-        phone: parsed.phone,
-        name: parsed.name,
-        merchantName: parsed.merchantName,
-      });
+      buildSmsImportTransactionDescription(parsed);
     const exp = createExpenseLocal({
       user_id: user.id,
       account_id: account.id,
@@ -503,11 +505,7 @@ async function applySmsImportLedgerRow(input: {
   });
   const description =
     evc.description ??
-    buildEvcTransactionDescription(parsed.kind, {
-      phone: parsed.phone,
-      name: parsed.name,
-      merchantName: parsed.merchantName,
-    });
+    buildSmsImportTransactionDescription(parsed);
 
   const exp = createExpenseLocal({
     user_id: user.id,
@@ -549,10 +547,7 @@ async function applySmsImportLedgerRow(input: {
 }
 
 /** Whether a native-queue row may be deleted after processing. */
-export type NativeEvcQueueResult =
-  | "applied"
-  | "skipped_duplicate"
-  | "deferred";
+export type NativeEvcQueueResult = "applied" | "skipped_duplicate" | "deferred";
 
 export type NativeEvcPendingRow = {
   provider?: string | null;
@@ -595,7 +590,10 @@ function nativeRowToParsed(row: NativeEvcPendingRow): SmsParsedTransaction {
     transactionId: row.transactionId ?? null,
     accountNumber: row.accountNumber ?? null,
     balance: row.balance ?? null,
-    currency: row.currency === "SOS" || row.currency === "USD" ? row.currency : undefined,
+    currency:
+      row.currency === "SOS" || row.currency === "USD"
+        ? row.currency
+        : undefined,
     note: row.note ?? null,
   };
 }
@@ -627,7 +625,8 @@ async function applyNativeEvcRowToLedgerInner(
   if (!account) return "deferred";
 
   const suppressRecorded =
-    row.capturedNotificationShown === true || row.capturedNotificationShown === 1;
+    row.capturedNotificationShown === true ||
+    row.capturedNotificationShown === 1;
 
   const ok = await applySmsImportLedgerRow({
     parsed,

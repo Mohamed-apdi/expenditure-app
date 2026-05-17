@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import * as Linking from "expo-linking";
 import { View, ActivityIndicator, Text } from "react-native";
 import { useRouter } from "expo-router";
-import { setItemAsync } from "expo-secure-store";
 import { supabase } from "~/lib";
+import { persistAuthSession } from "~/lib/auth/sessionPersistence";
 import Toast from "react-native-toast-message";
 
 /**
@@ -75,9 +75,7 @@ export default function AuthCallbackScreen() {
           if (error) throw error;
 
           if (data.session && data.user?.id) {
-            await setItemAsync("token", data.session.access_token);
-            await setItemAsync("userId", data.user.id);
-            await setItemAsync("supabase_session", JSON.stringify(data.session));
+            await persistAuthSession(data.session);
 
             setStatus("Loading your accounts...");
             try {

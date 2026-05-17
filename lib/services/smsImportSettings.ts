@@ -1,5 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { NativeSmsImportConfig, SmsProvider } from "~/lib/sms/providers/types";
+import type {
+  NativeSmsImportConfig,
+  SmsProvider,
+} from "~/lib/sms/providers/types";
 import { DEFAULT_NATIVE_SMS_IMPORT_CONFIG } from "~/lib/sms/providers/types";
 import {
   KEY_ENABLED_PER_USER_PREFIX,
@@ -28,7 +31,7 @@ export type SmsImportUserSettings = {
   evc: ProviderSmsSettings;
   somnet_jeeb: ProviderSmsSettings;
   salaam_bank: ProviderSmsSettings;
-  somtel: ProviderSmsSettings;
+  somtel_edahab: ProviderSmsSettings;
 };
 
 const defaultProvider = (enabled: boolean): ProviderSmsSettings => ({
@@ -46,8 +49,15 @@ export function defaultSmsImportSettings(): SmsImportUserSettings {
     evc: defaultProvider(false),
     somnet_jeeb: defaultProvider(false),
     salaam_bank: defaultProvider(false),
-    somtel: defaultProvider(false),
+    somtel_edahab: defaultProvider(false),
   };
+}
+
+/** Settings storage key for a parsed SMS provider id. */
+export function smsProviderSettingsKey(
+  provider: import("~/lib/sms/providers/types").SmsProvider,
+): keyof SmsImportUserSettings {
+  return provider;
 }
 
 function key(userId: string): string {
@@ -75,8 +85,11 @@ async function migrateFromLegacyIfNeeded(userId: string): Promise<void> {
   }
   await migrateLegacyEvcEnabledOnce(userId);
   const legacyEnabled =
-    (await AsyncStorage.getItem(`${KEY_ENABLED_PER_USER_PREFIX}${userId}`)) === "true";
-  const legacyDefault = await AsyncStorage.getItem(`${KEY_IMPORT_ACCOUNT_PREFIX}${userId}`);
+    (await AsyncStorage.getItem(`${KEY_ENABLED_PER_USER_PREFIX}${userId}`)) ===
+    "true";
+  const legacyDefault = await AsyncStorage.getItem(
+    `${KEY_IMPORT_ACCOUNT_PREFIX}${userId}`,
+  );
   let legacySim: { sim1?: string; sim2?: string } = {};
   try {
     const raw = await AsyncStorage.getItem(`${KEY_SIM_MAP_PREFIX}${userId}`);
@@ -97,7 +110,9 @@ async function migrateFromLegacyIfNeeded(userId: string): Promise<void> {
   await setMigratedFlag();
 }
 
-export async function getSmsImportSettings(userId: string): Promise<SmsImportUserSettings> {
+export async function getSmsImportSettings(
+  userId: string,
+): Promise<SmsImportUserSettings> {
   await migrateFromLegacyIfNeeded(userId);
   try {
     const raw = await AsyncStorage.getItem(key(userId));
@@ -112,7 +127,11 @@ export async function getSmsImportSettings(userId: string): Promise<SmsImportUse
       evc: { ...defaultProvider(false), ...p.evc },
       somnet_jeeb: { ...defaultProvider(false), ...p.somnet_jeeb },
       salaam_bank: { ...defaultProvider(false), ...p.salaam_bank },
-      somtel: { ...defaultProvider(false), ...p.somtel },
+      somtel_edahab: {
+        ...defaultProvider(false),
+        ...p.somtel_edahab,
+        ...(p as { somtel?: ProviderSmsSettings }).somtel,
+      },
     };
   } catch {
     return defaultSmsImportSettings();
@@ -134,7 +153,10 @@ export async function saveSmsImportSettings(
   }
 }
 
-async function mirrorLegacyEvcKeys(userId: string, s: SmsImportUserSettings): Promise<void> {
+async function mirrorLegacyEvcKeys(
+  userId: string,
+  s: SmsImportUserSettings,
+): Promise<void> {
   const evcOn = s.globalEnabled && s.evc.enabled;
   await AsyncStorage.setItem(
     `${KEY_ENABLED_PER_USER_PREFIX}${userId}`,
@@ -145,7 +167,9 @@ async function mirrorLegacyEvcKeys(userId: string, s: SmsImportUserSettings): Pr
   await setEvcImportAccountForSim(userId, "sim2", s.evc.sim2AccountId);
 }
 
-export function settingsToNativeConfig(s: SmsImportUserSettings): NativeSmsImportConfig {
+export function settingsToNativeConfig(
+  s: SmsImportUserSettings,
+): NativeSmsImportConfig {
   if (!s.globalEnabled) {
     return { ...DEFAULT_NATIVE_SMS_IMPORT_CONFIG };
   }
@@ -154,12 +178,15 @@ export function settingsToNativeConfig(s: SmsImportUserSettings): NativeSmsImpor
     providerEvc: s.evc.enabled,
     providerSomnetJeeb: s.somnet_jeeb.enabled,
     providerSalaamBank: s.salaam_bank.enabled,
-    providerSomtel: s.somtel.enabled,
-    importTransactionNotificationsEnabled: s.importTransactionNotificationsEnabled,
+    providerSomtel: s.somtel_edahab.enabled,
+    importTransactionNotificationsEnabled:
+      s.importTransactionNotificationsEnabled,
   };
 }
 
-export async function syncNativeSmsImportConfig(s: SmsImportUserSettings): Promise<void> {
+export async function syncNativeSmsImportConfig(
+  s: SmsImportUserSettings,
+): Promise<void> {
   try {
     const { requireOptionalNativeModule } = await import("expo-modules-core");
     const mod = requireOptionalNativeModule<{
@@ -172,14 +199,17 @@ export async function syncNativeSmsImportConfig(s: SmsImportUserSettings): Promi
       providerSomnetJeeb: c.providerSomnetJeeb,
       providerSalaamBank: c.providerSalaamBank,
       providerSomtel: c.providerSomtel,
-      importTransactionNotificationsEnabled: c.importTransactionNotificationsEnabled,
+      importTransactionNotificationsEnabled:
+        c.importTransactionNotificationsEnabled,
     });
   } catch {
     // ignore
   }
 }
 
-export async function isSmsImportGloballyEnabled(userId: string): Promise<boolean> {
+export async function isSmsImportGloballyEnabled(
+  userId: string,
+): Promise<boolean> {
   const s = await getSmsImportSettings(userId);
   return s.globalEnabled;
 }
@@ -190,5 +220,5 @@ export async function isSmsProviderEnabled(
 ): Promise<boolean> {
   const s = await getSmsImportSettings(userId);
   if (!s.globalEnabled) return false;
-  return s[provider].enabled;
+  return s[smsProviderSettingsKey(provider)].enabled;
 }

@@ -18,6 +18,8 @@ const MERCH_192 =
   "[-EVCPlus-] $1.89 Ayaad uwareejisay HAYAT MARKET CASHIER 31(709540), Tel: +252610433145, Tar: 19/03/26 16:11:20, Haraagaagu waa $220.25.";
 const TOPUP_192 =
   "[-EVCPlus-] Waxaad $0.5 ugu shubtay 252612673277, Haraagaagu waa $142.";
+const BANK_KAAGA =
+  "[-EVCPlus-] Waxaad $50 ku shubtey bank account-kaaga: 385XXX54, Haraagaaga waa $105.65.";
 const SEND_SOMNET_DIRTAY =
   "[-EVCPLUS-] Tixraac: 2361595058, $0.01 ayaad u dirtay 252684387407 252684387407 252684387407(252684387407) via 252684387407 252684387407 252684387407,Tar: 03/05/26 06:43:57 haraagaagu waa $0.7.";
 const NOTICE =
@@ -41,6 +43,7 @@ describe("classifyEvcMessage", () => {
     expect(classifyEvcMessage("192", TOPUP_192)).toBe("topup");
     expect(classifyEvcMessage("NOTICE", NOTICE)).toBe("bundle_notice");
     expect(classifyEvcMessage("192", SEND_SOMNET_DIRTAY)).toBe("send_p2p");
+    expect(classifyEvcMessage("192", BANK_KAAGA)).toBe("send_p2p");
   });
 });
 

@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, ActivityIndicator } from "react-native";
-import { Redirect, router } from "expo-router";
-import { getItemAsync } from "expo-secure-store";
-import { supabase } from "~/lib";
+import { Redirect } from "expo-router";
+import { ensureAuthSessionForRouting } from "~/lib/auth";
 
 export default function Index() {
   const [checking, setChecking] = useState(true);
@@ -11,27 +10,8 @@ export default function Index() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        // Use cached session first (works offline; no network)
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setHasSession(true);
-          setChecking(false);
-          return;
-        }
-        const sessionStr = await getItemAsync("supabase_session");
-        if (sessionStr) {
-          const session = JSON.parse(sessionStr);
-          const { error } = await supabase.auth.setSession({
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-          });
-          if (!error) {
-            setHasSession(true);
-            setChecking(false);
-            return;
-          }
-        }
-        setHasSession(false);
+        const ok = await ensureAuthSessionForRouting();
+        setHasSession(ok);
       } catch {
         setHasSession(false);
       } finally {

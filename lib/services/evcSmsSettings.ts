@@ -13,7 +13,9 @@ function keyUserEnabled(userId: string): string {
  * First logged-in user after upgrade keeps the old global ON/OFF value;
  * the legacy key is removed so other accounts on the device do not inherit it.
  */
-export async function migrateLegacyEvcEnabledOnce(currentUserId: string): Promise<void> {
+export async function migrateLegacyEvcEnabledOnce(
+  currentUserId: string,
+): Promise<void> {
   try {
     const migrated = await AsyncStorage.getItem(KEY_ENABLED_LEGACY_MIGRATED);
     if (migrated === "true") return;
@@ -64,7 +66,9 @@ function providerHasAccountMapping(p: {
 }
 
 /** True when SMS auto-import is on (global + a provider) or any import account mapping exists. */
-export async function isEvcDiscoverySetupComplete(userId: string): Promise<boolean> {
+export async function isEvcDiscoverySetupComplete(
+  userId: string,
+): Promise<boolean> {
   try {
     const { getSmsImportSettings } = await import("./smsImportSettings");
     const s = await getSmsImportSettings(userId);
@@ -73,7 +77,7 @@ export async function isEvcDiscoverySetupComplete(userId: string): Promise<boole
       (s.evc.enabled ||
         s.somnet_jeeb.enabled ||
         s.salaam_bank.enabled ||
-        s.somtel.enabled)
+        s.somtel_edahab.enabled)
     ) {
       return true;
     }
@@ -81,7 +85,8 @@ export async function isEvcDiscoverySetupComplete(userId: string): Promise<boole
     if (
       providerHasAccountMapping(s.evc) ||
       providerHasAccountMapping(s.somnet_jeeb) ||
-      providerHasAccountMapping(s.salaam_bank)
+      providerHasAccountMapping(s.salaam_bank) ||
+      providerHasAccountMapping(s.somtel_edahab)
     ) {
       return true;
     }
@@ -106,6 +111,7 @@ export async function getEvcSmsUserEnabled(userId: string): Promise<boolean> {
         evc?: { enabled?: boolean };
         somnet_jeeb?: { enabled?: boolean };
         salaam_bank?: { enabled?: boolean };
+        somtel_edahab?: { enabled?: boolean };
         somtel?: { enabled?: boolean };
       };
       if (s && typeof s === "object") {
@@ -114,6 +120,7 @@ export async function getEvcSmsUserEnabled(userId: string): Promise<boolean> {
           s.evc?.enabled ||
           s.somnet_jeeb?.enabled ||
           s.salaam_bank?.enabled ||
+          s.somtel_edahab?.enabled ||
           s.somtel?.enabled
         );
       }
@@ -131,7 +138,9 @@ export async function setEvcSmsUserEnabled(
 ): Promise<void> {
   await migrateLegacyEvcEnabledOnce(userId);
   try {
-    const { getSmsImportSettings, saveSmsImportSettings } = await import("./smsImportSettings");
+    const { getSmsImportSettings, saveSmsImportSettings } = await import(
+      "./smsImportSettings"
+    );
     const cur = await getSmsImportSettings(userId);
     const next = enabled
       ? { ...cur, globalEnabled: true, evc: { ...cur.evc, enabled: true } }
@@ -141,7 +150,7 @@ export async function setEvcSmsUserEnabled(
           evc: { ...cur.evc, enabled: false },
           somnet_jeeb: { ...cur.somnet_jeeb, enabled: false },
           salaam_bank: { ...cur.salaam_bank, enabled: false },
-          somtel: { ...cur.somtel, enabled: false },
+          somtel_edahab: { ...cur.somtel_edahab, enabled: false },
         };
     await saveSmsImportSettings(userId, next);
     await AsyncStorage.setItem(
@@ -149,7 +158,10 @@ export async function setEvcSmsUserEnabled(
       next.globalEnabled && next.evc.enabled ? "true" : "false",
     );
   } catch {
-    await AsyncStorage.setItem(keyUserEnabled(userId), enabled ? "true" : "false");
+    await AsyncStorage.setItem(
+      keyUserEnabled(userId),
+      enabled ? "true" : "false",
+    );
   }
 }
 
@@ -187,7 +199,9 @@ export async function setEvcSimSlotScheme(
   await AsyncStorage.setItem(keySlotScheme(userId), scheme);
 }
 
-export async function getEvcImportAccountId(userId: string): Promise<string | null> {
+export async function getEvcImportAccountId(
+  userId: string,
+): Promise<string | null> {
   try {
     const v = await AsyncStorage.getItem(keyImportAccount(userId));
     return v && v.trim().length > 0 ? v : null;
@@ -208,7 +222,9 @@ export async function setEvcImportAccountId(
   await AsyncStorage.setItem(k, accountId);
 }
 
-export async function getEvcImportAccountBySim(userId: string): Promise<SimAccountMap> {
+export async function getEvcImportAccountBySim(
+  userId: string,
+): Promise<SimAccountMap> {
   try {
     const raw = await AsyncStorage.getItem(keySimMap(userId));
     if (!raw) return {};
@@ -236,12 +252,16 @@ export async function setEvcImportAccountForSim(
 }
 
 /** Push full SMS import config to native prefs (receiver + queue path). */
-export async function syncEvcSmsNativeEnabledFlag(_enabled: boolean): Promise<void> {
+export async function syncEvcSmsNativeEnabledFlag(
+  _enabled: boolean,
+): Promise<void> {
   try {
     const { getCurrentUserOfflineFirst } = await import("../auth");
     const user = await getCurrentUserOfflineFirst();
     if (!user) return;
-    const { getSmsImportSettings, syncNativeSmsImportConfig } = await import("./smsImportSettings");
+    const { getSmsImportSettings, syncNativeSmsImportConfig } = await import(
+      "./smsImportSettings"
+    );
     const s = await getSmsImportSettings(user.id);
     await syncNativeSmsImportConfig(s);
   } catch {

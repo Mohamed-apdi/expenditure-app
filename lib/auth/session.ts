@@ -13,12 +13,13 @@
  */
 
 import NetInfo from "@react-native-community/netinfo";
-import * as SecureStore from "expo-secure-store";
 import * as LocalAuthentication from "expo-local-authentication";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "../database/supabase";
-
-const SUPABASE_SESSION_KEY = "supabase_session";
+import {
+  persistAuthSession,
+  restoreAuthSessionFromSecureStore,
+} from "./sessionPersistence";
 
 export type OfflineGateState =
   | "locked" // session expired + offline, biometric/PIN not yet passed
@@ -39,35 +40,15 @@ export interface SessionStatus {
  * this is a minimal placeholder that assumes a JSON-serialized Session.
  */
 export async function restoreSessionFromSecureStore(): Promise<Session | null> {
-  try {
-    const raw = await SecureStore.getItemAsync(SUPABASE_SESSION_KEY);
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw) as Session;
-    // Best-effort: set on Supabase client if still valid.
-    // We purposely do not throw here; callers can treat null as "no session".
-    await supabase.auth.setSession({
-      access_token: parsed.access_token,
-      refresh_token: parsed.refresh_token ?? "",
-    });
-    return parsed;
-  } catch (e) {
-    console.warn("[session] Failed to restore session from SecureStore", e);
-    return null;
-  }
+  return restoreAuthSessionFromSecureStore();
 }
 
-/**
- * Persist the current Supabase session to SecureStore.
- * Intended to be called after login / token refresh.
- */
+/** @deprecated Use persistAuthSession from sessionPersistence */
 export async function persistSession(session: Session | null): Promise<void> {
-  if (!session) {
-    await SecureStore.deleteItemAsync(SUPABASE_SESSION_KEY);
-    return;
-  }
-  await SecureStore.setItemAsync(SUPABASE_SESSION_KEY, JSON.stringify(session));
+  await persistAuthSession(session);
 }
+
+export { clearPersistedAuthSession, persistAuthSession };
 
 /**
  * Determine whether the session is "expired enough" that we should gate offline

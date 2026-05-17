@@ -73,6 +73,13 @@ export function classifyEvcMessage(
     return "ignored";
   }
 
+  if (
+    /ku\s+shubte?y\s+bank\s+account/.test(b) ||
+    b.includes("bank account-kaaga")
+  ) {
+    return "send_p2p";
+  }
+
   if (containsAny(b, TOPUP)) return "topup";
   if (containsAny(b, INCOME)) return "receive";
 

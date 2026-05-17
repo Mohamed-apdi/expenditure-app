@@ -71,19 +71,23 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       _event: string,
       session: { user?: { id: string } } | null
     ) => {
-      const userId = session?.user?.id ?? null;
-
-      if (userId === null) {
-        clearUserScopedState(
-          setAccounts,
-          setSelectedAccountState,
-          setHasInitialized,
-          setLoading
-        );
-        currentUserIdRef.current = null;
-        clearSyncCursors();
+      // Only clear on explicit sign-out — transient null during token refresh
+      // must not wipe local account data while offline.
+      if (!session?.user) {
+        if (event === "SIGNED_OUT") {
+          clearUserScopedState(
+            setAccounts,
+            setSelectedAccountState,
+            setHasInitialized,
+            setLoading
+          );
+          currentUserIdRef.current = null;
+          clearSyncCursors();
+        }
         return;
       }
+
+      const userId = session.user.id;
 
       if (userId !== currentUserIdRef.current) {
         clearUserScopedState(

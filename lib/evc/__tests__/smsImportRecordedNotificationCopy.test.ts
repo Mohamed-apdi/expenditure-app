@@ -132,11 +132,11 @@ describe("buildSmsImportNotificationCopy", () => {
       parsed: baseParsed({ name: "Ali", balance: null }),
       accountName: "",
       accountCurrency: "USD",
-      resolvedCategoryLabel: "Travel",
+      resolvedCategoryLabel: "Transport",
       ledgerDescriptionTrimmed: "Ali",
     });
-    expect(body).toContain("$1.00 · Travel");
-    expect(body).not.toContain("Travel · Ali");
+    expect(body).toContain("$1.00 · Transport");
+    expect(body).not.toContain("Transport · Ali");
     expect(body).toContain("Added to EVC");
   });
 });

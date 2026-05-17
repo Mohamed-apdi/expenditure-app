@@ -1,9 +1,17 @@
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { X } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { ChevronRight, X } from "lucide-react-native";
 import React, { useCallback, useState, useEffect } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   Account,
@@ -42,6 +50,36 @@ const accountGroups: AccountGroup[] = [
   { id: "11", name: "Card" },
   { id: "12", name: "Others" },
 ];
+
+const accountCardLayout = StyleSheet.create({
+  card: {
+    borderRadius: 12,
+    padding: 16,
+    paddingRight: 40,
+    borderWidth: 1,
+  },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  nameBlock: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 12,
+  },
+  balanceBlock: {
+    alignItems: "flex-end",
+    flexShrink: 0,
+  },
+  chevronSlot: {
+    position: "absolute",
+    right: 12,
+    top: 0,
+    bottom: 0,
+    justifyContent: "center",
+  },
+});
 
 const Accounts = () => {
   const router = useRouter();
@@ -144,22 +182,85 @@ const Accounts = () => {
     });
   };
 
+  const getGroupLabel = (groupName: string) => {
+    switch (groupName) {
+      case "Cash":
+        return t.cash;
+      case "SIM Card":
+        return t.simCard;
+      case "Debit Card":
+        return t.debitCard;
+      case "Savings":
+        return t.savings;
+      case "Top-Up/Prepaid":
+        return t.topup;
+      case "Investments":
+        return t.investments;
+      case "Overdrafts":
+        return t.overdrafts;
+      case "Loan":
+        return t.loan;
+      case "Insurance":
+        return t.insurance;
+      case "Card":
+        return t.card;
+      case "Others":
+        return t.others;
+      default:
+        return groupName;
+    }
+  };
+
+  const pageBackground = theme.isDark ? theme.background : "#F1F5F9";
+  const accountCardBg = theme.isDark ? theme.cardBackground : "#FFFFFF";
+
+  const cardShadow = Platform.select({
+    ios: {
+      shadowColor: "#0F172A",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: theme.isDark ? 0.2 : 0.08,
+      shadowRadius: 10,
+    },
+    android: { elevation: 3 },
+    default: {},
+  });
+
+  const accountCardShadow = Platform.select({
+    ios: {
+      shadowColor: "#0F172A",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: theme.isDark ? 0.2 : 0.1,
+      shadowRadius: 8,
+    },
+    android: { elevation: 4 },
+    default: {},
+  });
+
+  const groupedAccounts = accountGroups.filter((group) =>
+    accounts.some((account) => account.account_type === group.name),
+  );
+
   return (
     <SafeAreaView
-      className="flex-1"
-      style={{ backgroundColor: theme.background }}
+      style={{ flex: 1, backgroundColor: pageBackground }}
       edges={["left", "right", "top"]}
     >
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: pageBackground }}>
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}
+        style={{ flex: 1, backgroundColor: pageBackground }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: tabBarHeight + 8,
+          flexGrow: groupedAccounts.length === 0 ? 1 : undefined,
+          backgroundColor: pageBackground,
+        }}
       >
         <View
           style={{
             paddingHorizontal: 16,
             paddingTop: 12,
             paddingBottom: 16,
+            backgroundColor: pageBackground,
           }}
         >
           {/* Header */}
@@ -178,8 +279,8 @@ const Accounts = () => {
                 }}
               >
                 {accounts.length}{" "}
-                {accounts.length === 1 ? "account" : "accounts"} • $
-                {total.toFixed(2)} total
+                {accounts.length === 1 ? "account" : "accounts"} •{" "}
+                {formatCurrency(total)} total
               </Text>
             </View>
           </View>
@@ -209,32 +310,77 @@ const Accounts = () => {
           {/* Total Balance Card */}
           <View
             style={{
-              backgroundColor: theme.primary,
-              padding: 20,
-              borderRadius: 16,
-              marginBottom: 24,
+              borderRadius: 18,
+              marginBottom: 28,
+              overflow: "hidden",
+              ...cardShadow,
             }}
           >
-            <Text
-              style={{
-                color: theme.primaryText,
-                fontSize: 14,
-                fontWeight: "500",
-                opacity: 0.9,
-                marginBottom: 8,
-              }}
+            <LinearGradient
+              colors={
+                theme.isDark
+                  ? [theme.primary, "#0284C7", "#0369A1"]
+                  : [theme.primary, "#38BDF8", "#0EA5E9"]
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ padding: 22, minHeight: 120 }}
             >
-              {t.total || "Total Balance"}
-            </Text>
-            <Text
-              style={{
-                color: theme.primaryText,
-                fontSize: 36,
-                fontWeight: "bold",
-              }}
-            >
-              ${total.toFixed(2)}
-            </Text>
+              <View
+                style={{
+                  position: "absolute",
+                  top: -24,
+                  right: -24,
+                  width: 100,
+                  height: 100,
+                  borderRadius: 50,
+                  backgroundColor: "rgba(255,255,255,0.12)",
+                }}
+              />
+              <View
+                style={{
+                  position: "absolute",
+                  bottom: -32,
+                  left: -16,
+                  width: 80,
+                  height: 80,
+                  borderRadius: 40,
+                  backgroundColor: "rgba(255,255,255,0.08)",
+                }}
+              />
+              <View
+                style={{
+                  alignSelf: "flex-start",
+                  backgroundColor: "rgba(255,255,255,0.2)",
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 20,
+                  marginBottom: 10,
+                }}
+              >
+                <Text
+                  style={{
+                    color: theme.primaryText,
+                    fontSize: 12,
+                    fontWeight: "600",
+                    letterSpacing: 0.6,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {t.total || "Total Balance"}
+                </Text>
+              </View>
+              <Text
+                style={{
+                  color: theme.primaryText,
+                  fontSize: 38,
+                  fontWeight: "800",
+                  letterSpacing: -0.5,
+                }}
+              >
+                {formatCurrency(total)}
+              </Text>
+            </LinearGradient>
           </View>
 
           {/* Accounts by Type */}
@@ -243,8 +389,11 @@ const Accounts = () => {
               style={{
                 paddingVertical: 48,
                 alignItems: "center",
-                backgroundColor: theme.cardBackground,
-                borderRadius: 16,
+                backgroundColor: accountCardBg,
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: theme.isDark ? theme.border : "rgba(226, 232, 240, 0.9)",
+                ...accountCardShadow,
               }}
             >
               <Text
@@ -263,47 +412,39 @@ const Accounts = () => {
               </Text>
             </View>
           ) : (
-            <View style={{ gap: 20 }}>
-              {accountGroups
-                .filter((group) =>
-                  accounts.some(
-                    (account) => account.account_type === group.name,
-                  ),
-                )
-                .map((group) => (
-                  <View key={group.id}>
-                    <Text
+            <View>
+              {groupedAccounts.map((group, groupIndex) => (
+                  <View
+                    key={group.id}
+                    style={{ marginTop: groupIndex === 0 ? 0 : 28 }}
+                  >
+                    <View
                       style={{
-                        color: theme.text,
-                        fontSize: 16,
-                        fontWeight: "bold",
-                        marginBottom: 12,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginBottom: 14,
                       }}
                     >
-                      {group.name === "Cash"
-                        ? t.cash
-                        : group.name === "SIM Card"
-                          ? t.simCard
-                          : group.name === "Debit Card"
-                            ? t.debitCard
-                            : group.name === "Savings"
-                              ? t.savings
-                              : group.name === "Top-Up/Prepaid"
-                                ? t.topup
-                                : group.name === "Investments"
-                                  ? t.investments
-                                  : group.name === "Overdrafts"
-                                    ? t.overdrafts
-                                    : group.name === "Loan"
-                                      ? t.loan
-                                      : group.name === "Insurance"
-                                        ? t.insurance
-                                        : group.name === "Card"
-                                          ? t.card
-                                          : group.name === "Others"
-                                            ? t.others
-                                            : group.name}
-                    </Text>
+                      <View
+                        style={{
+                          width: 4,
+                          height: 22,
+                          borderRadius: 2,
+                          backgroundColor: theme.primary,
+                          marginRight: 10,
+                        }}
+                      />
+                      <Text
+                        style={{
+                          color: theme.text,
+                          fontSize: 18,
+                          fontWeight: "700",
+                          letterSpacing: -0.2,
+                        }}
+                      >
+                        {getGroupLabel(group.name)}
+                      </Text>
+                    </View>
                     <View style={{ gap: 12 }}>
                       {accounts
                         .filter(
@@ -312,92 +453,113 @@ const Accounts = () => {
                         .map((account) => (
                           <TouchableOpacity
                             key={account.id}
-                            style={{
-                              padding: 16,
-                              backgroundColor: theme.cardBackground,
-                              borderRadius: 16,
-                            }}
+                            activeOpacity={0.85}
                             onPress={() => handleAccountPress(account.id)}
                           >
-                            <View className="flex-row justify-between items-start mb-2">
-                              <View className="flex-1">
-                                <Text
-                                  style={{
-                                    color: theme.text,
-                                    fontSize: 18,
-                                    fontWeight: "bold",
-                                  }}
-                                >
-                                  {account.name}
-                                </Text>
-                                <View
-                                  style={{
-                                    backgroundColor:
-                                      account.amount >= 0
-                                        ? "#dcfce7"
-                                        : "#fee2e2",
-                                    paddingHorizontal: 8,
-                                    paddingVertical: 4,
-                                    borderRadius: 12,
-                                    alignSelf: "flex-start",
-                                    marginTop: 6,
-                                  }}
-                                >
+                            <View
+                              style={[
+                                accountCardLayout.card,
+                                {
+                                  backgroundColor: accountCardBg,
+                                  borderColor: theme.isDark
+                                    ? theme.border
+                                    : "#E2E8F0",
+                                },
+                                accountCardShadow,
+                              ]}
+                            >
+                              <View style={accountCardLayout.topRow}>
+                                <View style={accountCardLayout.nameBlock}>
                                   <Text
                                     style={{
+                                      color: theme.text,
+                                      fontSize: 17,
+                                      fontWeight: "700",
+                                    }}
+                                    numberOfLines={1}
+                                  >
+                                    {account.name}
+                                  </Text>
+                                  <View
+                                    style={{
+                                      backgroundColor:
+                                        account.amount >= 0
+                                          ? "#dcfce7"
+                                          : "#fee2e2",
+                                      paddingHorizontal: 8,
+                                      paddingVertical: 4,
+                                      borderRadius: 12,
+                                      alignSelf: "flex-start",
+                                      marginTop: 6,
+                                    }}
+                                  >
+                                    <Text
+                                      style={{
+                                        color:
+                                          account.amount >= 0
+                                            ? "#16a34a"
+                                            : "#dc2626",
+                                        fontSize: 11,
+                                        fontWeight: "600",
+                                      }}
+                                    >
+                                      {getGroupLabel(group.name)}
+                                    </Text>
+                                  </View>
+                                </View>
+                                <View style={accountCardLayout.balanceBlock}>
+                                  <Text
+                                    style={{
+                                      fontSize: 20,
+                                      fontWeight: "700",
                                       color:
                                         account.amount >= 0
-                                          ? "#16a34a"
-                                          : "#dc2626",
-                                      fontSize: 11,
-                                      fontWeight: "600",
+                                          ? "#10b981"
+                                          : "#ef4444",
                                     }}
                                   >
-                                    {group.name}
+                                    {formatCurrency(account.amount ?? 0)}
                                   </Text>
+                                  {account.amount < 0 && (
+                                    <Text
+                                      style={{
+                                        color: "#ef4444",
+                                        fontSize: 11,
+                                        marginTop: 2,
+                                      }}
+                                    >
+                                      Overdraft
+                                    </Text>
+                                  )}
                                 </View>
                               </View>
-                              <View style={{ alignItems: "flex-end" }}>
-                                <Text
+                              {account.description ? (
+                                <View
                                   style={{
-                                    fontSize: 24,
-                                    fontWeight: "bold",
-                                    color:
-                                      account.amount >= 0
-                                        ? "#10b981"
-                                        : "#ef4444",
+                                    marginTop: 10,
+                                    paddingTop: 10,
+                                    borderTopWidth: 1,
+                                    borderTopColor: theme.border,
                                   }}
                                 >
-                                  {formatCurrency(account.amount ?? 0)}
-                                </Text>
-                                {account.amount < 0 && (
                                   <Text
                                     style={{
-                                      color: "#ef4444",
-                                      fontSize: 11,
-                                      marginTop: 2,
+                                      color: theme.textMuted,
+                                      fontSize: 12,
                                     }}
+                                    numberOfLines={2}
                                   >
-                                    Overdraft
+                                    {account.description}
                                   </Text>
-                                )}
+                                </View>
+                              ) : null}
+                              <View style={accountCardLayout.chevronSlot}>
+                                <ChevronRight
+                                  size={20}
+                                  color={theme.textMuted}
+                                />
                               </View>
                             </View>
-                            {account.description && (
-                              <View
-                                className="pt-3 border-t"
-                                style={{ borderColor: theme.border }}
-                              >
-                                <Text
-                                  style={{
-                                    color: theme.textMuted,
-                                    fontSize: 12,
-                                  }}
-                                >
-                                  {account.description}
-                                </Text>
-                              </View>
-                            )}
                           </TouchableOpacity>
                         ))}
                     </View>

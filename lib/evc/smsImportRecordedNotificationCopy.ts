@@ -3,7 +3,10 @@
  * Uses Intl locally so Jest does not pull the full reports/accounts graph.
  */
 
-import type { SmsCurrency, SmsParsedTransaction } from "~/lib/sms/providers/types";
+import type {
+  SmsCurrency,
+  SmsParsedTransaction,
+} from "~/lib/sms/providers/types";
 import type { SmsProvider } from "~/lib/sms/providers/types";
 
 function formatMoney(amount: number, currency: string): string {
@@ -29,8 +32,8 @@ export function shortProviderLabel(provider: SmsProvider): string {
       return "Somnet/JEEB";
     case "salaam_bank":
       return "Salaam Bank";
-    case "somtel":
-      return "Somtel";
+    case "somtel_edahab":
+      return "eDahab";
     default:
       return "Wallet";
   }
@@ -40,7 +43,10 @@ function isSmsCurrency(c: string | undefined): c is SmsCurrency {
   return c === "USD" || c === "SOS";
 }
 
-function amountCurrency(parsed: SmsParsedTransaction, accountCurrency: string): string {
+function amountCurrency(
+  parsed: SmsParsedTransaction,
+  accountCurrency: string,
+): string {
   if (parsed.currency && isSmsCurrency(parsed.currency)) return parsed.currency;
   if (accountCurrency?.trim()) return accountCurrency.trim();
   return "USD";
@@ -58,7 +64,10 @@ export function counterpartyDisplay(parsed: SmsParsedTransaction): string {
 }
 
 /** Label for balance / “Added to” tail: mapped account name, else provider short name. */
-export function smsImportTailLabel(accountName: string, provider: SmsProvider): string {
+export function smsImportTailLabel(
+  accountName: string,
+  provider: SmsProvider,
+): string {
   const trimmed = accountName?.trim();
   if (trimmed) return trimmed;
   return shortProviderLabel(provider);
@@ -129,7 +138,9 @@ export function buildSmsImportNotificationCopy(
 
   let middle: string;
   if (cat) {
-    middle = descPart ? `${amtStr} · ${cat} · ${descPart}` : `${amtStr} · ${cat}`;
+    middle = descPart
+      ? `${amtStr} · ${cat} · ${descPart}`
+      : `${amtStr} · ${cat}`;
   } else {
     middle = `${amtStr} ${preposition} ${who}`;
   }

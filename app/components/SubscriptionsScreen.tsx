@@ -151,7 +151,7 @@ export default function SubscriptionsScreen({
   const expenseCategories = [
     { key: 'Food & Drinks', label: t.foodAndDrinks },
     { key: 'Home & Rent', label: t.homeAndRent },
-    { key: 'Travel', label: t.travel },
+    { key: 'Transport', label: t.transport },
     { key: 'Bills', label: t.bills },
     { key: 'Fun', label: t.fun },
     { key: 'Health', label: t.health },

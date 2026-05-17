@@ -100,7 +100,9 @@ export default function ProfileScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [checkingNotifications, setCheckingNotifications] = useState(true);
   const permissionJustGrantedRef = useRef(false);
-  const [smsSettings, setSmsSettings] = useState<SmsImportUserSettings | null>(null);
+  const [smsSettings, setSmsSettings] = useState<SmsImportUserSettings | null>(
+    null,
+  );
   const [evcConsentModalVisible, setEvcConsentModalVisible] = useState(false);
 
   const theme = useTheme();
@@ -177,7 +179,7 @@ export default function ProfileScreen() {
   };
 
   const handleSmsProviderToggle = async (
-    provider: "evc" | "somnet_jeeb" | "salaam_bank" | "somtel",
+    provider: "evc" | "somnet_jeeb" | "salaam_bank" | "somtel_edahab",
     value: boolean,
   ) => {
     const user = await getCurrentUserOfflineFirst();
@@ -220,7 +222,11 @@ export default function ProfileScreen() {
     return notificationsEnabled
       ? t.smsImportTxNotifySubtitle
       : t.smsImportTxNotifySubtitleNeedsOsPermission;
-  }, [smsSettings?.importTransactionNotificationsEnabled, notificationsEnabled, t]);
+  }, [
+    smsSettings?.importTransactionNotificationsEnabled,
+    notificationsEnabled,
+    t,
+  ]);
 
   const smsImportAccountsRowSubtitle = useMemo(() => {
     if (!smsSettings) return t.smsImportAccountsRowSubtitleEmpty;
@@ -233,7 +239,10 @@ export default function ProfileScreen() {
       s.somnet_jeeb.defaultAccountId ||
       s.somnet_jeeb.sim1AccountId ||
       s.somnet_jeeb.sim2AccountId ||
-      s.salaam_bank.defaultAccountId;
+      s.salaam_bank.defaultAccountId ||
+      s.somtel_edahab.defaultAccountId ||
+      s.somtel_edahab.sim1AccountId ||
+      s.somtel_edahab.sim2AccountId;
     if (!touched) return t.smsImportAccountsRowSubtitleEmpty;
     return t.smsImportAccountsRowSubtitleConfigured;
   }, [smsSettings, t]);
@@ -260,7 +269,7 @@ export default function ProfileScreen() {
       cur.evc.enabled ||
       cur.somnet_jeeb.enabled ||
       cur.salaam_bank.enabled ||
-      cur.somtel.enabled;
+      cur.somtel_edahab.enabled;
     await saveSmsImportSettings(user.id, {
       ...cur,
       globalEnabled: true,
@@ -273,17 +282,19 @@ export default function ProfileScreen() {
   const handleNotificationToggle = async (value: boolean) => {
     if (value) {
       // First check current permission status
-      const { status: currentStatus } = await Notifications.getPermissionsAsync();
-      
+      const { status: currentStatus } =
+        await Notifications.getPermissionsAsync();
+
       if (currentStatus === "granted") {
         // Already granted
         setNotificationsEnabled(true);
         return;
       }
-      
+
       // Try to request permission - this will show system dialog if not permanently denied
-      const { status, canAskAgain } = await Notifications.requestPermissionsAsync();
-      
+      const { status, canAskAgain } =
+        await Notifications.requestPermissionsAsync();
+
       if (status === "granted") {
         setNotificationsEnabled(true);
         // Skip re-checking permission on next focus; OS can return stale value right after dialog dismisses
@@ -319,7 +330,12 @@ export default function ProfileScreen() {
         const localProfile = selectProfile(user.id);
 
         if (localProfile) {
-          console.log("[Settings] Local profile found, full_name:", localProfile.full_name, "status:", localProfile.__local_status);
+          console.log(
+            "[Settings] Local profile found, full_name:",
+            localProfile.full_name,
+            "status:",
+            localProfile.__local_status,
+          );
           // Use local profile data
           setUserProfile({
             fullName: localProfile.full_name || "",
@@ -386,7 +402,7 @@ export default function ProfileScreen() {
       if (!permissionJustGrantedRef.current) {
         checkNotificationPermission();
       }
-    }, [fetchUserProfile, checkNotificationPermission])
+    }, [fetchUserProfile, checkNotificationPermission]),
   );
 
   // Also fetch when params change (for backward compatibility)
@@ -431,7 +447,7 @@ export default function ProfileScreen() {
     if (passwordErrors.length > 0) {
       Alert.alert(
         t.passwordRequirementsNotMet,
-        `${t.yourPasswordMustContain}\n\n• ${passwordErrors.join("\n• ")}`
+        `${t.yourPasswordMustContain}\n\n• ${passwordErrors.join("\n• ")}`,
       );
       return;
     }
@@ -483,8 +499,10 @@ export default function ProfileScreen() {
         throw error;
       }
 
-      await deleteItemAsync("token");
-      await deleteItemAsync("refresh_token");
+      const { clearPersistedAuthSession } = await import(
+        "~/lib/auth/sessionPersistence"
+      );
+      await clearPersistedAuthSession();
 
       router.replace("../(auth)/login" as any);
 
@@ -541,18 +559,24 @@ export default function ProfileScreen() {
           {title}
         </Text>
         {subtitle && (
-          <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 2 }}>
+          <Text
+            style={{ color: theme.textSecondary, fontSize: 13, marginTop: 2 }}
+          >
             {subtitle}
           </Text>
         )}
       </View>
       {rightElement}
-      {showArrow && onPress && <ChevronRight size={20} color={theme.textMuted} />}
+      {showArrow && onPress && (
+        <ChevronRight size={20} color={theme.textMuted} />
+      )}
     </TouchableOpacity>
   );
 
   const Divider = () => (
-    <View style={{ height: 1, backgroundColor: theme.border, marginLeft: 74 }} />
+    <View
+      style={{ height: 1, backgroundColor: theme.border, marginLeft: 74 }}
+    />
   );
 
   return (
@@ -574,12 +598,31 @@ export default function ProfileScreen() {
               paddingBottom: 24,
             }}
           >
-            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
               <View>
-                <Text style={{ color: theme.text, fontSize: 28, fontWeight: "700", letterSpacing: -0.5 }}>
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontSize: 28,
+                    fontWeight: "700",
+                    letterSpacing: -0.5,
+                  }}
+                >
                   {t.settings}
                 </Text>
-                <Text style={{ color: theme.textSecondary, fontSize: 14, marginTop: 4 }}>
+                <Text
+                  style={{
+                    color: theme.textSecondary,
+                    fontSize: 14,
+                    marginTop: 4,
+                  }}
+                >
                   {t.manageYourAccount || "Manage your account"}
                 </Text>
               </View>
@@ -643,10 +686,23 @@ export default function ProfileScreen() {
                   </TouchableOpacity>
                 </View>
                 <View style={{ flex: 1, marginLeft: 16 }}>
-                  <Text style={{ color: theme.text, fontSize: 20, fontWeight: "700" }}>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontSize: 20,
+                      fontWeight: "700",
+                    }}
+                  >
                     {userProfile.fullName || t.noNameProvided}
                   </Text>
-                  <Text style={{ color: theme.textSecondary, fontSize: 14, marginTop: 2 }} numberOfLines={1}>
+                  <Text
+                    style={{
+                      color: theme.textSecondary,
+                      fontSize: 14,
+                      marginTop: 2,
+                    }}
+                    numberOfLines={1}
+                  >
                     {userProfile.email}
                   </Text>
                 </View>
@@ -675,7 +731,17 @@ export default function ProfileScreen() {
 
           {/* Sync Status Section */}
           <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
-            <Text style={{ color: theme.textSecondary, fontSize: 13, fontWeight: "600", marginBottom: 10, marginLeft: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            <Text
+              style={{
+                color: theme.textSecondary,
+                fontSize: 13,
+                fontWeight: "600",
+                marginBottom: 10,
+                marginLeft: 4,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
               {t.syncStatus || "Sync Status"}
             </Text>
             <View
@@ -705,23 +771,51 @@ export default function ProfileScreen() {
                     width: 44,
                     height: 44,
                     borderRadius: 12,
-                    backgroundColor: syncState.status === "up-to-date" ? "#10b98115" : syncState.status === "error" ? "#ef444415" : "#3b82f615",
+                    backgroundColor:
+                      syncState.status === "up-to-date"
+                        ? "#10b98115"
+                        : syncState.status === "error"
+                          ? "#ef444415"
+                          : "#3b82f615",
                     justifyContent: "center",
                     alignItems: "center",
                     marginRight: 14,
                   }}
                 >
-                  <Shield size={22} color={syncState.status === "up-to-date" ? "#10b981" : syncState.status === "error" ? "#ef4444" : "#3b82f6"} />
+                  <Shield
+                    size={22}
+                    color={
+                      syncState.status === "up-to-date"
+                        ? "#10b981"
+                        : syncState.status === "error"
+                          ? "#ef4444"
+                          : "#3b82f6"
+                    }
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <SyncStatusIndicator />
                   {syncState.pendingCount > 0 && (
-                    <Text style={{ color: theme.textSecondary, fontSize: 12, marginTop: 4 }}>
-                      {syncState.pendingCount} {t.pendingChanges || "pending changes"}
+                    <Text
+                      style={{
+                        color: theme.textSecondary,
+                        fontSize: 12,
+                        marginTop: 4,
+                      }}
+                    >
+                      {syncState.pendingCount}{" "}
+                      {t.pendingChanges || "pending changes"}
                     </Text>
                   )}
                   {syncState.status === "error" && (
-                    <Text style={{ color: theme.primary, fontSize: 12, marginTop: 4, fontWeight: "500" }}>
+                    <Text
+                      style={{
+                        color: theme.primary,
+                        fontSize: 12,
+                        marginTop: 4,
+                        fontWeight: "500",
+                      }}
+                    >
                       {t.tapToRetry || "Tap to retry"}
                     </Text>
                   )}
@@ -732,7 +826,17 @@ export default function ProfileScreen() {
 
           {/* Account Settings Section */}
           <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
-            <Text style={{ color: theme.textSecondary, fontSize: 13, fontWeight: "600", marginBottom: 10, marginLeft: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>
+            <Text
+              style={{
+                color: theme.textSecondary,
+                fontSize: 13,
+                fontWeight: "600",
+                marginBottom: 10,
+                marginLeft: 4,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+              }}
+            >
               {t.accountSettings || "Account Settings"}
             </Text>
             <View
@@ -756,7 +860,9 @@ export default function ProfileScreen() {
                 icon={<Key size={22} color="#f59e0b" />}
                 iconBg="#f59e0b15"
                 title={t.changePassword}
-                subtitle={t.updateAccountPassword || "Update your account password"}
+                subtitle={
+                  t.updateAccountPassword || "Update your account password"
+                }
                 onPress={() => setShowChangePassword(true)}
               />
               <Divider />
@@ -777,14 +883,23 @@ export default function ProfileScreen() {
                 icon={<Bell size={22} color="#3b82f6" />}
                 iconBg="#3b82f615"
                 title={t.notifications || "Notifications"}
-                subtitle={notificationsEnabled ? (t.notificationsOn || "Enabled") : (t.notificationsOff || "Disabled")}
+                subtitle={
+                  notificationsEnabled
+                    ? t.notificationsOn || "Enabled"
+                    : t.notificationsOff || "Disabled"
+                }
                 showArrow={false}
                 rightElement={
                   <Switch
                     value={notificationsEnabled}
                     onValueChange={handleNotificationToggle}
-                    trackColor={{ false: theme.border, true: theme.primary + "60" }}
-                    thumbColor={notificationsEnabled ? theme.primary : "#f4f3f4"}
+                    trackColor={{
+                      false: theme.border,
+                      true: theme.primary + "60",
+                    }}
+                    thumbColor={
+                      notificationsEnabled ? theme.primary : "#f4f3f4"
+                    }
                     ios_backgroundColor={theme.border}
                     disabled={checkingNotifications}
                   />
@@ -803,8 +918,13 @@ export default function ProfileScreen() {
                       <Switch
                         value={smsImportMasterEnabled}
                         onValueChange={handleSmsImportMasterToggle}
-                        trackColor={{ false: theme.border, true: theme.primary + "60" }}
-                        thumbColor={smsImportMasterEnabled ? theme.primary : "#f4f3f4"}
+                        trackColor={{
+                          false: theme.border,
+                          true: theme.primary + "60",
+                        }}
+                        thumbColor={
+                          smsImportMasterEnabled ? theme.primary : "#f4f3f4"
+                        }
                         ios_backgroundColor={theme.border}
                       />
                     }
@@ -821,9 +941,18 @@ export default function ProfileScreen() {
                         rightElement={
                           <Switch
                             value={smsSettings.evc.enabled}
-                            onValueChange={(v) => handleSmsProviderToggle("evc", v)}
-                            trackColor={{ false: theme.border, true: theme.primary + "60" }}
-                            thumbColor={smsSettings.evc.enabled ? theme.primary : "#f4f3f4"}
+                            onValueChange={(v) =>
+                              handleSmsProviderToggle("evc", v)
+                            }
+                            trackColor={{
+                              false: theme.border,
+                              true: theme.primary + "60",
+                            }}
+                            thumbColor={
+                              smsSettings.evc.enabled
+                                ? theme.primary
+                                : "#f4f3f4"
+                            }
                             ios_backgroundColor={theme.border}
                           />
                         }
@@ -831,17 +960,28 @@ export default function ProfileScreen() {
                       <Divider />
                       <SettingItem
                         icon={<MessageSquare size={22} color={theme.primary} />}
-                        iconBg={theme.isDark ? theme.primary + "24" : theme.primary + "1A"}
+                        iconBg={
+                          theme.isDark
+                            ? theme.primary + "24"
+                            : theme.primary + "1A"
+                        }
                         title={t.smsProviderSomnet}
                         subtitle={t.smsProviderSomnetSubtitle}
                         showArrow={false}
                         rightElement={
                           <Switch
                             value={smsSettings.somnet_jeeb.enabled}
-                            onValueChange={(v) => handleSmsProviderToggle("somnet_jeeb", v)}
-                            trackColor={{ false: theme.border, true: theme.primary + "60" }}
+                            onValueChange={(v) =>
+                              handleSmsProviderToggle("somnet_jeeb", v)
+                            }
+                            trackColor={{
+                              false: theme.border,
+                              true: theme.primary + "60",
+                            }}
                             thumbColor={
-                              smsSettings.somnet_jeeb.enabled ? theme.primary : "#f4f3f4"
+                              smsSettings.somnet_jeeb.enabled
+                                ? theme.primary
+                                : "#f4f3f4"
                             }
                             ios_backgroundColor={theme.border}
                           />
@@ -857,10 +997,17 @@ export default function ProfileScreen() {
                         rightElement={
                           <Switch
                             value={smsSettings.salaam_bank.enabled}
-                            onValueChange={(v) => handleSmsProviderToggle("salaam_bank", v)}
-                            trackColor={{ false: theme.border, true: theme.primary + "60" }}
+                            onValueChange={(v) =>
+                              handleSmsProviderToggle("salaam_bank", v)
+                            }
+                            trackColor={{
+                              false: theme.border,
+                              true: theme.primary + "60",
+                            }}
                             thumbColor={
-                              smsSettings.salaam_bank.enabled ? theme.primary : "#f4f3f4"
+                              smsSettings.salaam_bank.enabled
+                                ? theme.primary
+                                : "#f4f3f4"
                             }
                             ios_backgroundColor={theme.border}
                           />
@@ -875,10 +1022,19 @@ export default function ProfileScreen() {
                         showArrow={false}
                         rightElement={
                           <Switch
-                            value={smsSettings.somtel.enabled}
-                            onValueChange={(v) => handleSmsProviderToggle("somtel", v)}
-                            trackColor={{ false: theme.border, true: theme.primary + "60" }}
-                            thumbColor={smsSettings.somtel.enabled ? theme.primary : "#f4f3f4"}
+                            value={smsSettings.somtel_edahab.enabled}
+                            onValueChange={(v) =>
+                              handleSmsProviderToggle("somtel_edahab", v)
+                            }
+                            trackColor={{
+                              false: theme.border,
+                              true: theme.primary + "60",
+                            }}
+                            thumbColor={
+                              smsSettings.somtel_edahab.enabled
+                                ? theme.primary
+                                : "#f4f3f4"
+                            }
                             ios_backgroundColor={theme.border}
                           />
                         }
@@ -892,9 +1048,14 @@ export default function ProfileScreen() {
                         showArrow={false}
                         rightElement={
                           <Switch
-                            value={smsSettings.importTransactionNotificationsEnabled}
+                            value={
+                              smsSettings.importTransactionNotificationsEnabled
+                            }
                             onValueChange={handleSmsImportTxNotifyToggle}
-                            trackColor={{ false: theme.border, true: theme.primary + "60" }}
+                            trackColor={{
+                              false: theme.border,
+                              true: theme.primary + "60",
+                            }}
                             thumbColor={
                               smsSettings.importTransactionNotificationsEnabled
                                 ? theme.primary
@@ -922,7 +1083,11 @@ export default function ProfileScreen() {
                 iconBg="#10b98115"
                 title={t.help || "Help"}
                 subtitle="scriptsquad77@gmail.com"
-                onPress={() => Linking.openURL("mailto:scriptsquad77@gmail.com?subject=Qoondeeye App Support")}
+                onPress={() =>
+                  Linking.openURL(
+                    "mailto:scriptsquad77@gmail.com?subject=Qoondeeye App Support",
+                  )
+                }
               />
               <Divider />
               <SettingItem
@@ -931,7 +1096,9 @@ export default function ProfileScreen() {
                 title={t.privacyPolicy}
                 subtitle={t.settingsPrivacyPolicySubtitle}
                 onPress={() =>
-                  Linking.openURL("https://mahdi-mnx.github.io/qoondeeye-privacy/")
+                  Linking.openURL(
+                    "https://mahdi-mnx.github.io/qoondeeye-privacy/",
+                  )
                 }
               />
             </View>
@@ -955,7 +1122,14 @@ export default function ProfileScreen() {
               activeOpacity={0.7}
             >
               <LogOut size={20} color="#ef4444" strokeWidth={2} />
-              <Text style={{ color: "#ef4444", fontSize: 16, fontWeight: "600", marginLeft: 10 }}>
+              <Text
+                style={{
+                  color: "#ef4444",
+                  fontSize: 16,
+                  fontWeight: "600",
+                  marginLeft: 10,
+                }}
+              >
                 {t.signOut}
               </Text>
             </TouchableOpacity>
@@ -994,7 +1168,9 @@ export default function ProfileScreen() {
               padding: 24,
             }}
           >
-            <Text style={{ color: theme.text, fontSize: 20, fontWeight: "700" }}>
+            <Text
+              style={{ color: theme.text, fontSize: 20, fontWeight: "700" }}
+            >
               {t.evcSmsConsentTitle}
             </Text>
             <Text
@@ -1017,7 +1193,13 @@ export default function ProfileScreen() {
                 alignItems: "center",
               }}
             >
-              <Text style={{ color: theme.primaryText, fontWeight: "600", fontSize: 15 }}>
+              <Text
+                style={{
+                  color: theme.primaryText,
+                  fontWeight: "600",
+                  fontSize: 15,
+                }}
+              >
                 {t.evcSmsConsentContinue}
               </Text>
             </TouchableOpacity>
@@ -1032,7 +1214,15 @@ export default function ProfileScreen() {
         transparent={true}
         onRequestClose={() => setShowChangePassword(false)}
       >
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0, 0, 0, 0.5)", padding: 20 }}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            padding: 20,
+          }}
+        >
           <View
             style={{
               width: "100%",
@@ -1044,8 +1234,17 @@ export default function ProfileScreen() {
           >
             <ScrollView showsVerticalScrollIndicator={false}>
               {/* Header */}
-              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-                <Text style={{ color: theme.text, fontSize: 22, fontWeight: "700" }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 24,
+                }}
+              >
+                <Text
+                  style={{ color: theme.text, fontSize: 22, fontWeight: "700" }}
+                >
                   {t.changePassword}
                 </Text>
                 <TouchableOpacity
@@ -1065,7 +1264,14 @@ export default function ProfileScreen() {
 
               {/* Current Password */}
               <View style={{ marginBottom: 16 }}>
-                <Text style={{ color: theme.text, fontSize: 14, fontWeight: "600", marginBottom: 8 }}>
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontSize: 14,
+                    fontWeight: "600",
+                    marginBottom: 8,
+                  }}
+                >
                   {t.currentPassword}
                 </Text>
                 <View
@@ -1081,18 +1287,30 @@ export default function ProfileScreen() {
                 >
                   <Lock size={18} color={theme.textMuted} />
                   <TextInput
-                    style={{ flex: 1, paddingVertical: 14, paddingHorizontal: 10, color: theme.text, fontSize: 15 }}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 14,
+                      paddingHorizontal: 10,
+                      color: theme.text,
+                      fontSize: 15,
+                    }}
                     placeholder={t.enterCurrentPassword}
                     placeholderTextColor={theme.textMuted}
                     value={passwordData.currentPassword}
                     onChangeText={(value) =>
-                      setPasswordData((prev) => ({ ...prev, currentPassword: value }))
+                      setPasswordData((prev) => ({
+                        ...prev,
+                        currentPassword: value,
+                      }))
                     }
                     secureTextEntry={!showPassword.current}
                   />
                   <TouchableOpacity
                     onPress={() =>
-                      setShowPassword((prev) => ({ ...prev, current: !prev.current }))
+                      setShowPassword((prev) => ({
+                        ...prev,
+                        current: !prev.current,
+                      }))
                     }
                   >
                     {showPassword.current ? (
@@ -1106,7 +1324,14 @@ export default function ProfileScreen() {
 
               {/* New Password */}
               <View style={{ marginBottom: 16 }}>
-                <Text style={{ color: theme.text, fontSize: 14, fontWeight: "600", marginBottom: 8 }}>
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontSize: 14,
+                    fontWeight: "600",
+                    marginBottom: 8,
+                  }}
+                >
                   {t.newPassword}
                 </Text>
                 <View
@@ -1122,12 +1347,21 @@ export default function ProfileScreen() {
                 >
                   <Lock size={18} color={theme.textMuted} />
                   <TextInput
-                    style={{ flex: 1, paddingVertical: 14, paddingHorizontal: 10, color: theme.text, fontSize: 15 }}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 14,
+                      paddingHorizontal: 10,
+                      color: theme.text,
+                      fontSize: 15,
+                    }}
                     placeholder={t.enterNewPassword}
                     placeholderTextColor={theme.textMuted}
                     value={passwordData.newPassword}
                     onChangeText={(value) =>
-                      setPasswordData((prev) => ({ ...prev, newPassword: value }))
+                      setPasswordData((prev) => ({
+                        ...prev,
+                        newPassword: value,
+                      }))
                     }
                     secureTextEntry={!showPassword.new}
                   />
@@ -1147,7 +1381,14 @@ export default function ProfileScreen() {
 
               {/* Confirm Password */}
               <View style={{ marginBottom: 20 }}>
-                <Text style={{ color: theme.text, fontSize: 14, fontWeight: "600", marginBottom: 8 }}>
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontSize: 14,
+                    fontWeight: "600",
+                    marginBottom: 8,
+                  }}
+                >
                   {t.confirmNewPassword}
                 </Text>
                 <View
@@ -1163,18 +1404,30 @@ export default function ProfileScreen() {
                 >
                   <Lock size={18} color={theme.textMuted} />
                   <TextInput
-                    style={{ flex: 1, paddingVertical: 14, paddingHorizontal: 10, color: theme.text, fontSize: 15 }}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 14,
+                      paddingHorizontal: 10,
+                      color: theme.text,
+                      fontSize: 15,
+                    }}
                     placeholder={t.confirmNewPasswordPlaceholder}
                     placeholderTextColor={theme.textMuted}
                     value={passwordData.confirmPassword}
                     onChangeText={(value) =>
-                      setPasswordData((prev) => ({ ...prev, confirmPassword: value }))
+                      setPasswordData((prev) => ({
+                        ...prev,
+                        confirmPassword: value,
+                      }))
                     }
                     secureTextEntry={!showPassword.confirm}
                   />
                   <TouchableOpacity
                     onPress={() =>
-                      setShowPassword((prev) => ({ ...prev, confirm: !prev.confirm }))
+                      setShowPassword((prev) => ({
+                        ...prev,
+                        confirm: !prev.confirm,
+                      }))
                     }
                   >
                     {showPassword.confirm ? (
@@ -1195,61 +1448,111 @@ export default function ProfileScreen() {
                   marginBottom: 24,
                 }}
               >
-                <Text style={{ color: theme.text, fontSize: 13, fontWeight: "600", marginBottom: 12 }}>
+                <Text
+                  style={{
+                    color: theme.text,
+                    fontSize: 13,
+                    fontWeight: "600",
+                    marginBottom: 12,
+                  }}
+                >
                   {t.passwordRequirements}
                 </Text>
                 <View style={{ gap: 8 }}>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <View style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 10,
-                      backgroundColor: passwordData.newPassword.length >= 8 ? "#10b98120" : "#ef444420",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}>
+                    <View
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 10,
+                        backgroundColor:
+                          passwordData.newPassword.length >= 8
+                            ? "#10b98120"
+                            : "#ef444420",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
                       <Check
                         size={12}
-                        color={passwordData.newPassword.length >= 8 ? "#10b981" : "#ef4444"}
+                        color={
+                          passwordData.newPassword.length >= 8
+                            ? "#10b981"
+                            : "#ef4444"
+                        }
                       />
                     </View>
-                    <Text style={{ color: theme.textSecondary, fontSize: 13, marginLeft: 10 }}>
+                    <Text
+                      style={{
+                        color: theme.textSecondary,
+                        fontSize: 13,
+                        marginLeft: 10,
+                      }}
+                    >
                       {t.atLeast8Characters}
                     </Text>
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <View style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 10,
-                      backgroundColor: /[A-Z]/.test(passwordData.newPassword) ? "#10b98120" : "#ef444420",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}>
+                    <View
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 10,
+                        backgroundColor: /[A-Z]/.test(passwordData.newPassword)
+                          ? "#10b98120"
+                          : "#ef444420",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
                       <Check
                         size={12}
-                        color={/[A-Z]/.test(passwordData.newPassword) ? "#10b981" : "#ef4444"}
+                        color={
+                          /[A-Z]/.test(passwordData.newPassword)
+                            ? "#10b981"
+                            : "#ef4444"
+                        }
                       />
                     </View>
-                    <Text style={{ color: theme.textSecondary, fontSize: 13, marginLeft: 10 }}>
+                    <Text
+                      style={{
+                        color: theme.textSecondary,
+                        fontSize: 13,
+                        marginLeft: 10,
+                      }}
+                    >
                       {t.oneUppercaseLetter}
                     </Text>
                   </View>
                   <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <View style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 10,
-                      backgroundColor: /[0-9]/.test(passwordData.newPassword) ? "#10b98120" : "#ef444420",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}>
+                    <View
+                      style={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: 10,
+                        backgroundColor: /[0-9]/.test(passwordData.newPassword)
+                          ? "#10b98120"
+                          : "#ef444420",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
                       <Check
                         size={12}
-                        color={/[0-9]/.test(passwordData.newPassword) ? "#10b981" : "#ef4444"}
+                        color={
+                          /[0-9]/.test(passwordData.newPassword)
+                            ? "#10b981"
+                            : "#ef4444"
+                        }
                       />
                     </View>
-                    <Text style={{ color: theme.textSecondary, fontSize: 13, marginLeft: 10 }}>
+                    <Text
+                      style={{
+                        color: theme.textSecondary,
+                        fontSize: 13,
+                        marginLeft: 10,
+                      }}
+                    >
                       {t.oneNumber}
                     </Text>
                   </View>
@@ -1266,7 +1569,13 @@ export default function ProfileScreen() {
                 }}
                 onPress={handleChangePassword}
               >
-                <Text style={{ color: theme.primaryText, fontSize: 16, fontWeight: "600" }}>
+                <Text
+                  style={{
+                    color: theme.primaryText,
+                    fontSize: 16,
+                    fontWeight: "600",
+                  }}
+                >
                   {t.updatePassword}
                 </Text>
               </TouchableOpacity>
@@ -1282,7 +1591,15 @@ export default function ProfileScreen() {
         transparent={true}
         onRequestClose={() => setShowLanguageModal(false)}
       >
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0, 0, 0, 0.5)", padding: 20 }}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+            padding: 20,
+          }}
+        >
           <View
             style={{
               width: "100%",
@@ -1293,8 +1610,17 @@ export default function ProfileScreen() {
             }}
           >
             {/* Header */}
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-              <Text style={{ color: theme.text, fontSize: 22, fontWeight: "700" }}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 24,
+              }}
+            >
+              <Text
+                style={{ color: theme.text, fontSize: 22, fontWeight: "700" }}
+              >
                 {t.languages || "Language"}
               </Text>
               <TouchableOpacity
@@ -1321,7 +1647,8 @@ export default function ProfileScreen() {
                   borderRadius: 16,
                   borderWidth: 2,
                   borderColor: language === "en" ? theme.primary : theme.border,
-                  backgroundColor: language === "en" ? theme.primary + "10" : theme.background,
+                  backgroundColor:
+                    language === "en" ? theme.primary + "10" : theme.background,
                   flexDirection: "row",
                   alignItems: "center",
                 }}
@@ -1330,27 +1657,47 @@ export default function ProfileScreen() {
                   setShowLanguageModal(false);
                 }}
               >
-                <View style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  backgroundColor: "#f0f9ff",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginRight: 14,
-                }}>
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    backgroundColor: "#f0f9ff",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginRight: 14,
+                  }}
+                >
                   <Text style={{ fontSize: 22 }}>🇬🇧</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600" }}>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontSize: 16,
+                      fontWeight: "600",
+                    }}
+                  >
                     English
                   </Text>
-                  <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 2 }}>
+                  <Text
+                    style={{
+                      color: theme.textSecondary,
+                      fontSize: 13,
+                      marginTop: 2,
+                    }}
+                  >
                     English language
                   </Text>
                 </View>
                 {language === "en" && (
-                  <View style={{ backgroundColor: '#dcfce7', borderRadius: 12, padding: 6 }}>
+                  <View
+                    style={{
+                      backgroundColor: "#dcfce7",
+                      borderRadius: 12,
+                      padding: 6,
+                    }}
+                  >
                     <Check size={18} color="#16a34a" />
                   </View>
                 )}
@@ -1363,7 +1710,8 @@ export default function ProfileScreen() {
                   borderRadius: 16,
                   borderWidth: 2,
                   borderColor: language === "so" ? theme.primary : theme.border,
-                  backgroundColor: language === "so" ? theme.primary + "10" : theme.background,
+                  backgroundColor:
+                    language === "so" ? theme.primary + "10" : theme.background,
                   flexDirection: "row",
                   alignItems: "center",
                 }}
@@ -1372,27 +1720,47 @@ export default function ProfileScreen() {
                   setShowLanguageModal(false);
                 }}
               >
-                <View style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  backgroundColor: "#f0f9ff",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginRight: 14,
-                }}>
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 22,
+                    backgroundColor: "#f0f9ff",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginRight: 14,
+                  }}
+                >
                   <Text style={{ fontSize: 22 }}>🇸🇴</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.text, fontSize: 16, fontWeight: "600" }}>
+                  <Text
+                    style={{
+                      color: theme.text,
+                      fontSize: 16,
+                      fontWeight: "600",
+                    }}
+                  >
                     Soomaali
                   </Text>
-                  <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 2 }}>
+                  <Text
+                    style={{
+                      color: theme.textSecondary,
+                      fontSize: 13,
+                      marginTop: 2,
+                    }}
+                  >
                     Somali language
                   </Text>
                 </View>
                 {language === "so" && (
-                  <View style={{ backgroundColor: '#dcfce7', borderRadius: 12, padding: 6 }}>
+                  <View
+                    style={{
+                      backgroundColor: "#dcfce7",
+                      borderRadius: 12,
+                      padding: 6,
+                    }}
+                  >
                     <Check size={18} color="#16a34a" />
                   </View>
                 )}

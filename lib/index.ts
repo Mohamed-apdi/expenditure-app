@@ -45,7 +45,10 @@ export * from "./types/types";
 export { getSupabaseWithToken, supabase } from "./database/supabase";
 
 // Offline-first auth (use cached session when offline)
-export { getCurrentUserOfflineFirst } from "./auth";
+export {
+  getCurrentUserOfflineFirst,
+  ensureAuthSessionForRouting,
+} from "./auth";
 
 // Providers
 export * from "./providers/AccountContext";

@@ -7,7 +7,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { ChevronRight } from "lucide-react-native";
+import { ChevronRight, LayoutGrid } from "lucide-react-native";
 import { CategoryPickerSheet } from "~/components/CategoryPickerSheet";
 import { useLanguage } from "~/lib";
 import {
@@ -27,6 +27,10 @@ type Props = {
   compact?: boolean;
   /** When true, show collapsible optional note below quick categories (bottom sheet flow). */
   enableOptionalNote?: boolean;
+  /** Notifies parent when optional note section expands (e.g. enable sheet scroll). */
+  onNoteExpandedChange?: (expanded: boolean) => void;
+  /** Called when the optional note field receives focus (e.g. scroll sheet). */
+  onNoteInputFocus?: () => void;
 };
 
 function withAlpha(hex: string, alphaHex: string): string {
@@ -35,6 +39,20 @@ function withAlpha(hex: string, alphaHex: string): string {
   return hex;
 }
 
+/** Soft icon backgrounds for quick-pick categories (bottom sheet). */
+const QUICK_CATEGORY_COLORS: Record<
+  string,
+  { bg: string; icon: string }
+> = {
+  transport: { bg: "#DBEAFE", icon: "#2563EB" },
+  food: { bg: "#FFEDD5", icon: "#EA580C" },
+  family: { bg: "#EDE9FE", icon: "#7C3AED" },
+  utilities: { bg: "#FEF9C3", icon: "#CA8A04" },
+  others: { bg: "#F3F4F6", icon: "#6B7280" },
+};
+
+const DEFAULT_QUICK_COLORS = { bg: "#F3F4F6", icon: "#6B7280" };
+
 export function EvcCategoryChips({
   userId,
   transactionId,
@@ -42,6 +60,8 @@ export function EvcCategoryChips({
   onApplied,
   compact,
   enableOptionalNote = false,
+  onNoteExpandedChange,
+  onNoteInputFocus,
 }: Props) {
   const { t } = useLanguage();
   const theme = useTheme();
@@ -49,6 +69,7 @@ export function EvcCategoryChips({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pressedId, setPressedId] = useState<string | null>(null);
   const [fullPickerOpen, setFullPickerOpen] = useState(false);
+  const sheetMode = enableOptionalNote && !compact;
   const [noteExpanded, setNoteExpanded] = useState(false);
   const [draftNote, setDraftNote] = useState("");
 
@@ -56,13 +77,14 @@ export function EvcCategoryChips({
   const chips = useMemo(() => {
     return EVC_QUICK_CATEGORY_IDS.map((id) => {
       const cat = categories.find((c) => c.id === id);
-      return cat ? { id, label: cat.name, Icon: cat.icon } : null;
+      if (!cat) return null;
+      return { id, label: cat.name, Icon: cat.icon };
     }).filter(Boolean) as {
       id: string;
       label: string;
       Icon: Category["icon"];
     }[];
-  }, [categories]);
+  }, [categories, t]);
 
   const memoryCat =
     normalizedPhone && userId
@@ -79,14 +101,16 @@ export function EvcCategoryChips({
     return null;
   }, [memoryCat, chips, categories]);
 
-  const numCols = compact ? 2 : 3;
-  const gap = compact ? 8 : 10;
-  /** Scroll padding + card padding (transaction detail / list row). */
-  const horizontalGutter = 64;
-  const chipWidth = Math.max(
-    96,
-    (windowWidth - horizontalGutter - gap * (numCols - 1)) / numCols,
-  );
+  const numCols = compact ? 2 : sheetMode ? 2 : 3;
+  const gap = compact ? 8 : sheetMode ? 8 : 12;
+  /** Scroll padding + card padding (transaction detail / list row / sheet). */
+  const horizontalGutter = sheetMode ? 40 : 64;
+  const rawChipWidth =
+    (windowWidth - horizontalGutter - gap * (numCols - 1)) / numCols;
+  const chipWidth = sheetMode
+    ? Math.min(118, Math.max(88, rawChipWidth))
+    : Math.max(96, rawChipWidth);
+  const iconCircleSize = sheetMode ? 34 : 36;
 
   const userNoteForApply = enableOptionalNote
     ? draftNote.trim() || undefined
@@ -132,12 +156,115 @@ export function EvcCategoryChips({
     [userId, transactionId, onApplied, userNoteForApply],
   );
 
-  const titleSize = compact ? 14 : 17;
+  const titleSize = compact ? 14 : 19;
   const subtitleSize = compact ? 11 : 13;
-  const chipPadV = compact ? 10 : 12;
-  const chipPadH = compact ? 10 : 12;
-  const chipRadius = compact ? 12 : 14;
-  const chipIconSize = compact ? 17 : 19;
+  const chipPadV = compact ? 10 : sheetMode ? 8 : 14;
+  const chipPadH = compact ? 10 : sheetMode ? 6 : 8;
+  const chipRadius = compact ? 12 : sheetMode ? 12 : 14;
+  const chipIconSize = compact ? 17 : sheetMode ? 17 : 22;
+  const chipLabelSize = compact ? 12 : sheetMode ? 11 : 13;
+
+  const renderChip = (c: (typeof chips)[number]) => {
+    const ChipIcon = c.Icon;
+    const isBusy = busyId === c.id;
+    const isSelected = pressedId === c.id || isBusy;
+    const isSuggestedOnly = !!memoryCat && memoryCat === c.id && !isSelected;
+    const palette = QUICK_CATEGORY_COLORS[c.id] ?? DEFAULT_QUICK_COLORS;
+
+    const bg = isSelected
+      ? theme.primary
+      : isSuggestedOnly
+        ? withAlpha(theme.primary, "14")
+        : theme.cardBackground;
+
+    const border = isSelected
+      ? theme.primary
+      : isSuggestedOnly
+        ? withAlpha(theme.primary, "55")
+        : theme.border;
+
+    const iconBg = isSelected ? withAlpha("#FFFFFF", "33") : palette.bg;
+    const iconColor = isSelected ? theme.primaryText : palette.icon;
+
+    return (
+      <TouchableOpacity
+        key={c.id}
+        onPress={() => onPick(c.id)}
+        disabled={!!busyId}
+        activeOpacity={0.85}
+        style={{
+          width: chipWidth,
+          paddingVertical: chipPadV,
+          paddingHorizontal: chipPadH,
+          borderRadius: chipRadius,
+          backgroundColor: bg,
+          borderWidth: 1,
+          borderColor: border,
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: sheetMode ? 68 : compact ? 44 : 48,
+        }}
+      >
+        {isBusy ? (
+          <ActivityIndicator size="small" color={theme.primaryText} />
+        ) : sheetMode ? (
+          <>
+            <View
+              style={{
+                width: iconCircleSize,
+                height: iconCircleSize,
+                borderRadius: iconCircleSize / 2,
+                backgroundColor: iconBg,
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 4,
+              }}
+            >
+              <ChipIcon size={chipIconSize} color={iconColor} />
+            </View>
+            <Text
+              style={{
+                fontSize: chipLabelSize,
+                fontWeight: isSelected ? "700" : "600",
+                color: isSelected ? theme.primaryText : theme.text,
+                textAlign: "center",
+              }}
+              numberOfLines={2}
+            >
+              {c.label}
+            </Text>
+          </>
+        ) : (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              width: "100%",
+            }}
+          >
+            <ChipIcon
+              size={chipIconSize}
+              color={isSelected ? theme.primaryText : theme.text}
+            />
+            <Text
+              style={{
+                flex: 1,
+                fontSize: compact ? 12 : 13,
+                fontWeight: isSelected ? "700" : "500",
+                color: isSelected ? theme.primaryText : theme.text,
+                textAlign: "left",
+              }}
+              numberOfLines={2}
+            >
+              {c.label}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={{ marginTop: compact ? 2 : 0 }}>
@@ -213,91 +340,35 @@ export function EvcCategoryChips({
         </View>
       ) : null}
 
-      <View
-        style={{
-          flexDirection: "row",
-          flexWrap: "wrap",
-          gap,
-        }}
-      >
-        {chips.map((c) => {
-          const ChipIcon = c.Icon;
-          const isBusy = busyId === c.id;
-          const isSelected = pressedId === c.id || isBusy;
-          const isSuggestedOnly =
-            !!memoryCat && memoryCat === c.id && !isSelected;
-
-          const bg = isSelected
-            ? theme.primary
-            : isSuggestedOnly
-              ? withAlpha(theme.primary, "14")
-              : theme.cardBackground;
-
-          const border = isSelected
-            ? theme.primary
-            : isSuggestedOnly
-              ? withAlpha(theme.primary, "55")
-              : theme.border;
-
-          return (
-            <TouchableOpacity
-              key={c.id}
-              onPress={() => onPick(c.id)}
-              disabled={!!busyId}
-              activeOpacity={0.85}
-              style={{
-                width: chipWidth,
-                paddingVertical: chipPadV,
-                paddingHorizontal: chipPadH,
-                borderRadius: chipRadius,
-                backgroundColor: bg,
-                borderWidth: 1,
-                borderColor: border,
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: compact ? 44 : 48,
-              }}
-            >
-              {isBusy ? (
-                <ActivityIndicator size="small" color={theme.primaryText} />
-              ) : (
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 6,
-                    width: "100%",
-                  }}
-                >
-                  <ChipIcon
-                    size={chipIconSize}
-                    color={isSelected ? theme.primaryText : theme.text}
-                  />
-                  <Text
-                    style={{
-                      flex: 1,
-                      fontSize: compact ? 12 : 13,
-                      fontWeight: isSelected ? "700" : "500",
-                      color: isSelected ? theme.primaryText : theme.text,
-                      textAlign: "left",
-                    }}
-                    numberOfLines={2}
-                  >
-                    {c.label}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {sheetMode ? (
+        <View style={{ gap, alignItems: "center" }}>
+          <View style={{ flexDirection: "row", gap, justifyContent: "center" }}>
+            {chips.slice(0, 2).map(renderChip)}
+          </View>
+          <View style={{ flexDirection: "row", gap, justifyContent: "center" }}>
+            {chips.slice(2, 4).map(renderChip)}
+          </View>
+        </View>
+      ) : (
+        <View
+          style={{
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap,
+          }}
+        >
+          {chips.map(renderChip)}
+        </View>
+      )}
 
       {enableOptionalNote ? (
-        <View style={{ marginTop: compact ? 10 : 12 }}>
+        <View style={{ marginTop: sheetMode ? 20 : compact ? 10 : 12 }}>
           {!noteExpanded ? (
             <TouchableOpacity
-              onPress={() => setNoteExpanded(true)}
+              onPress={() => {
+                setNoteExpanded(true);
+                onNoteExpandedChange?.(true);
+              }}
               disabled={!!busyId}
               activeOpacity={0.7}
               hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
@@ -319,7 +390,7 @@ export function EvcCategoryChips({
                   fontSize: compact ? 12 : 13,
                   fontWeight: "600",
                   color: theme.textSecondary,
-                  marginBottom: 6,
+                  marginBottom: 8,
                 }}
               >
                 {t.evcNoteLabel}
@@ -327,16 +398,17 @@ export function EvcCategoryChips({
               <TextInput
                 value={draftNote}
                 onChangeText={setDraftNote}
+                onFocus={() => onNoteInputFocus?.()}
                 placeholder={t.evcNotePlaceholder}
                 placeholderTextColor={theme.textSecondary}
                 multiline
                 editable={!busyId}
                 scrollEnabled={false}
                 style={{
-                  minHeight: compact ? 40 : 44,
+                  minHeight: sheetMode ? 48 : compact ? 40 : 44,
                   maxHeight: 100,
-                  paddingHorizontal: 12,
-                  paddingVertical: 10,
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
                   borderRadius: chipRadius,
                   borderWidth: 1,
                   borderColor: theme.border,
@@ -351,35 +423,52 @@ export function EvcCategoryChips({
         </View>
       ) : null}
 
-      <TouchableOpacity
-        onPress={() => setFullPickerOpen(true)}
-        disabled={!!busyId}
-        activeOpacity={0.75}
+      <View
         style={{
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-          marginTop: compact ? 12 : 14,
-          paddingVertical: compact ? 10 : 12,
-          paddingHorizontal: 12,
-          borderRadius: chipRadius,
-          borderWidth: 1,
-          borderColor: theme.border,
-          backgroundColor: theme.cardBackground,
+          marginTop: sheetMode ? 20 : compact ? 12 : 14,
+          paddingTop: sheetMode ? 16 : 0,
+          borderTopWidth: sheetMode ? 1 : 0,
+          borderTopColor: theme.border,
         }}
       >
-        <Text
+        <TouchableOpacity
+          onPress={() => setFullPickerOpen(true)}
+          disabled={!!busyId}
+          activeOpacity={0.75}
           style={{
-            fontSize: compact ? 13 : 14,
-            fontWeight: "600",
-            color: theme.primary,
-            marginRight: 4,
+            flexDirection: "row",
+            alignItems: "center",
+            width: "100%",
+            paddingVertical: sheetMode ? 14 : compact ? 10 : 12,
+            paddingHorizontal: sheetMode ? 16 : 12,
+            borderRadius: chipRadius,
+            borderWidth: 1,
+            borderColor: theme.border,
+            backgroundColor: theme.cardBackground,
           }}
         >
-          {t.evcMoreCategories}
-        </Text>
-        <ChevronRight size={compact ? 18 : 20} color={theme.primary} />
-      </TouchableOpacity>
+          {sheetMode ? (
+            <LayoutGrid size={20} color={theme.primary} />
+          ) : null}
+          <Text
+            style={{
+              flex: sheetMode ? 1 : undefined,
+              fontSize: sheetMode ? 15 : compact ? 13 : 14,
+              fontWeight: "600",
+              color: sheetMode ? theme.text : theme.primary,
+              marginLeft: sheetMode ? 12 : 0,
+              marginRight: sheetMode ? 0 : 4,
+              textAlign: sheetMode ? "left" : "center",
+            }}
+          >
+            {t.evcMoreCategories}
+          </Text>
+          <ChevronRight
+            size={sheetMode ? 20 : compact ? 18 : 20}
+            color={theme.primary}
+          />
+        </TouchableOpacity>
+      </View>
 
       <CategoryPickerSheet
         visible={fullPickerOpen}
